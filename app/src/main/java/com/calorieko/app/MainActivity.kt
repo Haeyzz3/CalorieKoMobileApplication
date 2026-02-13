@@ -55,12 +55,31 @@ fun AppNavigation() {
             )
         }
 
-        // Screen 4: Goal Selection (New!)
+        // Screen 4: Goal Selection (Updated to navigate to Target Summary)
         composable("goalSelection") {
             GoalSelectionScreen(
                 onContinue = {
-                    // Next step will be "Target Summary"
-                    println("Goal Selected!")
+                    navController.navigate("targetSummary")
+                }
+            )
+        }
+
+        // --- UPDATED: Target Summary goes to Scale Pairing ---
+        composable("targetSummary") {
+            TargetSummaryScreen(
+                onContinue = {
+                    navController.navigate("scalePairing")
+                }
+            )
+        }
+
+        // --- NEW: Scale Pairing Screen ---
+        composable("scalePairing") {
+            ScalePairingScreen(
+                onComplete = {
+                    // This is the end of onboarding!
+                    // In a real app, you would navigate to "Dashboard"
+                    println("Onboarding Complete! Navigate to Dashboard.")
                 }
             )
         }
