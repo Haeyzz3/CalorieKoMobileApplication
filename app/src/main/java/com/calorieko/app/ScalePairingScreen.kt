@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.*
 import kotlinx.coroutines.delay
 
+// Define the 3 states of the screen
 enum class PairingStatus {
     SEARCHING, CONNECTING, CONNECTED
 }
@@ -56,6 +57,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
     }
 
     // --- 2. Animations ---
+    // Infinite transition for the pulsing circles
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
 
     // Pulse 1
@@ -74,7 +76,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
         ), label = "alpha1"
     )
 
-    // Pulse 2
+    // Pulse 2 (Delayed slightly by offset logic in a real app, simplified here)
     val pulseScale2 by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
@@ -127,6 +129,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
             // Center Icon Card
             val isConnected = status == PairingStatus.CONNECTED
 
+            // Gradient Logic: Blue/Purple if searching, Green if connected
             val gradientBrush = if (isConnected) {
                 Brush.linearGradient(listOf(CalorieKoGreen, CalorieKoLightGreen))
             } else {
@@ -153,7 +156,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                     ) { connected ->
                         if (connected) {
                             Icon(
-                                imageVector = Icons.Rounded.MonitorWeight,
+                                imageVector = Icons.Rounded.MonitorWeight, // Scale Icon
                                 contentDescription = "Connected",
                                 tint = Color.White,
                                 modifier = Modifier.size(64.dp)
@@ -170,20 +173,14 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                 }
             }
 
-            // Scale Illustration
-            // Fix: Wrapped in a Box to handle alignment separately from AnimatedVisibility
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = 40.dp)
+            // Scale Illustration (Shows up at bottom when not searching)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = status != PairingStatus.SEARCHING,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter).offset(y = 40.dp)
             ) {
-                AnimatedVisibility(
-                    visible = status != PairingStatus.SEARCHING,
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut()
-                ) {
-                    ScaleGraphic()
-                }
+                ScaleGraphic()
             }
         }
 
@@ -233,6 +230,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                 val active = index <= step
                 val current = index == step
 
+                // Animate dots size/color
                 val scale by animateFloatAsState(if (current) 1.2f else 1f, label = "dotScale")
                 val alpha by animateFloatAsState(if (active) 1f else 0.3f, label = "dotAlpha")
 
@@ -247,7 +245,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
             }
         }
 
-        // --- Tips Box ---
+        // --- Tips Box (Only when searching) ---
         Spacer(modifier = Modifier.height(48.dp))
         AnimatedVisibility(
             visible = status == PairingStatus.SEARCHING,
@@ -255,14 +253,14 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
             exit = fadeOut()
         ) {
             Surface(
-                color = Color(0xFFEFF6FF),
-                border = BorderStroke(1.dp, Color(0xFFDBEAFE)),
+                color = Color(0xFFEFF6FF), // Blue 50
+                border = BorderStroke(1.dp, Color(0xFFDBEAFE)), // Blue 100
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.padding(horizontal = 32.dp)
             ) {
                 Text(
                     text = "Make sure your smart scale is powered on and within range",
-                    color = Color(0xFF1E3A8A),
+                    color = Color(0xFF1E3A8A), // Blue 900
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(16.dp)
@@ -283,7 +281,6 @@ fun ScaleGraphic() {
                 Brush.verticalGradient(listOf(Color(0xFFF3F4F6), Color(0xFFE5E7EB))),
                 RoundedCornerShape(16.dp)
             )
-            // Fix: Using the newly imported border
             .border(2.dp, Color(0xFFD1D5DB), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center
     ) {
@@ -302,7 +299,7 @@ fun ScaleGraphic() {
         ) {
             Text(
                 text = "888.8",
-                color = Color(0xFF4ADE80),
+                color = Color(0xFF4ADE80), // Bright Green Digital Text
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
