@@ -29,7 +29,6 @@ fun AppNavigation() {
         composable("splash") {
             SplashScreen(
                 onComplete = {
-                    // When timer finishes, go to 'intro' and remove 'splash' from back history
                     navController.navigate("intro") {
                         popUpTo("splash") { inclusive = true }
                     }
@@ -41,8 +40,27 @@ fun AppNavigation() {
         composable("intro") {
             IntroScreen(
                 onContinue = {
-                    // For now, we just print to console, or we can add the next screen later
-                    println("Navigate to BioForm")
+                    navController.navigate("bioForm")
+                }
+            )
+        }
+
+        // Screen 3: Bio Form
+        composable("bioForm") {
+            BioFormScreen(
+                onContinue = {
+                    // Navigate to Goal Selection
+                    navController.navigate("goalSelection")
+                }
+            )
+        }
+
+        // Screen 4: Goal Selection (New!)
+        composable("goalSelection") {
+            GoalSelectionScreen(
+                onContinue = {
+                    // Next step will be "Target Summary"
+                    println("Goal Selected!")
                 }
             )
         }
