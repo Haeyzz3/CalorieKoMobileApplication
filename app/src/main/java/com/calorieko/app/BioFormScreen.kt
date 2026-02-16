@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.*
 
 @Composable
-fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
+fun BioFormScreen(onContinue: () -> Unit) {
     // Local State for the form
     var age by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") } // "Male" or "Female"
@@ -169,7 +169,7 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
 
         // --- 4. Continue Button ---
         Button(
-            onClick = { onContinue(age, height, weight, sex) }, // <--- PASS DATA HERE
+            onClick = onContinue,
             enabled = isFormValid,
             modifier = Modifier
                 .fillMaxWidth()

@@ -1,5 +1,6 @@
 package com.calorieko.app.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -31,10 +32,11 @@ private val LightColorScheme = lightColorScheme(
     onSurface = Black,
 )
 
-// --- RENAMED TO MATCH YOUR ACTIVITIES ---
 @Composable
-fun CalorieKoTheme(
+fun CalorieKoMobileApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    // Dynamic color is available on Android 12+ (Uses user's wallpaper colors)
+    // You can set this to false if you ALWAYS want your green branding.
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

@@ -7,13 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.calorieko.app.ui.theme.CalorieKoTheme
+import com.calorieko.app.ui.theme.CalorieKoMobileApplicationTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CalorieKoTheme { // Matches the fixed Theme name
+            CalorieKoMobileApplicationTheme {
                 AppNavigation()
             }
         }
@@ -25,61 +25,80 @@ fun AppNavigation() {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "splash") {
-
-        // 1. Splash
+        // Screen 1: Splash
         composable("splash") {
-            SplashScreen(onComplete = {
-                navController.navigate("intro") { popUpTo("splash") { inclusive = true } }
-            })
-        }
-
-        // 2. Intro (Matches Step 2)
-        composable("intro") {
-            IntroScreen(onNavigate = { action ->
-                if (action == "GET_STARTED" || action == "LOGIN") {
-                    navController.navigate("bioForm")
+            SplashScreen(
+                onComplete = {
+                    navController.navigate("intro") {
+                        popUpTo("splash") { inclusive = true }
+                    }
                 }
-            })
-        }
-
-        // 3. Bio Form (Matches Step 3)
-        composable("bioForm") {
-            BioFormScreen(onContinue = { age, height, weight, sex ->
-                // In a real app, save these values here
-                navController.navigate("goalSelection")
-            })
-        }
-
-        // 4. Goal Selection
-        composable("goalSelection") {
-            GoalSelectionScreen(onContinue = { goalId ->
-                navController.navigate("targetSummary")
-            })
-        }
-
-        // 5. Target Summary (Matches Step 4)
-        composable("targetSummary") {
-            TargetSummaryScreen(
-                targetCalories = 2000, // Placeholder data
-                targetSodium = 2300,
-                goalTitle = "Weight Control",
-                onContinue = { navController.navigate("scalePairing") }
             )
         }
 
-        // 6. Scale Pairing
+        // Screen 2: Intro
+        composable("intro") {
+            IntroScreen(
+                onContinue = {
+                    navController.navigate("bioForm")
+                }
+            )
+        }
+
+        // Screen 3: Bio Form
+        composable("bioForm") {
+            BioFormScreen(
+                onContinue = {
+                    // Navigate to Goal Selection
+                    navController.navigate("goalSelection")
+                }
+            )
+        }
+
+        // Screen 4: Goal Selection
+        composable("goalSelection") {
+            GoalSelectionScreen(
+                onContinue = {
+                    navController.navigate("targetSummary")
+                }
+            )
+        }
+
+        // Screen 5: Target Summary
+        composable("targetSummary") {
+            TargetSummaryScreen(
+                onContinue = {
+                    navController.navigate("scalePairing")
+                }
+            )
+        }
+
+        // Screen 6: Scale Pairing
         composable("scalePairing") {
-            ScalePairingScreen(onComplete = { navController.navigate("success") })
+            ScalePairingScreen(
+                onComplete = {
+                    navController.navigate("success")
+                }
+            )
         }
 
-        // 7. Success
+        // Screen 7: Success
         composable("success") {
-            SuccessScreen(onEnterDashboard = { navController.navigate("dashboard") })
+            SuccessScreen(
+                onEnterDashboard = {
+                    navController.navigate("dashboard")
+                }
+            )
         }
 
-        // 8. Dashboard
+        // Screen 8: Dashboard
         composable("dashboard") {
-            DashboardScreen(onNavigate = { })
+            DashboardScreen(
+                onNavigate = { destination ->
+                    // Handle inner navigation here later (logMeal, etc.)
+                    println("Navigating to: $destination")
+                }
+            )
         }
     }
 }

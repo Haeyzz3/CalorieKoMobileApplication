@@ -40,7 +40,7 @@ data class HealthGoal(
 )
 
 @Composable
-fun GoalSelectionScreen(onContinue: (String) -> Unit) {
+fun GoalSelectionScreen(onContinue: () -> Unit) {
     var selectedGoalId by remember { mutableStateOf<String?>(null) }
 
     // Define the 4 specific goals from your prototype
@@ -173,10 +173,7 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Button(
-                onClick = {
-                    // Pass the selected ID to the parent activity
-                    selectedGoalId?.let { id -> onContinue(id) }
-                },
+                onClick = onContinue,
                 enabled = selectedGoalId != null,
                 modifier = Modifier
                     .fillMaxWidth()
