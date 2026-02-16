@@ -146,5 +146,19 @@ fun AppNavigation() {
                 }
             )
         }
+
+        // --- NEW: Log Meal Screen ---
+        composable("logMeal") {
+            LogMealScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onMealLogged = { dishName, weight ->
+                    // In a real app, save the logged meal here
+                    // Note: LogMealScreen already calls onBack() after this callback,
+                    // so we do NOT call popBackStack() here to avoid a double pop.
+                }
+            )
+        }
     }
 }
