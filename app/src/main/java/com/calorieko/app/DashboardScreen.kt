@@ -221,18 +221,18 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
             shadowElevation = 4.dp,
             modifier = Modifier
                 .weight(1f)
-                .height(110.dp) // Tall button
+                .height(130.dp) // Tall button
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.size(24.dp))
                     Icon(Icons.Default.MonitorWeight, null, tint = Color.White, modifier = Modifier.size(24.dp))
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text("Log Meal", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 Text("AI + Scale", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
             }
@@ -246,15 +246,15 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
             shadowElevation = 4.dp,
             modifier = Modifier
                 .weight(1f)
-                .height(110.dp)
+                .height(130.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
                 Icon(Icons.Default.Bolt, null, tint = Color.White, modifier = Modifier.size(28.dp))
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text("Log Workout", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 Text("Track Activity", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
             }

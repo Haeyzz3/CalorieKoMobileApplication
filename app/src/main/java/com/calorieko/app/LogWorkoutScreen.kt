@@ -228,13 +228,13 @@ fun WorkoutSelectionCard(
                 Icon(icon, null, tint = CalorieKoOrange, modifier = Modifier.size(28.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                 Text(description, fontSize = 13.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(vertical = 4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     tags.forEach { tag ->
                         Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(50)) {
-                            Text(tag, fontSize = 11.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                            Text(tag, fontSize = 11.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), maxLines = 1)
                         }
                     }
                 }
@@ -306,11 +306,11 @@ fun ManualMETsContent(userWeight: Double) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                 Text(activity.name, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
                                 Text(activity.category, fontSize = 12.sp, color = Color.Gray)
                             }
-                            Text("${activity.met} MET", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CalorieKoOrange)
+                            Text("${activity.met} MET", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CalorieKoOrange, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -324,13 +324,13 @@ fun ManualMETsContent(userWeight: Double) {
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(selectedActivity!!.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                     Text(selectedActivity!!.category, fontSize = 13.sp, color = Color.Gray)
                                 }
                                 TextButton(onClick = { selectedActivity = null }) {
-                                    Text("Change", color = CalorieKoOrange)
+                                    Text("Change", color = CalorieKoOrange, maxLines = 1, softWrap = false)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -369,6 +369,24 @@ fun ManualMETsContent(userWeight: Double) {
                                 leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) }
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // MET Info Box
+                    Surface(
+                        color = Color(0xFFFFF7ED),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFFE0B2))
+                    ) {
+                        Text(
+                            text = "MET (Metabolic Equivalent): A measure of exercise intensity.\nCalculation: Calories = MET × weight (kg) × duration (hours)",
+                            fontSize = 11.sp,
+                            color = Color(0xFFE65100),
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(12.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -489,6 +507,7 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Row 1: Calories + Duration
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Calorie Card
                 Card(
@@ -505,6 +524,27 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                         Text("$caloriesBurned", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
+                // Duration Card
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Timer, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Duration", color = Color.Gray, fontSize = 12.sp)
+                        }
+                        Text(formatTime(timeSeconds), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Row 2: Distance + Avg Pace
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Distance Card
                 Card(
                     modifier = Modifier.weight(1f),
@@ -517,20 +557,76 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Distance", color = Color.Gray, fontSize = 12.sp)
                         }
-                        Text(String.format(Locale.US, "%.2f km", distanceKm), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text(String.format(Locale.US, "%.2f", distanceKm), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text("kilometers", color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
+                // Avg Pace Card
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.AutoMirrored.Filled.DirectionsBike, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Avg Pace", color = Color.Gray, fontSize = 12.sp)
+                        }
+                        val paceMinutes = pace.toInt()
+                        val paceSeconds = ((pace - paceMinutes) * 60).toInt()
+                        Text(String.format(Locale.US, "%d:%02d", paceMinutes, paceSeconds), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text("min/km", color = Color.Gray, fontSize = 12.sp)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
+            // Start New Workout button
+            Button(
+                onClick = {
+                    showSummary = false
+                    isTracking = false
+                    isPaused = false
+                    timeSeconds = 0L
+                    distanceKm = 0.0
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Start New Workout", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Save to Dashboard button
             Button(
                 onClick = onFinish,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
                 shape = RoundedCornerShape(12.dp)
             ) {
+                Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Save to Dashboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Auto-sync info note
+            Surface(
+                color = Color(0xFFF3F4F6),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "This workout has been automatically synced with your daily calorie balance. You've burned $caloriesBurned calories!",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
             }
         }
     } else {
@@ -554,7 +650,7 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(80.dp).alpha(0.2f))
-                Text("GPS Signal Active", color = Color.Gray, modifier = Modifier.padding(top = 100.dp))
+                Text("GPS Tracking Simulation", color = Color.Gray, modifier = Modifier.padding(top = 100.dp))
             }
 
             // Stats Overlay
@@ -564,37 +660,55 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                     .padding(24.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Stats Grid
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    GPSStatItem("Time", formatTime(timeSeconds), Icons.Default.Timer)
-                    GPSStatItem("Distance", String.format(Locale.US, "%.2f", distanceKm), Icons.Default.LocationOn, "km")
-                    GPSStatItem("Pace", String.format(Locale.US, "%.1f", pace),
-                        Icons.AutoMirrored.Filled.DirectionsBike, "m/km")
-                }
+                // Top section: Stats + Status indicator
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Top Stats Grid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        GPSStatItem("Time", formatTime(timeSeconds), Icons.Default.Timer, modifier = Modifier.weight(1f))
+                        GPSStatItem("Distance", String.format(Locale.US, "%.2f", distanceKm), Icons.Default.LocationOn, "km", modifier = Modifier.weight(1f))
+                        GPSStatItem("Pace", String.format(Locale.US, "%.1f", pace),
+                            Icons.AutoMirrored.Filled.DirectionsBike, "min/km", modifier = Modifier.weight(1f))
+                    }
 
-                // Center Status
-                if (isTracking && !isPaused) {
-                    Box(modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                        // Pulsing effect could go here
-                        Surface(
-                            color = CalorieKoOrange.copy(alpha = 0.2f),
-                            shape = CircleShape,
-                            border = BorderStroke(1.dp, CalorieKoOrange.copy(alpha = 0.5f))
-                        ) {
-                            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).background(CalorieKoOrange, CircleShape))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Tracking...", color = CalorieKoOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    // Status indicator below stats
+                    if (isTracking) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (!isPaused) {
+                            Surface(
+                                color = CalorieKoOrange.copy(alpha = 0.2f),
+                                shape = CircleShape,
+                                border = BorderStroke(1.dp, CalorieKoOrange.copy(alpha = 0.5f))
+                            ) {
+                                Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(8.dp).background(CalorieKoOrange, CircleShape))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Tracking...", color = CalorieKoOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                            }
+                        } else {
+                            Surface(
+                                color = Color(0xFFEF4444).copy(alpha = 0.2f),
+                                shape = CircleShape,
+                                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
+                            ) {
+                                Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(8.dp).background(Color(0xFFEF4444), CircleShape))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Paused", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
                             }
                         }
                     }
                 }
 
                 // Controls
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     if (isTracking) {
                         Button(
                             onClick = { isPaused = !isPaused },
@@ -615,9 +729,7 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                                 showSummary = true
                             }
                         },
-                        modifier = Modifier
-                            .size(100.dp)
-                            .padding(8.dp),
+                        modifier = Modifier.size(120.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isTracking) Color(0xFFEF4444) else CalorieKoOrange
@@ -633,7 +745,7 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
                     if (!isTracking) {
-                        Text("Tap Start to begin tracking", color = Color.Gray, fontSize = 14.sp)
+                        Text("Tap Start to begin tracking your outdoor workout", color = Color.Gray, fontSize = 14.sp)
                     }
                 }
             }
@@ -642,10 +754,9 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 }
 
 @Composable
-fun GPSStatItem(label: String, value: String, icon: ImageVector, unit: String = "") {
+fun GPSStatItem(label: String, value: String, icon: ImageVector, unit: String = "", modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
-            .width(100.dp)
+        modifier = modifier
             .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
             .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
             .padding(12.dp)
