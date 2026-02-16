@@ -78,7 +78,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
 
     Scaffold(
         bottomBar = {
-            BottomNavigation(activeTab = activeTab, onTabChange = { activeTab = it })
+            BottomNavigation(activeTab = activeTab, onTabChange = {
+                activeTab = it
+                if (it != "home") {
+                    onNavigate(it)
+                }
+            })
         }
     ) { paddingValues ->
 

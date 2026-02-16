@@ -79,7 +79,30 @@ fun AppNavigation() {
 
         // 8. Dashboard
         composable("dashboard") {
-            DashboardScreen(onNavigate = { })
+            DashboardScreen(
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "dashboard") {
+                        navController.navigate(route) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
+
+        // --- NEW: Progress Screen ---
+        composable("progress") {
+            ProgressScreen(
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "progress") {
+                        navController.navigate(route) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
         }
     }
 }
