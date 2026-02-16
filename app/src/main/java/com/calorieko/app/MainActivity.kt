@@ -132,5 +132,19 @@ fun AppNavigation() {
                 }
             )
         }
+
+        // --- NEW: Pantry Screen ---
+        composable("pantry") {
+            PantryScreen(
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "pantry") {
+                        navController.navigate(route) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
     }
 }
