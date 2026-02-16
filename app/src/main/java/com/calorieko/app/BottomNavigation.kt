@@ -1,14 +1,23 @@
 package com.calorieko.app
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +47,8 @@ fun BottomNavigation(
         ) {
             // Icons matching dashboard.tsx
             NavUserItem("home", "Home", Icons.Default.Home, activeTab, onTabChange)
-            NavUserItem("pantry", "Pantry", Icons.Default.MenuBook, activeTab, onTabChange)
+            NavUserItem("pantry", "Pantry",
+                Icons.AutoMirrored.Filled.MenuBook, activeTab, onTabChange)
             NavUserItem("progress", "Progress", Icons.AutoMirrored.Filled.TrendingUp, activeTab, onTabChange)
             NavUserItem("profile", "Profile", Icons.Default.Person, activeTab, onTabChange)
             NavUserItem("settings", "Settings", Icons.Default.Settings, activeTab, onTabChange)
