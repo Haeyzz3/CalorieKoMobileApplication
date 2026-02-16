@@ -104,5 +104,19 @@ fun AppNavigation() {
                 }
             )
         }
+
+        // --- NEW: Profile Screen ---
+        composable("profile") {
+            ProfileScreen(
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "profile") {
+                        navController.navigate(route) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
     }
 }
