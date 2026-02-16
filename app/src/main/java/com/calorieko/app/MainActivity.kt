@@ -79,79 +79,68 @@ fun AppNavigation() {
 
         // 8. Dashboard
         composable("dashboard") {
-            DashboardScreen(onNavigate = { route ->
-                navController.navigate(route)
-            })
-        }
-
-        // 9. Log Workout
-        composable("logWorkout") {
-            LogWorkoutScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        // 10. Log Meal
-        composable("logMeal") {
-            LogMealScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        // 11. Pantry
-        composable("pantry") {
-            PantryScreen(
-                onNavigate = { route ->
-                    if (route == "home") {
-                        navController.popBackStack()
-                    } else if (route != "pantry") {
+            DashboardScreen(
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "dashboard") {
                         navController.navigate(route) {
-                            popUpTo("dashboard") { inclusive = false }
+                            launchSingleTop = true
                         }
                     }
                 }
             )
         }
 
-        // 12. Progress
+        // --- NEW: Progress Screen ---
         composable("progress") {
             ProgressScreen(
-                onNavigate = { route ->
-                    if (route == "home") {
-                        navController.popBackStack()
-                    } else if (route != "progress") {
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "progress") {
                         navController.navigate(route) {
-                            popUpTo("dashboard") { inclusive = false }
+                            launchSingleTop = true
                         }
                     }
                 }
             )
         }
 
-        // 13. Profile
+        // --- NEW: Profile Screen ---
         composable("profile") {
             ProfileScreen(
-                onNavigate = { route ->
-                    if (route == "home") {
-                        navController.popBackStack()
-                    } else if (route != "profile") {
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "profile") {
                         navController.navigate(route) {
-                            popUpTo("dashboard") { inclusive = false }
+                            launchSingleTop = true
                         }
                     }
                 }
             )
         }
 
-        // 14. Settings
+        // --- NEW: Settings Screen ---
         composable("settings") {
             SettingsScreen(
-                onNavigate = { route ->
-                    if (route == "home") {
-                        navController.popBackStack()
-                    } else if (route != "settings") {
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "settings") {
                         navController.navigate(route) {
-                            popUpTo("dashboard") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
+
+        // --- NEW: Pantry Screen ---
+        composable("pantry") {
+            PantryScreen(
+                onNavigate = { dest ->
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "pantry") {
+                        navController.navigate(route) {
+                            launchSingleTop = true
                         }
                     }
                 }
