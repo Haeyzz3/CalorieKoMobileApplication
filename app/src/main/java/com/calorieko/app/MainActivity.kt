@@ -160,5 +160,14 @@ fun AppNavigation() {
                 }
             )
         }
+
+        // --- NEW: Log Workout Screen ---
+        composable("logWorkout") {
+            LogWorkoutScreen(
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
