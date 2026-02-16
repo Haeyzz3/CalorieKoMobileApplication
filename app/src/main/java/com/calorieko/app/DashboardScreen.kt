@@ -8,36 +8,42 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.LocalDining
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.*
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
-// Data Model for Activity Log
+// Data Model matching daily-activity-feed.tsx
 data class ActivityLogEntry(
     val id: String,
     val type: String, // "meal" or "workout"
     val time: String,
     val name: String,
+    val details: ActivityDetails
+)
+
+data class ActivityDetails(
+    val weight: String? = null,
     val calories: Int,
-    val sodium: Int = 0,
-    val detailText: String // "250g" or "30 min"
+    val sodium: Int? = null,
+    val duration: String? = null
 )
 
 @Composable
@@ -46,19 +52,29 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     var activeTab by remember { mutableStateOf("home") }
 
     // --- Mock Data ---
-    val userName = "User" // You can pass this in later
+    val userName = "User"
     val targetCalories = 2450
+    val targetSodium = 2300
+    val targetProtein = 120
+    val targetCarbs = 250
+    val targetFats = 65
 
     val activityLog = listOf(
-        ActivityLogEntry("1", "meal", "8:30 AM", "Chicken Adobo", 380, 890, "250g"),
-        ActivityLogEntry("2", "workout", "7:00 AM", "Morning Walk", 150, 0, "30 min"),
-        ActivityLogEntry("3", "meal", "12:45 PM", "Grilled Fish", 420, 450, "320g")
+        ActivityLogEntry("1", "meal", "8:30 AM", "Chicken Adobo", ActivityDetails("250g", 380, 890)),
+        ActivityLogEntry("2", "workout", "7:00 AM", "Morning Walk", ActivityDetails(duration = "30 min", calories = 150)),
+        ActivityLogEntry("3", "meal", "12:45 PM", "Grilled Fish", ActivityDetails("320g", 420, 450))
     )
 
     // Calculate Totals
-    val caloriesConsumed = activityLog.filter { it.type == "meal" }.sumOf { it.calories }
-    val caloriesBurned = activityLog.filter { it.type == "workout" }.sumOf { it.calories }
+    val caloriesConsumed = activityLog.filter { it.type == "meal" }.sumOf { it.details.calories }
+    val caloriesBurned = activityLog.filter { it.type == "workout" }.sumOf { it.details.calories }
     val currentCalories = caloriesConsumed - caloriesBurned
+    val currentSodium = activityLog.filter { it.type == "meal" }.sumOf { it.details.sodium ?: 0 }
+
+    // Mock Macros
+    val currentProtein = 65
+    val currentCarbs = 180
+    val currentFats = 45
 
     Scaffold(
         bottomBar = {
@@ -73,10 +89,10 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 .padding(paddingValues)
         ) {
 
-            // --- 1. Sticky Header ---
+            // --- 1. Header (Sticky-ish visuals) ---
             Surface(
                 color = Color.White,
-                shadowElevation = 2.dp,
+                shadowElevation = 1.dp, // shadow-sm
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -93,8 +109,8 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F2937)
                         )
-                        // Date Formatter
-                        val currentDate = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
+                        // Date Format: "Thursday, January 1"
+                        val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
                         Text(
                             text = currentDate,
                             fontSize = 14.sp,
@@ -102,10 +118,10 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                         )
                     }
 
-                    // Scale Connected Badge
+                    // Scale Connected Badge (bg-green-50)
                     Surface(
-                        color = Color(0xFFECFDF5), // Green 50
-                        shape = RoundedCornerShape(20.dp)
+                        color = Color(0xFFECFDF5),
+                        shape = RoundedCornerShape(50), // rounded-full
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -114,7 +130,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                             Icon(
                                 imageVector = Icons.Rounded.Bluetooth,
                                 contentDescription = null,
-                                tint = Color(0xFF059669), // Green 600
+                                tint = Color(0xFF059669), // text-green-600
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -122,7 +138,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                                 text = "Scale Connected",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF047857) // Green 700
+                                color = Color(0xFF047857) // text-green-700
                             )
                         }
                     }
@@ -133,176 +149,251 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
             Column(
                 modifier = Modifier
                     .verticalScroll(scrollState)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                    .padding(horizontal = 16.dp, vertical = 24.dp), // px-4 py-6
+                verticalArrangement = Arrangement.spacedBy(24.dp) // space-y-6
             ) {
 
-                // Placeholder for Progress Rings (We'll build this properly next!)
-                ProgressSummaryCard(current = currentCalories, target = targetCalories)
+                // Progress Rings
+                ProgressRings(
+                    caloriesCurrent = currentCalories,
+                    caloriesTarget = targetCalories,
+                    sodiumCurrent = currentSodium,
+                    sodiumTarget = targetSodium,
+                    proteinCurrent = currentProtein,
+                    proteinTarget = targetProtein,
+                    carbsCurrent = currentCarbs,
+                    carbsTarget = targetCarbs,
+                    fatsCurrent = currentFats,
+                    fatsTarget = targetFats
+                )
 
-                // Action Buttons
-                ActionButtons(
+                // Action Buttons (Revised Grid Layout)
+                ActionButtonsRevised(
                     onLogMeal = { onNavigate("logMeal") },
                     onLogWorkout = { onNavigate("logWorkout") }
                 )
 
-                // Daily Activity Feed
-                DailyActivityFeed(activityLog)
+                // Daily Activity Feed (Revised Card Layout)
+                DailyActivityFeedRevised(activityLog)
 
-                // Extra space at bottom for scrolling past FABs/BottomNav
+                // Bottom Spacer
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
 }
 
-// --- Sub-Components (Usually these would be in separate files) ---
+// --- REVISED COMPONENTS ---
 
 @Composable
-fun ActionButtons(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
+fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp) // gap-4
     ) {
-        // Log Meal Button
-        Button(
+        // Log Meal Button (Green)
+        Surface(
             onClick = onLogMeal,
-            modifier = Modifier.weight(1f).height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
-            shape = RoundedCornerShape(16.dp)
+            color = Color(0xFF4CAF50), // bg-[#4CAF50]
+            shape = RoundedCornerShape(16.dp), // rounded-2xl
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .weight(1f)
+                .height(110.dp) // Tall button
         ) {
-            Icon(Icons.Default.Restaurant, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Log Meal")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.MonitorWeight, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Log Meal", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                Text("AI + Scale", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            }
         }
 
-        // Log Workout Button
-        Button(
+        // Log Workout Button (Orange)
+        Surface(
             onClick = onLogWorkout,
-            modifier = Modifier.weight(1f).height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)), // Blue
-            shape = RoundedCornerShape(16.dp)
+            color = Color(0xFFFF9800), // bg-[#FF9800]
+            shape = RoundedCornerShape(16.dp),
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .weight(1f)
+                .height(110.dp)
         ) {
-            Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Workout")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Icon(Icons.Default.Bolt, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Log Workout", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                Text("Track Activity", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            }
         }
     }
 }
 
 @Composable
-fun DailyActivityFeed(activities: List<ActivityLogEntry>) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
+    // White Card Container
+    Card(
+        shape = RoundedCornerShape(16.dp), // rounded-2xl
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // shadow-sm
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) { // p-6
             Text(
                 text = "Today's Activity",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1F2937), // text-gray-800
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-            // Add Button (Small)
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFFF3F4F6),
-                modifier = Modifier.size(32.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Add, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+
+            if (activities.isEmpty()) {
+                // Empty State
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocalDining,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Text("No activities logged yet", color = Color.Gray, fontSize = 14.sp)
+                }
+            } else {
+                // List Items
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    activities.forEach { activity ->
+                        ActivityItemRevised(activity)
+                    }
                 }
             }
         }
-
-        activities.forEach { activity ->
-            ActivityCard(activity)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
     }
 }
 
 @Composable
-fun ActivityCard(activity: ActivityLogEntry) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFF3F4F6)),
-        shadowElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
+fun ActivityItemRevised(activity: ActivityLogEntry) {
+    val isMeal = activity.type == "meal"
+
+    // Gray Item Container (bg-gray-50)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp)) // rounded-xl
+            .background(Color(0xFFF9FAFB)) // gray-50
+            .padding(16.dp), // p-4
+        verticalAlignment = Alignment.Top
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Icon Circle
+        Surface(
+            shape = CircleShape,
+            color = if (isMeal) Color(0xFFDCFCE7) else Color(0xFFFFEDD5), // green-100 vs orange-100
+            modifier = Modifier.size(40.dp)
         ) {
-            // Icon Background
-            val bgGradient = if (activity.type == "meal") {
-                listOf(CalorieKoOrange, CalorieKoLightOrange)
-            } else {
-                listOf(Color(0xFF3B82F6), Color(0xFF60A5FA)) // Blue gradient
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(bgGradient)),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = if (activity.type == "meal") Icons.Default.Restaurant else Icons.AutoMirrored.Filled.DirectionsRun,
+                    imageVector = if (isMeal) Icons.Default.LocalDining else Icons.Default.LocalFireDepartment,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Content
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = activity.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color.Black
-                )
-                Text(
-                    text = "${activity.time} • ${activity.detailText}",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
-            }
-
-            // Calories
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = if(activity.type == "meal") "+${activity.calories}" else "-${activity.calories}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = if(activity.type == "meal") CalorieKoOrange else Color(0xFF3B82F6)
-                )
-                Text(
-                    text = "kcal",
-                    fontSize = 12.sp,
-                    color = Color.Gray
+                    tint = if (isMeal) Color(0xFF16A34A) else Color(0xFFEA580C), // green-600 vs orange-600
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
-    }
-}
 
-// Temporary Placeholder for the complex Progress Rings
-@Composable
-fun ProgressSummaryCard(current: Int, target: Int) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth().height(200.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text("Progress Rings Component\n(Coming Next)", color = Color.Gray, style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Content
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                // Title & Time
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = activity.name,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = Color(0xFF1F2937) // gray-800
+                    )
+                    Text(
+                        text = activity.time,
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B7280) // gray-500
+                    )
+                }
+
+                // Calories Badge
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)), // border-gray-200
+                    color = Color.White
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isMeal) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                            contentDescription = null,
+                            tint = if (isMeal) Color(0xFF16A34A) else Color(0xFFEA580C),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${activity.details.calories} cal",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151) // gray-700
+                        )
+                    }
+                }
+            }
+
+            // Details Footer
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isMeal && activity.details.weight != null) {
+                    Icon(Icons.Default.MonitorWeight, null, tint = Color.Gray, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = activity.details.weight,
+                        fontSize = 12.sp,
+                        color = Color(0xFF4B5563) // gray-600
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+
+                if (isMeal && activity.details.sodium != null) {
+                    Text(
+                        text = "Sodium: ${activity.details.sodium}mg",
+                        fontSize = 12.sp,
+                        color = Color(0xFF4B5563)
+                    )
+                }
+
+                if (!isMeal && activity.details.duration != null) {
+                    Text(
+                        text = "Duration: ${activity.details.duration}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF4B5563)
+                    )
+                }
+            }
         }
     }
 }

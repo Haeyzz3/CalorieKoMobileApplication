@@ -3,11 +3,11 @@ package com.calorieko.app
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,17 +25,18 @@ fun BottomNavigation(
     onTabChange: (String) -> Unit
 ) {
     Surface(
-        shadowElevation = 16.dp, // Adds the shadow at the top
+        shadowElevation = 16.dp,
         color = Color.White,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
-                .padding(vertical = 8.dp)
+                .padding(vertical = 12.dp) // Slightly more padding
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Icons matching dashboard.tsx
             NavUserItem("home", "Home", Icons.Default.Home, activeTab, onTabChange)
             NavUserItem("pantry", "Pantry", Icons.Default.MenuBook, activeTab, onTabChange)
             NavUserItem("progress", "Progress", Icons.AutoMirrored.Filled.TrendingUp, activeTab, onTabChange)
@@ -60,7 +61,7 @@ fun NavUserItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clickable { onClick(id) }
-            .padding(8.dp)
+            .padding(4.dp) // Touch target padding
     ) {
         Icon(
             imageVector = icon,
