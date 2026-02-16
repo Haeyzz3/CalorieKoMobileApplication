@@ -7,13 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.calorieko.app.ui.theme.CalorieKoMobileApplicationTheme
+import com.calorieko.app.ui.theme.CalorieKoTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CalorieKoMobileApplicationTheme {
+            CalorieKoTheme { // Matches the fixed Theme name
                 AppNavigation()
             }
         }
@@ -25,80 +25,61 @@ fun AppNavigation() {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "splash") {
-        // Screen 1: Splash
+
+        // 1. Splash
         composable("splash") {
-            SplashScreen(
-                onComplete = {
-                    navController.navigate("intro") {
-                        popUpTo("splash") { inclusive = true }
-                    }
-                }
-            )
+            SplashScreen(onComplete = {
+                navController.navigate("intro") { popUpTo("splash") { inclusive = true } }
+            })
         }
 
-        // Screen 2: Intro
+        // 2. Intro (Matches Step 2)
         composable("intro") {
-            IntroScreen(
-                onContinue = {
+            IntroScreen(onNavigate = { action ->
+                if (action == "GET_STARTED" || action == "LOGIN") {
                     navController.navigate("bioForm")
                 }
-            )
+            })
         }
 
-        // Screen 3: Bio Form
+        // 3. Bio Form (Matches Step 3)
         composable("bioForm") {
-            BioFormScreen(
-                onContinue = {
-                    // Navigate to Goal Selection
-                    navController.navigate("goalSelection")
-                }
-            )
+            BioFormScreen(onContinue = { age, height, weight, sex ->
+                // In a real app, save these values here
+                navController.navigate("goalSelection")
+            })
         }
 
-        // Screen 4: Goal Selection
+        // 4. Goal Selection
         composable("goalSelection") {
-            GoalSelectionScreen(
-                onContinue = {
-                    navController.navigate("targetSummary")
-                }
-            )
+            GoalSelectionScreen(onContinue = { goalId ->
+                navController.navigate("targetSummary")
+            })
         }
 
-        // Screen 5: Target Summary
+        // 5. Target Summary (Matches Step 4)
         composable("targetSummary") {
             TargetSummaryScreen(
-                onContinue = {
-                    navController.navigate("scalePairing")
-                }
+                targetCalories = 2000, // Placeholder data
+                targetSodium = 2300,
+                goalTitle = "Weight Control",
+                onContinue = { navController.navigate("scalePairing") }
             )
         }
 
-        // Screen 6: Scale Pairing
+        // 6. Scale Pairing
         composable("scalePairing") {
-            ScalePairingScreen(
-                onComplete = {
-                    navController.navigate("success")
-                }
-            )
+            ScalePairingScreen(onComplete = { navController.navigate("success") })
         }
 
-        // Screen 7: Success
+        // 7. Success
         composable("success") {
-            SuccessScreen(
-                onEnterDashboard = {
-                    navController.navigate("dashboard")
-                }
-            )
+            SuccessScreen(onEnterDashboard = { navController.navigate("dashboard") })
         }
 
-        // Screen 8: Dashboard
+        // 8. Dashboard
         composable("dashboard") {
-            DashboardScreen(
-                onNavigate = { destination ->
-                    // Handle inner navigation here later (logMeal, etc.)
-                    println("Navigating to: $destination")
-                }
-            )
+            DashboardScreen(onNavigate = { })
         }
     }
 }

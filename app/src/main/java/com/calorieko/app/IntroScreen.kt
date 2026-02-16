@@ -1,8 +1,13 @@
 package com.calorieko.app
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowRight
 import androidx.compose.material.icons.filled.MonitorWeight
@@ -12,66 +17,90 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.calorieko.app.ui.theme.*
-
-@Composable
-fun IntroScreen(onContinue: () -> Unit) {
+import com.calorieko.app.ui.theme.* @Composable
+fun IntroScreen(onNavigate: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            .verticalScroll(rememberScrollState())
     ) {
-        // --- Top Hero Section with Image ---
+        // --- Top Hero Section with Logo & Image ---
         Box(
             modifier = Modifier
-                .height(300.dp) // Adjusted height
+                .height(350.dp)
                 .fillMaxWidth()
         ) {
-            // Background Gradient
+            // 1. Background Gradient
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.linearGradient(
-                            colors = listOf(CalorieKoGreen, CalorieKoLightGreen)
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF4CAF50), // CalorieKoGreen
+                                Color(0xFF81C784)  // Lighter Green
+                            )
                         )
                     )
             )
 
-            // Image from URL (Using Coil)
+            // 2. Background Image
             AsyncImage(
                 model = "https://images.unsplash.com/photo-1645220559451-aaacbbd7bcc5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-                contentDescription = "Healthy Food",
+                contentDescription = "Healthy Background",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
-                alpha = 0.3f // Opacity 30%
+                alpha = 0.2f
             )
 
-            // Text Overlay
+            // 3. Logo & Text Overlay
             Column(
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // --- MODIFIED LOGO SECTION ---
+                // Removed the white background and padding to make it seamless
+                Image(
+                    painter = painterResource(id = R.drawable.calorieko_logo),
+                    contentDescription = "CalorieKo Logo",
+                    modifier = Modifier
+                        .size(120.dp) // Increased size slightly
+                        .clip(CircleShape) // Optional: Clips to circle if your image is square
+                    // Removed .background(Color.White)
+                    // Removed .padding(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
                     text = "Welcome to CalorieKo",
-                    fontSize = 32.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
                     text = "Automated nutrition tracking through\nAI and Smart Scale integration",
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.95f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    fontSize = 15.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
                 )
             }
         }
@@ -79,17 +108,16 @@ fun IntroScreen(onContinue: () -> Unit) {
         // --- Features List ---
         Column(
             modifier = Modifier
-                .weight(1f) // Takes up remaining space
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             FeatureItem(
-                icon = Icons.Default.Psychology, // Brain icon replacement
+                icon = Icons.Default.Psychology,
                 title = "AI-Powered Tracking",
                 description = "Smart food recognition and automatic logging"
             )
             FeatureItem(
-                icon = Icons.Default.MonitorWeight, // Scale icon replacement
+                icon = Icons.Default.MonitorWeight,
                 title = "Smart Scale Integration",
                 description = "Seamless IoT device connectivity"
             )
@@ -100,44 +128,72 @@ fun IntroScreen(onContinue: () -> Unit) {
             )
         }
 
-        // --- Get Started Button ---
-        Button(
-            onClick = onContinue,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent // Transparent to show gradient
-            ),
-            contentPadding = PaddingValues() // Remove default padding
+        Spacer(modifier = Modifier.weight(1f))
+
+        // --- Bottom Section (Buttons) ---
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Gradient Background for Button
-            Box(
+            // Get Started Button
+            Button(
+                onClick = { onNavigate("GET_STARTED") },
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(CalorieKoOrange, CalorieKoLightOrange)
-                        ),
-                        shape = RoundedCornerShape(12.dp) // Button curve
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Get Started",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowRight,
-                        contentDescription = null,
-                        tint = Color.White
-                    )
+                // Gradient Background
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFFFDB05E), // Orange
+                                    Color(0xFFFF9800)  // Deep Orange
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Get Started",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowRight,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Login Link
+            Row(
+                modifier = Modifier.clickable { onNavigate("LOGIN") },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Already have an account? ",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = "Log In",
+                    color = Color(0xFF4CAF50), // Green
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
         }
     }
@@ -149,14 +205,14 @@ fun FeatureItem(icon: ImageVector, title: String, description: String) {
     Row(verticalAlignment = Alignment.Top) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = CalorieKoGreen,
+            color = Color(0xFFE8F5E9),
             modifier = Modifier.size(48.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = Color(0xFF4CAF50),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -167,7 +223,7 @@ fun FeatureItem(icon: ImageVector, title: String, description: String) {
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.Black
+                color = Color(0xFF333333)
             )
             Text(
                 text = description,

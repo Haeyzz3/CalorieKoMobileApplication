@@ -28,15 +28,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.*
 
+// 1. Update signature to accept REAL data
 @Composable
-fun TargetSummaryScreen(onContinue: () -> Unit) {
-    // --- Mock Data ---
-    // In React this came from userData.targetCalories
-    val targetCalories = 2450
-    val targetSodium = 2300
-    val selectedGoalTitle = "Weight Control" // Mocking the goal title
-
-    // Animation states for the numbers
+fun TargetSummaryScreen(
+    targetCalories: Int,
+    targetSodium: Int,
+    goalTitle: String,
+    onContinue: () -> Unit
+) {
+    // Animation states using the PASSED values
     val animatedCalories by animateIntAsState(
         targetValue = targetCalories,
         animationSpec = tween(durationMillis = 1000, delayMillis = 500),
@@ -51,19 +51,13 @@ fun TargetSummaryScreen(onContinue: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA)) // Light gray background
+            .background(Color(0xFFF8F9FA))
     ) {
         // --- 1. Progress Bar (100%) ---
         Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0xFFF1F5F9))) {
             Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(1f) // 100% width
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(CalorieKoGreen, CalorieKoLightGreen)
-                        )
-                    )
+                modifier = Modifier.fillMaxHeight().fillMaxWidth(1f)
+                    .background(Brush.horizontalGradient(listOf(CalorieKoGreen, CalorieKoLightGreen)))
             )
         }
 
@@ -74,48 +68,25 @@ fun TargetSummaryScreen(onContinue: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
-            // --- Header ---
+            // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Check Icon Circle
                 Surface(
                     shape = CircleShape,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(CalorieKoGreen, CalorieKoLightGreen)
-                                )
-                            ),
+                        modifier = Modifier.fillMaxSize().background(
+                            Brush.linearGradient(listOf(CalorieKoGreen, CalorieKoLightGreen))
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.CheckCircle,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Rounded.CheckCircle, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
-
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Column {
-                    Text(
-                        text = "STEP 3 OF 3",
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "Your Daily Targets",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
+                    Text("STEP 3 OF 3", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("Your Daily Targets", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
             }
             Text(
@@ -125,7 +96,7 @@ fun TargetSummaryScreen(onContinue: () -> Unit) {
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
-            // --- Goal Badge ---
+            // Goal Badge (Uses REAL Goal Title)
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = Color.White,
@@ -133,63 +104,45 @@ fun TargetSummaryScreen(onContinue: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "YOUR GOAL",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray,
-                        letterSpacing = 0.5.sp
-                    )
+                    Text("YOUR GOAL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 0.5.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = selectedGoalTitle,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
-                    )
+                    Text(text = goalTitle, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                 }
             }
 
-            // --- Metric Cards ---
+            // Metric Cards
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Calories Card (Orange Gradient)
                 MetricGradientCard(
                     title = "Daily Calories",
                     subtitle = "Energy target",
-                    value = animatedCalories.toString(), // Uses animation
+                    value = animatedCalories.toString(),
                     unit = "kcal",
                     icon = Icons.Rounded.LocalFireDepartment,
                     gradientColors = listOf(CalorieKoOrange, CalorieKoLightOrange)
                 )
 
-                // Sodium Card (Green Gradient)
                 MetricGradientCard(
                     title = "Daily Sodium",
                     subtitle = "Salt intake limit",
-                    value = animatedSodium.toString(), // Uses animation
+                    value = animatedSodium.toString(),
                     unit = "mg",
                     icon = Icons.Rounded.WaterDrop,
                     gradientColors = listOf(CalorieKoGreen, CalorieKoLightGreen)
                 )
             }
 
-            // --- Pro Tip Box ---
+            // Pro Tip Box
             Spacer(modifier = Modifier.height(24.dp))
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFEFF6FF), // blue-50
-                border = BorderStroke(1.dp, Color(0xFFDBEAFE)), // blue-100
+                color = Color(0xFFEFF6FF),
+                border = BorderStroke(1.dp, Color(0xFFDBEAFE)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(modifier = Modifier.padding(16.dp)) {
+                    Text("💡 Pro Tip: ", fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A), fontSize = 14.sp)
                     Text(
-                        text = "💡 Pro Tip: ",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E3A8A), // blue-900
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "These targets are personalized based on your age, weight, height, and health goals. You can adjust them anytime in settings.",
+                        text = "These targets are personalized based on your age, weight, height, and health goals.",
                         color = Color(0xFF1E3A8A),
                         fontSize = 14.sp,
                         lineHeight = 20.sp
@@ -199,44 +152,24 @@ fun TargetSummaryScreen(onContinue: () -> Unit) {
         }
 
         // --- 3. Connect Button ---
-        Surface(
-            color = Color.White,
-            shadowElevation = 16.dp, // Adds a subtle shadow at the bottom
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Surface(color = Color.White, shadowElevation = 16.dp, modifier = Modifier.fillMaxWidth()) {
             Button(
                 onClick = onContinue,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 contentPadding = PaddingValues()
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(CalorieKoOrange, CalorieKoLightOrange)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ),
+                    modifier = Modifier.fillMaxSize().background(
+                        brush = Brush.horizontalGradient(listOf(CalorieKoOrange, CalorieKoLightOrange)),
+                        shape = RoundedCornerShape(12.dp)
+                    ),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Connect Smart Scale",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
+                        Text("Connect Smart Scale", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowRight,
-                            contentDescription = null,
-                            tint = Color.White
-                        )
+                        Icon(Icons.AutoMirrored.Rounded.ArrowRight, null, tint = Color.White)
                     }
                 }
             }
@@ -244,99 +177,33 @@ fun TargetSummaryScreen(onContinue: () -> Unit) {
     }
 }
 
-// --- Helper Component: Gradient Card ---
+// Helper Gradient Card (Unchanged)
 @Composable
-fun MetricGradientCard(
-    title: String,
-    subtitle: String,
-    value: String,
-    unit: String,
-    icon: ImageVector,
-    gradientColors: List<Color>
-) {
+fun MetricGradientCard(title: String, subtitle: String, value: String, unit: String, icon: ImageVector, gradientColors: List<Color>) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(gradientColors))
+        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(gradientColors))
     ) {
-        // Decorative Background Circles (The "white/10" in Tailwind)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = 20.dp, y = 20.dp)
-                .size(120.dp)
-                .alpha(0.1f)
-                .background(Color.White, CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = (-10).dp, y = (-10).dp)
-                .size(80.dp)
-                .alpha(0.1f)
-                .background(Color.White, CircleShape)
-        )
+        // Decorative circles
+        Box(modifier = Modifier.align(Alignment.BottomEnd).offset(20.dp, 20.dp).size(100.dp).alpha(0.1f).background(Color.White, CircleShape))
 
-        // Content
-        Column(
-            modifier = Modifier
-                .padding(24.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+        Row(
+            modifier = Modifier.padding(20.dp).fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header: Icon + Title
-            Row(verticalAlignment = Alignment.Top) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(48.dp).background(Color.White.copy(0.2f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(
-                        text = title,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = subtitle,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp
-                    )
+                    Text(title, color = Color.White.copy(0.9f), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Text(subtitle, color = Color.White.copy(0.7f), fontSize = 12.sp)
                 }
             }
-
-            // Footer: Big Number + Unit
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.padding(bottom = 4.dp)
-            ) {
-                Text(
-                    text = value,
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = (-1).sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = unit,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(value, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(unit, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(0.8f))
             }
         }
     }
