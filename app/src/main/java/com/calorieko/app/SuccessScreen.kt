@@ -174,7 +174,7 @@ fun SuccessScreen(onEnterDashboard: () -> Unit) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "All Set! 🎉",
+                        text = "All Set! ",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

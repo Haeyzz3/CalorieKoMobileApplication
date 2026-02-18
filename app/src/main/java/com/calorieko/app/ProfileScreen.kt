@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,7 +94,10 @@ data class Badge(
 )
 
 @Composable
-fun ProfileScreen(onNavigate: (String) -> Unit) {
+fun ProfileScreen(
+    onNavigate: (String) -> Unit,
+    onEditProfile: () -> Unit = {}
+) {
     var activeTab by remember { mutableStateOf("profile") }
     val scrollState = rememberScrollState()
 
@@ -126,7 +130,7 @@ fun ProfileScreen(onNavigate: (String) -> Unit) {
                 BaselineMetricsGrid(userData)
 
                 // 3. Health Goals Section
-                HealthGoalsSection(userData.goal)
+                HealthGoalsSection(userData.goal, onEditProfile = onEditProfile)
 
                 // 4. Milestones & Badges
                 MilestonesSection(userData.streak)
@@ -387,7 +391,7 @@ fun MetricCard(
 
 // --- 3. Health Goals Section ---
 @Composable
-fun HealthGoalsSection(goalCode: String) {
+fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
     val goalInfo = when (goalCode) {
         "hypertension" -> Triple("Hypertension Management", Icons.Default.Favorite, Color(0xFFEF4444))
         "weight_loss" -> Triple("Weight Control", Icons.Default.MonitorWeight, Color(0xFF2563EB))
@@ -456,7 +460,7 @@ fun HealthGoalsSection(goalCode: String) {
 
                 // Edit Button
                 OutlinedButton(
-                    onClick = { /* TODO */ },
+                    onClick = { onEditProfile() },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(2.dp, CalorieKoGreen),
@@ -474,6 +478,9 @@ fun HealthGoalsSection(goalCode: String) {
 // --- 4. Milestones Section ---
 @Composable
 fun MilestonesSection(currentStreak: Int) {
+    // State for badge detail dialog
+    var selectedBadge by remember { mutableStateOf<Badge?>(null) }
+
     // Mock Badges
     val badges = remember { listOf(
         Badge(1, "Sodium Defender", "3 Days Under Limit", Icons.Default.WaterDrop, Color(0xFFDBEAFE), Color(0xFF2563EB), true, 3, 3),
@@ -486,6 +493,14 @@ fun MilestonesSection(currentStreak: Int) {
 
     val earned = badges.filter { it.earned }
     val inProgress = badges.filter { !it.earned }
+
+    // Badge Detail Dialog
+    selectedBadge?.let { badge ->
+        BadgeDetailDialog(
+            badge = badge,
+            onDismiss = { selectedBadge = null }
+        )
+    }
 
     Column {
         Row(
@@ -508,7 +523,11 @@ fun MilestonesSection(currentStreak: Int) {
             Text("Earned Badges", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 earned.forEach { badge ->
-                    EarnedBadgeCard(badge, Modifier.weight(1f))
+                    EarnedBadgeCard(
+                        badge = badge,
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedBadge = badge }
+                    )
                 }
             }
         }
@@ -520,7 +539,10 @@ fun MilestonesSection(currentStreak: Int) {
             Text("In Progress", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 inProgress.forEach { badge ->
-                    InProgressBadgeCard(badge)
+                    InProgressBadgeCard(
+                        badge = badge,
+                        onClick = { selectedBadge = badge }
+                    )
                 }
             }
         }
@@ -539,7 +561,7 @@ fun MilestonesSection(currentStreak: Int) {
                 Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("Keep Going! 🎉", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Keep Going! ", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "You're making great progress! Complete more activities to unlock new badges and climb the leaderboard.",
@@ -554,11 +576,12 @@ fun MilestonesSection(currentStreak: Int) {
 }
 
 @Composable
-fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier) {
+fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        onClick = onClick,
         modifier = modifier
     ) {
         Column(
@@ -591,7 +614,7 @@ fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun InProgressBadgeCard(badge: Badge) {
+fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
     // Animate Progress Bar
     val animatedProgress = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
@@ -605,6 +628,7 @@ fun InProgressBadgeCard(badge: Badge) {
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -637,6 +661,216 @@ fun InProgressBadgeCard(badge: Badge) {
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("${badge.progress}/${badge.max} completed", fontSize = 11.sp, color = Color(0xFF4B5563))
+            }
+        }
+    }
+}
+
+// ═══════════════════════ BADGE DETAIL DIALOG ═══════════════════════
+@Composable
+fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
+    val progressFraction = badge.progress.toFloat() / badge.max.toFloat()
+    val progressPercent = (progressFraction * 100).toInt()
+
+    // Animated progress for the dialog
+    val animatedProgress = remember { Animatable(0f) }
+    LaunchedEffect(badge.id) {
+        animatedProgress.animateTo(
+            targetValue = progressFraction,
+            animationSpec = tween(durationMillis = 800, easing = LinearOutSlowInEasing)
+        )
+    }
+
+    // Detailed descriptions per badge
+    val detailDescription = when (badge.id) {
+        1 -> "Stay under your daily sodium limit to protect your heart health. Each day you stay under the recommended intake counts toward this badge."
+        2 -> "Log your meals using the smart scale to track accurate nutrition data. The more meals you log, the better your insights become."
+        3 -> "Maintain a daily streak by logging at least one meal every day. Consistency is the key to achieving your health goals!"
+        4 -> "Take photos of your meals for AI-powered food recognition. This helps build a visual diary of your nutrition journey."
+        5 -> "Log your workouts to see how exercise impacts your daily calorie balance. Every workout brings you closer to your fitness goals."
+        6 -> "The ultimate achievement! Maintain a 30-day streak to prove your dedication to a healthier lifestyle."
+        else -> "Complete the challenge to earn this badge."
+    }
+
+    // How to earn / next step tip
+    val tip = if (badge.earned) {
+        " Congratulations! You've earned this badge through your dedication and consistency."
+    } else {
+        when (badge.id) {
+            4 -> "📸 Tip: Use the camera button on the Log Meal screen to snap a photo of your next meal!"
+            5 -> "💪 Tip: Head to Log Workout and record your next exercise session."
+            6 -> "🔥 Tip: Keep your daily streak alive! Log at least one meal each day to build toward 30 days."
+            else -> "Keep going! You're ${badge.max - badge.progress} away from earning this badge."
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // ── Badge Icon (large) ──
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            if (badge.earned) badge.colorBg else badge.colorBg.copy(alpha = 0.5f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        badge.icon,
+                        contentDescription = null,
+                        tint = badge.colorIcon,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── Badge Name ──
+                Text(
+                    badge.name,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // ── Status chip ──
+                Surface(
+                    color = if (badge.earned) Color(0xFFDCFCE7) else Color(0xFFFEF3C7),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            if (badge.earned) Icons.Default.EmojiEvents else Icons.Default.TrackChanges,
+                            null,
+                            tint = if (badge.earned) Color(0xFF15803D) else Color(0xFFD97706),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            if (badge.earned) "Badge Earned!" else "In Progress",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (badge.earned) Color(0xFF15803D) else Color(0xFFD97706)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // ── Description ──
+                Surface(
+                    color = Color(0xFFF9FAFB),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        detailDescription,
+                        fontSize = 14.sp,
+                        color = Color(0xFF374151),
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── Progress Section ──
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Progress",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF4B5563)
+                        )
+                        Text(
+                            "${badge.progress}/${badge.max} ($progressPercent%)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = badge.colorIcon
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Animated progress bar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFFE5E7EB))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedProgress.value)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(badge.colorIcon, badge.colorIcon.copy(alpha = 0.7f))
+                                    ),
+                                    RoundedCornerShape(50)
+                                )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ── Tip / Encouragement ──
+                Surface(
+                    color = if (badge.earned) Color(0xFFECFDF5) else Color(0xFFFFFBEB),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        tip,
+                        fontSize = 13.sp,
+                        color = if (badge.earned) Color(0xFF065F46) else Color(0xFF92400E),
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // ── Close Button ──
+                Surface(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    color = CalorieKoGreen,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Got it!",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(14.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
         }
     }

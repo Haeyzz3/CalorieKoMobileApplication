@@ -144,6 +144,21 @@ fun AppNavigation() {
                             launchSingleTop = true
                         }
                     }
+                },
+                onEditProfile = {
+                    navController.navigate("editProfile")
+                }
+            )
+        }
+
+        // --- NEW: Edit Profile Screen ---
+        composable("editProfile") {
+            EditProfileScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onSave = {
+                    navController.popBackStack()
                 }
             )
         }
