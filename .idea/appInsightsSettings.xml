@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.calorieko.app" />
+                  <option name="mobileSdkAppId" value="1:945279693201:android:952c22a1c3f0797775ea30" />
+                  <option name="projectId" value="caloriekomobileappli-d43c583b" />
+                  <option name="projectNumber" value="945279693201" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

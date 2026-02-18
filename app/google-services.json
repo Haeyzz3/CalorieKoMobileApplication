@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "945279693201",
+    "project_id": "caloriekomobileappli-d43c583b",
+    "storage_bucket": "caloriekomobileappli-d43c583b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:945279693201:android:952c22a1c3f0797775ea30",
+        "android_client_info": {
+          "package_name": "com.calorieko.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "945279693201-4fjuf4lagts57j6sc1i9ust2vlu7gno8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.calorieko.app",
+            "certificate_hash": "8192083afed880b94a5a34465e886f4c32170ff2"
+          }
+        },
+        {
+          "client_id": "945279693201-4i2r0vmiuo743h58rdhm80uh75vpfk96.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCHAzAg5VBKJR1SK3aCG2n-rpFhhEBTRc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "945279693201-4i2r0vmiuo743h58rdhm80uh75vpfk96.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

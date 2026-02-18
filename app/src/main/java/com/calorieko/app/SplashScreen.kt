@@ -19,14 +19,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onComplete: () -> Unit) {
-    // 1. The Timer Logic (Replaces useEffect)
+fun SplashScreen(
+    onAlreadyLoggedIn: () -> Unit,
+    onNotLoggedIn: () -> Unit
+) {
+    // Check Firebase auth state after splash delay
     LaunchedEffect(Unit) {
         delay(2500) // 2.5 seconds delay
-        onComplete() // Navigate to next screen
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser != null) {
+            // User is already logged in → go straight to Dashboard
+            onAlreadyLoggedIn()
+        } else {
+            // No user → show Intro screen
+            onNotLoggedIn()
+        }
     }
 
     // 2. The UI Layout

@@ -26,20 +26,49 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = "splash") {
 
-        // 1. Splash
+        // 1. Splash — checks if user is already logged in
         composable("splash") {
-            SplashScreen(onComplete = {
-                navController.navigate("intro") { popUpTo("splash") { inclusive = true } }
+            SplashScreen(
+                onAlreadyLoggedIn = {
+                    // User is logged in → skip to Dashboard, clear back stack
+                    navController.navigate("dashboard") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onNotLoggedIn = {
+                    // No user → show Intro
+                    navController.navigate("intro") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // 2. Intro — both buttons go to Login
+        composable("intro") {
+            IntroScreen(onNavigate = { action ->
+                when (action) {
+                    "GET_STARTED" -> navController.navigate("login")
+                    "LOGIN" -> navController.navigate("login")
+                }
             })
         }
 
-        // 2. Intro (Matches Step 2)
-        composable("intro") {
-            IntroScreen(onNavigate = { action ->
-                if (action == "GET_STARTED" || action == "LOGIN") {
-                    navController.navigate("bioForm")
+        // 3. Login Screen (Firebase Auth)
+        composable("login") {
+            LoginScreen(
+                onLoginSuccess = {
+                    // Clear entire back stack so user can't go back to login
+                    navController.navigate("dashboard") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onNavigateToSignUp = {
+                    navController.navigate("bioForm") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 }
-            })
+            )
         }
 
         // 3. Bio Form (Matches Step 3)
