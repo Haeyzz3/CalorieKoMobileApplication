@@ -1,5 +1,6 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
+import com.calorieko.app.R
 import android.app.Activity
 import android.util.Log
 import android.widget.Toast

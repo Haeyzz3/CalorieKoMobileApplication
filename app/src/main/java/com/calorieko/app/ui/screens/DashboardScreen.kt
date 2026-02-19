@@ -1,5 +1,7 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
+import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.ProgressRings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

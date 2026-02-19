@@ -1,4 +1,4 @@
-package com.calorieko.app
+package com.calorieko.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween

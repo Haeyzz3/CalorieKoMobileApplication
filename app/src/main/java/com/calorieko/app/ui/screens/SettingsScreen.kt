@@ -1,5 +1,6 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
+import com.calorieko.app.ui.components.BottomNavigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

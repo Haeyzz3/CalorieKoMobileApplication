@@ -1,4 +1,4 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility

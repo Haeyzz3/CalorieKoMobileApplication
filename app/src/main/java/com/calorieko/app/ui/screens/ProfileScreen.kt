@@ -1,5 +1,6 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
+import com.calorieko.app.ui.components.BottomNavigation
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween

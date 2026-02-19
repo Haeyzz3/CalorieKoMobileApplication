@@ -1,5 +1,7 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
+import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.SimpleFlowRow
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke

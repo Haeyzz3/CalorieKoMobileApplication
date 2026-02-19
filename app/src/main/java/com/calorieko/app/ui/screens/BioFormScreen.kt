@@ -1,4 +1,4 @@
-package com.calorieko.app
+package com.calorieko.app.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke

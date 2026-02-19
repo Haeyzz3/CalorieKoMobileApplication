@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.calorieko.app.ui.components.*
+import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoTheme
 
 class MainActivity : ComponentActivity() {
