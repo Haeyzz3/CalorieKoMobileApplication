@@ -87,7 +87,8 @@ private val GoogleRed = Color(0xFFDB4437)
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onNavigateToSignUp: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit
 ) {
     val context = LocalContext.current
     val auth = remember { FirebaseAuth.getInstance() }
@@ -158,22 +159,6 @@ fun LoginScreen(
                 errorMessage = "Google Sign-In failed. Please try again."
             }
         }
-    }
-
-    // ─── Forgot Password ───
-    fun resetPassword() {
-        if (email.isBlank()) {
-            errorMessage = "Enter your email first, then tap Forgot Password"
-            return
-        }
-        auth.sendPasswordResetEmail(email.trim())
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    Toast.makeText(context, "Reset link sent to $email", Toast.LENGTH_LONG).show()
-                } else {
-                    errorMessage = task.exception?.message ?: "Could not send reset email"
-                }
-            }
     }
 
     // ═══════════════════════ UI ═══════════════════════
@@ -368,7 +353,7 @@ fun LoginScreen(
                         color = CalorieKoGreen,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable { resetPassword() }
+                        modifier = Modifier.clickable { onNavigateToForgotPassword() }
                     )
                 }
 

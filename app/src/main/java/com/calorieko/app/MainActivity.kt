@@ -69,6 +69,18 @@ fun AppNavigation() {
                     navController.navigate("bioForm") {
                         popUpTo("login") { inclusive = true }
                     }
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate("forgotPassword")
+                }
+            )
+        }
+
+        // 3b. Forgot Password
+        composable("forgotPassword") {
+            ForgotPasswordScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
