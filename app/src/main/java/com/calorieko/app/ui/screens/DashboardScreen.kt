@@ -83,8 +83,10 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
-    // 2. Extract the display name (with a fallback if null)
-    val userName = currentUser?.displayName ?: "User"
+
+    // 2. Splits the full name by space and takes the first word. Defaults to "User" if null.
+    val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
+
     val profileImageUrl = currentUser?.photoUrl
 
     val scrollState = rememberScrollState()
@@ -133,74 +135,67 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
         ) {
 
             // --- 1. Header (Sticky-ish visuals) ---
-            Surface(
-                color = Color.White,
-                shadowElevation = 1.dp, // shadow-sm
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 12.dp) // Reduced padding to slim down the header
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp, vertical = 20.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // NEW: Inner Row to hold both the Profile Picture and the Text
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                // Left Side: Profile Picture and Text
+                Row(verticalAlignment = Alignment.CenterVertically) {
 
-                        // 1. The Google Profile Picture
-                        AsyncImage(
-                            model = profileImageUrl,
-                            contentDescription = "Profile Picture",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
+                    // 1. Scaled-down profile picture matching a standard web navbar avatar
+                    AsyncImage(
+                        model = profileImageUrl,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier
+                            .size(36.dp) // Reduced from 48.dp
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp)) // Tighter spacing
+
+                    // 2. Greeting and Date
+                    Column {
+                        Text(
+                            text = "Hello, $firstName!",
+                            fontSize = 18.sp, // Scaled down from 24.sp to match web dashboard headers
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937)
                         )
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // 2. The Greeting and Date (Your existing code)
-                        Column {
-                            Text(
-                                text = "Hello, $userName!",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F2937)
-                            )
-                            // Date Format: "Thursday, January 1"
-                            val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
-                            Text(
-                                text = currentDate,
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                        }
+                        val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+                        Text(
+                            text = currentDate,
+                            fontSize = 12.sp, // Scaled down from 14.sp
+                            color = Color.Gray
+                        )
                     }
+                }
 
-                    // Scale Connected Badge (bg-green-50)
-                    Surface(
-                        color = Color(0xFFECFDF5),
-                        shape = RoundedCornerShape(50), // rounded-full
+                // Right Side: Scale Connected Badge (Slightly more compact)
+                Surface(
+                    color = Color(0xFFECFDF5),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Bluetooth,
-                                contentDescription = null,
-                                tint = Color(0xFF059669), // text-green-600
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Scale Connected",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF047857) // text-green-700
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Bluetooth,
+                            contentDescription = null,
+                            tint = Color(0xFF059669),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Scale Connected",
+                            fontSize = 10.sp, // Reduced to match new header scale
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF047857)
+                        )
                     }
                 }
             }
