@@ -120,6 +120,7 @@ fun LoginScreen(
     }
 
     // ─── Google Sign In ───
+    // ─── Google Sign In ───
     fun signInWithGoogle() {
         scope.launch {
             isLoading = true
@@ -147,9 +148,21 @@ fun LoginScreen(
                 val firebaseCredential = GoogleAuthProvider
                     .getCredential(googleIdTokenCredential.idToken, null)
 
-                auth.signInWithCredential(firebaseCredential).await()
+                // Capture the authentication result
+                val authResult = auth.signInWithCredential(firebaseCredential).await()
                 isLoading = false
-                onLoginSuccess()
+
+                // Determine if this is a first-time Google login
+                val isNewUser = authResult.additionalUserInfo?.isNewUser == true
+
+                if (isNewUser) {
+                    // Redirects to bioForm to set up profile
+                    onNavigateToSignUp()
+                } else {
+                    // Redirects straight to the dashboard
+                    onLoginSuccess()
+                }
+
             } catch (e: GetCredentialCancellationException) {
                 isLoading = false
                 // User cancelled — do nothing
