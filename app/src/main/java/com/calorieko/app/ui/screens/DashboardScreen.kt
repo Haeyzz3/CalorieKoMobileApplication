@@ -1,5 +1,17 @@
 package com.calorieko.app.ui.screens
 
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
+
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.ProgressRings
 import androidx.compose.foundation.BorderStroke
@@ -34,13 +46,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -67,11 +78,19 @@ data class ActivityDetails(
 
 @Composable
 fun DashboardScreen(onNavigate: (String) -> Unit) {
+
+    // 1. Get the current authenticated user
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+
+    // 2. Extract the display name (with a fallback if null)
+    val userName = currentUser?.displayName ?: "User"
+    val profileImageUrl = currentUser?.photoUrl
+
     val scrollState = rememberScrollState()
     var activeTab by remember { mutableStateOf("home") }
 
     // --- Mock Data ---
-    val userName = "User"
     val targetCalories = 2450
     val targetSodium = 2300
     val targetProtein = 120
@@ -126,20 +145,37 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Hello, $userName!",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
+                    // NEW: Inner Row to hold both the Profile Picture and the Text
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        // 1. The Google Profile Picture
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
-                        // Date Format: "Thursday, January 1"
-                        val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
-                        Text(
-                            text = currentDate,
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // 2. The Greeting and Date (Your existing code)
+                        Column {
+                            Text(
+                                text = "Hello, $userName!",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                            // Date Format: "Thursday, January 1"
+                            val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+                            Text(
+                                text = currentDate,
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
 
                     // Scale Connected Badge (bg-green-50)
