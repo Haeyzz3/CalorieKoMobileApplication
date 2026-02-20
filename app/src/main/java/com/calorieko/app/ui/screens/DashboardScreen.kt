@@ -16,6 +16,7 @@ import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.ProgressRings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -146,12 +147,14 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     // 1. Scaled-down profile picture matching a standard web navbar avatar
+                    // 1. Scaled-down profile picture matching a standard web navbar avatar
                     AsyncImage(
                         model = profileImageUrl,
                         contentDescription = "Profile Picture",
                         modifier = Modifier
-                            .size(36.dp) // Reduced from 48.dp
-                            .clip(CircleShape),
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable { onNavigate("profile") }, // Makes the image act as a button
                         contentScale = ContentScale.Crop
                     )
 

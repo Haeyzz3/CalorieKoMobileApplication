@@ -1,5 +1,8 @@
 package com.calorieko.app.ui.screens
 
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import com.google.firebase.auth.FirebaseAuth
 import com.calorieko.app.ui.components.BottomNavigation
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -101,9 +104,18 @@ fun ProfileScreen(
 ) {
     var activeTab by remember { mutableStateOf("profile") }
     val scrollState = rememberScrollState()
+    // --- Retrieve Firebase Auth Session ---
+
+
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+    val fullName = currentUser?.displayName ?: "User"
+    val profileImageUrl = currentUser?.photoUrl
 
     // Mock Data
-    val userData = UserData()
+    val userData = UserData(
+        name = fullName
+    )
 
     Scaffold(
         bottomBar = {
@@ -120,8 +132,8 @@ fun ProfileScreen(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
-            // 1. Header Section
-            ProfileHeader(userData)
+            // 1. Header Section (Pass the image URL here)
+            ProfileHeader(user = userData, profileImageUrl = profileImageUrl)
 
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -143,8 +155,9 @@ fun ProfileScreen(
 }
 
 // --- 1. Header with Animated Streak Ring ---
+// --- 1. Header with Animated Streak Ring ---
 @Composable
-fun ProfileHeader(user: UserData) {
+fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -192,12 +205,24 @@ fun ProfileHeader(user: UserData) {
                     modifier = Modifier.size(100.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(48.dp)
-                        )
+                        // Check if Google Image exists, otherwise show default icon
+                        if (profileImageUrl != null) {
+                            AsyncImage(
+                                model = profileImageUrl,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
                     }
                 }
 
