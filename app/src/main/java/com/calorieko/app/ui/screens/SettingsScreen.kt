@@ -1,5 +1,11 @@
 package com.calorieko.app.ui.screens
 
+
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
+import com.google.firebase.auth.FirebaseAuth
 import com.calorieko.app.ui.components.BottomNavigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -73,6 +79,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // --- State ---
     var scaleConnected by remember { mutableStateOf(true) }
@@ -107,6 +114,24 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
             delay(1500) // Simulate work
             isWiping = false
             snackbarHostState.showSnackbar("Local data has been wiped successfully.")
+        }
+    }
+    fun handleSignOut() {
+        scope.launch {
+            try {
+                // 1. Clear the Firebase Auth local session
+                FirebaseAuth.getInstance().signOut()
+
+                // 2. Clear the Google Credential Manager cache
+                val credentialManager = CredentialManager.create(context)
+                credentialManager.clearCredentialState(ClearCredentialStateRequest())
+
+                // 3. Trigger navigation back to the intro/login screen
+                onNavigate("logout")
+
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Error signing out: ${e.message}")
+            }
         }
     }
 
@@ -312,6 +337,20 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                     }
                 }
 
+                // --- Sign Out Button ---
+                Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+                    OutlinedButton(
+                        onClick = { handleSignOut() },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF374151)
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Log Out", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
                 // 3. Preferences Section
                 Spacer(modifier = Modifier.height(24.dp))
                 SettingsSectionHeader("Preferences")
@@ -396,6 +435,8 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
         )
     }
 }
+
+
 
 // --- Helper Components ---
 

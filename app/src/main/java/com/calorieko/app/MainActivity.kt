@@ -178,13 +178,22 @@ fun AppNavigation() {
         }
 
         // --- NEW: Settings Screen ---
+        // --- Settings Screen ---
         composable("settings") {
             SettingsScreen(
                 onNavigate = { dest ->
-                    val route = if (dest == "home") "dashboard" else dest
-                    if (route != "settings") {
-                        navController.navigate(route) {
-                            launchSingleTop = true
+                    when (dest) {
+                        "logout" -> {
+                            // Clear the entire back stack and go to intro
+                            navController.navigate("intro") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                        "home" -> navController.navigate("dashboard") { launchSingleTop = true }
+                        else -> {
+                            if (dest != "settings") {
+                                navController.navigate(dest) { launchSingleTop = true }
+                            }
                         }
                     }
                 }
