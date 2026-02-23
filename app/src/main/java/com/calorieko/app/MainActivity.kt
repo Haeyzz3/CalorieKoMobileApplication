@@ -10,6 +10,12 @@ import androidx.navigation.compose.rememberNavController
 import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoTheme
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.UserProfile
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,20 +31,30 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Initialize Database and Firebase Auth
+    val db = remember { AppDatabase.getDatabase(context) }
+    val userDao = db.userDao()
+    val auth = remember { FirebaseAuth.getInstance() }
+
+    // Temporary state to hold data between the BioForm and Goal screens
+    var setupAge by remember { mutableIntStateOf(25) }
+    var setupHeight by remember { mutableDoubleStateOf(170.0) }
+    var setupWeight by remember { mutableDoubleStateOf(70.0) }
 
     NavHost(navController = navController, startDestination = "splash") {
 
-        // 1. Splash — checks if user is already logged in
+        // 1. Splash
         composable("splash") {
             SplashScreen(
                 onAlreadyLoggedIn = {
-                    // User is logged in → skip to Dashboard, clear back stack
                     navController.navigate("dashboard") {
                         popUpTo("splash") { inclusive = true }
                     }
                 },
                 onNotLoggedIn = {
-                    // No user → show Intro
                     navController.navigate("intro") {
                         popUpTo("splash") { inclusive = true }
                     }
@@ -46,7 +62,7 @@ fun AppNavigation() {
             )
         }
 
-        // 2. Intro — both buttons go to Login
+        // 2. Intro
         composable("intro") {
             IntroScreen(onNavigate = { action ->
                 when (action) {
@@ -56,11 +72,10 @@ fun AppNavigation() {
             })
         }
 
-        // 3. Login Screen (Firebase Auth)
+        // 3. Login Screen
         composable("login") {
             LoginScreen(
                 onLoginSuccess = {
-                    // Clear entire back stack so user can't go back to login
                     navController.navigate("dashboard") {
                         popUpTo(0) { inclusive = true }
                     }
@@ -85,29 +100,47 @@ fun AppNavigation() {
             )
         }
 
-        // 3. Bio Form (Matches Step 3)
+        // 4. Bio Form (UPDATED to capture data)
         composable("bioForm") {
             BioFormScreen(onContinue = { age, height, weight, sex ->
-                // In a real app, save these values here
+                // Convert Strings to numbers safely.
+                // If the user enters invalid characters, it falls back to the default values.
+                setupAge = age.toIntOrNull() ?: 25
+                setupHeight = height.toDoubleOrNull() ?: 170.0
+                setupWeight = weight.toDoubleOrNull() ?: 70.0
+
                 navController.navigate("goalSelection")
             })
         }
 
-        // 4. Goal Selection
+        // 5. Goal Selection & Database Insertion (UPDATED to save to SQLite)
         composable("goalSelection") {
             GoalSelectionScreen(onContinue = { goalId ->
-                navController.navigate("targetSummary")
-            })
-        }
+                val currentUser = auth.currentUser
 
-        // 5. Target Summary (Matches Step 4)
-        composable("targetSummary") {
-            TargetSummaryScreen(
-                targetCalories = 2000, // Placeholder data
-                targetSodium = 2300,
-                goalTitle = "Weight Control",
-                onContinue = { navController.navigate("scalePairing") }
-            )
+                if (currentUser != null) {
+                    // Create the UserProfile object
+                    val userProfile = UserProfile(
+                        uid = currentUser.uid,
+                        name = currentUser.displayName ?: "User",
+                        email = currentUser.email ?: "",
+                        age = setupAge,
+                        weight = setupWeight,
+                        height = setupHeight,
+                        goal = goalId
+                    )
+
+                    // Save to SQLite database in the background
+                    scope.launch {
+                        userDao.insertUser(userProfile)
+                        // Proceed to the summary
+                        navController.navigate("targetSummary")
+                    }
+                } else {
+                    // Safety fallback if auth fails
+                    navController.navigate("targetSummary")
+                }
+            })
         }
 
         // 6. Scale Pairing
