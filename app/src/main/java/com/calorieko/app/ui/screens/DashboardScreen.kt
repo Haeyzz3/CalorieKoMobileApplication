@@ -4,6 +4,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.ActivityLogEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.*
@@ -35,7 +36,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,17 +52,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -76,13 +73,10 @@ data class ActivityLogEntry(
     val details: ActivityDetails
 )
 
-// In DashboardScreen.kt
-
 data class ActivityDetails(
     val weight: String? = null,
     val calories: Int,
     val sodium: Int? = null,
-    // --- ADD MACROS HERE ---
     val protein: Int = 0,
     val carbs: Int = 0,
     val fats: Int = 0,
@@ -101,6 +95,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
+    val activityLogDao = db.activityLogDao()
 
     val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
     val profileImageUrl = currentUser?.photoUrl
@@ -108,78 +103,101 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val scrollState = rememberScrollState()
     var activeTab by remember { mutableStateOf("home") }
 
-    // --- 3. DYNAMIC TARGET STATE (Replacing Mock Data) ---
+    // --- 3. DYNAMIC TARGET STATE ---
     var targetCalories by remember { mutableStateOf(2000) }
     var targetSodium by remember { mutableStateOf(2300) }
     var targetProtein by remember { mutableStateOf(150) }
     var targetCarbs by remember { mutableStateOf(200) }
     var targetFats by remember { mutableStateOf(65) }
 
-    // --- 4. FETCH USER PROFILE & CALCULATE ---
+    // --- 4. REAL ACTIVITY LOG STATE ---
+    var realActivityLog by remember { mutableStateOf<List<ActivityLogEntity>>(emptyList()) }
+
+    // --- 5. CALCULATED VALUES (derived from realActivityLog) ---
+    val caloriesConsumed = realActivityLog.filter { it.type == "meal" }.sumOf { it.calories }
+    val caloriesBurned = realActivityLog.filter { it.type == "workout" }.sumOf { it.calories }
+    val currentCalories = caloriesConsumed - caloriesBurned
+
+    val currentSodium = realActivityLog.filter { it.type == "meal" }.sumOf { it.sodium }
+    val currentProtein = realActivityLog.filter { it.type == "meal" }.sumOf { it.protein }
+    val currentCarbs = realActivityLog.filter { it.type == "meal" }.sumOf { it.carbs }
+    val currentFats = realActivityLog.filter { it.type == "meal" }.sumOf { it.fats }
+
+    // --- 6. FETCH USER PROFILE & ACTIVITY LOG ---
     LaunchedEffect(currentUser?.uid) {
         currentUser?.uid?.let { uid ->
-            // Switch to IO dispatcher for database operations
-            val profile = withContext(Dispatchers.IO) {
-                userDao.getUser(uid) // NOTE: Ensure you have a 'getUser(uid: String)' query in your UserDao!
-            }
+            withContext(Dispatchers.IO) {
+                // A. Fetch user profile for target calculations
+                val profile = userDao.getUser(uid)
 
-            if (profile != null) {
-                // A. Calculate BMR
-                val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
-                    (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
-                } else {
-                    (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
+                if (profile != null) {
+                    // Calculate BMR using Mifflin-St Jeor
+                    val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
+                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
+                    } else {
+                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
+                    }
+
+                    // Calculate TDEE
+                    val activityMultiplier = when (profile.activityLevel) {
+                        "lightly_active" -> 1.375
+                        "active" -> 1.55
+                        "very_active" -> 1.725
+                        "not_very_active" -> 1.2
+                        else -> 1.2
+                    }
+                    val tdee = bmr * activityMultiplier
+
+                    // Goal Adjustments
+                    targetCalories = when (profile.goal) {
+                        "lose_weight", "weight_loss", "weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
+                        "gain_muscle" -> (tdee + 300).toInt()
+                        else -> tdee.toInt()
+                    }
+
+                    // Macro Splits
+                    val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
+                        "lose_weight", "weight_loss", "weight" -> Triple(0.35, 0.35, 0.30)
+                        "gain_muscle" -> Triple(0.30, 0.45, 0.25)
+                        else -> Triple(0.30, 0.40, 0.30)
+                    }
+
+                    targetProtein = ((targetCalories * proteinPct) / 4).toInt()
+                    targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
+                    targetFats = ((targetCalories * fatsPct) / 9).toInt()
+                    targetSodium = 2300
                 }
 
-                // B. Calculate TDEE
-                val activityMultiplier = when (profile.activityLevel) {
-                    "Lightly Active" -> 1.375
-                    "Moderately Active" -> 1.55
-                    "Very Active" -> 1.725
-                    else -> 1.2
-                }
-                val tdee = bmr * activityMultiplier
+                // B. Fetch today's activity logs
+                val calendar = java.util.Calendar.getInstance()
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                calendar.set(java.util.Calendar.MINUTE, 0)
+                calendar.set(java.util.Calendar.SECOND, 0)
+                val startOfDay = calendar.timeInMillis
 
-                // C. Goal Adjustments
-                targetCalories = when (profile.goal) {
-                    "lose_weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
-                    "gain_muscle" -> (tdee + 300).toInt()
-                    else -> tdee.toInt()
-                }
-
-                // D. Macro Splits
-                val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
-                    "lose_weight" -> Triple(0.35, 0.35, 0.30)
-                    "gain_muscle" -> Triple(0.30, 0.45, 0.25)
-                    else -> Triple(0.30, 0.40, 0.30)
-                }
-
-                targetProtein = ((targetCalories * proteinPct) / 4).toInt()
-                targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
-                targetFats = ((targetCalories * fatsPct) / 9).toInt()
-                targetSodium = 2300
+                realActivityLog = activityLogDao.getLogsForToday(uid, startOfDay)
             }
         }
     }
 
-    // --- 5. Activity Log (You will hook this up to your Food/Workout database later) ---
-    val activityLog = listOf(
-        ActivityLogEntry("1", "meal", "8:30 AM", "Chicken Adobo", ActivityDetails("250g", 380, 890)),
-        ActivityLogEntry("2", "workout", "7:00 AM", "Morning Walk", ActivityDetails(duration = "30 min", calories = 150)),
-        ActivityLogEntry("3", "meal", "12:45 PM", "Grilled Fish", ActivityDetails("320g", 420, 450))
-    )
-
-    // Calculate Totals for the current day
-    val caloriesConsumed = activityLog.filter { it.type == "meal" }.sumOf { it.details.calories }
-    val caloriesBurned = activityLog.filter { it.type == "workout" }.sumOf { it.details.calories }
-    val currentCalories = caloriesConsumed - caloriesBurned
-    val currentSodium = activityLog.filter { it.type == "meal" }.sumOf { it.details.sodium ?: 0 }
-
-    // Real Macros for the current day calculated from the activity log
-    val currentProtein = activityLog.filter { it.type == "meal" }.sumOf { it.details.protein }
-    val currentCarbs = activityLog.filter { it.type == "meal" }.sumOf { it.details.carbs }
-    val currentFats = activityLog.filter { it.type == "meal" }.sumOf { it.details.fats }
-
+    // --- 7. CONVERT ActivityLogEntity to ActivityLogEntry for the feed ---
+    val activityLog = realActivityLog.map { entity ->
+        ActivityLogEntry(
+            id = entity.id.toString(),
+            type = entity.type,
+            time = entity.timeString,
+            name = entity.name,
+            details = ActivityDetails(
+                weight = if (entity.type == "meal") entity.weightOrDuration else null,
+                calories = entity.calories,
+                sodium = entity.sodium,
+                protein = entity.protein,
+                carbs = entity.carbs,
+                fats = entity.fats,
+                duration = if (entity.type == "workout") entity.weightOrDuration else null
+            )
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -195,53 +213,49 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA)) // Light Gray Background
+                .background(Color(0xFFF8F9FA))
                 .padding(paddingValues)
         ) {
 
-            // --- 1. Header (Sticky-ish visuals) ---
+            // --- 1. Header ---
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 12.dp) // Reduced padding to slim down the header
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
                     .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Left Side: Profile Picture and Text
                 Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    // 1. Scaled-down profile picture matching a standard web navbar avatar
-                    // 1. Scaled-down profile picture matching a standard web navbar avatar
                     AsyncImage(
                         model = profileImageUrl,
                         contentDescription = "Profile Picture",
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .clickable { onNavigate("profile") }, // Makes the image act as a button
+                            .clickable { onNavigate("profile") },
                         contentScale = ContentScale.Crop
                     )
 
-                    Spacer(modifier = Modifier.width(12.dp)) // Tighter spacing
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    // 2. Greeting and Date
                     Column {
                         Text(
                             text = "Hello, $firstName!",
-                            fontSize = 18.sp, // Scaled down from 24.sp to match web dashboard headers
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F2937)
                         )
                         val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
                         Text(
                             text = currentDate,
-                            fontSize = 12.sp, // Scaled down from 14.sp
+                            fontSize = 12.sp,
                             color = Color.Gray
                         )
                     }
                 }
 
-                // Right Side: Scale Connected Badge (Slightly more compact)
+                // Right Side: Scale Connected Badge
                 Surface(
                     color = Color(0xFFECFDF5),
                     shape = RoundedCornerShape(50),
@@ -259,7 +273,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Scale Connected",
-                            fontSize = 10.sp, // Reduced to match new header scale
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF047857)
                         )
@@ -271,8 +285,8 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
             Column(
                 modifier = Modifier
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp, vertical = 24.dp), // px-4 py-6
-                verticalArrangement = Arrangement.spacedBy(24.dp) // space-y-6
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
 
                 // Progress Rings
@@ -289,13 +303,13 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     fatsTarget = targetFats
                 )
 
-                // Action Buttons (Revised Grid Layout)
+                // Action Buttons
                 ActionButtonsRevised(
                     onLogMeal = { onNavigate("logMeal") },
                     onLogWorkout = { onNavigate("logWorkout") }
                 )
 
-                // Daily Activity Feed (Revised Card Layout)
+                // Daily Activity Feed
                 DailyActivityFeedRevised(activityLog)
 
                 // Bottom Spacer
@@ -311,17 +325,17 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
 fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp) // gap-4
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Log Meal Button (Green)
         Surface(
             onClick = onLogMeal,
-            color = Color(0xFF4CAF50), // bg-[#4CAF50]
-            shape = RoundedCornerShape(16.dp), // rounded-2xl
+            color = Color(0xFF4CAF50),
+            shape = RoundedCornerShape(16.dp),
             shadowElevation = 4.dp,
             modifier = Modifier
                 .weight(1f)
-                .height(130.dp) // Tall button
+                .height(130.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -341,7 +355,7 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
         // Log Workout Button (Orange)
         Surface(
             onClick = onLogWorkout,
-            color = Color(0xFFFF9800), // bg-[#FF9800]
+            color = Color(0xFFFF9800),
             shape = RoundedCornerShape(16.dp),
             shadowElevation = 4.dp,
             modifier = Modifier
@@ -364,19 +378,18 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
 
 @Composable
 fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
-    // White Card Container
     Card(
-        shape = RoundedCornerShape(16.dp), // rounded-2xl
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // shadow-sm
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(24.dp)) { // p-6
+        Column(modifier = Modifier.padding(24.dp)) {
             Text(
                 text = "Today's Activity",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1F2937), // text-gray-800
+                color = Color(0xFF1F2937),
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -410,26 +423,25 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
 fun ActivityItemRevised(activity: ActivityLogEntry) {
     val isMeal = activity.type == "meal"
 
-    // Gray Item Container (bg-gray-50)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp)) // rounded-xl
-            .background(Color(0xFFF9FAFB)) // gray-50
-            .padding(16.dp), // p-4
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF9FAFB))
+            .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {
         // Icon Circle
         Surface(
             shape = CircleShape,
-            color = if (isMeal) Color(0xFFDCFCE7) else Color(0xFFFFEDD5), // green-100 vs orange-100
+            color = if (isMeal) Color(0xFFDCFCE7) else Color(0xFFFFEDD5),
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = if (isMeal) Icons.Default.LocalDining else Icons.Default.LocalFireDepartment,
                     contentDescription = null,
-                    tint = if (isMeal) Color(0xFF16A34A) else Color(0xFFEA580C), // green-600 vs orange-600
+                    tint = if (isMeal) Color(0xFF16A34A) else Color(0xFFEA580C),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -450,19 +462,19 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
                         text = activity.name,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        color = Color(0xFF1F2937) // gray-800
+                        color = Color(0xFF1F2937)
                     )
                     Text(
                         text = activity.time,
                         fontSize = 12.sp,
-                        color = Color(0xFF6B7280) // gray-500
+                        color = Color(0xFF6B7280)
                     )
                 }
 
                 // Calories Badge
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)), // border-gray-200
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
                     color = Color.White
                 ) {
                     Row(
@@ -480,7 +492,7 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
                             text = "${activity.details.calories} cal",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF374151) // gray-700
+                            color = Color(0xFF374151)
                         )
                     }
                 }
@@ -495,7 +507,7 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
                     Text(
                         text = activity.details.weight,
                         fontSize = 12.sp,
-                        color = Color(0xFF4B5563) // gray-600
+                        color = Color(0xFF4B5563)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
