@@ -3,17 +3,18 @@ package com.calorieko.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.* // Automatically grabs standard runtime components
+import androidx.compose.runtime.getValue // REQUIRED for 'by' delegate reading
+import androidx.compose.runtime.setValue // REQUIRED for 'by' delegate writing
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoTheme
-import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -21,7 +22,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CalorieKoTheme { // Matches the fixed Theme name
+            CalorieKoTheme {
                 AppNavigation()
             }
         }
@@ -35,14 +36,14 @@ fun AppNavigation() {
     val scope = rememberCoroutineScope()
 
     // Initialize Database and Firebase Auth
-    val db = remember { AppDatabase.getDatabase(context) }
+    val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
     val auth = remember { FirebaseAuth.getInstance() }
 
-    // Temporary state to hold data between the BioForm and Goal screens
-    var setupAge by remember { mutableIntStateOf(25) }
-    var setupHeight by remember { mutableDoubleStateOf(170.0) }
-    var setupWeight by remember { mutableDoubleStateOf(70.0) }
+    // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
+    var setupAge by remember { mutableStateOf(25) }
+    var setupHeight by remember { mutableStateOf(170.0) }
+    var setupWeight by remember { mutableStateOf(70.0) }
 
     NavHost(navController = navController, startDestination = "splash") {
 

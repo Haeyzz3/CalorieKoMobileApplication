@@ -3,7 +3,6 @@ package com.calorieko.app.ui.screens
 import com.calorieko.app.R
 import android.app.Activity
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -72,6 +71,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.calorieko.app.data.local.AppDatabase
 
 // ─── Brand Colors (reused from theme) ───
 private val CalorieKoGreen = Color(0xFF4CAF50)
@@ -91,8 +91,10 @@ fun LoginScreen(
     onNavigateToForgotPassword: () -> Unit
 ) {
     val context = LocalContext.current
-    val auth = remember { FirebaseAuth.getInstance() }
     val scope = rememberCoroutineScope()
+    val auth = remember { FirebaseAuth.getInstance() }
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val userDao = db.userDao()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -119,7 +121,6 @@ fun LoginScreen(
             }
     }
 
-    // ─── Google Sign In ───
     // ─── Google Sign In ───
     fun signInWithGoogle() {
         scope.launch {
@@ -150,17 +151,27 @@ fun LoginScreen(
 
                 // Capture the authentication result
                 val authResult = auth.signInWithCredential(firebaseCredential).await()
-                isLoading = false
+                val uid = authResult.user?.uid
 
                 // Determine if this is a first-time Google login
                 val isNewUser = authResult.additionalUserInfo?.isNewUser == true
 
-                if (isNewUser) {
-                    // Redirects to bioForm to set up profile
-                    onNavigateToSignUp()
+                if (uid != null) {
+                    // Check local SQLite (Room) database for this UID
+                    val existingUser = userDao.getUserProfile(uid)
+
+                    isLoading = false
+
+                    if (existingUser != null) {
+                        // Profile found locally. Skip setup and route to Dashboard.
+                        onLoginSuccess()
+                    } else {
+                        // Profile missing locally. Route to BioForm to set up metrics.
+                        onNavigateToSignUp()
+                    }
                 } else {
-                    // Redirects straight to the dashboard
-                    onLoginSuccess()
+                    isLoading = false
+                    errorMessage = "Authentication failed: Missing UID."
                 }
 
             } catch (e: GetCredentialCancellationException) {
