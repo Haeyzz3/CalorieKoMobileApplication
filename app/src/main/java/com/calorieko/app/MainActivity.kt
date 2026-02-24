@@ -40,10 +40,17 @@ fun AppNavigation() {
     val userDao = db.userDao()
     val auth = remember { FirebaseAuth.getInstance() }
 
+
+
     // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
     var setupAge by remember { mutableStateOf(25) }
     var setupHeight by remember { mutableStateOf(170.0) }
     var setupWeight by remember { mutableStateOf(70.0) }
+
+    // --- ADD THESE NEW VARIABLES ---
+    var targetCalories by remember { mutableStateOf(2000) }
+    var targetSodium by remember { mutableStateOf(2300) }
+    var setupGoalTitle by remember { mutableStateOf("General Health") }
 
     NavHost(navController = navController, startDestination = "splash") {
 
@@ -115,8 +122,23 @@ fun AppNavigation() {
         }
 
         // 5. Goal Selection & Database Insertion (UPDATED to save to SQLite)
+        // 5. Goal Selection & Database Insertion
         composable("goalSelection") {
             GoalSelectionScreen(onContinue = { goalId ->
+
+                // 1. Map the goalId to a readable title
+                setupGoalTitle = when (goalId) {
+                    "lose_weight" -> "Lose Weight"
+                    "gain_muscle" -> "Build Muscle"
+                    "maintain" -> "Maintain Weight"
+                    else -> "General Health"
+                }
+
+                // 2. Simple target calculation based on goals
+                // (You can replace this with the Mifflin-St Jeor equation later)
+                targetCalories = if (goalId == "lose_weight") 1800 else if (goalId == "gain_muscle") 2800 else 2200
+                targetSodium = 2300 // Standard limit
+
                 val currentUser = auth.currentUser
 
                 if (currentUser != null) {
@@ -142,6 +164,18 @@ fun AppNavigation() {
                     navController.navigate("targetSummary")
                 }
             })
+        }
+
+        // 5b. Target Summary Screen (THIS WAS MISSING)
+        composable("targetSummary") {
+            TargetSummaryScreen(
+                targetCalories = targetCalories,
+                targetSodium = targetSodium,
+                goalTitle = setupGoalTitle,
+                onContinue = {
+                    navController.navigate("scalePairing")
+                }
+            )
         }
 
         // 6. Scale Pairing
