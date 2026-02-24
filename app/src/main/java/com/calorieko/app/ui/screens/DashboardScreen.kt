@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+
 // Data Model matching daily-activity-feed.tsx
 data class ActivityLogEntry(
     val id: String,
