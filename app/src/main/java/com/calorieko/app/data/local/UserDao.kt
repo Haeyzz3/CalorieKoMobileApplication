@@ -14,4 +14,7 @@ interface UserDao {
     // Checks if the user's physical profile is saved locally
     @Query("SELECT * FROM user_profile WHERE uid = :firebaseUid LIMIT 1")
     suspend fun getUserProfile(firebaseUid: String): UserProfile?
+
+    @Query("SELECT * FROM user_profile WHERE uid = :uid LIMIT 1")
+    suspend fun getUser(uid: String): UserProfile?
 }

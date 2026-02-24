@@ -1,5 +1,11 @@
 package com.calorieko.app.ui.screens
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.calorieko.app.data.local.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -70,10 +76,16 @@ data class ActivityLogEntry(
     val details: ActivityDetails
 )
 
+// In DashboardScreen.kt
+
 data class ActivityDetails(
     val weight: String? = null,
     val calories: Int,
     val sodium: Int? = null,
+    // --- ADD MACROS HERE ---
+    val protein: Int = 0,
+    val carbs: Int = 0,
+    val fats: Int = 0,
     val duration: String? = null
 )
 
@@ -84,38 +96,90 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
+    // 2. Local Context & Database Setup
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val userDao = db.userDao()
 
-    // 2. Splits the full name by space and takes the first word. Defaults to "User" if null.
     val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
-
     val profileImageUrl = currentUser?.photoUrl
 
     val scrollState = rememberScrollState()
     var activeTab by remember { mutableStateOf("home") }
 
-    // --- Mock Data ---
-    val targetCalories = 2450
-    val targetSodium = 2300
-    val targetProtein = 120
-    val targetCarbs = 250
-    val targetFats = 65
+    // --- 3. DYNAMIC TARGET STATE (Replacing Mock Data) ---
+    var targetCalories by remember { mutableStateOf(2000) }
+    var targetSodium by remember { mutableStateOf(2300) }
+    var targetProtein by remember { mutableStateOf(150) }
+    var targetCarbs by remember { mutableStateOf(200) }
+    var targetFats by remember { mutableStateOf(65) }
 
+    // --- 4. FETCH USER PROFILE & CALCULATE ---
+    LaunchedEffect(currentUser?.uid) {
+        currentUser?.uid?.let { uid ->
+            // Switch to IO dispatcher for database operations
+            val profile = withContext(Dispatchers.IO) {
+                userDao.getUser(uid) // NOTE: Ensure you have a 'getUser(uid: String)' query in your UserDao!
+            }
+
+            if (profile != null) {
+                // A. Calculate BMR
+                val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
+                    (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
+                } else {
+                    (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
+                }
+
+                // B. Calculate TDEE
+                val activityMultiplier = when (profile.activityLevel) {
+                    "Lightly Active" -> 1.375
+                    "Moderately Active" -> 1.55
+                    "Very Active" -> 1.725
+                    else -> 1.2
+                }
+                val tdee = bmr * activityMultiplier
+
+                // C. Goal Adjustments
+                targetCalories = when (profile.goal) {
+                    "lose_weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
+                    "gain_muscle" -> (tdee + 300).toInt()
+                    else -> tdee.toInt()
+                }
+
+                // D. Macro Splits
+                val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
+                    "lose_weight" -> Triple(0.35, 0.35, 0.30)
+                    "gain_muscle" -> Triple(0.30, 0.45, 0.25)
+                    else -> Triple(0.30, 0.40, 0.30)
+                }
+
+                targetProtein = ((targetCalories * proteinPct) / 4).toInt()
+                targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
+                targetFats = ((targetCalories * fatsPct) / 9).toInt()
+                targetSodium = 2300
+            }
+        }
+    }
+
+    // --- 5. Activity Log (You will hook this up to your Food/Workout database later) ---
     val activityLog = listOf(
         ActivityLogEntry("1", "meal", "8:30 AM", "Chicken Adobo", ActivityDetails("250g", 380, 890)),
         ActivityLogEntry("2", "workout", "7:00 AM", "Morning Walk", ActivityDetails(duration = "30 min", calories = 150)),
         ActivityLogEntry("3", "meal", "12:45 PM", "Grilled Fish", ActivityDetails("320g", 420, 450))
     )
 
-    // Calculate Totals
+    // Calculate Totals for the current day
     val caloriesConsumed = activityLog.filter { it.type == "meal" }.sumOf { it.details.calories }
     val caloriesBurned = activityLog.filter { it.type == "workout" }.sumOf { it.details.calories }
     val currentCalories = caloriesConsumed - caloriesBurned
     val currentSodium = activityLog.filter { it.type == "meal" }.sumOf { it.details.sodium ?: 0 }
 
-    // Mock Macros
-    val currentProtein = 65
-    val currentCarbs = 180
-    val currentFats = 45
+    // Real Macros for the current day calculated from the activity log
+    val currentProtein = activityLog.filter { it.type == "meal" }.sumOf { it.details.protein }
+    val currentCarbs = activityLog.filter { it.type == "meal" }.sumOf { it.details.carbs }
+    val currentFats = activityLog.filter { it.type == "meal" }.sumOf { it.details.fats }
+
 
     Scaffold(
         bottomBar = {

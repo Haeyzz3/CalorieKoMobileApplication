@@ -55,6 +55,12 @@ fun AppNavigation() {
     var targetSodium by remember { mutableStateOf(2300) }
     var setupGoalTitle by remember { mutableStateOf("General Health") }
 
+
+    // --- 1. ADD NEW MACRO VARIABLES ---
+    var targetProtein by remember { mutableStateOf(150) }
+    var targetCarbs by remember { mutableStateOf(200) }
+    var targetFats by remember { mutableStateOf(65) }
+
     NavHost(navController = navController, startDestination = "splash") {
 
         // 1. Splash
@@ -132,12 +138,10 @@ fun AppNavigation() {
             })
         }
 
-        // 5. Goal Selection & Database Insertion (UPDATED to save to SQLite)
         // 5. Goal Selection & Database Insertion
         composable("goalSelection") {
             GoalSelectionScreen(onContinue = { goalId ->
 
-                // 1. Map the goalId to a readable title
                 setupGoalTitle = when (goalId) {
                     "lose_weight" -> "Lose Weight"
                     "gain_muscle" -> "Build Muscle"
@@ -145,13 +149,47 @@ fun AppNavigation() {
                     else -> "General Health"
                 }
 
-                // 2. Simple target calculation based on goals
-                // (You can replace this with the Mifflin-St Jeor equation later)
-                targetCalories = if (goalId == "lose_weight") 1800 else if (goalId == "gain_muscle") 2800 else 2200
-                targetSodium = 2300 // Standard limit
+                // --- 2. STANDARD PROTOCOL METRICS CALCULATION ---
+
+                // A. Calculate BMR (Mifflin-St Jeor)
+                val bmr = if (setupSex.equals("Male", ignoreCase = true)) {
+                    (10 * setupWeight) + (6.25 * setupHeight) - (5 * setupAge) + 5
+                } else {
+                    (10 * setupWeight) + (6.25 * setupHeight) - (5 * setupAge) - 161
+                }
+
+                // B. Apply Activity Multiplier for TDEE
+                val activityMultiplier = when (setupActivityLevel) {
+                    "Lightly Active" -> 1.375
+                    "Moderately Active" -> 1.55
+                    "Very Active" -> 1.725
+                    else -> 1.2 // Sedentary
+                }
+                val tdee = bmr * activityMultiplier
+
+                // C. Calculate Final Calories based on Goal
+                targetCalories = when (goalId) {
+                    "lose_weight" -> (tdee - 500).toInt().coerceAtLeast(1200) // Minimum 1200 kcal for safety
+                    "gain_muscle" -> (tdee + 300).toInt()
+                    else -> tdee.toInt()
+                }
+
+                // D. Assign macro percentages based on goal
+                val (proteinPct, carbsPct, fatsPct) = when (goalId) {
+                    "lose_weight" -> Triple(0.35, 0.35, 0.30) // Higher protein for muscle retention & satiety
+                    "gain_muscle" -> Triple(0.30, 0.45, 0.25) // Higher carbs for workout energy
+                    else -> Triple(0.30, 0.40, 0.30)          // Balanced maintenance
+                }
+
+                // E. Convert Calories to Grams (Protein/Carbs = 4 kcal/g, Fat = 9 kcal/g)
+                targetProtein = ((targetCalories * proteinPct) / 4).toInt()
+                targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
+                targetFats = ((targetCalories * fatsPct) / 9).toInt()
+
+                // Standard Sodium Limit
+                targetSodium = 2300
 
                 val currentUser = auth.currentUser
-
                 if (currentUser != null) {
                     // Create the UserProfile object
                     val userProfile = UserProfile(
@@ -165,25 +203,24 @@ fun AppNavigation() {
                         activityLevel = setupActivityLevel,
                         goal = goalId
                     )
-
-                    // Save to SQLite database in the background
                     scope.launch {
                         userDao.insertUser(userProfile)
-                        // Proceed to the summary
                         navController.navigate("targetSummary")
                     }
                 } else {
-                    // Safety fallback if auth fails
                     navController.navigate("targetSummary")
                 }
             })
         }
 
-        // 5b. Target Summary Screen (THIS WAS MISSING)
+        // 5b. Target Summary Screen
         composable("targetSummary") {
             TargetSummaryScreen(
                 targetCalories = targetCalories,
                 targetSodium = targetSodium,
+                targetProtein = targetProtein,  // PASS NEW VARS
+                targetCarbs = targetCarbs,      // PASS NEW VARS
+                targetFats = targetFats,        // PASS NEW VARS
                 goalTitle = setupGoalTitle,
                 onContinue = {
                     navController.navigate("scalePairing")

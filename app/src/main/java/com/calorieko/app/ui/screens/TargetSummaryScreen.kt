@@ -1,5 +1,9 @@
 package com.calorieko.app.ui.screens
 
+
+import androidx.compose.material.icons.rounded.SetMeal
+import androidx.compose.material.icons.rounded.BreakfastDining
+import androidx.compose.material.icons.rounded.EggAlt
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -29,13 +33,24 @@ import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.*
 
 // 1. Update signature to accept REAL data
+// 1. Update the signature
 @Composable
 fun TargetSummaryScreen(
     targetCalories: Int,
     targetSodium: Int,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
     goalTitle: String,
     onContinue: () -> Unit
 ) {
+
+    // 2. Add macro animations
+    val animatedProtein by animateIntAsState(targetValue = targetProtein, animationSpec = tween(1000, 700), label = "protein")
+    val animatedCarbs by animateIntAsState(targetValue = targetCarbs, animationSpec = tween(1000, 800), label = "carbs")
+    val animatedFats by animateIntAsState(targetValue = targetFats, animationSpec = tween(1000, 900), label = "fats")
+
+
     // Animation states using the PASSED values
     val animatedCalories by animateIntAsState(
         targetValue = targetCalories,
@@ -121,6 +136,25 @@ fun TargetSummaryScreen(
                     gradientColors = listOf(CalorieKoOrange, CalorieKoLightOrange)
                 )
 
+                // Macros Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    SmallMacroCard(
+                        title = "Protein", value = animatedProtein.toString(), modifier = Modifier.weight(1f),
+                        icon = Icons.Rounded.SetMeal, color = Color(0xFFEF4444) // Red
+                    )
+                    SmallMacroCard(
+                        title = "Carbs", value = animatedCarbs.toString(), modifier = Modifier.weight(1f),
+                        icon = Icons.Rounded.BreakfastDining, color = Color(0xFFF59E0B) // Yellow/Amber
+                    )
+                    SmallMacroCard(
+                        title = "Fats", value = animatedFats.toString(), modifier = Modifier.weight(1f),
+                        icon = Icons.Rounded.EggAlt, color = Color(0xFF3B82F6) // Blue
+                    )
+                }
+
                 MetricGradientCard(
                     title = "Daily Sodium",
                     subtitle = "Salt intake limit",
@@ -204,6 +238,30 @@ fun MetricGradientCard(title: String, subtitle: String, value: String, unit: Str
             Column(horizontalAlignment = Alignment.End) {
                 Text(value, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 Text(unit, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(0.8f))
+            }
+        }
+    }
+}
+@Composable
+fun SmallMacroCard(title: String, value: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = 0.1f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f)),
+        modifier = modifier.height(100.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color.copy(alpha = 0.8f))
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = color)
+                Text("g", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = color.copy(alpha = 0.8f), modifier = Modifier.padding(bottom = 4.dp, start = 2.dp))
             }
         }
     }
