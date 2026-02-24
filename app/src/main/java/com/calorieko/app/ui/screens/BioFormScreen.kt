@@ -48,15 +48,16 @@ import com.calorieko.app.ui.theme.CalorieKoLightOrange
 import com.calorieko.app.ui.theme.CalorieKoOrange
 
 @Composable
-fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
+fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) {
     // Local State for the form
+    var name by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") } // "Male" or "Female"
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
 
     // Check if form is valid to enable button
-    val isFormValid = age.isNotEmpty() && sex.isNotEmpty() && height.isNotEmpty() && weight.isNotEmpty()
+    val isFormValid = name.isNotEmpty() && age.isNotEmpty() && sex.isNotEmpty() && height.isNotEmpty() && weight.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -64,8 +65,7 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
             .background(Color.White)
     ) {
         // --- 1. Progress Bar ---
-        // We animate the progress just like Framer Motion
-        val progress by animateFloatAsState(targetValue = 0.33f, label = "progress")
+        val progress by animateFloatAsState(targetValue = 0.25f, label = "progress")
 
         Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0xFFF1F5F9))) {
             Box(
@@ -86,7 +86,7 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
                 // User Icon Circle
                 Surface(
                     shape = CircleShape,
-                    color = Color.Transparent, // We'll use a box for gradient
+                    color = Color.Transparent,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(
@@ -112,7 +112,7 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
 
                 Column {
                     Text(
-                        text = "STEP 1 OF 3",
+                        text = "STEP 1 OF 4",
                         fontSize = 12.sp,
                         color = Color.Gray,
                         fontWeight = FontWeight.Bold,
@@ -138,9 +138,17 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
-                .weight(1f), // Takes up remaining space
+                .weight(1f),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Full Name
+            NameInput(
+                value = name,
+                onValueChange = { name = it },
+                label = "Full Name",
+                placeholder = "Enter your full name"
+            )
+
             // Age
             CustomInput(
                 value = age,
@@ -193,7 +201,7 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
 
         // --- 4. Continue Button ---
         Button(
-            onClick = { onContinue(age, height, weight, sex) }, // <--- PASS DATA HERE
+            onClick = { onContinue(name, age, height, weight, sex) },
             enabled = isFormValid,
             modifier = Modifier
                 .fillMaxWidth()
@@ -205,14 +213,13 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
             ),
             contentPadding = PaddingValues()
         ) {
-            // Gradient Background (only visible if enabled)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = if (isFormValid) Brush.horizontalGradient(
                             colors = listOf(CalorieKoOrange, CalorieKoLightOrange)
-                        ) else Brush.linearGradient(listOf(Color.Gray, Color.Gray)), // Fallback for disabled
+                        ) else Brush.linearGradient(listOf(Color.Gray, Color.Gray)),
                         shape = RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -239,6 +246,40 @@ fun BioFormScreen(onContinue: (String, String, String, String) -> Unit) {
 // --- Helper Components ---
 
 @Composable
+fun NameInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(placeholder, color = Color.LightGray) },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = CalorieKoGreen,
+                modifier = Modifier.size(20.dp)
+            )
+        },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = CalorieKoGreen,
+            unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
+            focusedLabelColor = CalorieKoGreen,
+            unfocusedContainerColor = Color(0xFFFAFAFA),
+            focusedContainerColor = Color.White
+        ),
+        singleLine = true
+    )
+}
+
+@Composable
 fun CustomInput(
     value: String,
     onValueChange: (String) -> Unit,
@@ -257,7 +298,7 @@ fun CustomInput(
             focusedBorderColor = CalorieKoGreen,
             unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
             focusedLabelColor = CalorieKoGreen,
-            unfocusedContainerColor = Color(0xFFFAFAFA), // Slightly gray background like design
+            unfocusedContainerColor = Color(0xFFFAFAFA),
             focusedContainerColor = Color.White
         ),
         singleLine = true

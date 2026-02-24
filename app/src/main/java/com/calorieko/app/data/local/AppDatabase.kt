@@ -8,7 +8,7 @@ import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-@Database(entities = [FoodItem::class, UserProfile::class], version = 1, exportSchema = false)
+@Database(entities = [FoodItem::class, UserProfile::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun foodDao(): FoodDao

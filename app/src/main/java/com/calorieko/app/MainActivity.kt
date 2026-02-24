@@ -46,6 +46,9 @@ fun AppNavigation() {
     var setupAge by remember { mutableStateOf(25) }
     var setupHeight by remember { mutableStateOf(170.0) }
     var setupWeight by remember { mutableStateOf(70.0) }
+    var setupSex by remember { mutableStateOf("") }
+    var setupActivityLevel by remember { mutableStateOf("") }
+    var setupName by remember { mutableStateOf("") }
 
     // --- ADD THESE NEW VARIABLES ---
     var targetCalories by remember { mutableStateOf(2000) }
@@ -110,13 +113,21 @@ fun AppNavigation() {
 
         // 4. Bio Form (UPDATED to capture data)
         composable("bioForm") {
-            BioFormScreen(onContinue = { age, height, weight, sex ->
-                // Convert Strings to numbers safely.
-                // If the user enters invalid characters, it falls back to the default values.
+            BioFormScreen(onContinue = { name, age, height, weight, sex ->
+                setupName = name
                 setupAge = age.toIntOrNull() ?: 25
                 setupHeight = height.toDoubleOrNull() ?: 170.0
                 setupWeight = weight.toDoubleOrNull() ?: 70.0
+                setupSex = sex
 
+                navController.navigate("activityLevel")
+            })
+        }
+
+        // 4b. Activity Level Selection
+        composable("activityLevel") {
+            ActivityLevelScreen(onContinue = { activityLevelId ->
+                setupActivityLevel = activityLevelId
                 navController.navigate("goalSelection")
             })
         }
@@ -145,11 +156,13 @@ fun AppNavigation() {
                     // Create the UserProfile object
                     val userProfile = UserProfile(
                         uid = currentUser.uid,
-                        name = currentUser.displayName ?: "User",
+                        name = setupName.ifEmpty { currentUser.displayName ?: "User" },
                         email = currentUser.email ?: "",
                         age = setupAge,
                         weight = setupWeight,
                         height = setupHeight,
+                        sex = setupSex,
+                        activityLevel = setupActivityLevel,
                         goal = goalId
                     )
 

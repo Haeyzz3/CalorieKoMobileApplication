@@ -11,5 +11,7 @@ data class UserProfile(
     val age: Int,
     val weight: Double,
     val height: Double,
+    val sex: String = "",
+    val activityLevel: String = "", // "not_very_active", "lightly_active", "active", "very_active"
     val goal: String
 )

@@ -31,6 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CameraAlt
@@ -82,6 +84,8 @@ data class UserData(
     val age: Int = 25,
     val height: Double = 170.0, // cm
     val weight: Double = 70.0,  // kg
+    val sex: String = "Male",
+    val activityLevel: String = "lightly_active",
     val goal: String = "general"
 )
 
@@ -371,6 +375,57 @@ fun BaselineMetricsGrid(user: UserData) {
                 modifier = Modifier.weight(1f)
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Activity Level Card (full width)
+        val activityLabel = when (user.activityLevel) {
+            "not_very_active" -> "Not Very Active"
+            "lightly_active" -> "Lightly Active"
+            "active" -> "Active"
+            "very_active" -> "Very Active"
+            else -> "Not Set"
+        }
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color(0xFFFFF7ED), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.DirectionsRun,
+                        null,
+                        tint = Color(0xFFEA580C),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        "Activity Level",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF4B5563)
+                    )
+                    Text(
+                        activityLabel,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -419,16 +474,18 @@ fun MetricCard(
 @Composable
 fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
     val goalInfo = when (goalCode) {
-        "hypertension" -> Triple("Hypertension Management", Icons.Default.Favorite, Color(0xFFEF4444))
+        "gain_muscle" -> Triple("Gain Muscle", Icons.Default.FitnessCenter, Color(0xFFEF4444))
         "weight_loss" -> Triple("Weight Control", Icons.Default.MonitorWeight, Color(0xFF2563EB))
         "diabetes" -> Triple("Diabetes Management", Icons.Default.MonitorHeart, Color(0xFF9333EA))
+        "fitness" -> Triple("Fitness & Performance", Icons.Default.DirectionsRun, Color(0xFF9333EA))
         else -> Triple("General Health & Wellness", Icons.Default.TrackChanges, Color(0xFF16A34A))
     }
 
     val description = when(goalCode) {
-        "hypertension" -> "Managing sodium intake and tracking blood pressure through balanced nutrition."
+        "gain_muscle" -> "Building lean muscle through optimized protein intake and strength-focused nutrition."
         "weight_loss" -> "Achieving sustainable weight loss through calorie management and portion control."
         "diabetes" -> "Maintaining stable blood sugar levels through carbohydrate tracking and meal timing."
+        "fitness" -> "Optimizing nutrition for peak athletic performance and recovery."
         else -> "Building healthy eating habits and maintaining overall wellness."
     }
 

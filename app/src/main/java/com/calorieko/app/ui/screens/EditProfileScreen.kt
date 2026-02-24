@@ -27,13 +27,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.TrackChanges
-import androidx.compose.material.icons.rounded.TrendingDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -97,15 +97,17 @@ fun EditProfileScreen(
     var age by remember { mutableStateOf("25") }
     var height by remember { mutableStateOf("170.0") }
     var weight by remember { mutableStateOf("70.0") }
+    var sex by remember { mutableStateOf("Male") }
     var selectedGoal by remember { mutableStateOf("general") }
+    var selectedActivityLevel by remember { mutableStateOf("lightly_active") }
 
     val goals = remember {
         listOf(
             GoalOption(
-                "hypertension",
-                "Hypertension Management",
-                "Control blood pressure through balanced nutrition",
-                Icons.Default.Favorite,
+                "gain_muscle",
+                "Gain Muscle",
+                "Build lean muscle through optimized protein and nutrition",
+                Icons.Default.FitnessCenter,
                 Color(0xFFEF4444),
                 Color(0xFFFEE2E2)
             ),
@@ -262,6 +264,27 @@ fun EditProfileScreen(
                 }
             }
 
+            // ─── Sex Selection ───
+            SectionTitle("Sex")
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SexOptionButton(
+                    text = "Male",
+                    isSelected = sex == "Male",
+                    onClick = { sex = "Male" },
+                    modifier = Modifier.weight(1f)
+                )
+                SexOptionButton(
+                    text = "Female",
+                    isSelected = sex == "Female",
+                    onClick = { sex = "Female" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
             // ─── Baseline Metrics Section ───
             SectionTitle("Baseline Metrics")
 
@@ -304,6 +327,50 @@ fun EditProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardType = KeyboardType.Number
             )
+
+            // ─── Activity Level Section ───
+            SectionTitle("Activity Level")
+
+            Text(
+                "What is your baseline activity level?",
+                fontSize = 14.sp,
+                color = TextGray,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+
+            Text(
+                "Not including workouts - we count that separately.",
+                fontSize = 12.sp,
+                color = TextGray.copy(alpha = 0.7f),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActivityLevelOption(
+                    title = "Not Very Active",
+                    description = "Spend most of the day sitting (e.g. bankteller, desk job)",
+                    isSelected = selectedActivityLevel == "not_very_active",
+                    onClick = { selectedActivityLevel = "not_very_active" }
+                )
+                ActivityLevelOption(
+                    title = "Lightly Active",
+                    description = "Spend a good part of the day on your feet (e.g. teacher, salesperson)",
+                    isSelected = selectedActivityLevel == "lightly_active",
+                    onClick = { selectedActivityLevel = "lightly_active" }
+                )
+                ActivityLevelOption(
+                    title = "Active",
+                    description = "Spend a good part of the day doing some physical activity (e.g. food server, postal carrier)",
+                    isSelected = selectedActivityLevel == "active",
+                    onClick = { selectedActivityLevel = "active" }
+                )
+                ActivityLevelOption(
+                    title = "Very Active",
+                    description = "Spend most of the day doing heavy physical activity (e.g. bike messenger, carpenter)",
+                    isSelected = selectedActivityLevel == "very_active",
+                    onClick = { selectedActivityLevel = "very_active" }
+                )
+            }
 
             // ─── Health Goal Section ───
             SectionTitle("Health Goal")
@@ -522,6 +589,173 @@ private fun EditMetricCard(
                     cursorColor = CalorieKoGreen
                 )
             )
+        }
+    }
+}
+
+@Composable
+private fun SexOptionButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) CalorieKoGreen else Color(0xFFE5E7EB),
+        animationSpec = tween(300),
+        label = "border"
+    )
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) CalorieKoGreen.copy(alpha = 0.1f) else Color.White,
+        animationSpec = tween(300),
+        label = "bg"
+    )
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(2.dp, borderColor),
+        color = bgColor,
+        modifier = modifier.height(56.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = text,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = if (isSelected) CalorieKoGreen else TextGray
+                )
+                if (isSelected) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(CalorieKoGreen),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityLevelOption(
+    title: String,
+    description: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) CalorieKoGreen else Color(0xFFE5E7EB),
+        animationSpec = tween(300),
+        label = "border"
+    )
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) CalorieKoGreen.copy(alpha = 0.05f) else Color.White,
+        animationSpec = tween(300),
+        label = "bg"
+    )
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(2.dp, borderColor),
+        color = bgColor,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isSelected) CalorieKoGreen.copy(alpha = 0.15f)
+                        else Color(0xFFF3F4F6)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.DirectionsRun,
+                    contentDescription = null,
+                    tint = if (isSelected) CalorieKoGreen else TextGray,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Text
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = TextDark
+                )
+                Text(
+                    description,
+                    fontSize = 12.sp,
+                    color = TextGray,
+                    lineHeight = 16.sp
+                )
+            }
+
+            // Radio-style indicator
+            if (isSelected) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(CalorieKoGreen),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color.Transparent)
+                        .then(
+                            Modifier.background(Color.Transparent)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        border = BorderStroke(2.dp, Color(0xFFD1D5DB)),
+                        color = Color.Transparent,
+                        modifier = Modifier.size(24.dp)
+                    ) {}
+                }
+            }
         }
     }
 }
