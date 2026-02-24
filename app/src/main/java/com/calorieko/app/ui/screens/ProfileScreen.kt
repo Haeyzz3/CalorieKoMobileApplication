@@ -1,5 +1,13 @@
 package com.calorieko.app.ui.screens
 
+
+// Make sure to add these imports at the top:
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.calorieko.app.data.local.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.google.firebase.auth.FirebaseAuth
@@ -108,18 +116,41 @@ fun ProfileScreen(
 ) {
     var activeTab by remember { mutableStateOf("profile") }
     val scrollState = rememberScrollState()
-    // --- Retrieve Firebase Auth Session ---
-
 
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
     val fullName = currentUser?.displayName ?: "User"
     val profileImageUrl = currentUser?.photoUrl
 
-    // Mock Data
-    val userData = UserData(
-        name = fullName
-    )
+    // 1. Initialize Database Access
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val userDao = db.userDao()
+
+    // 2. Change Mock Data to a MutableState
+    var userData by remember { mutableStateOf(UserData(name = fullName)) }
+
+    // 3. Fetch Real Data on Load
+    LaunchedEffect(currentUser?.uid) {
+        currentUser?.uid?.let { uid ->
+            withContext(Dispatchers.IO) {
+                val profile = userDao.getUser(uid)
+                if (profile != null) {
+                    // Update the UI state with the real database values
+                    userData = userData.copy(
+                        name = profile.name,
+                        age = profile.age,
+                        height = profile.height,
+                        weight = profile.weight,
+                        sex = profile.sex.ifEmpty { "Male" },
+                        activityLevel = profile.activityLevel.ifEmpty { "lightly_active" },
+                        goal = profile.goal.ifEmpty { "general" }
+                    )
+                }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {

@@ -1,5 +1,15 @@
 package com.calorieko.app.ui.screens
 
+
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.UserProfile
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -92,14 +102,41 @@ fun EditProfileScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    // ─── Editable state (pre-filled with current profile data) ───
-    var name by remember { mutableStateOf("Juan Dela Cruz") }
-    var age by remember { mutableStateOf("25") }
-    var height by remember { mutableStateOf("170.0") }
-    var weight by remember { mutableStateOf("70.0") }
+    // 1. Initialize Database & Auth
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val userDao = db.userDao()
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+
+    // 2. Editable state (Leave empty initially, they will be filled by the database)
+    var name by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
+    var height by remember { mutableStateOf("") }
+    var weight by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("Male") }
     var selectedGoal by remember { mutableStateOf("general") }
     var selectedActivityLevel by remember { mutableStateOf("lightly_active") }
+
+    // 3. Fetch existing data to pre-fill the form
+    LaunchedEffect(currentUser?.uid) {
+        currentUser?.uid?.let { uid ->
+            withContext(Dispatchers.IO) {
+                val profile = userDao.getUser(uid)
+                if (profile != null) {
+                    name = profile.name
+                    age = profile.age.toString()
+                    height = profile.height.toString()
+                    weight = profile.weight.toString()
+                    sex = profile.sex.ifEmpty { "Male" }
+                    selectedActivityLevel = profile.activityLevel.ifEmpty { "lightly_active" }
+                    selectedGoal = profile.goal.ifEmpty { "general" }
+                }
+            }
+        }
+    }
+
 
     val goals = remember {
         listOf(
@@ -397,8 +434,27 @@ fun EditProfileScreen(
             // ─── Save Button (Orange Gradient) ───
             Button(
                 onClick = {
-                    // TODO: Save data to Firebase/local storage
-                    onSave()
+                    // 4. Save modifications back to the database
+                    currentUser?.uid?.let { uid ->
+                        val updatedProfile = UserProfile(
+                            uid = uid,
+                            name = name,
+                            email = currentUser.email ?: "",
+                            age = age.toIntOrNull() ?: 25,
+                            weight = weight.toDoubleOrNull() ?: 70.0,
+                            height = height.toDoubleOrNull() ?: 170.0,
+                            sex = sex,
+                            activityLevel = selectedActivityLevel,
+                            goal = selectedGoal
+                        )
+
+                        scope.launch(Dispatchers.IO) {
+                            userDao.insertUser(updatedProfile) // Overwrites existing user because of REPLACE strategy
+                            withContext(Dispatchers.Main) {
+                                onSave() // Navigate back
+                            }
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
