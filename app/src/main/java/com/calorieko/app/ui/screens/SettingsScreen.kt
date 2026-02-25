@@ -1,7 +1,7 @@
 package com.calorieko.app.ui.screens
 
 
-import android.app.Activity
+
 import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
@@ -96,6 +96,9 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
 
     var showWipeConfirmDialog by remember { mutableStateOf(false) }
     var isWiping by remember { mutableStateOf(false) }
+
+    // --- ADD THIS NEW STATE ---
+    var showLogOutConfirmDialog by remember { mutableStateOf(false) }
 
     // Logic Handlers
     fun handleRecalibrate() {
@@ -307,14 +310,15 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                     }
 
                     // Wipe Data Button
-                    Box(modifier = Modifier.padding(24.dp)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         OutlinedButton(
                             onClick = { showWipeConfirmDialog = true },
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFFEF2F2),
                                 contentColor = Color(0xFFDC2626)
                             ),
-                            border = null, // No border for this style
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -328,11 +332,11 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                                 Text("Wipe All Local Data", fontWeight = FontWeight.SemiBold)
                             }
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "This will delete all locally stored logs and data",
                             fontSize = 11.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(top = 48.dp)
+                            color = Color.Gray
                         )
                     }
                 }
@@ -340,7 +344,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                 // --- Sign Out Button ---
                 Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                     OutlinedButton(
-                        onClick = { handleSignOut() },
+                        onClick = { showLogOutConfirmDialog = true },
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color(0xFF374151)
                         ),
@@ -408,33 +412,62 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
-    }
 
-    // Wipe Data Confirmation Dialog
-    if (showWipeConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showWipeConfirmDialog = false },
-            title = { Text("Wipe Local Data?") },
-            text = { Text("Are you sure you want to wipe all local data? This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = { handleWipeData() },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
-                ) {
-                    Text("Wipe Data")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showWipeConfirmDialog = false }) {
-                    Text("Cancel")
-                }
-            },
-            containerColor = Color.White,
-            titleContentColor = Color(0xFF1F2937),
-            textContentColor = Color(0xFF4B5563)
-        )
+        // Wipe Data Confirmation Dialog
+        if (showWipeConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showWipeConfirmDialog = false },
+                title = { Text("Wipe Local Data?") },
+                text = { Text("Are you sure you want to wipe all local data? This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = { handleWipeData() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
+                    ) {
+                        Text("Wipe Data")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showWipeConfirmDialog = false }) {
+                        Text("Cancel")
+                    }
+                },
+                containerColor = Color.White,
+                titleContentColor = Color(0xFF1F2937),
+                textContentColor = Color(0xFF4B5563)
+            )
+        }
+
+        // Log Out Confirmation Dialog
+        if (showLogOutConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogOutConfirmDialog = false },
+                title = { Text("Log Out?") },
+                text = { Text("Are you sure you want to log out of your account?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showLogOutConfirmDialog = false
+                            handleSignOut()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
+                    ) {
+                        Text("Log Out")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogOutConfirmDialog = false }) {
+                        Text("Cancel")
+                    }
+                },
+                containerColor = Color.White,
+                titleContentColor = Color(0xFF1F2937),
+                textContentColor = Color(0xFF4B5563)
+            )
+        }
     }
 }
+
 
 
 
