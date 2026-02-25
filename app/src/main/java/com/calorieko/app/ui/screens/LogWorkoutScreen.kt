@@ -52,6 +52,7 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,13 +60,22 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -92,6 +102,35 @@ enum class WorkoutMode { SELECTION, MANUAL, GPS }
 fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     var mode by remember { mutableStateOf(WorkoutMode.SELECTION) }
 
+    // --- Database Setup ---
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val activityLogDao = db.activityLogDao()
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid ?: ""
+
+    // Handle saving the workout to the database
+    val saveWorkout: (String, Int, String) -> Unit = { name, calories, duration ->
+        scope.launch(Dispatchers.IO) {
+            val currentTimeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+            val log = ActivityLogEntity(
+                uid = uid,
+                type = "workout",
+                name = name,
+                timeString = currentTimeString,
+                weightOrDuration = duration,
+                calories = calories,
+                timestamp = System.currentTimeMillis()
+            )
+            activityLogDao.insertLog(log)
+
+            withContext(Dispatchers.Main) {
+                onBack() // Navigate back to Dashboard immediately after saving
+            }
+        }
+    }
+
     // Handle back press logic within the screen
     fun handleBack() {
         if (mode == WorkoutMode.SELECTION) {
@@ -103,7 +142,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
 
     Scaffold(
         topBar = {
-            if (mode != WorkoutMode.GPS) { // GPS screen has its own custom UI
+            if (mode != WorkoutMode.GPS) {
                 Surface(color = Color.White, shadowElevation = 1.dp) {
                     Row(
                         modifier = Modifier
@@ -138,8 +177,13 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                         onSelectManual = { mode = WorkoutMode.MANUAL },
                         onSelectGPS = { mode = WorkoutMode.GPS }
                     )
-                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight)
-                    WorkoutMode.GPS -> GPSTrackerContent(onFinish = { handleBack() })
+                    WorkoutMode.MANUAL -> ManualMETsContent(
+                        userWeight = userWeight,
+                        onSave = saveWorkout
+                    )
+                    WorkoutMode.GPS -> GPSTrackerContent(
+                        onSave = saveWorkout
+                    )
                 }
             }
         }
@@ -157,7 +201,6 @@ fun ModeSelectionContent(onSelectManual: () -> Unit, onSelectGPS: () -> Unit) {
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        // Manual Card
         WorkoutSelectionCard(
             title = "Lifestyle Activities",
             description = "Log daily activities and household chores",
@@ -168,7 +211,6 @@ fun ModeSelectionContent(onSelectManual: () -> Unit, onSelectGPS: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // GPS Card
         WorkoutSelectionCard(
             title = "Outdoor Workout",
             description = "Track runs, walks, and cycling with GPS",
@@ -179,9 +221,8 @@ fun ModeSelectionContent(onSelectManual: () -> Unit, onSelectGPS: () -> Unit) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Info Card
         Surface(
-            color = Color(0xFFEFF6FF), // Blue-50
+            color = Color(0xFFEFF6FF),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, Color(0xFFDBEAFE))
         ) {
@@ -245,11 +286,11 @@ fun WorkoutSelectionCard(
 
 // --- 2. Manual METs Screen ---
 @Composable
-fun ManualMETsContent(userWeight: Double) {
+fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
     var durationText by remember { mutableStateOf("") }
-    var showSuccess by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     val filteredActivities = remember(searchQuery) {
         ACTIVITIES.filter {
@@ -271,7 +312,6 @@ fun ManualMETsContent(userWeight: Double) {
             contentPadding = PaddingValues(vertical = 24.dp)
         ) {
             if (selectedActivity == null) {
-                // Search State
                 item {
                     OutlinedTextField(
                         value = searchQuery,
@@ -315,9 +355,7 @@ fun ManualMETsContent(userWeight: Double) {
                     }
                 }
             } else {
-                // Activity Selected State
                 item {
-                    // Selected Activity Header
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -346,7 +384,6 @@ fun ManualMETsContent(userWeight: Double) {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Duration Input
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -373,7 +410,6 @@ fun ManualMETsContent(userWeight: Double) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // MET Info Box
                     Surface(
                         color = Color(0xFFFFF7ED),
                         shape = RoundedCornerShape(8.dp),
@@ -391,7 +427,6 @@ fun ManualMETsContent(userWeight: Double) {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Calorie Estimate Card
                     if (caloriesBurned > 0) {
                         Box(
                             modifier = Modifier
@@ -418,7 +453,6 @@ fun ManualMETsContent(userWeight: Double) {
             }
         }
 
-        // Bottom Button
         if (selectedActivity != null && durationText.isNotEmpty()) {
             Surface(shadowElevation = 8.dp) {
                 Box(modifier = Modifier
@@ -427,26 +461,25 @@ fun ManualMETsContent(userWeight: Double) {
                     .padding(24.dp)) {
                     Button(
                         onClick = {
-                            showSuccess = true
-                            // Reset handled via logic in a real app, simplified here
+                            isSaving = true
+                            onSave(selectedActivity!!.name, caloriesBurned, "$durationText min")
                         },
+                        enabled = !isSaving,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (showSuccess) CalorieKoGreen else CalorieKoOrange
+                            containerColor = CalorieKoOrange
                         )
                     ) {
-                        if (showSuccess) {
-                            Icon(Icons.Default.Check, null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Activity Logged!", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        } else {
-                            Icon(Icons.Default.LocalFireDepartment, null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Log $caloriesBurned Calories", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
+                        Icon(Icons.Default.LocalFireDepartment, null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isSaving) "Saving..." else "Log $caloriesBurned Calories",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -456,14 +489,14 @@ fun ManualMETsContent(userWeight: Double) {
 
 // --- 3. GPS Tracker Screen ---
 @Composable
-fun GPSTrackerContent(onFinish: () -> Unit) {
+fun GPSTrackerContent(onSave: (String, Int, String) -> Unit) {
     var isTracking by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
     var showSummary by remember { mutableStateOf(false) }
     var timeSeconds by remember { mutableLongStateOf(0L) }
     var distanceKm by remember { mutableDoubleStateOf(0.0) }
+    var isSaving by remember { mutableStateOf(false) }
 
-    // Timer Logic
     LaunchedEffect(isTracking, isPaused) {
         if (isTracking && !isPaused) {
             while (true) {
@@ -484,7 +517,6 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
     val pace = if (distanceKm > 0) (timeSeconds / 60.0) / distanceKm else 0.0
 
     if (showSummary) {
-        // --- Summary View ---
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -507,9 +539,7 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Row 1: Calories + Duration
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Calorie Card
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = CalorieKoOrange),
@@ -524,7 +554,6 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                         Text("$caloriesBurned", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
-                // Duration Card
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
@@ -543,9 +572,7 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Row 2: Distance + Avg Pace
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Distance Card
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
@@ -561,7 +588,6 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                         Text("kilometers", color = Color.Gray, fontSize = 12.sp)
                     }
                 }
-                // Avg Pace Card
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
@@ -583,7 +609,6 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Start New Workout button
             Button(
                 onClick = {
                     showSummary = false
@@ -601,42 +626,31 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Save to Dashboard button
             Button(
-                onClick = onFinish,
+                onClick = {
+                    isSaving = true
+                    onSave("Outdoor Workout", caloriesBurned, formatTime(timeSeconds))
+                },
+                enabled = !isSaving,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Save to Dashboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Auto-sync info note
-            Surface(
-                color = Color(0xFFF3F4F6),
-                shape = RoundedCornerShape(8.dp)
-            ) {
                 Text(
-                    text = "This workout has been automatically synced with your daily calorie balance. You've burned $caloriesBurned calories!",
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(12.dp)
+                    text = if (isSaving) "Saving..." else "Save to Dashboard",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
     } else {
-        // --- Active Tracker View ---
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF111827)) // Dark bg
+                .background(Color(0xFF111827))
         ) {
-            // Simulated Map Background
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -653,16 +667,13 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                 Text("GPS Tracking Simulation", color = Color.Gray, modifier = Modifier.padding(top = 100.dp))
             }
 
-            // Stats Overlay
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(24.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top section: Stats + Status indicator
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Top Stats Grid
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -673,7 +684,6 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                             Icons.AutoMirrored.Filled.DirectionsBike, "min/km", modifier = Modifier.weight(1f))
                     }
 
-                    // Status indicator below stats
                     if (isTracking) {
                         Spacer(modifier = Modifier.height(16.dp))
                         if (!isPaused) {
@@ -704,7 +714,6 @@ fun GPSTrackerContent(onFinish: () -> Unit) {
                     }
                 }
 
-                // Controls
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally

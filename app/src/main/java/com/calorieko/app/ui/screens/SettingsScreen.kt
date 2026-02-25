@@ -91,7 +91,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
     var useMetricUnits by remember { mutableStateOf(true) }
 
     // Dialog States
-    var showRecalibrationDialog by remember { mutableStateOf(false) }
+
     var isCalibrating by remember { mutableStateOf(false) }
 
     var showWipeConfirmDialog by remember { mutableStateOf(false) }
