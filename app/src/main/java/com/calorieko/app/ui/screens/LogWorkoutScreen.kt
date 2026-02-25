@@ -223,7 +223,8 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
                     WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = saveWorkout)
-                    WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout)
+                    // UPDATE THIS LINE: Add the onBack parameter
+                    WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = onBack)
                 }
             }
         }
@@ -354,7 +355,8 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 
 // --- 3. ADVANCED OPENSTREETMAP TRACKER ---
 @Composable
-fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit) {
+
+fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
 
     // UI State
@@ -448,7 +450,14 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.AutoMirrored.Filled.DirectionsBike, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Avg Pace", color = Color.Gray, fontSize = 12.sp) }; val paceMinutes = pace.toInt(); val paceSeconds = ((pace - paceMinutes) * 60).toInt(); Text(String.format(Locale.US, "%d:%02d", paceMinutes, paceSeconds), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("min/km", color = Color.Gray, fontSize = 12.sp) } }
             }
             Spacer(modifier = Modifier.height(32.dp))
-            Button(onClick = { isSaving = true; onSave("Outdoor ${selectedActivity.name}", caloriesBurned, formatTime(timeSeconds)) }, enabled = !isSaving, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen), shape = RoundedCornerShape(12.dp)) {
+            Button(
+                // UPDATE THIS LINE: Removed "Outdoor " prefix
+                onClick = { isSaving = true; onSave(selectedActivity.name, caloriesBurned, formatTime(timeSeconds)) },
+                enabled = !isSaving,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp))
                 Text(text = if (isSaving) "Saving..." else "Save to Dashboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
@@ -543,8 +552,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
             )
 
             // --- TOP-LEFT: BACK BUTTON ---
+            // --- TOP-LEFT: BACK BUTTON ---
             IconButton(
-                onClick = { /* handled by parent */ },
+                onClick = { onBack() }, // UPDATE THIS LINE: Replace /* handled by parent */ with onBack()
                 modifier = Modifier
                     .padding(start = 16.dp, top = 48.dp)
                     .align(Alignment.TopStart)
