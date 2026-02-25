@@ -70,11 +70,9 @@ dependencies {
     // Real GPS Tracking
     implementation("com.google.android.gms:play-services-location:21.2.0")
 
-    // ADD THIS INSTEAD (100% Free Map):
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
-
-    // KEEP THIS (Getting GPS coordinates is free):
-    implementation("com.google.android.gms:play-services-location:21.2.0")
+    // Mapbox Maps SDK + Compose extension
+    implementation("com.mapbox.maps:android:11.18.2")
+    implementation("com.mapbox.extension:maps-compose:11.18.2")
 
 
 
@@ -93,8 +91,3 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
-
-
-
-
-
