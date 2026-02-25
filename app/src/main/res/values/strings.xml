@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">CalorieKo Mobile Application</string>
-    <!-- Mapbox public access token (pk.eyJ1Ijo...) -->
-    <!-- Get yours from https://account.mapbox.com/access-tokens/ -->
-    <string name="mapbox_access_token" translatable="false"></string>
+    <!-- mapbox_access_token is now injected at build time from local.properties -->
+    <!-- See app/build.gradle.kts for the resValue configuration -->
 </resources>

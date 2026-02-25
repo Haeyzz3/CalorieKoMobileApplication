@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
 
     alias(libs.plugins.android.application)
@@ -23,6 +26,20 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Read Mapbox public access token from local.properties (git-ignored)
+        val localPropertiesFile = rootProject.file("local.properties")
+        val localProperties = Properties().apply {
+            if (localPropertiesFile.exists()) {
+                load(FileInputStream(localPropertiesFile))
+            }
+        }
+        val mapboxAccessToken = localProperties.getProperty("MAPBOX_ACCESS_TOKEN")
+            ?: throw GradleException(
+                "MAPBOX_ACCESS_TOKEN not found in local.properties. " +
+                "Please add: MAPBOX_ACCESS_TOKEN=pk.your_token_here"
+            )
+        resValue("string", "mapbox_access_token", mapboxAccessToken)
     }
 
     buildTypes {
@@ -40,6 +57,7 @@ android {
     }
     buildFeatures {
         compose = true
+        resValues = true
     }
 }
 
@@ -89,5 +107,5 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)}
-
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
