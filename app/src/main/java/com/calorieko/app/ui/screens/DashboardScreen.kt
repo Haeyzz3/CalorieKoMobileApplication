@@ -1,7 +1,5 @@
 package com.calorieko.app.ui.screens
 
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -381,9 +379,6 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
 
 @Composable
 fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
-    // Reverse to show the newest entries first, limited to the top 5
-    val latestActivities = activities.reversed().take(5)
-
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -392,14 +387,14 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
-                text = "Recent Activity (Latest 5)",
+                text = "Today's Activity",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1F2937),
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            if (latestActivities.isEmpty()) {
+            if (activities.isEmpty()) {
                 // Empty State
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
@@ -414,12 +409,9 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
                     Text("No activities logged yet", color = Color.Gray, fontSize = 14.sp)
                 }
             } else {
-                // Bounded LazyColumn enables vertical scrolling within the card
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 350.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(latestActivities) { activity ->
+                // List Items
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    activities.forEach { activity ->
                         ActivityItemRevised(activity)
                     }
                 }

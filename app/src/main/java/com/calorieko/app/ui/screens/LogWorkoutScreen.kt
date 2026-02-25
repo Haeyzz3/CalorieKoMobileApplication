@@ -96,6 +96,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.calorieko.app.data.local.AppDatabase
@@ -108,21 +109,16 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.firebase.auth.FirebaseAuth
-import com.mapbox.geojson.Point
-import com.mapbox.maps.Style
-import com.mapbox.maps.extension.compose.MapEffect
-import com.mapbox.maps.extension.compose.MapboxMap
-import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
-import com.mapbox.maps.extension.compose.annotation.generated.PolylineAnnotation
-import com.mapbox.maps.extension.compose.annotation.generated.PolylineAnnotationState
-import com.mapbox.maps.extension.compose.style.MapStyle
-import com.mapbox.maps.plugin.locationcomponent.location
-import com.mapbox.maps.plugin.viewport.data.FollowPuckViewportStateBearing
-import com.mapbox.maps.plugin.viewport.data.FollowPuckViewportStateOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -383,11 +379,10 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     // Maps State
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var lastLocation by remember { mutableStateOf<Location?>(null) }
-    var pathPoints by remember { mutableStateOf<List<Point>>(emptyList()) }
-    var currentGeoPoint by remember { mutableStateOf<Point?>(null) }
+    var pathPoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
+    var currentGeoPoint by remember { mutableStateOf<GeoPoint?>(null) }
 
-    // Mapbox viewport state for camera control
-    val mapViewportState = rememberMapViewportState()
+    LaunchedEffect(Unit) { Configuration.getInstance().userAgentValue = context.packageName }
 
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
@@ -407,7 +402,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
                     if (location.accuracy < 25f) {
-                        val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                        val newPoint = GeoPoint(location.latitude, location.longitude)
                         currentGeoPoint = newPoint
 
                         if (isTracking && !isPaused) {
@@ -439,10 +434,8 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     val hours = timeSeconds / 3600.0
     val caloriesBurned = if (timeSeconds > 0) (selectedActivity.met * userWeight * hours).toInt() else 0
     val pace = if (distanceKm > 0) ((timeSeconds / 60.0) / distanceKm) else 0.0
-    val steps = (distanceKm * 1312).toInt() // Standard estimate: 1312 steps per km
 
     if (showSummary) {
-
         // --- SUMMARY SCREEN ---
         Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Box(modifier = Modifier.size(80.dp).background(Color(0xFFDCFCE7), CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(40.dp)) }
@@ -452,32 +445,10 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Timer, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Duration", color = Color.Gray, fontSize = 12.sp) }; Text(formatTime(timeSeconds), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) } }
             }
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Add Steps Card
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) {
-                Column(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.DirectionsWalk,
-                            null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
-                        );
-                        Spacer(modifier = Modifier.width(4.dp));
-                        Text("Estimated Steps", color = Color.Gray, fontSize = 12.sp)
-                    };
-                    Text(
-                        "$steps",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2937)
-                    );
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Distance", color = Color.Gray, fontSize = 12.sp) }; Text(String.format(Locale.US, "%.2f", distanceKm), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("kilometers", color = Color.Gray, fontSize = 12.sp) } }
+                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.AutoMirrored.Filled.DirectionsBike, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Avg Pace", color = Color.Gray, fontSize = 12.sp) }; val paceMinutes = pace.toInt(); val paceSeconds = ((pace - paceMinutes) * 60).toInt(); Text(String.format(Locale.US, "%d:%02d", paceMinutes, paceSeconds), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("min/km", color = Color.Gray, fontSize = 12.sp) } }
             }
-
             Spacer(modifier = Modifier.height(32.dp))
             Button(
                 // UPDATE THIS LINE: Removed "Outdoor " prefix
@@ -496,76 +467,89 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
         var showSportSheet by remember { mutableStateOf(false) }
         var is3DMode by remember { mutableStateOf(false) }
 
-        // Determine Mapbox style based on mapType
-        val mapStyle = remember(mapType) {
-            when (mapType) {
-                "Terrain" -> Style.OUTDOORS
-                else -> Style.DARK
-            }
-        }
-
-        // Follow the user's puck when followUser is true
-        LaunchedEffect(followUser) {
-            if (followUser) {
-                mapViewportState.transitionToFollowPuckState(
-                    FollowPuckViewportStateOptions.Builder()
-                        .bearing(if (isCompassMode) FollowPuckViewportStateBearing.SyncWithLocationPuck else FollowPuckViewportStateBearing.Constant(0.0))
-                        .zoom(16.0)
-                        .pitch(if (is3DMode) 45.0 else 0.0)
-                        .build()
-                )
-            }
-        }
-
-        // Update camera when compass/3D mode changes
-        LaunchedEffect(isCompassMode, is3DMode) {
-            if (followUser) {
-                mapViewportState.transitionToFollowPuckState(
-                    FollowPuckViewportStateOptions.Builder()
-                        .bearing(if (isCompassMode) FollowPuckViewportStateBearing.SyncWithLocationPuck else FollowPuckViewportStateBearing.Constant(0.0))
-                        .zoom(16.0)
-                        .pitch(if (is3DMode) 45.0 else 0.0)
-                        .build()
-                )
-            }
-        }
+        val mapViewRef = remember { mutableStateOf<MapView?>(null) }
 
         Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E))) {
 
-            // --- MAPBOX MAP VIEW ---
-            MapboxMap(
+            // --- MAP VIEW ---
+            AndroidView(
                 modifier = Modifier.fillMaxSize(),
-                mapViewportState = mapViewportState,
-                style = { MapStyle(style = mapStyle) }
-            ) {
-                // Configure location component via MapEffect
-                MapEffect(isCompassMode) { mapView ->
-                    // Enable location component
-                    mapView.location.enabled = true
-                    mapView.location.pulsingEnabled = true
-                    mapView.location.pulsingColor = android.graphics.Color.parseColor("#00BFFF")
-                    mapView.location.puckBearingEnabled = isCompassMode
-                }
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        setMultiTouchControls(true)
+                        controller.setZoom(16.0)
+                        // Smoother rendering settings
+                        isTilesScaledToDpi = true
+                        setScrollableAreaLimitLatitude(
+                            MapView.getTileSystem().maxLatitude,
+                            MapView.getTileSystem().minLatitude,
+                            0
+                        )
+                        mapViewRef.value = this
+                    }
+                },
+                update = { mapView ->
+                    mapView.setTileSource(
+                        if (mapType == "Terrain") TileSourceFactory.OpenTopo
+                        else TileSourceFactory.MAPNIK
+                    )
 
-                // Draw route path as a PolylineAnnotation
-                if (pathPoints.size >= 2) {
-                    // Outer glow line
-                    PolylineAnnotation(
-                        points = pathPoints
-                    ) {
-                        lineColor = Color(0x4400BFFF)
-                        lineWidth = 14.0
-                        lineOpacity = 0.5
+                    // Smooth follow logic
+                    if (followUser && currentGeoPoint != null) {
+                        mapView.controller.animateTo(currentGeoPoint, 16.0, 800L)
                     }
-                    // Main route line
-                    PolylineAnnotation(
-                        points = pathPoints
-                    ) {
-                        lineColor = Color(0xFF00BFFF)
-                        lineWidth = 6.0
+
+                    // Smooth compass rotation
+                    if (isCompassMode && lastLocation?.hasBearing() == true) {
+                        val targetOrientation = 360f - lastLocation!!.bearing
+                        val currentOrientation = mapView.mapOrientation
+                        val diff = targetOrientation - currentOrientation
+                        // Smooth interpolation
+                        mapView.mapOrientation = currentOrientation + diff * 0.3f
+                    } else {
+                        if (mapView.mapOrientation != 0f) {
+                            mapView.mapOrientation = mapView.mapOrientation * 0.7f
+                            if (kotlin.math.abs(mapView.mapOrientation) < 1f) {
+                                mapView.mapOrientation = 0f
+                            }
+                        }
                     }
+
+                    mapView.overlays.clear()
+
+                    // Draw route path with glow effect
+                    if (pathPoints.isNotEmpty()) {
+                        // Outer glow
+                        val glowLine = Polyline()
+                        glowLine.setPoints(pathPoints)
+                        glowLine.outlinePaint.color = android.graphics.Color.parseColor("#4400BFFF")
+                        glowLine.outlinePaint.strokeWidth = 28f
+                        glowLine.outlinePaint.isAntiAlias = true
+                        mapView.overlays.add(glowLine)
+
+                        // Main line
+                        val line = Polyline()
+                        line.setPoints(pathPoints)
+                        line.outlinePaint.color = android.graphics.Color.parseColor("#00BFFF")
+                        line.outlinePaint.strokeWidth = 12f
+                        line.outlinePaint.isAntiAlias = true
+                        line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                        line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                        mapView.overlays.add(line)
+                    }
+
+                    // Location marker with pulsing dot effect
+                    currentGeoPoint?.let { point ->
+                        val marker = Marker(mapView)
+                        marker.position = point
+                        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        marker.icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                        mapView.overlays.add(marker)
+                    }
+
+                    mapView.invalidate()
                 }
-            }
+            )
 
             // --- TOP-LEFT: BACK BUTTON ---
             // --- TOP-LEFT: BACK BUTTON ---
