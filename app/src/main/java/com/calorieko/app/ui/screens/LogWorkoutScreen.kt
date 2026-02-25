@@ -7,6 +7,17 @@ import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,7 +35,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,16 +42,23 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Hiking
+import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,7 +86,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.core.graphics.toColorInt
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -134,6 +151,19 @@ val OUTDOOR_ACTIVITIES = listOf(
 )
 
 enum class WorkoutMode { SELECTION, MANUAL, GPS }
+
+// Helper function to get sport-specific icons
+fun getActivityIcon(activity: ActivityItem): ImageVector {
+    return when (activity.id) {
+        "gps1" -> Icons.AutoMirrored.Filled.DirectionsRun   // Run
+        "gps2" -> Icons.AutoMirrored.Filled.DirectionsWalk   // Walk
+        "gps3" -> Icons.AutoMirrored.Filled.DirectionsBike  // Cycling
+        "gps4" -> Icons.Default.Landscape            // Trail Running
+        "gps5" -> Icons.Default.Hiking               // Hike
+        "gps6" -> Icons.AutoMirrored.Filled.DirectionsBike  // Mountain Bike
+        else -> Icons.Default.FitnessCenter
+    }
+}
 
 @Composable
 fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
@@ -424,57 +454,87 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
             }
         }
     } else {
-        Box(modifier = Modifier.fillMaxSize()) {
+        // --- STRAVA-STYLE DARK GPS TRACKER UI ---
+        var showSportSheet by remember { mutableStateOf(false) }
+        var is3DMode by remember { mutableStateOf(false) }
 
-            // --- ACTUAL OPENSTREETMAP BACKGROUND ---
+        val mapViewRef = remember { mutableStateOf<MapView?>(null) }
+
+        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E))) {
+
+            // --- MAP VIEW ---
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     MapView(ctx).apply {
                         setMultiTouchControls(true)
-                        controller.setZoom(18.0)
+                        controller.setZoom(16.0)
+                        // Smoother rendering settings
+                        isTilesScaledToDpi = true
+                        setScrollableAreaLimitLatitude(
+                            MapView.getTileSystem().maxLatitude,
+                            MapView.getTileSystem().minLatitude,
+                            0
+                        )
+                        mapViewRef.value = this
                     }
                 },
                 update = { mapView ->
-                    // Set Terrain vs Standard Map
-                    mapView.setTileSource(if (mapType == "Terrain") TileSourceFactory.OpenTopo else TileSourceFactory.MAPNIK)
+                    mapView.setTileSource(
+                        if (mapType == "Terrain") TileSourceFactory.OpenTopo
+                        else TileSourceFactory.MAPNIK
+                    )
 
-                    // Follow and Perspective logic
+                    // Smooth follow logic
                     if (followUser && currentGeoPoint != null) {
-                        mapView.controller.animateTo(currentGeoPoint)
+                        mapView.controller.animateTo(currentGeoPoint, 16.0, 800L)
                     }
 
-                    // Rotate map based on bearing if in compass mode
+                    // Smooth compass rotation
                     if (isCompassMode && lastLocation?.hasBearing() == true) {
-                        mapView.mapOrientation = 360f - lastLocation!!.bearing
+                        val targetOrientation = 360f - lastLocation!!.bearing
+                        val currentOrientation = mapView.mapOrientation
+                        val diff = targetOrientation - currentOrientation
+                        // Smooth interpolation
+                        mapView.mapOrientation = currentOrientation + diff * 0.3f
                     } else {
-                        mapView.mapOrientation = 0f // Bird's Eye (North up)
+                        if (mapView.mapOrientation != 0f) {
+                            mapView.mapOrientation = mapView.mapOrientation * 0.7f
+                            if (kotlin.math.abs(mapView.mapOrientation) < 1f) {
+                                mapView.mapOrientation = 0f
+                            }
+                        }
                     }
 
                     mapView.overlays.clear()
 
-                    // Draw path
+                    // Draw route path with glow effect
                     if (pathPoints.isNotEmpty()) {
+                        // Outer glow
+                        val glowLine = Polyline()
+                        glowLine.setPoints(pathPoints)
+                        glowLine.outlinePaint.color = android.graphics.Color.parseColor("#4400BFFF")
+                        glowLine.outlinePaint.strokeWidth = 28f
+                        glowLine.outlinePaint.isAntiAlias = true
+                        mapView.overlays.add(glowLine)
+
+                        // Main line
                         val line = Polyline()
                         line.setPoints(pathPoints)
-                        line.outlinePaint.color = "#F97316".toColorInt() // Orange
-                        line.outlinePaint.strokeWidth = 18f
+                        line.outlinePaint.color = android.graphics.Color.parseColor("#00BFFF")
+                        line.outlinePaint.strokeWidth = 12f
+                        line.outlinePaint.isAntiAlias = true
+                        line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                        line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
                         mapView.overlays.add(line)
                     }
 
-                    // Draw Location Marker
-                    currentGeoPoint?.let {
+                    // Location marker with pulsing dot effect
+                    currentGeoPoint?.let { point ->
                         val marker = Marker(mapView)
-                        marker.position = it
+                        marker.position = point
                         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        // Create a simple circle drawable as the marker icon
-                        val dotDrawable = android.graphics.drawable.GradientDrawable().apply {
-                            shape = android.graphics.drawable.GradientDrawable.OVAL
-                            setSize(40, 40)
-                            setColor("#F97316".toColorInt())
-                            setStroke(4, android.graphics.Color.WHITE)
-                        }
-                        marker.icon = dotDrawable
+                        marker.icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
                         mapView.overlays.add(marker)
                     }
 
@@ -482,124 +542,535 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                 }
             )
 
-            // --- UI CONTROLS OVERLAY ---
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            // --- TOP-LEFT: BACK BUTTON ---
+            IconButton(
+                onClick = { /* handled by parent */ },
+                modifier = Modifier
+                    .padding(start = 16.dp, top = 48.dp)
+                    .align(Alignment.TopStart)
+                    .size(44.dp)
+                    .background(Color(0xFF2A2A3E).copy(alpha = 0.9f), CircleShape)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
 
-                // Top Settings (Map Controls & Activities)
-                Column {
-                    // Floating Map Controls
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Column(horizontalAlignment = Alignment.End) {
-                            // Layer Switcher
-                            Box {
-                                IconButton(
-                                    onClick = { showLayerMenu = true },
-                                    modifier = Modifier.background(Color.White, CircleShape).shadow(4.dp, CircleShape)
-                                ) { Icon(Icons.Default.Layers, "Map Type", tint = Color.Black) }
+            // --- RIGHT SIDE: MAP CONTROL BUTTONS ---
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 16.dp)
+                    .padding(bottom = 80.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Layers button with badge
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0xFF2A2A3E).copy(alpha = 0.92f), CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                            .clickable { showLayerMenu = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Layers, "Layers", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                    // Badge
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .background(Color(0xFF2A2A3E), CircleShape)
+                            .border(1.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                            .align(Alignment.TopEnd),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("2", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                    DropdownMenu(
+                        expanded = showLayerMenu,
+                        onDismissRequest = { showLayerMenu = false },
+                        modifier = Modifier.background(Color(0xFF2A2A3E))
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Standard", color = Color.White) },
+                            onClick = { mapType = "Standard"; showLayerMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Terrain", color = Color.White) },
+                            onClick = { mapType = "Terrain"; showLayerMenu = false }
+                        )
+                    }
+                }
 
-                                DropdownMenu(expanded = showLayerMenu, onDismissRequest = { showLayerMenu = false }) {
-                                    DropdownMenuItem(text = { Text("Standard (Street)") }, onClick = { mapType = "Standard"; showLayerMenu = false })
-                                    DropdownMenuItem(text = { Text("Terrain (Topo)") }, onClick = { mapType = "Terrain"; showLayerMenu = false })
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
+                // 3D Toggle
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (is3DMode) CalorieKoOrange else Color(0xFF2A2A3E).copy(alpha = 0.92f),
+                            CircleShape
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                        .clickable {
+                            is3DMode = !is3DMode
+                            isCompassMode = is3DMode
+                            followUser = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "3D",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
 
-                            // Perspective Switcher (Center vs Directional)
-                            IconButton(
-                                onClick = {
-                                    isCompassMode = !isCompassMode
-                                    followUser = true
-                                },
-                                modifier = Modifier.background(if (isCompassMode) CalorieKoOrange else Color.White, CircleShape).shadow(4.dp, CircleShape)
-                            ) { Icon(Icons.Default.Explore, "Perspective", tint = if (isCompassMode) Color.White else Color.Black) }
-                            Spacer(modifier = Modifier.height(12.dp))
+                // Recenter / Scope button
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (followUser) Color(0xFF2A2A3E).copy(alpha = 0.92f)
+                            else Color(0xFF2A2A3E).copy(alpha = 0.6f),
+                            CircleShape
+                        )
+                        .border(
+                            1.dp,
+                            if (followUser) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f),
+                            CircleShape
+                        )
+                        .clickable { followUser = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.MyLocation,
+                        "Center",
+                        tint = if (followUser) Color.White else Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
 
-                            // Recenter Button
-                            IconButton(
-                                onClick = { followUser = true },
-                                modifier = Modifier.background(if (followUser) CalorieKoGreen else Color.White, CircleShape).shadow(4.dp, CircleShape)
-                            ) { Icon(Icons.Default.MyLocation, "Center Map", tint = if (followUser) Color.White else Color.Black) }
+            // --- BOTTOM PANEL ---
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
+                // Stats card
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Color(0xFF1E1E30),
+                            RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        )
+                        .padding(top = 8.dp)
+                ) {
+                    // Drag handle
+                    Box(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                            .align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Activity name header
+                    Text(
+                        text = selectedActivity.name,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Stats row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Time
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = if (timeSeconds == 0L) "00:00" else formatTime(timeSeconds),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            )
+                            Text("Time", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                        }
+
+                        // Avg Pace
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = if (pace > 0) {
+                                    val pMin = pace.toInt()
+                                    val pSec = ((pace - pMin) * 60).toInt()
+                                    String.format(Locale.US, "%d:%02d", pMin, pSec)
+                                } else "-:--",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            )
+                            Text(
+                                "Avg. pace (/km)",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        // Distance
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = String.format(Locale.US, "%.2f", distanceKm),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            )
+                            Text(
+                                "Distance (km)",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
                         }
                     }
 
-                    // Activity Selector (Only visible when NOT tracking)
-                    if (!isTracking && timeSeconds == 0L) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 16.dp).fillMaxWidth()
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Drag handle for bottom section
+                    Box(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
+                            .align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Bottom action bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF16162A))
+                        .padding(horizontal = 32.dp, vertical = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Sport selector button
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { showSportSheet = true }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .background(Color(0xFF3A2820), CircleShape)
+                                .border(2.dp, CalorieKoOrange.copy(alpha = 0.6f), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            items(OUTDOOR_ACTIVITIES) { activity ->
-                                Surface(
-                                    color = if (selectedActivity == activity) CalorieKoOrange else Color.White.copy(alpha = 0.9f),
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.clickable { selectedActivity = activity },
-                                    border = BorderStroke(1.dp, if (selectedActivity == activity) CalorieKoOrange else Color.LightGray)
+                            Icon(
+                                getActivityIcon(selectedActivity),
+                                contentDescription = "Sport",
+                                tint = CalorieKoOrange,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            // Checkmark badge
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .background(CalorieKoOrange, CircleShape)
+                                    .align(Alignment.BottomEnd),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            selectedActivity.name,
+                            color = CalorieKoOrange,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Start / Stop / Pause buttons with animations
+                    AnimatedContent(
+                        targetState = isTracking,
+                        label = "TrackingTransition"
+                    ) { tracking ->
+                        if (!tracking) {
+                            // START button
+                            Button(
+                                onClick = {
+                                    if (hasLocationPermission) {
+                                        isTracking = true; isPaused = false
+                                        pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L
+                                    } else {
+                                        permissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.size(72.dp),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = "Start",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Pause / Resume button with animated icon swap
+                                val pauseBtnSize by animateDpAsState(
+                                    targetValue = if (isPaused) 60.dp else 56.dp,
+                                    animationSpec = spring(), label = "pauseSize"
+                                )
+                                Button(
+                                    onClick = { isPaused = !isPaused },
+                                    modifier = Modifier.size(pauseBtnSize),
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isPaused) CalorieKoOrange.copy(alpha = 0.85f)
+                                        else Color(0xFF2A2A3E)
+                                    ),
+                                    elevation = ButtonDefaults.buttonElevation(
+                                        defaultElevation = if (isPaused) 8.dp else 2.dp
+                                    )
                                 ) {
-                                    Text(
-                                        text = activity.name,
-                                        color = if (selectedActivity == activity) Color.White else Color.Black,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    AnimatedContent(
+                                        targetState = isPaused,
+                                        label = "PauseResumeIcon"
+                                    ) { paused ->
+                                        Icon(
+                                            if (paused) Icons.Default.PlayArrow
+                                            else Icons.Default.Pause,
+                                            contentDescription = if (paused) "Resume" else "Pause",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+
+                                // Stop button
+                                Button(
+                                    onClick = { isTracking = false; showSummary = true },
+                                    modifier = Modifier.size(72.dp),
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 12.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Stop,
+                                        contentDescription = "Stop",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
                                     )
                                 }
                             }
                         }
                     }
+
+                    // Empty spacer to balance layout (replaces removed Add Route)
+                    Spacer(modifier = Modifier.size(52.dp))
                 }
+            }
 
-                // Bottom Dashboard (Stats & Start/Stop)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // --- SPORT SELECTION BOTTOM SHEET ---
+            if (showSportSheet) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .clickable { showSportSheet = false }
+                )
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Color(0xFF1E1E30),
+                            RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                        )
+                        .padding(bottom = 32.dp)
+                ) {
+                    // Handle
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                            .align(Alignment.CenterHorizontally)
+                    )
 
-                    // Stats Box
-                    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GPSStatItem("Time", formatTime(timeSeconds), Icons.Default.Timer, modifier = Modifier.weight(1f))
-                        GPSStatItem("Distance", String.format(Locale.US, "%.2f", distanceKm), Icons.Default.LocationOn, modifier = Modifier.weight(1f), unit = "km")
-                        GPSStatItem(if (selectedActivity.category == "Cycling") "Speed" else "Pace",
-                            if (selectedActivity.category == "Cycling") String.format(Locale.US, "%.1f", if(timeSeconds>0) (distanceKm/(timeSeconds/3600.0)) else 0.0) else String.format(Locale.US, "%.1f", pace),
-                            Icons.AutoMirrored.Filled.DirectionsBike,
-                            modifier = Modifier.weight(1f),
-                            unit = if (selectedActivity.category == "Cycling") "km/h" else "min/km")
+                    // Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Choose a Sport",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = { showSportSheet = false }) {
+                            Text("✕", color = Color.White, fontSize = 20.sp)
+                        }
                     }
 
-                    // Status Indicator
-                    if (isTracking) {
-                        Surface(color = if (!isPaused) CalorieKoOrange.copy(alpha = 0.9f) else Color(0xFFEF4444).copy(alpha = 0.9f), shape = CircleShape, modifier = Modifier.padding(bottom = 16.dp)) {
-                            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).background(Color.White, CircleShape))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(if (!isPaused) "${selectedActivity.name} Active" else "Paused", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        }
-                    } else if (!hasLocationPermission) {
-                        Surface(color = Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
-                            Text("Location permission required", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
+                    // Banner
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF2A2A3E)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "New Sports available!",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                "Explore the list and discover your new favorite way to move.",
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 13.sp
+                            )
                         }
                     }
 
-                    // Main Action Buttons
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        if (isTracking) {
-                            Button(onClick = { isPaused = !isPaused }, colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.7f)), modifier = Modifier.padding(end = 16.dp), shape = RoundedCornerShape(12.dp)) {
-                                Text(if (isPaused) "Resume" else "Pause", fontWeight = FontWeight.SemiBold, color = Color.White)
-                            }
-                        }
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                        Button(
-                            onClick = {
-                                if (!isTracking) {
-                                    if (hasLocationPermission) { isTracking = true; isPaused = false; pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L }
-                                    else { permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) }
-                                } else {
-                                    isTracking = false; showSummary = true
+                    // Your Top Sports
+                    Text(
+                        "Your Top Sports",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(Color(0xFF2A2A3E), RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    getActivityIcon(selectedActivity),
+                                    null,
+                                    tint = CalorieKoOrange,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                selectedActivity.name,
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Foot Sports section
+                    Text(
+                        "Foot Sports",
+                        color = CalorieKoOrange,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+
+                    // Sport items
+                    OUTDOOR_ACTIVITIES.forEach { activity ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedActivity = activity
+                                    showSportSheet = false
                                 }
-                            },
-                            modifier = Modifier.size(if(isTracking) 80.dp else 120.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = if (isTracking) Color(0xFFEF4444) else CalorieKoOrange),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(if (isTracking) "Stop" else "Start", fontWeight = FontWeight.Bold, fontSize = if(isTracking) 16.sp else 20.sp, color = Color.White)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    getActivityIcon(activity),
+                                    null,
+                                    tint = CalorieKoOrange.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    activity.name,
+                                    color = if (selectedActivity == activity) CalorieKoOrange
+                                    else Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = if (selectedActivity == activity) FontWeight.Bold
+                                    else FontWeight.Normal
+                                )
+                            }
+                            if (selectedActivity == activity) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    null,
+                                    tint = CalorieKoOrange,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -609,14 +1080,28 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 }
 
 @Composable
-fun GPSStatItem(label: String, value: String, icon: ImageVector, modifier: Modifier = Modifier, unit: String = "") {
-    Column(modifier = modifier.background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(16.dp)).border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp)).padding(12.dp)) {
+fun GPSStatItem(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    unit: String = "",
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(Color(0xFF1E1E30).copy(alpha = 0.95f), RoundedCornerShape(16.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = Color.LightGray, modifier = Modifier.size(12.dp)); Spacer(modifier = Modifier.width(4.dp))
-            Text(label, color = Color.LightGray, fontSize = 12.sp, maxLines = 1, softWrap = false)
+            Icon(icon, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(12.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(label, color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp, maxLines = 1, softWrap = false)
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        if (unit.isNotEmpty()) { Text(unit, color = Color.Gray, fontSize = 11.sp) }
+        if (unit.isNotEmpty()) {
+            Text(unit, color = Color.White.copy(alpha = 0.3f), fontSize = 11.sp)
+        }
     }
 }
