@@ -20,6 +20,7 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 
 import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.ProgressRings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
