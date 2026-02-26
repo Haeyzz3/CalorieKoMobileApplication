@@ -9,7 +9,8 @@ import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-@Database(entities = [FoodItem::class, UserProfile::class, ActivityLogEntity::class], version = 3, exportSchema = false)
+// INCREMENT version from 3 to 4
+@Database(entities = [FoodItem::class, UserProfile::class, ActivityLogEntity::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun foodDao(): FoodDao
@@ -22,12 +23,13 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = INSTANCE ?: Room.databaseBuilder(
+                val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "calorieko_database"
                 )
-                    .addCallback(FoodDatabaseCallback(scope))
+                    // Pass a lambda providing the INSTANCE to the callback
+                    .addCallback(FoodDatabaseCallback(scope) { INSTANCE!! })
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
