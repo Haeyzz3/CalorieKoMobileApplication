@@ -1,43 +1,14 @@
 package com.calorieko.app.ui.screens
 
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.google.firebase.auth.FirebaseAuth
 
-import com.calorieko.app.ui.components.BottomNavigation
-import com.calorieko.app.ui.components.ProgressRings
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -52,18 +23,27 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.ProgressRings
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-
 
 // Data Model matching daily-activity-feed.tsx
 data class ActivityLogEntry(
@@ -101,7 +81,6 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
     val profileImageUrl = currentUser?.photoUrl
 
-    val scrollState = rememberScrollState()
     var activeTab by remember { mutableStateOf("home") }
 
     // --- 3. DYNAMIC TARGET STATE ---
@@ -211,110 +190,112 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
         }
     ) { paddingValues ->
 
-        Column(
+        // Switched from Column to LazyColumn for robust top-to-bottom scrolling
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF8F9FA))
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentPadding = PaddingValues(bottom = 20.dp)
         ) {
 
             // --- 1. Header ---
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left Side: Profile Picture and Text
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(
-                        model = profileImageUrl,
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .clickable { onNavigate("profile") },
-                        contentScale = ContentScale.Crop
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = "Hello, $firstName!",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
-                        )
-                        val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
-                        Text(
-                            text = currentDate,
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                // Right Side: Scale Connected Badge
-                Surface(
-                    color = Color(0xFFECFDF5),
-                    shape = RoundedCornerShape(50),
+            item {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Left Side: Profile Picture and Text
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable { onNavigate("profile") },
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = "Hello, $firstName!",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                            val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+                            Text(
+                                text = currentDate,
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    // Right Side: Scale Connected Badge
+                    Surface(
+                        color = Color(0xFFECFDF5),
+                        shape = RoundedCornerShape(50),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Bluetooth,
-                            contentDescription = null,
-                            tint = Color(0xFF059669),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Scale Connected",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF047857)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Bluetooth,
+                                contentDescription = null,
+                                tint = Color(0xFF059669),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Scale Connected",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF047857)
+                            )
+                        }
                     }
                 }
             }
 
-            // --- 2. Scrollable Content ---
-            Column(
-                modifier = Modifier
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
+            // --- 2. Main Dashboard Content ---
+            item {
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
 
-                // Progress Rings
-                ProgressRings(
-                    caloriesCurrent = currentCalories,
-                    caloriesTarget = targetCalories,
-                    sodiumCurrent = currentSodium,
-                    sodiumTarget = targetSodium,
-                    proteinCurrent = currentProtein,
-                    proteinTarget = targetProtein,
-                    carbsCurrent = currentCarbs,
-                    carbsTarget = targetCarbs,
-                    fatsCurrent = currentFats,
-                    fatsTarget = targetFats
-                )
+                    // Progress Rings
+                    ProgressRings(
+                        caloriesCurrent = currentCalories,
+                        caloriesTarget = targetCalories,
+                        sodiumCurrent = currentSodium,
+                        sodiumTarget = targetSodium,
+                        proteinCurrent = currentProtein,
+                        proteinTarget = targetProtein,
+                        carbsCurrent = currentCarbs,
+                        carbsTarget = targetCarbs,
+                        fatsCurrent = currentFats,
+                        fatsTarget = targetFats
+                    )
 
-                // Action Buttons
-                ActionButtonsRevised(
-                    onLogMeal = { onNavigate("logMeal") },
-                    onLogWorkout = { onNavigate("logWorkout") }
-                )
+                    // Action Buttons
+                    ActionButtonsRevised(
+                        onLogMeal = { onNavigate("logMeal") },
+                        onLogWorkout = { onNavigate("logWorkout") }
+                    )
 
-                // Daily Activity Feed
-                DailyActivityFeedRevised(activityLog)
-
-                // Bottom Spacer
-                Spacer(modifier = Modifier.height(20.dp))
+                    // Daily Activity Feed
+                    DailyActivityFeedRevised(activityLog)
+                }
             }
         }
     }
@@ -397,7 +378,9 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
             if (activities.isEmpty()) {
                 // Empty State
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
@@ -409,9 +392,12 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
                     Text("No activities logged yet", color = Color.Gray, fontSize = 14.sp)
                 }
             } else {
-                // List Items
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    activities.forEach { activity ->
+                // Bounded LazyColumn to allow internal scrolling after ~5 items
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(activities) { activity ->
                         ActivityItemRevised(activity)
                     }
                 }
