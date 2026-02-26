@@ -49,10 +49,10 @@ fun ProgressRings(
             // --- 1. Three Concentric Rings with Center Text ---
             Box(contentAlignment = Alignment.Center) {
                 TripleRingChart(
-                    size = 260.dp, // Increased ring size
-                    outerStrokeWidth = 16.dp,
-                    middleStrokeWidth = 14.dp,
-                    innerStrokeWidth = 12.dp,
+                    size = 280.dp, // Increased overall size to expand inner diameter
+                    outerStrokeWidth = 14.dp,
+                    middleStrokeWidth = 12.dp,
+                    innerStrokeWidth = 10.dp,
                     caloriesCurrent = caloriesCurrent,
                     caloriesTarget = caloriesTarget,
                     burnedCurrent = caloriesBurned,
@@ -61,12 +61,12 @@ fun ProgressRings(
                     sodiumTarget = sodiumTarget
                 )
 
-                // Center Text: Reorganized to fit the circular space perfectly
+                // Center Text: Structured to fit within the expanded inner radius
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     // Primary Metric: Consumed (Green)
                     Text(
                         text = "$caloriesCurrent",
-                        fontSize = 36.sp,
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2E7D32)
                     )
@@ -80,13 +80,13 @@ fun ProgressRings(
 
                     // Secondary Metrics Side-by-Side (Red & Orange)
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "$caloriesBurned",
-                                fontSize = 20.sp,
+                                fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFD32F2F)
                             )
@@ -100,7 +100,7 @@ fun ProgressRings(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "$sodiumCurrent",
-                                fontSize = 20.sp,
+                                fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFF9800)
                             )
@@ -116,7 +116,7 @@ fun ProgressRings(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- 2. Legend Row (Reverted to original compact style) ---
+            // --- 2. Legend Row ---
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
@@ -130,7 +130,7 @@ fun ProgressRings(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- 3. Horizontal Macro Progress Bars (Reverted to original compact style) ---
+            // --- 3. Horizontal Macro Progress Bars ---
             MacroProgressBar(
                 label = "Protein",
                 current = proteinCurrent,
@@ -244,7 +244,7 @@ fun TripleRingChart(
     }
 }
 
-// --- Legend Dot (Reverted) ---
+// --- Legend Dot ---
 
 @Composable
 fun LegendDot(color: Color, label: String) {
@@ -264,7 +264,7 @@ fun LegendDot(color: Color, label: String) {
     }
 }
 
-// --- Horizontal Macro Progress Bar (Reverted) ---
+// --- Horizontal Macro Progress Bar ---
 
 @Composable
 fun MacroProgressBar(
