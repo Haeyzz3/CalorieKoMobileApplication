@@ -113,12 +113,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polyline
+import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.Style
+import com.mapbox.maps.plugin.animation.MapAnimationOptions
+import com.mapbox.maps.plugin.animation.camera
+import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
+import com.mapbox.maps.plugin.scalebar.scalebar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -372,17 +379,15 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     var isSaving by remember { mutableStateOf(false) }
 
     // Map Settings
-    var mapType by remember { mutableStateOf("Standard") } // Standard, Terrain
+    var mapType by remember { mutableStateOf("Dark") } // Dark, Standard, Terrain
     var isCompassMode by remember { mutableStateOf(false) } // False = Center/Birds Eye, True = Forward Rotation
     var followUser by remember { mutableStateOf(true) }
 
     // Maps State
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var lastLocation by remember { mutableStateOf<Location?>(null) }
-    var pathPoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
-    var currentGeoPoint by remember { mutableStateOf<GeoPoint?>(null) }
-
-    LaunchedEffect(Unit) { Configuration.getInstance().userAgentValue = context.packageName }
+    var pathPoints by remember { mutableStateOf<List<Point>>(emptyList()) }
+    var currentPoint by remember { mutableStateOf<Point?>(null) }
 
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
@@ -402,8 +407,8 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
                     if (location.accuracy < 25f) {
-                        val newPoint = GeoPoint(location.latitude, location.longitude)
-                        currentGeoPoint = newPoint
+                        val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                        currentPoint = newPoint
 
                         if (isTracking && !isPaused) {
                             pathPoints = pathPoints + newPoint
@@ -467,87 +472,128 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
         var showSportSheet by remember { mutableStateOf(false) }
         var is3DMode by remember { mutableStateOf(false) }
 
-        val mapViewRef = remember { mutableStateOf<MapView?>(null) }
+        val mapViewRef = remember { mutableStateOf<com.mapbox.maps.MapView?>(null) }
+        var polylineManager by remember { mutableStateOf<PolylineAnnotationManager?>(null) }
+        var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
+
+        // Handle map style changes
+        LaunchedEffect(mapType) {
+            val style = when (mapType) {
+                "Standard" -> Style.MAPBOX_STREETS
+                "Terrain" -> Style.OUTDOORS
+                else -> Style.DARK // Dark theme by default
+            }
+            mapViewRef.value?.mapboxMap?.loadStyle(style)
+        }
 
         Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E))) {
 
-            // --- MAP VIEW ---
+            // --- MAPBOX MAP VIEW (Dark theme + Smooth animations) ---
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    MapView(ctx).apply {
-                        setMultiTouchControls(true)
-                        controller.setZoom(16.0)
-                        // Smoother rendering settings
-                        isTilesScaledToDpi = true
-                        setScrollableAreaLimitLatitude(
-                            MapView.getTileSystem().maxLatitude,
-                            MapView.getTileSystem().minLatitude,
-                            0
+                    com.mapbox.maps.MapView(ctx).apply {
+                        // Dark style to match Strava-style dark UI
+                        mapboxMap.loadStyle(Style.DARK)
+                        mapboxMap.setCamera(
+                            CameraOptions.Builder()
+                                .zoom(16.0)
+                                .pitch(0.0)
+                                .build()
                         )
+                        polylineManager = annotations.createPolylineAnnotationManager()
+                        circleManager = annotations.createCircleAnnotationManager()
+                        // Hide the scale bar (ft ruler) from the map
+                        scalebar.enabled = false
                         mapViewRef.value = this
                     }
                 },
                 update = { mapView ->
-                    mapView.setTileSource(
-                        if (mapType == "Terrain") TileSourceFactory.OpenTopo
-                        else TileSourceFactory.MAPNIK
-                    )
+                    // Smooth camera follow with animation (800ms ease)
+                    if (followUser && currentPoint != null) {
+                        val cameraBuilder = CameraOptions.Builder()
+                            .center(currentPoint)
 
-                    // Smooth follow logic
-                    if (followUser && currentGeoPoint != null) {
-                        mapView.controller.animateTo(currentGeoPoint, 16.0, 800L)
-                    }
-
-                    // Smooth compass rotation
-                    if (isCompassMode && lastLocation?.hasBearing() == true) {
-                        val targetOrientation = 360f - lastLocation!!.bearing
-                        val currentOrientation = mapView.mapOrientation
-                        val diff = targetOrientation - currentOrientation
-                        // Smooth interpolation
-                        mapView.mapOrientation = currentOrientation + diff * 0.3f
-                    } else {
-                        if (mapView.mapOrientation != 0f) {
-                            mapView.mapOrientation = mapView.mapOrientation * 0.7f
-                            if (kotlin.math.abs(mapView.mapOrientation) < 1f) {
-                                mapView.mapOrientation = 0f
-                            }
+                        if (isCompassMode && lastLocation?.hasBearing() == true) {
+                            // 3D compass mode: tilted view, rotated to bearing, closer zoom
+                            cameraBuilder.bearing(lastLocation!!.bearing.toDouble())
+                            cameraBuilder.pitch(60.0)  // Strong 3D tilt
+                            cameraBuilder.zoom(17.5)    // Closer zoom in 3D
+                        } else {
+                            // Normal top-down mode
+                            cameraBuilder.bearing(0.0)
+                            cameraBuilder.pitch(0.0)
+                            cameraBuilder.zoom(16.0)
                         }
+
+                        // Smooth animated camera transition
+                        mapView.camera.easeTo(
+                            cameraBuilder.build(),
+                            MapAnimationOptions.Builder()
+                                .duration(800L)  // 800ms smooth animation
+                                .build()
+                        )
                     }
 
-                    mapView.overlays.clear()
+                    // Clear and redraw annotations
+                    polylineManager?.deleteAll()
+                    circleManager?.deleteAll()
 
                     // Draw route path with glow effect
                     if (pathPoints.isNotEmpty()) {
-                        // Outer glow
-                        val glowLine = Polyline()
-                        glowLine.setPoints(pathPoints)
-                        glowLine.outlinePaint.color = android.graphics.Color.parseColor("#4400BFFF")
-                        glowLine.outlinePaint.strokeWidth = 28f
-                        glowLine.outlinePaint.isAntiAlias = true
-                        mapView.overlays.add(glowLine)
-
-                        // Main line
-                        val line = Polyline()
-                        line.setPoints(pathPoints)
-                        line.outlinePaint.color = android.graphics.Color.parseColor("#00BFFF")
-                        line.outlinePaint.strokeWidth = 12f
-                        line.outlinePaint.isAntiAlias = true
-                        line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                        line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
-                        mapView.overlays.add(line)
+                        // Outer glow line (wider, semi-transparent)
+                        polylineManager?.create(
+                            PolylineAnnotationOptions()
+                                .withPoints(pathPoints)
+                                .withLineColor("#00BFFF")
+                                .withLineWidth(16.0)
+                                .withLineOpacity(0.2)
+                        )
+                        // Inner glow
+                        polylineManager?.create(
+                            PolylineAnnotationOptions()
+                                .withPoints(pathPoints)
+                                .withLineColor("#00BFFF")
+                                .withLineWidth(10.0)
+                                .withLineOpacity(0.4)
+                        )
+                        // Main bright line
+                        polylineManager?.create(
+                            PolylineAnnotationOptions()
+                                .withPoints(pathPoints)
+                                .withLineColor("#00DFFF")
+                                .withLineWidth(5.0)
+                        )
                     }
 
-                    // Location marker with pulsing dot effect
-                    currentGeoPoint?.let { point ->
-                        val marker = Marker(mapView)
-                        marker.position = point
-                        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        marker.icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
-                        mapView.overlays.add(marker)
+                    // Location dot with glow rings
+                    currentPoint?.let { point ->
+                        // Outer glow ring
+                        circleManager?.create(
+                            CircleAnnotationOptions()
+                                .withPoint(point)
+                                .withCircleRadius(16.0)
+                                .withCircleColor("#00BFFF")
+                                .withCircleOpacity(0.15)
+                        )
+                        // Middle glow ring
+                        circleManager?.create(
+                            CircleAnnotationOptions()
+                                .withPoint(point)
+                                .withCircleRadius(11.0)
+                                .withCircleColor("#00BFFF")
+                                .withCircleOpacity(0.3)
+                        )
+                        // Core dot
+                        circleManager?.create(
+                            CircleAnnotationOptions()
+                                .withPoint(point)
+                                .withCircleRadius(7.0)
+                                .withCircleColor("#00DFFF")
+                                .withCircleStrokeWidth(2.5)
+                                .withCircleStrokeColor("#FFFFFF")
+                        )
                     }
-
-                    mapView.invalidate()
                 }
             )
 
@@ -599,7 +645,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                             .align(Alignment.TopEnd),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("2", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text("3", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     }
                     DropdownMenu(
                         expanded = showLayerMenu,
@@ -607,11 +653,15 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                         modifier = Modifier.background(Color(0xFF2A2A3E))
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Standard", color = Color.White) },
+                            text = { Text(" Dark", color = if (mapType == "Dark") CalorieKoOrange else Color.White) },
+                            onClick = { mapType = "Dark"; showLayerMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(" Standard", color = if (mapType == "Standard") CalorieKoOrange else Color.White) },
                             onClick = { mapType = "Standard"; showLayerMenu = false }
                         )
                         DropdownMenuItem(
-                            text = { Text("Terrain", color = Color.White) },
+                            text = { Text(" Terrain", color = if (mapType == "Terrain") CalorieKoOrange else Color.White) },
                             onClick = { mapType = "Terrain"; showLayerMenu = false }
                         )
                     }
