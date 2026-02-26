@@ -1,13 +1,41 @@
 package com.calorieko.app.ui.screens
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.ActivityLogEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
 
-import androidx.compose.foundation.lazy.items
+import com.calorieko.app.ui.components.BottomNavigation
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
@@ -23,25 +51,15 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.ui.components.BottomNavigation
-import com.calorieko.app.ui.components.ProgressRings
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -85,6 +103,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
 
     // --- 3. DYNAMIC TARGET STATE ---
     var targetCalories by remember { mutableStateOf(2000) }
+    var targetBurned by remember { mutableStateOf(500) } // NEW: Target for active calories burned
     var targetSodium by remember { mutableStateOf(2300) }
     var targetProtein by remember { mutableStateOf(150) }
     var targetCarbs by remember { mutableStateOf(200) }
@@ -93,10 +112,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     // --- 4. REAL ACTIVITY LOG STATE ---
     var realActivityLog by remember { mutableStateOf<List<ActivityLogEntity>>(emptyList()) }
 
-    // --- 5. CALCULATED VALUES (derived from realActivityLog) ---
+    // --- 5. CALCULATED VALUES (Separated Intakes vs Expenditures) ---
     val caloriesConsumed = realActivityLog.filter { it.type == "meal" }.sumOf { it.calories }
     val caloriesBurned = realActivityLog.filter { it.type == "workout" }.sumOf { it.calories }
-    val currentCalories = caloriesConsumed - caloriesBurned
+
+    // CORRECTED LOGIC: currentCalories only tracks what goes IN. Burned tracked separately.
+    val currentCalories = caloriesConsumed
 
     val currentSodium = realActivityLog.filter { it.type == "meal" }.sumOf { it.sodium }
     val currentProtein = realActivityLog.filter { it.type == "meal" }.sumOf { it.protein }
@@ -111,14 +132,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 val profile = userDao.getUser(uid)
 
                 if (profile != null) {
-                    // Calculate BMR using Mifflin-St Jeor
                     val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
                         (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
                     } else {
                         (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
                     }
 
-                    // Calculate TDEE
                     val activityMultiplier = when (profile.activityLevel) {
                         "lightly_active" -> 1.375
                         "active" -> 1.55
@@ -128,14 +147,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     }
                     val tdee = bmr * activityMultiplier
 
-                    // Goal Adjustments
                     targetCalories = when (profile.goal) {
                         "lose_weight", "weight_loss", "weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
                         "gain_muscle" -> (tdee + 300).toInt()
                         else -> tdee.toInt()
                     }
 
-                    // Macro Splits
                     val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
                         "lose_weight", "weight_loss", "weight" -> Triple(0.35, 0.35, 0.30)
                         "gain_muscle" -> Triple(0.30, 0.45, 0.25)
@@ -146,6 +163,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
                     targetFats = ((targetCalories * fatsPct) / 9).toInt()
                     targetSodium = 2300
+                    targetBurned = 500 // Can be customized based on profile later
                 }
 
                 // B. Fetch today's activity logs
@@ -190,7 +208,6 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
         }
     ) { paddingValues ->
 
-        // Switched from Column to LazyColumn for robust top-to-bottom scrolling
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -273,10 +290,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
 
-                    // Progress Rings
+                    // UPDATED Progress Rings Call
                     ProgressRings(
                         caloriesCurrent = currentCalories,
                         caloriesTarget = targetCalories,
+                        caloriesBurned = caloriesBurned, // Passed newly created metric
+                        caloriesBurnedTarget = targetBurned,
                         sodiumCurrent = currentSodium,
                         sodiumTarget = targetSodium,
                         proteinCurrent = currentProtein,
@@ -287,13 +306,11 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                         fatsTarget = targetFats
                     )
 
-                    // Action Buttons
                     ActionButtonsRevised(
                         onLogMeal = { onNavigate("logMeal") },
                         onLogWorkout = { onNavigate("logWorkout") }
                     )
 
-                    // Daily Activity Feed
                     DailyActivityFeedRevised(activityLog)
                 }
             }
@@ -309,7 +326,6 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Log Meal Button (Green)
         Surface(
             onClick = onLogMeal,
             color = Color(0xFF4CAF50),
@@ -334,7 +350,6 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
             }
         }
 
-        // Log Workout Button (Orange)
         Surface(
             onClick = onLogWorkout,
             color = Color(0xFFFF9800),
@@ -376,11 +391,8 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
             )
 
             if (activities.isEmpty()) {
-                // Empty State
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
@@ -392,7 +404,6 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
                     Text("No activities logged yet", color = Color.Gray, fontSize = 14.sp)
                 }
             } else {
-                // Bounded LazyColumn to allow internal scrolling after ~5 items
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 480.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -418,7 +429,6 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {
-        // Icon Circle
         Surface(
             shape = CircleShape,
             color = if (isMeal) Color(0xFFDCFCE7) else Color(0xFFFFEDD5),
@@ -436,14 +446,12 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Content
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                // Title & Time
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = activity.name,
@@ -458,7 +466,6 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
                     )
                 }
 
-                // Calories Badge
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
@@ -485,7 +492,6 @@ fun ActivityItemRevised(activity: ActivityLogEntry) {
                 }
             }
 
-            // Details Footer
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isMeal && activity.details.weight != null) {

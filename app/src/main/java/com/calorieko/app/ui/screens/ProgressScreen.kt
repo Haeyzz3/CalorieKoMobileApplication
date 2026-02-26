@@ -1,669 +1,498 @@
 package com.calorieko.app.ui.screens
 
-import com.calorieko.app.ui.components.BottomNavigation
-import android.graphics.Paint
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.TrendingDown
-import androidx.compose.material.icons.automirrored.rounded.TrendingUp
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.toColorInt
-import com.calorieko.app.ui.theme.CalorieKoGreen
-import com.calorieko.app.ui.theme.CalorieKoOrange
-
-// --- Data Models (Matching React Prototype) ---
-data class DailyCalorie(val day: String, val intake: Int, val burned: Int)
-data class DailySodium(val day: String, val sodium: Int)
-data class DailyWeight(val day: String, val weight: Float)
-data class TopFood(val name: String, val frequency: Int, val avgCalories: Int, val avgSodium: Int)
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.theme.*
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProgressScreen(onNavigate: (String) -> Unit) {
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val userDao = db.userDao()
+    val activityLogDao = db.activityLogDao()
+
     var activeTab by remember { mutableStateOf("progress") }
-    var viewMode by remember { mutableStateOf("weekly") }
 
-    // Mock Data - Weekly
-    val weeklyCalorieData = remember { listOf(
-        DailyCalorie("Mon", 1850, 450), DailyCalorie("Tue", 2100, 380),
-        DailyCalorie("Wed", 1920, 520), DailyCalorie("Thu", 2050, 400),
-        DailyCalorie("Fri", 1880, 350), DailyCalorie("Sat", 2200, 600),
-        DailyCalorie("Sun", 1950, 420)
-    )}
+    // Targets
+    var targetCalories by remember { mutableStateOf(2000) }
+    var targetBurned by remember { mutableStateOf(500) }
+    var targetSodium by remember { mutableStateOf(2300) }
+    var targetProtein by remember { mutableStateOf(150) }
+    var targetCarbs by remember { mutableStateOf(200) }
+    var targetFats by remember { mutableStateOf(65) }
 
-    val weeklySodiumData = remember { listOf(
-        DailySodium("Mon", 1800), DailySodium("Tue", 2100),
-        DailySodium("Wed", 1650), DailySodium("Thu", 2400),
-        DailySodium("Fri", 1920), DailySodium("Sat", 2500),
-        DailySodium("Sun", 1850)
-    )}
+    // Current values from today's logs
+    var currentCalories by remember { mutableStateOf(0) }
+    var caloriesBurned by remember { mutableStateOf(0) }
+    var currentSodium by remember { mutableStateOf(0) }
+    var currentProtein by remember { mutableStateOf(0) }
+    var currentCarbs by remember { mutableStateOf(0) }
+    var currentFats by remember { mutableStateOf(0) }
 
-    val weeklyWeightData = remember { listOf(
-        DailyWeight("Mon", 75.2f), DailyWeight("Tue", 75.0f),
-        DailyWeight("Wed", 74.8f), DailyWeight("Thu", 74.6f),
-        DailyWeight("Fri", 74.4f), DailyWeight("Sat", 74.2f),
-        DailyWeight("Sun", 74.0f)
-    )}
+    LaunchedEffect(currentUser?.uid) {
+        currentUser?.uid?.let { uid ->
+            withContext(Dispatchers.IO) {
+                val profile = userDao.getUser(uid)
+                if (profile != null) {
+                    val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
+                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
+                    } else {
+                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
+                    }
+                    val activityMultiplier = when (profile.activityLevel) {
+                        "lightly_active" -> 1.375
+                        "active" -> 1.55
+                        "very_active" -> 1.725
+                        "not_very_active" -> 1.2
+                        else -> 1.2
+                    }
+                    val tdee = bmr * activityMultiplier
+                    targetCalories = when (profile.goal) {
+                        "lose_weight", "weight_loss", "weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
+                        "gain_muscle" -> (tdee + 300).toInt()
+                        else -> tdee.toInt()
+                    }
+                    val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
+                        "lose_weight", "weight_loss", "weight" -> Triple(0.35, 0.35, 0.30)
+                        "gain_muscle" -> Triple(0.30, 0.45, 0.25)
+                        else -> Triple(0.30, 0.40, 0.30)
+                    }
+                    targetProtein = ((targetCalories * proteinPct) / 4).toInt()
+                    targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
+                    targetFats = ((targetCalories * fatsPct) / 9).toInt()
+                    targetSodium = 2300
+                    targetBurned = 500
+                }
 
-    // Mock Data - Monthly (For demonstration of toggle)
-    val monthlyCalorieData = remember { listOf(
-        DailyCalorie("W1", 14000, 3000), DailyCalorie("W2", 13500, 2800),
-        DailyCalorie("W3", 14200, 3200), DailyCalorie("W4", 13800, 2900)
-    )}
+                val calendar = java.util.Calendar.getInstance()
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                calendar.set(java.util.Calendar.MINUTE, 0)
+                calendar.set(java.util.Calendar.SECOND, 0)
+                val startOfDay = calendar.timeInMillis
 
-    val monthlySodiumData = remember { listOf(
-        DailySodium("W1", 2100), DailySodium("W2", 2450),
-        DailySodium("W3", 1980), DailySodium("W4", 2200)
-    )}
-
-    val monthlyWeightData = remember { listOf(
-        DailyWeight("W1", 76.5f), DailyWeight("W2", 75.8f),
-        DailyWeight("W3", 75.0f), DailyWeight("W4", 74.0f)
-    )}
-
-    val topFoods = remember { listOf(
-        TopFood("Chicken Adobo", 5, 380, 890),
-        TopFood("Law-uy (Veg)", 4, 180, 520),
-        TopFood("Grilled Fish", 4, 420, 450),
-        TopFood("Pancit Canton", 3, 510, 1200)
-    )}
+                val logs = activityLogDao.getLogsForToday(uid, startOfDay)
+                currentCalories = logs.filter { it.type == "meal" }.sumOf { it.calories }
+                caloriesBurned = logs.filter { it.type == "workout" }.sumOf { it.calories }
+                currentSodium = logs.filter { it.type == "meal" }.sumOf { it.sodium }
+                currentProtein = logs.filter { it.type == "meal" }.sumOf { it.protein }
+                currentCarbs = logs.filter { it.type == "meal" }.sumOf { it.carbs }
+                currentFats = logs.filter { it.type == "meal" }.sumOf { it.fats }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
             BottomNavigation(activeTab = activeTab, onTabChange = {
                 activeTab = it
-                onNavigate(it)
+                if (it != "progress") {
+                    onNavigate(it)
+                }
             })
-        },
-        containerColor = Color(0xFFF8F9FA)
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFF8F9FA))
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Header with Toggle
-            ProgressHeader(viewMode = viewMode, onViewModeChange = { viewMode = it })
+            Text(
+                text = "Progress",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
+            )
 
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // 1. Calorie Balance Chart
-                item {
-                    CalorieBalanceChart(
-                        data = if (viewMode == "weekly") weeklyCalorieData else monthlyCalorieData
-                    )
-                }
-
-                // 2. Sodium Trend Chart
-                item {
-                    SodiumTrendChart(
-                        data = if (viewMode == "weekly") weeklySodiumData else monthlySodiumData,
-                        limit = 2300
-                    )
-                }
-
-                // 3. Weight Tracking Chart
-                item {
-                    WeightTrackingChart(
-                        data = if (viewMode == "weekly") weeklyWeightData else monthlyWeightData
-                    )
-                }
-
-                // 4. Dietary Insights
-                item {
-                    DietaryInsights(foods = topFoods)
-                }
-
-                // Bottom Spacer
-                item { Spacer(modifier = Modifier.height(20.dp)) }
-            }
+            ProgressRings(
+                caloriesCurrent = currentCalories,
+                caloriesTarget = targetCalories,
+                caloriesBurned = caloriesBurned,
+                caloriesBurnedTarget = targetBurned,
+                sodiumCurrent = currentSodium,
+                sodiumTarget = targetSodium,
+                proteinCurrent = currentProtein,
+                proteinTarget = targetProtein,
+                carbsCurrent = currentCarbs,
+                carbsTarget = targetCarbs,
+                fatsCurrent = currentFats,
+                fatsTarget = targetFats
+            )
         }
     }
 }
 
-// --- 1. Header with Segmented Control ---
 @Composable
-fun ProgressHeader(viewMode: String, onViewModeChange: (String) -> Unit) {
-    Surface(
-        color = Color.White,
-        shadowElevation = 1.dp,
+fun ProgressRings(
+    caloriesCurrent: Int,
+    caloriesTarget: Int,
+    caloriesBurned: Int,
+    caloriesBurnedTarget: Int,
+    sodiumCurrent: Int,
+    sodiumTarget: Int,
+    proteinCurrent: Int,
+    proteinTarget: Int,
+    carbsCurrent: Int,
+    carbsTarget: Int,
+    fatsCurrent: Int,
+    fatsTarget: Int
+) {
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 20.dp)
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Your Progress",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2937),
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            // Custom Segmented Control
+            // --- 1. Three Concentric Rings with Center Text ---
             Box(
-                modifier = Modifier
-                    .background(Color(0xFFF3F4F6), CircleShape)
-                    .padding(4.dp)
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(vertical = 8.dp)
             ) {
-                Row {
-                    listOf("weekly" to "Weekly", "monthly" to "Monthly").forEach { (mode, label) ->
-                        val isSelected = viewMode == mode
+                TripleRingChart(
+                    size = 220.dp,
+                    outerStrokeWidth = 10.dp,
+                    middleStrokeWidth = 8.dp,
+                    innerStrokeWidth = 7.dp,
+                    caloriesCurrent = caloriesCurrent,
+                    caloriesTarget = caloriesTarget,
+                    burnedCurrent = caloriesBurned,
+                    burnedTarget = caloriesBurnedTarget,
+                    sodiumCurrent = sodiumCurrent,
+                    sodiumTarget = sodiumTarget
+                )
+
+                // Center Text
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .background(Color(0xFFFAFAFA), CircleShape)
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Consumed (Green)
+                    Text(
+                        text = "$caloriesCurrent",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF388E3C),
+                        lineHeight = 28.sp
+                    )
+                    Text(
+                        text = "/ $caloriesTarget kcal",
+                        fontSize = 10.sp,
+                        color = Color(0xFF9E9E9E),
+                        lineHeight = 12.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Burned (Red) + Sodium (Orange) as compact row
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "$caloriesBurned",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFE53935),
+                                lineHeight = 16.sp
+                            )
+                            Text(
+                                text = "burned",
+                                fontSize = 8.sp,
+                                color = Color(0xFFBDBDBD),
+                                lineHeight = 10.sp
+                            )
+                        }
+
+                        // Tiny divider
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(CircleShape)
-                                .background(if (isSelected) Color.White else Color.Transparent)
-                                .clickable { onViewModeChange(mode) }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                                .width(1.dp)
+                                .height(16.dp)
+                                .background(Color(0xFFE0E0E0))
+                        )
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = label,
+                                text = "${sodiumCurrent}",
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isSelected) Color(0xFF1F2937) else Color(0xFF6B7280)
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFFB8C00),
+                                lineHeight = 16.sp
+                            )
+                            Text(
+                                text = "mg Na",
+                                fontSize = 8.sp,
+                                color = Color(0xFFBDBDBD),
+                                lineHeight = 10.sp
                             )
                         }
                     }
                 }
             }
-        }
-    }
-}
 
-// --- 2. Animated Calorie Balance Chart ---
-@Composable
-fun CalorieBalanceChart(data: List<DailyCalorie>) {
-    // Animation State
-    var startAnimation by remember { mutableStateOf(false) }
-    val progress = animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-        label = "BarProgress"
-    )
+            Spacer(modifier = Modifier.height(16.dp))
 
-    LaunchedEffect(data) {
-        startAnimation = false
-        // Slight delay to restart animation on data change
-        kotlinx.coroutines.delay(50)
-        startAnimation = true
-    }
-
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Text("Calorie Balance", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-            Text("Intake vs. Output", fontSize = 12.sp, color = Color.Gray)
-            Spacer(modifier = Modifier.height(24.dp))
-
-            val maxVal = (data.maxOfOrNull { kotlin.math.max(it.intake, it.burned) } ?: 2500).toFloat() * 1.1f
-
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val barWidth = 12.dp.toPx()
-                    val groupSpacing = size.width / data.size
-                    val chartHeight = size.height
-
-                    // Draw Grid Lines
-                    val gridLines = 4
-                    for (i in 0..gridLines) {
-                        val y = chartHeight * (i.toFloat() / gridLines)
-                        drawLine(
-                            color = Color(0xFFE5E7EB),
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
-
-                    data.forEachIndexed { index, day ->
-                        val x = index * groupSpacing + (groupSpacing / 2)
-
-                        // Intake Bar (Green)
-                        val intakeHeight = (day.intake / maxVal) * chartHeight * progress.value
-                        drawRoundRect(
-                            color = CalorieKoGreen,
-                            topLeft = Offset(x - barWidth - 2.dp.toPx(), chartHeight - intakeHeight),
-                            size = Size(barWidth, intakeHeight),
-                            cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                        )
-
-                        // Burned Bar (Orange)
-                        val burnedHeight = (day.burned / maxVal) * chartHeight * progress.value
-                        drawRoundRect(
-                            color = CalorieKoOrange,
-                            topLeft = Offset(x + 2.dp.toPx(), chartHeight - burnedHeight),
-                            size = Size(barWidth, burnedHeight),
-                            cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                        )
-
-                        // X Axis Labels
-                        drawContext.canvas.nativeCanvas.drawText(
-                            day.day,
-                            x,
-                            chartHeight + 20.dp.toPx(),
-                            Paint().apply {
-                                color = "#9CA3AF".toColorInt()
-                                textSize = 10.sp.toPx()
-                                textAlign = Paint.Align.CENTER
-                            }
-                        )
-                    }
-                }
-            }
-
-            // Legend
-            Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                LegendItem("Intake", CalorieKoGreen)
-                LegendItem("Burned", CalorieKoOrange)
-            }
-        }
-    }
-}
-
-// --- 3. Animated Sodium Trend Chart ---
-@Composable
-fun SodiumTrendChart(data: List<DailySodium>, limit: Int) {
-    // Animation
-    val animatableProgress = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        animatableProgress.snapTo(0f)
-        animatableProgress.animateTo(1f, animationSpec = tween(1500, easing = LinearOutSlowInEasing))
-    }
-
-    val daysOverLimit = data.count { it.sodium > limit }
-
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    Text("Sodium Trend", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-                    Text("Hypertension Monitoring", fontSize = 12.sp, color = Color.Gray)
-                }
-                if (daysOverLimit > 0) {
-                    Surface(
-                        color = Color(0xFFFEF2F2),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("$daysOverLimit days over", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val maxVal = (data.maxOfOrNull { it.sodium } ?: 3000).toFloat() * 1.2f
-                    val chartHeight = size.height
-                    val spacing = size.width / (data.size - 1)
-
-                    // Draw Limit Line
-                    val limitY = chartHeight - ((limit / maxVal) * chartHeight)
-                    drawLine(
-                        color = Color(0xFFEF4444),
-                        start = Offset(0f, limitY),
-                        end = Offset(size.width, limitY),
-                        strokeWidth = 1.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                    )
-
-                    // Label for limit
-                    drawContext.canvas.nativeCanvas.drawText(
-                        "Limit: ${limit}mg",
-                        size.width - 10.dp.toPx(),
-                        limitY - 6.dp.toPx(),
-                        Paint().apply {
-                            color = "#EF4444".toColorInt()
-                            textSize = 10.sp.toPx()
-                            textAlign = Paint.Align.RIGHT
-                        }
-                    )
-
-                    // Construct Path
-                    val path = Path()
-                    data.forEachIndexed { index, day ->
-                        val x = index * spacing
-                        val y = chartHeight - ((day.sodium / maxVal) * chartHeight)
-                        if (index == 0) path.moveTo(x, y) else {
-                            // Bezier Curve
-                            val prevX = (index - 1) * spacing
-                            val prevY = chartHeight - ((data[index - 1].sodium / maxVal) * chartHeight)
-                            val conX1 = prevX + (x - prevX) / 2
-                            val conX2 = prevX + (x - prevX) / 2
-                            path.cubicTo(conX1, prevY, conX2, y, x, y)
-                        }
-
-                        // Draw X Axis Labels
-                        drawContext.canvas.nativeCanvas.drawText(
-                            day.day,
-                            x,
-                            chartHeight + 20.dp.toPx(),
-                            Paint().apply {
-                                color = "#9CA3AF".toColorInt()
-                                textSize = 10.sp.toPx()
-                                textAlign = Paint.Align.CENTER
-                            }
-                        )
-                    }
-
-                    // Animate Path Drawing
-                    val pathMeasure = PathMeasure()
-                    pathMeasure.setPath(path, false)
-                    val length = pathMeasure.length
-                    val partialPath = Path()
-                    pathMeasure.getSegment(0f, length * animatableProgress.value, partialPath, true)
-
-                    drawPath(
-                        path = partialPath,
-                        color = CalorieKoOrange,
-                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                    )
-
-                    // Draw Dots (only if fully animated)
-                    if (animatableProgress.value == 1f) {
-                        data.forEachIndexed { index, day ->
-                            val x = index * spacing
-                            val y = chartHeight - ((day.sodium / maxVal) * chartHeight)
-                            drawCircle(Color.White, radius = 5.dp.toPx(), center = Offset(x, y))
-                            drawCircle(CalorieKoOrange, radius = 3.dp.toPx(), center = Offset(x, y))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// --- 4. Animated Weight Chart & Insight ---
-@Composable
-fun WeightTrackingChart(data: List<DailyWeight>) {
-    // Calculate Insight
-    val startWeight = data.firstOrNull()?.weight ?: 0f
-    val endWeight = data.lastOrNull()?.weight ?: 0f
-    val change = endWeight - startWeight
-    val isDown = change < 0
-    val changeAbs = kotlin.math.abs(change)
-
-    // Animation
-    val animatableProgress = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        animatableProgress.snapTo(0f)
-        animatableProgress.animateTo(1f, animationSpec = tween(1500, easing = LinearOutSlowInEasing))
-    }
-
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Text("Weight Metrics", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-            Text("Weight Changes Over Time", fontSize = 12.sp, color = Color.Gray)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val minW = (data.minOfOrNull { it.weight } ?: 70f) - 1f
-                    val maxW = (data.maxOfOrNull { it.weight } ?: 80f) + 1f
-                    val range = maxW - minW
-                    val chartHeight = size.height
-                    val spacing = size.width / (data.size - 1)
-
-                    // Grid Lines
-                    val gridLines = 4
-                    for (i in 0..gridLines) {
-                        val y = chartHeight * (i.toFloat() / gridLines)
-                        drawLine(
-                            color = Color(0xFFF3F4F6),
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
-
-                    val path = Path()
-                    // Create gradient fill path
-                    val fillPath = Path()
-
-                    data.forEachIndexed { index, day ->
-                        val x = index * spacing
-                        val y = chartHeight - ((day.weight - minW) / range * chartHeight)
-                        if (index == 0) {
-                            path.moveTo(x, y)
-                            fillPath.moveTo(x, chartHeight) // Start bottom-left
-                            fillPath.lineTo(x, y)
-                        } else {
-                            val prevX = (index - 1) * spacing
-                            val prevY = chartHeight - ((data[index - 1].weight - minW) / range * chartHeight)
-                            val conX1 = prevX + (x - prevX) / 2
-                            val conX2 = prevX + (x - prevX) / 2
-                            path.cubicTo(conX1, prevY, conX2, y, x, y)
-                            fillPath.cubicTo(conX1, prevY, conX2, y, x, y)
-                        }
-                        // Draw X Axis Labels
-                        drawContext.canvas.nativeCanvas.drawText(
-                            day.day,
-                            x,
-                            chartHeight + 20.dp.toPx(),
-                            Paint().apply {
-                                color = "#9CA3AF".toColorInt()
-                                textSize = 10.sp.toPx()
-                                textAlign = Paint.Align.CENTER
-                            }
-                        )
-                    }
-
-                    // Close fill path
-                    fillPath.lineTo(size.width, chartHeight)
-                    fillPath.close()
-
-                    // Draw Gradient Fill
-                    drawPath(
-                        path = fillPath,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(CalorieKoGreen.copy(alpha = 0.2f), Color.Transparent),
-                            endY = chartHeight
-                        )
-                    )
-
-                    // Draw Line Animation
-                    val pathMeasure = PathMeasure()
-                    pathMeasure.setPath(path, false)
-                    val length = pathMeasure.length
-                    val partialPath = Path()
-                    pathMeasure.getSegment(0f, length * animatableProgress.value, partialPath, true)
-
-                    drawPath(
-                        path = partialPath,
-                        color = CalorieKoGreen,
-                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                    )
-
-                    // Draw Dots (if finished)
-                    if (animatableProgress.value == 1f) {
-                        data.forEachIndexed { index, day ->
-                            val x = index * spacing
-                            val y = chartHeight - ((day.weight - minW) / range * chartHeight)
-                            drawCircle(Color.White, radius = 5.dp.toPx(), center = Offset(x, y))
-                            drawCircle(CalorieKoGreen, radius = 3.dp.toPx(), center = Offset(x, y))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Insight Box
-            Surface(
-                color = if (isDown) Color(0xFFECFDF5) else Color(0xFFFFF7ED),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, if (isDown) Color(0xFFA7F3D0) else Color(0xFFFED7AA))
+            // --- 2. Legend Row (pill chips) ---
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = if (isDown) Icons.AutoMirrored.Rounded.TrendingDown else if (change > 0) Icons.AutoMirrored.Rounded.TrendingUp else Icons.Rounded.Remove,
-                        contentDescription = null,
-                        tint = if (isDown) Color(0xFF047857) else Color(0xFFC2410C),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Weekly Insight",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = if (isDown) Color(0xFF065F46) else Color(0xFF9A3412)
-                        )
-                        Text(
-                            text = if (isDown) "You are down ${String.format(java.util.Locale.US, "%.1f", changeAbs)}kg this week—great job!"
-                            else "Your weight increased by ${String.format(java.util.Locale.US, "%.1f", changeAbs)}kg this week.",
-                            fontSize = 13.sp,
-                            color = if (isDown) Color(0xFF065F46) else Color(0xFF9A3412),
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
+                LegendDot(color = Color(0xFF4CAF50), label = "Eaten")
+                LegendDot(color = Color(0xFFEF5350), label = "Burned")
+                LegendDot(color = Color(0xFFFB8C00), label = "Sodium")
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // --- 3. Macro Progress Bars with divider ---
+            HorizontalDivider(
+                color = Color(0xFFF0F0F0),
+                thickness = 1.dp,
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+
+            MacroProgressBar(
+                label = "Protein",
+                current = proteinCurrent,
+                target = proteinTarget,
+                color = Color(0xFF3B82F6),
+                unit = "g"
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            MacroProgressBar(
+                label = "Carbs",
+                current = carbsCurrent,
+                target = carbsTarget,
+                color = Color(0xFFFB8C00),
+                unit = "g"
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            MacroProgressBar(
+                label = "Fats",
+                current = fatsCurrent,
+                target = fatsTarget,
+                color = Color(0xFF8B5CF6),
+                unit = "g"
+            )
         }
     }
 }
 
-// --- 5. Dietary Insights List ---
+// --- Triple Ring Chart ---
+
 @Composable
-fun DietaryInsights(foods: List<TopFood>) {
-    Column {
-        Text(
-            text = "Dietary Insights",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF1F2937),
-            modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
+fun TripleRingChart(
+    size: Dp,
+    outerStrokeWidth: Dp,
+    middleStrokeWidth: Dp,
+    innerStrokeWidth: Dp,
+    caloriesCurrent: Int,
+    caloriesTarget: Int,
+    burnedCurrent: Int,
+    burnedTarget: Int,
+    sodiumCurrent: Int,
+    sodiumTarget: Int
+) {
+    val calorieProgress = (caloriesCurrent.toFloat() / caloriesTarget.toFloat()).coerceIn(0f, 1f)
+    val burnedProgress = (burnedCurrent.toFloat() / burnedTarget.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+    val sodiumProgress = (sodiumCurrent.toFloat() / sodiumTarget.toFloat()).coerceIn(0f, 1f)
+
+    val animatedCalories by animateFloatAsState(targetValue = calorieProgress, animationSpec = tween(1000), label = "")
+    val animatedBurned by animateFloatAsState(targetValue = burnedProgress, animationSpec = tween(1000), label = "")
+    val animatedSodium by animateFloatAsState(targetValue = sodiumProgress, animationSpec = tween(1000), label = "")
+
+    Canvas(modifier = Modifier.size(size)) {
+        val center = Offset(size.toPx() / 2, size.toPx() / 2)
+        val outerStroke = outerStrokeWidth.toPx()
+        val middleStroke = middleStrokeWidth.toPx()
+        val innerStroke = innerStrokeWidth.toPx()
+        val gap = 10.dp.toPx()
+
+        // --- Outer Ring: Calories Consumed (Green) ---
+        val outerRadius = (size.toPx() / 2) - (outerStroke / 2)
+        drawCircle(
+            color = Color(0xFFF1F8E9), // Very light green track
+            radius = outerRadius,
+            center = center,
+            style = Stroke(width = outerStroke)
+        )
+        drawArc(
+            color = Color(0xFF4CAF50),
+            startAngle = -90f,
+            sweepAngle = 360f * animatedCalories,
+            useCenter = false,
+            topLeft = Offset(center.x - outerRadius, center.y - outerRadius),
+            size = Size(outerRadius * 2, outerRadius * 2),
+            style = Stroke(width = outerStroke, cap = StrokeCap.Round)
         )
 
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column {
-                // Table Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFF9FAFB))
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Text("Food Item", modifier = Modifier.weight(2f), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                    Text("Freq", modifier = Modifier.weight(1f), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    Text("Avg Cal", modifier = Modifier.weight(1f), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-                }
+        // --- Middle Ring: Calories Burned (Red) ---
+        val middleRadius = outerRadius - outerStroke / 2 - gap - middleStroke / 2
+        drawCircle(
+            color = Color(0xFFFCE4EC), // Very light pink track
+            radius = middleRadius,
+            center = center,
+            style = Stroke(width = middleStroke)
+        )
+        drawArc(
+            color = Color(0xFFEF5350),
+            startAngle = -90f,
+            sweepAngle = 360f * animatedBurned,
+            useCenter = false,
+            topLeft = Offset(center.x - middleRadius, center.y - middleRadius),
+            size = Size(middleRadius * 2, middleRadius * 2),
+            style = Stroke(width = middleStroke, cap = StrokeCap.Round)
+        )
 
-                // List Items
-                foods.forEachIndexed { index, food ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(food.name, modifier = Modifier.weight(2f), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                        Text(food.frequency.toString(), modifier = Modifier.weight(1f), fontSize = 14.sp, color = Color(0xFF6B7280), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        Text("${food.avgCalories}", modifier = Modifier.weight(1f), fontSize = 14.sp, color = Color(0xFF6B7280), textAlign = androidx.compose.ui.text.style.TextAlign.End)
-                    }
-                    if (index < foods.size - 1) {
-                        HorizontalDivider(Modifier, thickness = 1.dp, color = Color(0xFFF3F4F6))
-                    }
-                }
-            }
+        // --- Inner Ring: Sodium (Orange) ---
+        val innerRadius = middleRadius - middleStroke / 2 - gap - innerStroke / 2
+        drawCircle(
+            color = Color(0xFFFFF8E1), // Very light amber track
+            radius = innerRadius,
+            center = center,
+            style = Stroke(width = innerStroke)
+        )
+        drawArc(
+            color = Color(0xFFFB8C00),
+            startAngle = -90f,
+            sweepAngle = 360f * animatedSodium,
+            useCenter = false,
+            topLeft = Offset(center.x - innerRadius, center.y - innerRadius),
+            size = Size(innerRadius * 2, innerRadius * 2),
+            style = Stroke(width = innerStroke, cap = StrokeCap.Round)
+        )
+    }
+}
+
+// --- Legend Dot (pill chip style) ---
+
+@Composable
+fun LegendDot(color: Color, label: String) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = color.copy(alpha = 0.08f)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(color, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF616161)
+            )
         }
     }
 }
 
+// --- Horizontal Macro Progress Bar ---
+
 @Composable
-fun LegendItem(label: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(label, fontSize = 12.sp, color = Color.Gray)
+fun MacroProgressBar(
+    label: String,
+    current: Int,
+    target: Int,
+    color: Color,
+    unit: String
+) {
+    val progress = (current.toFloat() / target.toFloat()).coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(1000),
+        label = label
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Colored dot + Label
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.width(76.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(color, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF424242)
+            )
+        }
+
+        // Progress bar - thinner, more refined
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier
+                .weight(1f)
+                .height(6.dp),
+            color = color,
+            trackColor = Color(0xFFF5F5F5),
+            strokeCap = StrokeCap.Round,
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Value text
+        Text(
+            text = "${current}$unit / ${target}$unit",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Normal,
+            color = Color(0xFF9E9E9E),
+            modifier = Modifier.width(80.dp)
+        )
     }
 }
