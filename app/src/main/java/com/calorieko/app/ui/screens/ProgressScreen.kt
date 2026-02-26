@@ -49,7 +49,7 @@ fun ProgressRings(
             // --- 1. Three Concentric Rings with Center Text ---
             Box(contentAlignment = Alignment.Center) {
                 TripleRingChart(
-                    size = 280.dp, // Increased overall size to expand inner diameter
+                    size = 290.dp, // Increased overall size to expand inner diameter
                     outerStrokeWidth = 14.dp,
                     middleStrokeWidth = 12.dp,
                     innerStrokeWidth = 10.dp,
@@ -116,7 +116,7 @@ fun ProgressRings(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- 2. Legend Row ---
+            // --- 2. Legend Row --- //
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
