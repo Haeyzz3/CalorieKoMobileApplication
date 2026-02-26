@@ -30,7 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(scope) { INSTANCE!! })
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 instance

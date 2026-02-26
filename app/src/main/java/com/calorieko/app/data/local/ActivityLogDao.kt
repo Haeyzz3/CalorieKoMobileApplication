@@ -13,4 +13,7 @@ interface ActivityLogDao {
     // Fetch all logs for a specific user within a specific time range, ordered from latest to oldest
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND timestamp >= :startOfDay ORDER BY timestamp DESC")
     suspend fun getLogsForToday(uid: String, startOfDay: Long): List<ActivityLogEntity>
+
+    @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND timestamp >= :startTime AND timestamp < :endTime ORDER BY timestamp ASC")
+    suspend fun getLogsForRange(uid: String, startTime: Long, endTime: Long): List<ActivityLogEntity>
 }

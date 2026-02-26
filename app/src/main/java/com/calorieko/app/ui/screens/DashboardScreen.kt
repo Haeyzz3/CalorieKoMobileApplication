@@ -405,11 +405,10 @@ fun DailyActivityFeedRevised(activities: List<ActivityLogEntry>) {
                     Text("No activities logged yet", color = Color.Gray, fontSize = 14.sp)
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 480.dp),
+                Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(activities) { activity ->
+                    activities.forEach { activity ->
                         ActivityItemRevised(activity)
                     }
                 }
