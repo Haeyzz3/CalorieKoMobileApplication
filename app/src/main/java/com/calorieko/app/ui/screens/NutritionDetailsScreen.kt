@@ -201,7 +201,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
             when (selectedTabIndex) {
                 0 -> CaloriesTabContent(viewMode = viewMode)
                 1 -> NutrientsTabContent()
-                2 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Macros Tab (WIP)") }
+                2 -> MacrosTabContent(viewMode = viewMode)
             }
         }
     }
