@@ -13,5 +13,7 @@ data class UserProfile(
     val height: Double,
     val sex: String = "",
     val activityLevel: String = "", // "not_very_active", "lightly_active", "active", "very_active"
-    val goal: String
+    val goal: String,
+    val streak: Int = 0,  // Added for real-time tracking
+    val level: Int = 1    // Added for real-time tracking
 )

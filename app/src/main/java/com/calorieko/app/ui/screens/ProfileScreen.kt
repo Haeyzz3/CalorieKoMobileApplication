@@ -2,6 +2,10 @@ package com.calorieko.app.ui.screens
 
 
 // Make sure to add these imports at the top:
+
+import java.text.SimpleDateFormat
+import java.util.Date
+import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -122,14 +126,20 @@ fun ProfileScreen(
     val fullName = currentUser?.displayName ?: "User"
     val profileImageUrl = currentUser?.photoUrl
 
+    // Fetch dynamic "Member Since" date directly from Firebase account metadata
+    val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+    val memberSinceDate = currentUser?.metadata?.creationTimestamp?.let {
+        sdf.format(Date(it))
+    } ?: "January 2025"
+
     // 1. Initialize Database Access
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
 
-    // 2. Change Mock Data to a MutableState
-    var userData by remember { mutableStateOf(UserData(name = fullName)) }
+    // 2. Change Mock Data to a MutableState, passing the real Member Since date
+    var userData by remember { mutableStateOf(UserData(name = fullName, memberSince = memberSinceDate)) }
 
     // 3. Fetch Real Data on Load
     LaunchedEffect(currentUser?.uid) {
@@ -137,7 +147,7 @@ fun ProfileScreen(
             withContext(Dispatchers.IO) {
                 val profile = userDao.getUser(uid)
                 if (profile != null) {
-                    // Update the UI state with the real database values
+                    // Update the UI state with the real database values, including streak and level
                     userData = userData.copy(
                         name = profile.name,
                         age = profile.age,
@@ -145,7 +155,9 @@ fun ProfileScreen(
                         weight = profile.weight,
                         sex = profile.sex.ifEmpty { "Male" },
                         activityLevel = profile.activityLevel.ifEmpty { "lightly_active" },
-                        goal = profile.goal.ifEmpty { "general" }
+                        goal = profile.goal.ifEmpty { "general" },
+                        streak = profile.streak,
+                        level = profile.level
                     )
                 }
             }
@@ -153,6 +165,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
+
         bottomBar = {
             BottomNavigation(activeTab = activeTab, onTabChange = {
                 activeTab = it
@@ -191,6 +204,7 @@ fun ProfileScreen(
 
 // --- 1. Header with Animated Streak Ring ---
 // --- 1. Header with Animated Streak Ring ---
+
 @Composable
 fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
     Box(
@@ -198,7 +212,8 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
             .fillMaxWidth()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF4CAF50), Color(0xFF45A049))
+                    // Replaced dark greens with the lighter green theme color
+                    colors = listOf(CalorieKoLightGreen, Color(0xFF81C784))
                 )
             )
             .padding(top = 32.dp, bottom = 48.dp),
