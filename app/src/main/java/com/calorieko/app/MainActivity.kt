@@ -262,6 +262,15 @@ fun AppNavigation() {
             )
         }
 
+        // --- NEW: Nutrition Details Screen ---
+        composable("nutritionDetails") {
+            NutritionDetailsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         // --- NEW: Progress Screen ---
         composable("progress") {
             ProgressScreen(

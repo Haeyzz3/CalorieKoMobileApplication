@@ -290,21 +290,29 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
 
-                    // UPDATED Progress Rings Call
-                    ProgressRings(
-                        caloriesCurrent = currentCalories,
-                        caloriesTarget = targetCalories,
-                        caloriesBurned = caloriesBurned, // Passed newly created metric
-                        caloriesBurnedTarget = targetBurned,
-                        sodiumCurrent = currentSodium,
-                        sodiumTarget = targetSodium,
-                        proteinCurrent = currentProtein,
-                        proteinTarget = targetProtein,
-                        carbsCurrent = currentCarbs,
-                        carbsTarget = targetCarbs,
-                        fatsCurrent = currentFats,
-                        fatsTarget = targetFats
-                    )
+                    // Wrap in a Box to make the entire component clickable
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                onClick = { onNavigate("nutritionDetails") }
+                            )
+                    ) {
+                        ProgressRings(
+                            caloriesCurrent = currentCalories,
+                            caloriesTarget = targetCalories,
+                            caloriesBurned = caloriesBurned,
+                            caloriesBurnedTarget = targetBurned,
+                            sodiumCurrent = currentSodium,
+                            sodiumTarget = targetSodium,
+                            proteinCurrent = currentProtein,
+                            proteinTarget = targetProtein,
+                            carbsCurrent = currentCarbs,
+                            carbsTarget = targetCarbs,
+                            fatsCurrent = currentFats,
+                            fatsTarget = targetFats
+                        )
+                    }
 
                     ActionButtonsRevised(
                         onLogMeal = { onNavigate("logMeal") },
