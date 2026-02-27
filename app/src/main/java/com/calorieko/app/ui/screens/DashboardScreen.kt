@@ -1,5 +1,6 @@
 package com.calorieko.app.ui.screens
 
+
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -18,7 +19,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
-
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.ProgressRings
 import androidx.compose.foundation.BorderStroke
@@ -52,17 +52,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
 
 // Data Model matching daily-activity-feed.tsx
 data class ActivityLogEntry(

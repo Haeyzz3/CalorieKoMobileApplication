@@ -1,13 +1,11 @@
 package com.calorieko.app.ui.components
 
+
 import com.calorieko.app.ui.components.BottomNavigation
 import android.graphics.Paint
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
-
-
-
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -29,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+
 @Composable
 fun ProgressRings(
     caloriesCurrent: Int,
@@ -44,6 +43,7 @@ fun ProgressRings(
     fatsCurrent: Int,
     fatsTarget: Int
 ) {
+
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
