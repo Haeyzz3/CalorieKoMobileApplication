@@ -49,9 +49,9 @@ private fun MacrosDayView() {
     val fatTotalPct = 0
     val proteinTotalPct = 0
 
-    val carbsColor = Color(0xFF00897B)   // Teal
-    val fatColor = Color(0xFF7B1FA2)     // Purple
-    val proteinColor = Color(0xFFFFA726) // Orange
+    val carbsColor = Color(0xFFFF9800)   // Orange
+    val fatColor = Color(0xFF8B5CF6)     // Purple
+    val proteinColor = Color(0xFF3B82F6) // Blue
 
     Column(
         modifier = Modifier
@@ -326,7 +326,7 @@ private fun MacrosWeekView() {
 
                 // --- Macro Rows ---
                 MacroLegendRow(
-                    color = Color(0xFF00897B),
+                    color = Color(0xFFFF9800),
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsAvgPct,
@@ -335,7 +335,7 @@ private fun MacrosWeekView() {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = Color(0xFF7B1FA2),
+                    color = Color(0xFF8B5CF6),
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatAvgPct,
@@ -344,7 +344,7 @@ private fun MacrosWeekView() {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = Color(0xFFFFA726),
+                    color = Color(0xFF3B82F6),
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinAvgPct,
