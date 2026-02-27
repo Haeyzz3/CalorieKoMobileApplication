@@ -13,6 +13,8 @@ firebaseUiAuth = "8.0.2"
 googleServices = "4.4.2"
 credentials = "1.3.0"
 googleid = "1.1.1"
+litert = "1.2.0"
+camerax = "1.4.2"
 
 [libraries]
 firebase-ui-auth = { group = "com.firebaseui", name = "firebase-ui-auth", version.ref = "firebaseUiAuth" }
@@ -36,6 +38,10 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+litert = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "litert" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
