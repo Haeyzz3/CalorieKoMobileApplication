@@ -76,7 +76,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
@@ -90,11 +89,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalTime
-import java.util.Date
-import java.util.Locale
 import kotlin.random.Random
 
 // ───────────────────────────────────────────────────────────────
@@ -940,8 +936,7 @@ fun ScannerAnimation() {
  *
  * 1. Inserts a [MealLogEntity] (parent)
  * 2. Inserts all [MealLogItemEntity] children
- * 3. Inserts an [ActivityLogEntity] per dish (for the Dashboard activity feed)
- * 4. Upserts [DailyNutritionSummaryEntity]
+ * 3. Upserts [DailyNutritionSummaryEntity]
  */
 private suspend fun persistMeal(
     db: AppDatabase,
@@ -950,8 +945,6 @@ private suspend fun persistMeal(
     dishes: List<LoggedDish>
 ) {
     val now = System.currentTimeMillis()
-    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-    val timeString = timeFormat.format(Date(now))
 
     // 1. Insert parent MealLog
     val mealLogId = db.mealLogDao().insertMealLog(
@@ -986,26 +979,7 @@ private suspend fun persistMeal(
     }
     db.mealLogItemDao().insertItems(items)
 
-    // 3. Insert ActivityLogEntity per dish (dashboard feed compatibility)
-    for (d in dishes) {
-        db.activityLogDao().insertLog(
-            ActivityLogEntity(
-                uid             = uid,
-                type            = "meal",
-                name            = d.dishNameEn,
-                timeString      = timeString,
-                weightOrDuration = "${d.weightGrams.toInt()}g",
-                calories        = d.calories.toInt(),
-                protein         = d.protein.toInt(),
-                carbs           = d.carbs.toInt(),
-                fats            = d.fat.toInt(),
-                sodium          = d.sodium.toInt(),
-                timestamp       = now
-            )
-        )
-    }
-
-    // 4. Upsert DailyNutritionSummary
+    // 3. Upsert DailyNutritionSummary
     val today = LocalDate.now().toEpochDay()
     val existing = db.dailyNutritionSummaryDao().getSummaryForDate(uid, today)
 

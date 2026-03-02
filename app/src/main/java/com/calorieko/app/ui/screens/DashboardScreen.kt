@@ -6,6 +6,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.data.model.MealLogWithItems
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.*
@@ -95,6 +97,8 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
     val activityLogDao = db.activityLogDao()
+    val mealLogDao = db.mealLogDao()
+    val dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
 
     val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
     val profileImageUrl = currentUser?.photoUrl
@@ -103,28 +107,26 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
 
     // --- 3. DYNAMIC TARGET STATE ---
     var targetCalories by remember { mutableStateOf(2000) }
-    var targetBurned by remember { mutableStateOf(500) } // NEW: Target for active calories burned
+    var targetBurned by remember { mutableStateOf(500) }
     var targetSodium by remember { mutableStateOf(2300) }
     var targetProtein by remember { mutableStateOf(150) }
     var targetCarbs by remember { mutableStateOf(200) }
     var targetFats by remember { mutableStateOf(65) }
 
-    // --- 4. REAL ACTIVITY LOG STATE ---
-    var realActivityLog by remember { mutableStateOf<List<ActivityLogEntity>>(emptyList()) }
+    // --- 4. DATA STATE ---
+    var nutritionSummary by remember { mutableStateOf<DailyNutritionSummaryEntity?>(null) }
+    var todayMealLogs by remember { mutableStateOf<List<MealLogWithItems>>(emptyList()) }
+    var todayWorkoutLogs by remember { mutableStateOf<List<ActivityLogEntity>>(emptyList()) }
 
-    // --- 5. CALCULATED VALUES (Separated Intakes vs Expenditures) ---
-    val caloriesConsumed = realActivityLog.filter { it.type == "meal" }.sumOf { it.calories }
-    val caloriesBurned = realActivityLog.filter { it.type == "workout" }.sumOf { it.calories }
+    // --- 5. CALCULATED VALUES (from DailyNutritionSummary + workouts) ---
+    val currentCalories = nutritionSummary?.totalCalories?.toInt() ?: 0
+    val caloriesBurned = todayWorkoutLogs.sumOf { it.calories }
+    val currentSodium = nutritionSummary?.totalSodium?.toInt() ?: 0
+    val currentProtein = nutritionSummary?.totalProtein?.toInt() ?: 0
+    val currentCarbs = nutritionSummary?.totalCarbs?.toInt() ?: 0
+    val currentFats = nutritionSummary?.totalFat?.toInt() ?: 0
 
-    // CORRECTED LOGIC: currentCalories only tracks what goes IN. Burned tracked separately.
-    val currentCalories = caloriesConsumed
-
-    val currentSodium = realActivityLog.filter { it.type == "meal" }.sumOf { it.sodium }
-    val currentProtein = realActivityLog.filter { it.type == "meal" }.sumOf { it.protein }
-    val currentCarbs = realActivityLog.filter { it.type == "meal" }.sumOf { it.carbs }
-    val currentFats = realActivityLog.filter { it.type == "meal" }.sumOf { it.fats }
-
-    // --- 6. FETCH USER PROFILE & ACTIVITY LOG ---
+    // --- 6. FETCH USER PROFILE, NUTRITION SUMMARY & LOGS ---
     LaunchedEffect(currentUser?.uid) {
         currentUser?.uid?.let { uid ->
             withContext(Dispatchers.IO) {
@@ -163,39 +165,79 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
                     targetFats = ((targetCalories * fatsPct) / 9).toInt()
                     targetSodium = 2300
-                    targetBurned = 500 // Can be customized based on profile later
+                    targetBurned = 500
                 }
 
-                // B. Fetch today's activity logs
+                // B. Fetch today's nutrition summary (from DailyNutritionSummaryEntity)
+                val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+                nutritionSummary = dailyNutritionSummaryDao.getSummaryForDate(uid, todayEpochDay)
+
+                // C. Fetch today's meal logs (for the activity feed)
                 val calendar = java.util.Calendar.getInstance()
                 calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
                 calendar.set(java.util.Calendar.MINUTE, 0)
                 calendar.set(java.util.Calendar.SECOND, 0)
                 val startOfDay = calendar.timeInMillis
+                val endOfDay = startOfDay + 86_400_000L
 
-                realActivityLog = activityLogDao.getLogsForToday(uid, startOfDay)
+                todayMealLogs = mealLogDao.getMealLogsWithItemsByDate(uid, startOfDay, endOfDay)
+
+                // D. Fetch today's workout logs (workouts remain in ActivityLogEntity)
+                todayWorkoutLogs = activityLogDao.getWorkoutsForToday(uid, startOfDay)
             }
         }
     }
 
-    // --- 7. CONVERT ActivityLogEntity to ActivityLogEntry for the feed ---
-    val activityLog = realActivityLog.map { entity ->
+    // --- 7. BUILD UNIFIED ACTIVITY FEED ---
+    val timeFormat = remember { java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()) }
+
+    // Convert meal logs to feed entries
+    val mealFeedEntries = todayMealLogs.map { mealWithItems ->
+        val meal = mealWithItems.mealLog
+        val items = mealWithItems.items
+        val totalCal = items.sumOf { it.calories.toDouble() }.toInt()
+        val totalSod = items.sumOf { it.sodium.toDouble() }.toInt()
+        val totalProt = items.sumOf { it.protein.toDouble() }.toInt()
+        val totalCarb = items.sumOf { it.carbs.toDouble() }.toInt()
+        val totalFat = items.sumOf { it.fat.toDouble() }.toInt()
+        val totalWeight = items.sumOf { it.weightGrams.toDouble() }.toInt()
+        val dishNames = items.joinToString(", ") { it.dishName }
+
+        ActivityLogEntry(
+            id = meal.mealLogId.toString(),
+            type = "meal",
+            time = timeFormat.format(java.util.Date(meal.timestamp)),
+            name = dishNames,
+            details = ActivityDetails(
+                weight = "${totalWeight}g",
+                calories = totalCal,
+                sodium = totalSod,
+                protein = totalProt,
+                carbs = totalCarb,
+                fats = totalFat
+            )
+        )
+    }
+
+    // Convert workout logs to feed entries
+    val workoutFeedEntries = todayWorkoutLogs.map { entity ->
         ActivityLogEntry(
             id = entity.id.toString(),
             type = entity.type,
             time = entity.timeString,
             name = entity.name,
             details = ActivityDetails(
-                weight = if (entity.type == "meal") entity.weightOrDuration else null,
                 calories = entity.calories,
-                sodium = entity.sodium,
                 protein = entity.protein,
                 carbs = entity.carbs,
                 fats = entity.fats,
-                duration = if (entity.type == "workout") entity.weightOrDuration else null
+                duration = entity.weightOrDuration
             )
         )
     }
+
+    // Merge and sort by time (newest first — already ordered by timestamp DESC from queries)
+    val activityLog = (mealFeedEntries + workoutFeedEntries)
 
     Scaffold(
         bottomBar = {
