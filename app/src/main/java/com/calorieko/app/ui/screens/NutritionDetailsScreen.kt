@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +39,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
     // Shared date navigation state
     var viewMode by remember { mutableStateOf("day") }
     var showViewDropdown by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    val showDatePicker = remember { mutableStateOf(false) }
     var dayOffset by remember { mutableIntStateOf(0) }
     var weekOffset by remember { mutableIntStateOf(0) }
 
@@ -181,17 +180,15 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                 .padding(paddingValues)
         ) {
             // Tabs
-            TabRow(
+            SecondaryTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
                 contentColor = CalorieKoGreen,
-                indicator = { tabPositions ->
-                    if (selectedTabIndex < tabPositions.size) {
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                            color = CalorieKoGreen
-                        )
-                    }
+                indicator = {
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
+                        color = CalorieKoGreen
+                    )
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
@@ -285,7 +282,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                                         Text("Pick a Date", modifier = Modifier.fillMaxWidth(),
                                             fontSize = 15.sp, color = SubtleText)
                                     },
-                                    onClick = { showViewDropdown = false; showDatePicker = true }
+                                    onClick = { showViewDropdown = false; showDatePicker.value = true }
                                 )
                             }
                         }
@@ -320,8 +317,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                     targetCarbs = targetCarbs,
                     targetFats = targetFats,
                     targetSodium = targetSodium,
-                    weekDaySummaries = weekDaySummaries,
-                    weekDayLabels = weekDayLabels
+                    weekDaySummaries = weekDaySummaries
                 )
                 2 -> MacrosTabContent(
                     viewMode = viewMode,
@@ -337,7 +333,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
     }
 
     // --- Date Picker Dialog ---
-    if (showDatePicker) {
+    if (showDatePicker.value) {
         val todayForPicker = LocalDate.now()
         val calendar = Calendar.getInstance()
         DisposableEffect(Unit) {
@@ -347,13 +343,13 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                     val pickedDate = LocalDate.of(year, month + 1, dayOfMonth)
                     dayOffset = (pickedDate.toEpochDay() - todayForPicker.toEpochDay()).toInt()
                     viewMode = "day"
-                    showDatePicker = false
+                    showDatePicker.value = false
                 },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
                 calendar.get(Calendar.DAY_OF_MONTH)
             )
-            dialog.setOnCancelListener { showDatePicker = false }
+            dialog.setOnCancelListener { showDatePicker.value = false }
             dialog.show()
             onDispose { dialog.dismiss() }
         }

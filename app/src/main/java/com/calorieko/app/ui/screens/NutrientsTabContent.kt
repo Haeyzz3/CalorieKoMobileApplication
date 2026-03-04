@@ -33,8 +33,7 @@ fun NutrientsTabContent(
     targetCarbs: Int,
     targetFats: Int,
     targetSodium: Int,
-    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
-    weekDayLabels: List<String>
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>
 ) {
     if (viewMode == "day") {
         NutrientsDayView(
@@ -76,25 +75,23 @@ private fun NutrientsDayView(
     val goalCholesterol = 300
     val goalPotassium = 3500
 
-    val s = daySummary
-
     val nutrients = listOf(
-        NutrientRow("Protein",             s?.totalProtein?.toInt() ?: 0,            targetProtein, "g"),
-        NutrientRow("Carbohydrates",       s?.totalCarbs?.toInt() ?: 0,              targetCarbs,   "g"),
-        NutrientRow("Fiber",               s?.totalFiber?.toInt() ?: 0,              goalFiber,     "g"),
-        NutrientRow("Sugar",               s?.totalSugar?.toInt() ?: 0,              goalSugar,     "g"),
-        NutrientRow("Fat",                 s?.totalFat?.toInt() ?: 0,                targetFats,    "g"),
-        NutrientRow("Saturated Fat",       s?.totalSaturatedFat?.toInt() ?: 0,       goalSaturatedFat, "g"),
-        NutrientRow("Polyunsaturated Fat", s?.totalPolyunsaturatedFat?.toInt() ?: 0, 0,             "g"),
-        NutrientRow("Monounsaturated Fat", s?.totalMonounsaturatedFat?.toInt() ?: 0, 0,             "g"),
-        NutrientRow("Trans Fat",           s?.totalTransFat?.toInt() ?: 0,           0,             "g"),
-        NutrientRow("Cholesterol",         s?.totalCholesterol?.toInt() ?: 0,        goalCholesterol, "mg"),
-        NutrientRow("Sodium",              s?.totalSodium?.toInt() ?: 0,             targetSodium,  "mg"),
-        NutrientRow("Potassium",           s?.totalPotassium?.toInt() ?: 0,          goalPotassium, "mg"),
-        NutrientRow("Vitamin A",           s?.totalVitaminA?.toInt() ?: 0,           100,           "%"),
-        NutrientRow("Vitamin C",           s?.totalVitaminC?.toInt() ?: 0,           100,           "%"),
-        NutrientRow("Calcium",             s?.totalCalcium?.toInt() ?: 0,            100,           "%"),
-        NutrientRow("Iron",                s?.totalIron?.toInt() ?: 0,               100,           "%")
+        NutrientRow("Protein",             daySummary?.totalProtein?.toInt() ?: 0,            targetProtein, "g"),
+        NutrientRow("Carbohydrates",       daySummary?.totalCarbs?.toInt() ?: 0,              targetCarbs,   "g"),
+        NutrientRow("Fiber",               daySummary?.totalFiber?.toInt() ?: 0,              goalFiber,     "g"),
+        NutrientRow("Sugar",               daySummary?.totalSugar?.toInt() ?: 0,              goalSugar,     "g"),
+        NutrientRow("Fat",                 daySummary?.totalFat?.toInt() ?: 0,                targetFats,    "g"),
+        NutrientRow("Saturated Fat",       daySummary?.totalSaturatedFat?.toInt() ?: 0,       goalSaturatedFat, "g"),
+        NutrientRow("Polyunsaturated Fat", daySummary?.totalPolyunsaturatedFat?.toInt() ?: 0, 0,             "g"),
+        NutrientRow("Monounsaturated Fat", daySummary?.totalMonounsaturatedFat?.toInt() ?: 0, 0,             "g"),
+        NutrientRow("Trans Fat",           daySummary?.totalTransFat?.toInt() ?: 0,           0,             "g"),
+        NutrientRow("Cholesterol",         daySummary?.totalCholesterol?.toInt() ?: 0,        goalCholesterol, "mg"),
+        NutrientRow("Sodium",              daySummary?.totalSodium?.toInt() ?: 0,             targetSodium,  "mg"),
+        NutrientRow("Potassium",           daySummary?.totalPotassium?.toInt() ?: 0,          goalPotassium, "mg"),
+        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           100,           "%"),
+        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           100,           "%"),
+        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            100,           "%"),
+        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               100,           "%")
     )
 
     NutrientTable(

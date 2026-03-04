@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.ui.theme.*
 
@@ -183,8 +184,7 @@ private fun MacrosDayView(
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsTotalPct,
-                    goalPct = carbsGoalPct,
-                    valueLabel = "Total"
+                    goalPct = carbsGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
@@ -192,8 +192,7 @@ private fun MacrosDayView(
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatTotalPct,
-                    goalPct = fatGoalPct,
-                    valueLabel = "Total"
+                    goalPct = fatGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
@@ -201,8 +200,7 @@ private fun MacrosDayView(
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinTotalPct,
-                    goalPct = proteinGoalPct,
-                    valueLabel = "Total"
+                    goalPct = proteinGoalPct
                 )
             }
         }
@@ -285,7 +283,7 @@ private fun MacrosWeekView(
 
                         // Y-axis labels and grid lines
                         val textPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.parseColor("#9E9E9E")
+                            color = "#9E9E9E".toColorInt()
                             textSize = 28f
                             textAlign = android.graphics.Paint.Align.RIGHT
                         }
@@ -311,7 +309,7 @@ private fun MacrosWeekView(
                         val barSpacing = chartWidth / barCount
 
                         chartValues.forEachIndexed { index, value ->
-                            val barHeight = if (maxY > 0) (value / maxY) * chartHeight else 0f
+                            val barHeight = (value / maxY) * chartHeight
                             val x = leftPadding + index * barSpacing + barSpacing / 2 - barWidth / 2
                             val yTop = 20f + chartHeight - barHeight
 
@@ -326,7 +324,7 @@ private fun MacrosWeekView(
 
                         // X-axis labels
                         val xTextPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.parseColor("#9E9E9E")
+                            color = "#9E9E9E".toColorInt()
                             textSize = 26f
                             textAlign = android.graphics.Paint.Align.CENTER
                         }
@@ -374,8 +372,7 @@ private fun MacrosWeekView(
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsAvgPct,
-                    goalPct = carbsGoalPct,
-                    valueLabel = "Avg"
+                    goalPct = carbsGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
@@ -383,8 +380,7 @@ private fun MacrosWeekView(
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatAvgPct,
-                    goalPct = fatGoalPct,
-                    valueLabel = "Avg"
+                    goalPct = fatGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
@@ -392,8 +388,7 @@ private fun MacrosWeekView(
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinAvgPct,
-                    goalPct = proteinGoalPct,
-                    valueLabel = "Avg"
+                    goalPct = proteinGoalPct
                 )
             }
         }
@@ -410,8 +405,7 @@ private fun MacroLegendRow(
     name: String,
     grams: Int,
     valuePct: Int,
-    goalPct: Int,
-    valueLabel: String
+    goalPct: Int
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),

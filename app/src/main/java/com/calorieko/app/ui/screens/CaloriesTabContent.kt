@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.ui.theme.*
 import java.util.Locale
@@ -58,7 +59,6 @@ private fun CaloriesDayView(
     val dinnerCal = daySummary?.dinnerCalories?.toInt() ?: 0
     val snacksCal = daySummary?.snacksCalories?.toInt() ?: 0
     val totalCalories = breakfastCal + lunchCal + dinnerCal + snacksCal
-    val netCalories = totalCalories
 
     val totalForPercent = if (totalCalories > 0) totalCalories.toFloat() else 1f
     val breakfastPct = if (totalCalories > 0) (breakfastCal / totalForPercent * 100).toInt() else 0
@@ -176,7 +176,7 @@ private fun CaloriesDayView(
             Column(modifier = Modifier.fillMaxWidth()) {
                 CalorieSummaryRow(label = "Total Calories", value = totalCalories.toString(), valueColor = DarkText)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
-                CalorieSummaryRow(label = "Net Calories", value = netCalories.toString(), valueColor = DarkText)
+                CalorieSummaryRow(label = "Net Calories", value = totalCalories.toString(), valueColor = DarkText)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
                 CalorieSummaryRow(label = "Goal", value = goalCalories.toFormattedString(), valueColor = CalorieKoGreen)
             }
@@ -194,8 +194,8 @@ private fun CaloriesWeekView(
     weekDayLabels: List<String>,
     goalCalories: Int
 ) {
-    var selectedSubTab by remember { mutableIntStateOf(0) } // 0 = Total, 1 = Net
-    val isTotal = selectedSubTab == 0
+    val selectedSubTab = remember { mutableIntStateOf(0) } // 0 = Total, 1 = Net
+    val isTotal = selectedSubTab.intValue == 0
 
     val weeklyGoal = goalCalories * 7
 
@@ -250,7 +250,7 @@ private fun CaloriesWeekView(
                     // Total button
                     Box(
                         modifier = Modifier
-                            .clickable { selectedSubTab = 0 }
+                            .clickable { selectedSubTab.intValue = 0 }
                             .background(
                                 if (isTotal) CalorieKoGreen else Color.Transparent,
                                 RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp)
@@ -268,7 +268,7 @@ private fun CaloriesWeekView(
                     // Net button
                     Box(
                         modifier = Modifier
-                            .clickable { selectedSubTab = 1 }
+                            .clickable { selectedSubTab.intValue = 1 }
                             .background(
                                 if (!isTotal) CalorieKoGreen else Color.Transparent,
                                 RoundedCornerShape(topEnd = 6.dp, bottomEnd = 6.dp)
@@ -310,7 +310,7 @@ private fun CaloriesWeekView(
 
                         // Draw Y-axis labels and horizontal grid lines
                         val textPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.parseColor("#9E9E9E")
+                            color = "#9E9E9E".toColorInt()
                             textSize = 28f
                             textAlign = android.graphics.Paint.Align.RIGHT
                         }
@@ -338,7 +338,7 @@ private fun CaloriesWeekView(
                         val barSpacing = chartWidth / barCount
 
                         chartValues.forEachIndexed { index, value ->
-                            val barHeight = if (maxY > 0) (value / maxY) * chartHeight else 0f
+                            val barHeight = (value / maxY) * chartHeight
                             val x = leftPadding + index * barSpacing + barSpacing / 2 - barWidth / 2
                             val yTop = 20f + chartHeight - barHeight
 
@@ -364,7 +364,7 @@ private fun CaloriesWeekView(
 
                         // Draw X-axis labels
                         val xTextPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.parseColor("#9E9E9E")
+                            color = "#9E9E9E".toColorInt()
                             textSize = 26f
                             textAlign = android.graphics.Paint.Align.CENTER
                         }
