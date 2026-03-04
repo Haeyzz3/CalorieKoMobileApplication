@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -57,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -679,6 +682,10 @@ private fun MealSummaryOverlay(
     val totalCarbs = dishes.sumOf { it.carbs.toDouble() }.toFloat()
     val totalFat = dishes.sumOf { it.fat.toDouble() }.toFloat()
 
+    // Track expanded state per dish (by index)
+    val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
+    var totalsExpanded by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
     ) {
@@ -736,30 +743,61 @@ private fun MealSummaryOverlay(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(dishes) { index, dish ->
+                    val isExpanded = expandedDishes[index] == true
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "${dish.weightGrams.toInt()}g  •  ${dish.calories.toInt()} kcal",
-                                    fontSize = 13.sp, color = Color(0xFF6B7280)
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "P: ${dish.protein.toInt()}g  C: ${dish.carbs.toInt()}g  F: ${dish.fat.toInt()}g",
-                                    fontSize = 12.sp, color = Color(0xFF9CA3AF)
-                                )
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "${dish.weightGrams.toInt()}g  •  ${dish.calories.toInt()} kcal",
+                                        fontSize = 13.sp, color = Color(0xFF6B7280)
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "P: ${dish.protein.toInt()}g  C: ${dish.carbs.toInt()}g  F: ${dish.fat.toInt()}g",
+                                        fontSize = 12.sp, color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                                IconButton(onClick = { expandedDishes[index] = !isExpanded }) {
+                                    Icon(
+                                        if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(onClick = { onRemoveDish(index) }) {
+                                    Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                }
                             }
-                            IconButton(onClick = { onRemoveDish(index) }) {
-                                Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+
+                            // Expandable full nutrition details
+                            if (isExpanded) {
+                                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                                ExpandableNutrientGrid(
+                                    fiber = dish.fiber,
+                                    sugar = dish.sugar,
+                                    saturatedFat = dish.saturatedFat,
+                                    polyunsaturatedFat = dish.polyunsaturatedFat,
+                                    monounsaturatedFat = dish.monounsaturatedFat,
+                                    transFat = dish.transFat,
+                                    cholesterol = dish.cholesterol,
+                                    sodium = dish.sodium,
+                                    potassium = dish.potassium,
+                                    vitaminA = dish.vitaminA,
+                                    vitaminC = dish.vitaminC,
+                                    calcium = dish.calcium,
+                                    iron = dish.iron
+                                )
                             }
                         }
                     }
@@ -786,6 +824,52 @@ private fun MealSummaryOverlay(
                                 NutrientChip("Protein", "${totalProtein.toInt()}g")
                                 NutrientChip("Carbs", "${totalCarbs.toInt()}g")
                                 NutrientChip("Fat", "${totalFat.toInt()}g")
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // Expand/collapse toggle for full totals
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { totalsExpanded = !totalsExpanded }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    if (totalsExpanded) "Hide Full Breakdown" else "View Full Breakdown",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = CalorieKoGreen
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    if (totalsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = CalorieKoGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            if (totalsExpanded) {
+                                Spacer(Modifier.height(4.dp))
+                                HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
+                                ExpandableNutrientGrid(
+                                    fiber = dishes.sumOf { it.fiber.toDouble() }.toFloat(),
+                                    sugar = dishes.sumOf { it.sugar.toDouble() }.toFloat(),
+                                    saturatedFat = dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+                                    polyunsaturatedFat = dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
+                                    monounsaturatedFat = dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
+                                    transFat = dishes.sumOf { it.transFat.toDouble() }.toFloat(),
+                                    cholesterol = dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
+                                    sodium = dishes.sumOf { it.sodium.toDouble() }.toFloat(),
+                                    potassium = dishes.sumOf { it.potassium.toDouble() }.toFloat(),
+                                    vitaminA = dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
+                                    vitaminC = dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
+                                    calcium = dishes.sumOf { it.calcium.toDouble() }.toFloat(),
+                                    iron = dishes.sumOf { it.iron.toDouble() }.toFloat()
+                                )
                             }
                         }
                     }
@@ -831,6 +915,88 @@ private fun NutrientChip(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
         Text(label, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+    }
+}
+
+/**
+ * A detailed nutrient breakdown grid showing all 13 additional nutrients
+ * beyond the primary calories/protein/carbs/fat.
+ */
+@Composable
+private fun ExpandableNutrientGrid(
+    fiber: Float,
+    sugar: Float,
+    saturatedFat: Float,
+    polyunsaturatedFat: Float,
+    monounsaturatedFat: Float,
+    transFat: Float,
+    cholesterol: Float,
+    sodium: Float,
+    potassium: Float,
+    vitaminA: Float,
+    vitaminC: Float,
+    calcium: Float,
+    iron: Float
+) {
+    val nutrients = listOf(
+        Triple("Fiber",               "${fiber.toInt()}g",              Color(0xFF10B981)),
+        Triple("Sugar",               "${sugar.toInt()}g",              Color(0xFFF59E0B)),
+        Triple("Saturated Fat",       "${saturatedFat.toInt()}g",       Color(0xFFEF4444)),
+        Triple("Polyunsat. Fat",      "${polyunsaturatedFat.toInt()}g", Color(0xFF6366F1)),
+        Triple("Monounsat. Fat",      "${monounsaturatedFat.toInt()}g", Color(0xFF8B5CF6)),
+        Triple("Trans Fat",           "${transFat.toInt()}g",           Color(0xFFDC2626)),
+        Triple("Cholesterol",         "${cholesterol.toInt()}mg",       Color(0xFFEC4899)),
+        Triple("Sodium",              "${sodium.toInt()}mg",            Color(0xFFF97316)),
+        Triple("Potassium",           "${potassium.toInt()}mg",         Color(0xFF14B8A6)),
+        Triple("Vitamin A",           "${vitaminA.toInt()}%",           Color(0xFFEAB308)),
+        Triple("Vitamin C",           "${vitaminC.toInt()}%",           Color(0xFF22C55E)),
+        Triple("Calcium",             "${calcium.toInt()}%",            Color(0xFF0EA5E9)),
+        Triple("Iron",                "${iron.toInt()}%",               Color(0xFF78716C))
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Display in 2-column rows
+        nutrients.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                rowItems.forEach { (name, value, dotColor) ->
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(dotColor, CircleShape)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            name,
+                            fontSize = 12.sp,
+                            color = Color(0xFF6B7280),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            value,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF374151)
+                        )
+                    }
+                }
+                // If odd number, fill remaining space
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 
