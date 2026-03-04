@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.calorieko.app.ui.theme.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -168,7 +169,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White,
-                    titleContentColor = Color(0xFF1F2937)
+                    titleContentColor = DarkText
                 )
             )
         }
@@ -176,19 +177,19 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
+                .background(IceGray)
                 .padding(paddingValues)
         ) {
             // Tabs
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
-                contentColor = Color(0xFF1565C0),
+                contentColor = CalorieKoGreen,
                 indicator = { tabPositions ->
                     if (selectedTabIndex < tabPositions.size) {
                         TabRowDefaults.SecondaryIndicator(
                             Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                            color = Color(0xFF1565C0)
+                            color = CalorieKoGreen
                         )
                     }
                 }
@@ -201,7 +202,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                             Text(
                                 text = title.uppercase(),
                                 fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTabIndex == index) Color(0xFF1565C0) else Color.Gray,
+                                color = if (selectedTabIndex == index) CalorieKoGreen else SubtleText,
                                 fontSize = 12.sp
                             )
                         }
@@ -212,7 +213,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
             // --- Shared Day/Week Navigation Bar ---
             Surface(
                 color = Color.White,
-                shadowElevation = 1.dp
+                shadowElevation = 2.dp
             ) {
                 Column {
                     Row(
@@ -228,7 +229,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Filled.ChevronLeft,
                                 contentDescription = "Previous",
-                                tint = Color(0xFF616161)
+                                tint = CalorieKoGreen
                             )
                         }
 
@@ -241,13 +242,13 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                                     Text(
                                         text = viewLabel,
                                         fontSize = 13.sp,
-                                        color = Color(0xFF616161),
+                                        color = SubtleText,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Icon(
                                         imageVector = Icons.Filled.ArrowDropDown,
                                         contentDescription = null,
-                                        tint = Color(0xFF616161),
+                                        tint = SubtleText,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -255,7 +256,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                                     text = dateText,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF212121)
+                                    color = DarkText
                                 )
                             }
 
@@ -266,23 +267,23 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                                 DropdownMenuItem(
                                     text = {
                                         Text("Day", modifier = Modifier.fillMaxWidth(),
-                                            fontSize = 15.sp, color = Color(0xFF616161))
+                                            fontSize = 15.sp, color = SubtleText)
                                     },
                                     onClick = { viewMode = "day"; showViewDropdown = false }
                                 )
-                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                                HorizontalDivider(color = DividerGray)
                                 DropdownMenuItem(
                                     text = {
                                         Text("Week", modifier = Modifier.fillMaxWidth(),
-                                            fontSize = 15.sp, color = Color(0xFF616161))
+                                            fontSize = 15.sp, color = SubtleText)
                                     },
                                     onClick = { viewMode = "week"; showViewDropdown = false }
                                 )
-                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                                HorizontalDivider(color = DividerGray)
                                 DropdownMenuItem(
                                     text = {
                                         Text("Pick a Date", modifier = Modifier.fillMaxWidth(),
-                                            fontSize = 15.sp, color = Color(0xFF616161))
+                                            fontSize = 15.sp, color = SubtleText)
                                     },
                                     onClick = { showViewDropdown = false; showDatePicker = true }
                                 )
@@ -295,7 +296,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Filled.ChevronRight,
                                 contentDescription = "Next",
-                                tint = Color(0xFF616161)
+                                tint = CalorieKoGreen
                             )
                         }
                     }

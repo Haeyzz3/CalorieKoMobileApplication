@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.ui.theme.*
 
 @Composable
 fun MacrosTabContent(
@@ -77,21 +78,21 @@ private fun MacrosDayView(
     val fatTotalPct = if (totalGrams > 0) (fatGrams * 100) / totalForPct else 0
     val proteinTotalPct = if (totalGrams > 0) (proteinGrams * 100) / totalForPct else 0
 
-    val carbsColor = Color(0xFFFF9800)   // Orange
-    val fatColor = Color(0xFF8B5CF6)     // Purple
-    val proteinColor = Color(0xFF3B82F6) // Blue
+    val carbsColor = CalorieKoOrange
+    val fatColor = CalorieKoDarkOrange
+    val proteinColor = CalorieKoGreen
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -116,7 +117,7 @@ private fun MacrosDayView(
 
                         if (totalGrams == 0) {
                             drawArc(
-                                color = Color(0xFFE0E0E0),
+                                color = DividerGray,
                                 startAngle = 0f,
                                 sweepAngle = 360f,
                                 useCenter = false,
@@ -162,14 +163,14 @@ private fun MacrosDayView(
                         text = "Total",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(70.dp)
                     )
                     Text(
                         text = "Goal",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(60.dp)
                     )
                 }
@@ -249,14 +250,14 @@ private fun MacrosWeekView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -292,7 +293,7 @@ private fun MacrosWeekView(
                         yAxisLabels.forEach { yVal ->
                             val yPos = 20f + chartHeight - (yVal / maxY) * chartHeight
                             drawLine(
-                                color = Color(0xFFEEEEEE),
+                                color = DividerGray,
                                 start = Offset(leftPadding, yPos),
                                 end = Offset(size.width - 20f, yPos),
                                 strokeWidth = 1f
@@ -316,7 +317,7 @@ private fun MacrosWeekView(
 
                             if (value > 0) {
                                 drawRect(
-                                    color = Color(0xFF1565C0),
+                                    color = CalorieKoGreen,
                                     topLeft = Offset(x, yTop),
                                     size = Size(barWidth, barHeight)
                                 )
@@ -353,14 +354,14 @@ private fun MacrosWeekView(
                         text = "Avg",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(70.dp)
                     )
                     Text(
                         text = "Goal",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(60.dp)
                     )
                 }
@@ -369,7 +370,7 @@ private fun MacrosWeekView(
 
                 // --- Macro Rows ---
                 MacroLegendRow(
-                    color = Color(0xFFFF9800),
+                    color = CalorieKoOrange,
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsAvgPct,
@@ -378,7 +379,7 @@ private fun MacrosWeekView(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = Color(0xFF8B5CF6),
+                    color = CalorieKoDarkOrange,
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatAvgPct,
@@ -387,7 +388,7 @@ private fun MacrosWeekView(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = Color(0xFF3B82F6),
+                    color = CalorieKoGreen,
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinAvgPct,
@@ -420,7 +421,7 @@ private fun MacroLegendRow(
         Box(
             modifier = Modifier
                 .size(14.dp)
-                .background(color)
+                .background(color, RoundedCornerShape(3.dp))
         )
         Spacer(modifier = Modifier.width(8.dp))
         // Name + grams
@@ -428,14 +429,14 @@ private fun MacroLegendRow(
             text = "$name (${grams}g)",
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
-            color = Color(0xFF424242),
+            color = DarkText,
             modifier = Modifier.weight(1f)
         )
         // Value %
         Text(
             text = "$valuePct%",
             fontSize = 14.sp,
-            color = Color(0xFF616161),
+            color = SubtleText,
             modifier = Modifier.width(70.dp)
         )
         // Goal %
@@ -443,7 +444,7 @@ private fun MacroLegendRow(
             text = "$goalPct%",
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF1565C0),
+            color = CalorieKoGreen,
             modifier = Modifier.width(60.dp)
         )
     }

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.ui.theme.*
 
 private data class NutrientRow(
     val name: String,
@@ -164,47 +165,56 @@ private fun NutrientTable(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
+            .padding(16.dp)
     ) {
-        // --- Header Row ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = valueColumnHeader,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF757575),
-                modifier = Modifier.width(60.dp)
-            )
-            Text(
-                text = "Goal",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF757575),
-                modifier = Modifier.width(60.dp)
-            )
-            Text(
-                text = "Left",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF757575),
-                modifier = Modifier.width(70.dp)
-            )
-        }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // --- Header Row ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = valueColumnHeader,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SubtleText,
+                        modifier = Modifier.width(60.dp)
+                    )
+                    Text(
+                        text = "Goal",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SubtleText,
+                        modifier = Modifier.width(60.dp)
+                    )
+                    Text(
+                        text = "Left",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SubtleText,
+                        modifier = Modifier.width(70.dp)
+                    )
+                }
 
-        HorizontalDivider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                HorizontalDivider(color = DividerGray, thickness = 1.dp)
 
-        // --- Nutrient Rows ---
-        nutrients.forEach { nutrient ->
-            NutrientItemRow(nutrient)
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                // --- Nutrient Rows ---
+                nutrients.forEach { nutrient ->
+                    NutrientItemRow(nutrient)
+                    HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                }
+            }
         }
     }
 }
@@ -224,10 +234,12 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
         0f
     }
 
+    // Color the progress bar green normally, orange if over 80%
+    val progressColor = if (progress > 0.8f) CalorieKoOrange else CalorieKoGreen
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Row(
@@ -239,28 +251,28 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                 text = nutrient.name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color(0xFF424242),
+                color = DarkText,
                 modifier = Modifier.weight(1f)
             )
             // Total / Avg
             Text(
                 text = nutrient.total.toString(),
                 fontSize = 14.sp,
-                color = Color(0xFF616161),
+                color = SubtleText,
                 modifier = Modifier.width(60.dp)
             )
             // Goal
             Text(
                 text = goalText,
                 fontSize = 14.sp,
-                color = Color(0xFF616161),
+                color = SubtleText,
                 modifier = Modifier.width(60.dp)
             )
             // Left
             Text(
                 text = leftText,
                 fontSize = 14.sp,
-                color = Color(0xFF616161),
+                color = if (left < 0) CalorieKoOrange else SubtleText,
                 modifier = Modifier.width(70.dp)
             )
         }
@@ -273,7 +285,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                 .fillMaxWidth()
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(Color(0xFFE0E0E0))
+                .background(DividerGray)
         ) {
             if (progress > 0f) {
                 Box(
@@ -281,7 +293,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                         .fillMaxHeight()
                         .fillMaxWidth(progress)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0xFF1565C0))
+                        .background(progressColor)
                 )
             }
         }

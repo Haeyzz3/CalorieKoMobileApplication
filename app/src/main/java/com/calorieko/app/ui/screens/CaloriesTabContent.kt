@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.ui.theme.*
 import java.util.Locale
 
 @Composable
@@ -65,24 +66,24 @@ private fun CaloriesDayView(
     val dinnerPct = if (totalCalories > 0) (dinnerCal / totalForPercent * 100).toInt() else 0
     val snacksPct = if (totalCalories > 0) (snacksCal / totalForPercent * 100).toInt() else 0
 
-    val breakfastColor = Color(0xFF1565C0)
-    val lunchColor = Color(0xFF0D47A1)
-    val dinnerColor = Color(0xFF42A5F5)
-    val snacksColor = Color(0xFF90CAF9)
+    val breakfastColor = CalorieKoGreen
+    val lunchColor = CalorieKoDarkGreen
+    val dinnerColor = CalorieKoOrange
+    val snacksColor = CalorieKoLightOrange
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         // --- Pie Chart Card ---
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -107,7 +108,7 @@ private fun CaloriesDayView(
 
                         if (totalCalories == 0) {
                             drawArc(
-                                color = Color(0xFFE0E0E0),
+                                color = DividerGray,
                                 startAngle = 0f,
                                 sweepAngle = 360f,
                                 useCenter = false,
@@ -167,17 +168,17 @@ private fun CaloriesDayView(
 
         // Calorie Summary Rows
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                CalorieSummaryRow(label = "Total Calories", value = totalCalories.toString(), valueColor = Color(0xFF212121))
-                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
-                CalorieSummaryRow(label = "Net Calories", value = netCalories.toString(), valueColor = Color(0xFF212121))
-                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
-                CalorieSummaryRow(label = "Goal", value = goalCalories.toFormattedString(), valueColor = Color(0xFF1565C0))
+                CalorieSummaryRow(label = "Total Calories", value = totalCalories.toString(), valueColor = DarkText)
+                HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                CalorieSummaryRow(label = "Net Calories", value = netCalories.toString(), valueColor = DarkText)
+                HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                CalorieSummaryRow(label = "Goal", value = goalCalories.toFormattedString(), valueColor = CalorieKoGreen)
             }
         }
     }
@@ -215,24 +216,24 @@ private fun CaloriesWeekView(
     val weekTotal = weekBreakfast + weekLunch + weekDinner + weekSnacks
     val weekForPct = if (weekTotal > 0) weekTotal.toFloat() else 1f
 
-    val breakfastColor = Color(0xFF1565C0)
-    val lunchColor = Color(0xFF0D47A1)
-    val dinnerColor = Color(0xFF42A5F5)
-    val snacksColor = Color(0xFF90CAF9)
+    val breakfastColor = CalorieKoGreen
+    val lunchColor = CalorieKoDarkGreen
+    val dinnerColor = CalorieKoOrange
+    val snacksColor = CalorieKoLightOrange
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         // --- Chart Card ---
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -244,14 +245,14 @@ private fun CaloriesWeekView(
                 // --- Total / Net Toggle ---
                 Row(
                     modifier = Modifier
-                        .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(6.dp))
+                        .border(1.dp, DividerGray, RoundedCornerShape(6.dp))
                 ) {
                     // Total button
                     Box(
                         modifier = Modifier
                             .clickable { selectedSubTab = 0 }
                             .background(
-                                if (isTotal) Color(0xFF1565C0) else Color.Transparent,
+                                if (isTotal) CalorieKoGreen else Color.Transparent,
                                 RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp)
                             )
                             .padding(horizontal = 28.dp, vertical = 8.dp),
@@ -261,7 +262,7 @@ private fun CaloriesWeekView(
                             text = "Total",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (isTotal) Color.White else Color(0xFF757575)
+                            color = if (isTotal) Color.White else SubtleText
                         )
                     }
                     // Net button
@@ -269,7 +270,7 @@ private fun CaloriesWeekView(
                         modifier = Modifier
                             .clickable { selectedSubTab = 1 }
                             .background(
-                                if (!isTotal) Color(0xFF1565C0) else Color.Transparent,
+                                if (!isTotal) CalorieKoGreen else Color.Transparent,
                                 RoundedCornerShape(topEnd = 6.dp, bottomEnd = 6.dp)
                             )
                             .padding(horizontal = 28.dp, vertical = 8.dp),
@@ -279,7 +280,7 @@ private fun CaloriesWeekView(
                             text = "Net",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (!isTotal) Color.White else Color(0xFF757575)
+                            color = if (!isTotal) Color.White else SubtleText
                         )
                     }
                 }
@@ -318,7 +319,7 @@ private fun CaloriesWeekView(
                             val yPos = 20f + chartHeight - (yVal / maxY) * chartHeight
                             // Grid line
                             drawLine(
-                                color = Color(0xFFEEEEEE),
+                                color = DividerGray,
                                 start = Offset(leftPadding, yPos),
                                 end = Offset(size.width - 20f, yPos),
                                 strokeWidth = 1f
@@ -343,7 +344,7 @@ private fun CaloriesWeekView(
 
                             if (value > 0) {
                                 drawRect(
-                                    color = Color(0xFF1565C0),
+                                    color = CalorieKoGreen,
                                     topLeft = Offset(x, yTop),
                                     size = Size(barWidth, barHeight)
                                 )
@@ -354,7 +355,7 @@ private fun CaloriesWeekView(
                         if (!isTotal) {
                             val goalY = 20f + chartHeight - (goalCalories / maxY) * chartHeight
                             drawLine(
-                                color = Color(0xFF212121),
+                                color = DarkText,
                                 start = Offset(leftPadding, goalY),
                                 end = Offset(size.width - 20f, goalY),
                                 strokeWidth = 3f
@@ -422,9 +423,9 @@ private fun CaloriesWeekView(
 
         // --- Summary Rows ---
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -432,32 +433,32 @@ private fun CaloriesWeekView(
                     CalorieSummaryRow(
                         label = "Calories Under Weekly Goal",
                         value = caloriesUnderGoal.toFormattedString(),
-                        valueColor = Color(0xFF212121)
+                        valueColor = DarkText
                     )
-                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    HorizontalDivider(color = DividerGray, thickness = 1.dp)
                     CalorieSummaryRow(
                         label = "Daily Average",
                         value = avgTotal.toString(),
-                        valueColor = Color(0xFF212121)
+                        valueColor = DarkText
                     )
                 } else {
                     CalorieSummaryRow(
                         label = "Net Calories Under Weekly Goal",
                         value = netUnderGoal.toFormattedString(),
-                        valueColor = Color(0xFF212121)
+                        valueColor = DarkText
                     )
-                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    HorizontalDivider(color = DividerGray, thickness = 1.dp)
                     CalorieSummaryRow(
                         label = "Net Average",
                         value = avgNet.toString(),
-                        valueColor = Color(0xFF212121)
+                        valueColor = DarkText
                     )
                 }
-                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                HorizontalDivider(color = DividerGray, thickness = 1.dp)
                 CalorieSummaryRow(
                     label = "Goal",
                     value = goalCalories.toFormattedString(),
-                    valueColor = Color(0xFF1565C0)
+                    valueColor = CalorieKoGreen
                 )
             }
         }
@@ -483,7 +484,7 @@ private fun MealLegendItem(
             modifier = Modifier
                 .padding(top = 4.dp)
                 .size(14.dp)
-                .background(color)
+                .background(color, RoundedCornerShape(3.dp))
         )
         Spacer(modifier = Modifier.width(8.dp))
         Column {
@@ -491,12 +492,12 @@ private fun MealLegendItem(
                 text = label,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF424242)
+                color = DarkText
             )
             Text(
                 text = "$percent% ($calories cal)",
                 fontSize = 12.sp,
-                color = Color(0xFF9E9E9E)
+                color = SubtleText
             )
         }
     }
@@ -519,7 +520,7 @@ private fun CalorieSummaryRow(
             text = label,
             fontSize = 15.sp,
             fontWeight = FontWeight.Normal,
-            color = Color(0xFF424242)
+            color = SubtleText
         )
         Text(
             text = value,
