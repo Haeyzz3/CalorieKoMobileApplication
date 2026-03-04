@@ -82,7 +82,8 @@ data class ActivityLogEntry(
     val type: String, // "meal" or "workout"
     val time: String,
     val name: String,
-    val details: ActivityDetails
+    val details: ActivityDetails,
+    val timestamp: Long = 0L
 )
 
 data class ActivityDetails(
@@ -227,7 +228,8 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 protein = totalProt,
                 carbs = totalCarb,
                 fats = totalFat
-            )
+            ),
+            timestamp = meal.timestamp
         )
     }
 
@@ -244,12 +246,13 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 carbs = entity.carbs,
                 fats = entity.fats,
                 duration = entity.weightOrDuration
-            )
+            ),
+            timestamp = entity.timestamp
         )
     }
 
-    // Merge and sort by time (newest first — already ordered by timestamp DESC from queries)
-    val activityLog = (mealFeedEntries + workoutFeedEntries)
+    // Merge and sort by timestamp (newest first)
+    val activityLog = (mealFeedEntries + workoutFeedEntries).sortedByDescending { it.timestamp }
 
     Scaffold(
         bottomBar = {
