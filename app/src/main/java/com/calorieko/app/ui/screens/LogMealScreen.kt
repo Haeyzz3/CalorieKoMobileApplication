@@ -4,12 +4,15 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -58,6 +61,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -177,6 +181,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var topLabel by remember { mutableStateOf("") }
     var topConfidence by remember { mutableFloatStateOf(0f) }
 
+    // Inline unsupported-dish banner state (replaces intrusive error dialog)
+    var showUnsupportedBanner by remember { mutableStateOf(false) }
+    var bannerCooldownUntil by remember { mutableLongStateOf(0L) }
+
+    // Stable prediction tracking: require 4s of consistent top-1 label
+    var stableLabel by remember { mutableStateOf("") }
+    var stableSince by remember { mutableLongStateOf(0L) }
+
     // Dish being confirmed (DISH_READY phase)
     var pendingDishName by remember { mutableStateOf("") }
     var pendingConfidence by remember { mutableFloatStateOf(0f) }
@@ -223,13 +235,23 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     }
 
     // ── Auto-transition logic ──
-    // When SCANNING: if weight is stable AND AI confidence ≥ threshold → DISH_READY
-    LaunchedEffect(weightStable, topLabel, topConfidence, phase) {
+    // When SCANNING: if weight is stable AND AI confidence ≥ threshold:
+    //   • "negative" → show inline banner (not a dialog), with 20s cooldown
+    //   • supported dish → wait for 4s of consistent prediction, then → DISH_READY
+    LaunchedEffect(weightStable, topLabel, topConfidence, phase, stableSince) {
         if (phase == LogMealPhase.SCANNING && weightStable && weight > 0) {
             if (topLabel == "negative" && topConfidence >= CONFIDENCE_THRESHOLD) {
-                errorMessage = "This dish is not supported by CalorieKo. Please ensure proper lighting and try a supported Filipino dish."
-                phase = LogMealPhase.ERROR
+                // Show non-intrusive banner instead of blocking dialog
+                val now = System.currentTimeMillis()
+                if (!showUnsupportedBanner && now >= bannerCooldownUntil) {
+                    showUnsupportedBanner = true
+                    bannerCooldownUntil = now + 20_000L
+                }
             } else if (DishLabelMapper.isSupported(topLabel) && topConfidence >= CONFIDENCE_THRESHOLD) {
+                // Require 4 seconds of consistent top-1 prediction
+                val elapsed = System.currentTimeMillis() - stableSince
+                if (elapsed < 4000) return@LaunchedEffect
+
                 val foodName = DishLabelMapper.toFoodName(topLabel) ?: return@LaunchedEffect
                 pendingDishName = foodName
                 pendingConfidence = topConfidence
@@ -238,6 +260,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 pendingCaloriesEst = if (food != null) food.caloriesPer100g * weight / 100f else 0f
                 phase = LogMealPhase.DISH_READY
             }
+        }
+    }
+
+    // ── Banner auto-dismiss after 5 seconds ──
+    LaunchedEffect(showUnsupportedBanner) {
+        if (showUnsupportedBanner) {
+            delay(5000)
+            showUnsupportedBanner = false
         }
     }
 
@@ -303,6 +333,11 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 if (results.isNotEmpty() && phase == LogMealPhase.SCANNING) {
                     topLabel = results[0].first
                     topConfidence = results[0].second
+                    // Track label stability for the 4-second consistency check
+                    if (results[0].first != stableLabel) {
+                        stableLabel = results[0].first
+                        stableSince = System.currentTimeMillis()
+                    }
                 }
             }
         )
@@ -479,9 +514,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
             // Status text (while scanning)
             if (phase == LogMealPhase.SCANNING) {
+                val displayDishName = DishLabelMapper.toFoodName(topLabel) ?: topLabel
+                val isConfirming = DishLabelMapper.isSupported(topLabel)
+                        && topConfidence >= CONFIDENCE_THRESHOLD
+                        && weightStable && weight > 0
                 val statusText = when {
                     !weightStable && weight == 0 -> "Waiting for scale data..."
                     !weightStable               -> "Stabilizing weight..."
+                    isConfirming                -> "Confirming: $displayDishName..."
                     topConfidence < CONFIDENCE_THRESHOLD -> "AI is analyzing the dish..."
                     else                                 -> "Preparing..."
                 }
@@ -537,29 +577,57 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                         // Reset for next scan
                         topLabel = ""
                         topConfidence = 0f
+                        stableLabel = ""
+                        stableSince = 0L
                         phase = LogMealPhase.SCANNING
                     }
                 },
                 onCancel = {
                     topLabel = ""
                     topConfidence = 0f
+                    stableLabel = ""
+                    stableSince = 0L
                     phase = LogMealPhase.SCANNING
                 }
             )
         }
 
-        // 8. Error overlay
-        if (phase == LogMealPhase.ERROR && errorMessage != null) {
-            ErrorOverlay(
-                message = errorMessage!!,
-                onRetry = {
-                    errorMessage = null
-                    topLabel = ""
-                    topConfidence = 0f
-                    phase = LogMealPhase.SCANNING
-                },
-                onCancel = onBack
-            )
+        // 8. Inline unsupported-dish banner (replaces the old blocking ErrorOverlay)
+        AnimatedVisibility(
+            visible = showUnsupportedBanner,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 160.dp, start = 24.dp, end = 24.dp)
+        ) {
+            Surface(
+                color = Color(0xFFF59E0B).copy(alpha = 0.92f),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showUnsupportedBanner = false }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Dish not recognized — try a supported Filipino dish",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
     }
 }
