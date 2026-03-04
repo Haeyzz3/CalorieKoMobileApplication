@@ -13,10 +13,14 @@ firebaseUiAuth = "8.0.2"
 googleServices = "4.4.2"
 credentials = "1.3.0"
 googleid = "1.1.1"
+room = "2.8.4"
 litert = "1.2.0"
 camerax = "1.4.2"
 
 [libraries]
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 firebase-ui-auth = { group = "com.firebaseui", name = "firebase-ui-auth", version.ref = "firebaseUiAuth" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
