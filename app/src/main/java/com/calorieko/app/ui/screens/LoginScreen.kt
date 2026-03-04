@@ -65,7 +65,9 @@ import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -130,13 +132,19 @@ fun LoginScreen(
                 val credentialManager = CredentialManager.create(context)
 
                 // TODO: Replace with your actual Web Client ID from Firebase Console
+                val serverClientId = "945279693201-4i2r0vmiuo743h58rdhm80uh75vpfk96.apps.googleusercontent.com"
+
                 val googleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId("945279693201-4i2r0vmiuo743h58rdhm80uh75vpfk96.apps.googleusercontent.com")
+                    .setServerClientId(serverClientId)
+                    .build()
+
+                val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId)
                     .build()
 
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleIdOption)
+                    .addCredentialOption(signInWithGoogleOption)
                     .build()
 
                 val result = credentialManager.getCredential(
@@ -177,6 +185,10 @@ fun LoginScreen(
             } catch (e: GetCredentialCancellationException) {
                 isLoading = false
                 // User cancelled — do nothing
+            } catch (e: NoCredentialException) {
+                isLoading = false
+                Log.e("LoginScreen", "No Google accounts found", e)
+                errorMessage = "No Google accounts found. Please add an account in your device settings."
             } catch (e: Exception) {
                 isLoading = false
                 Log.e("LoginScreen", "Google Sign-In failed", e)
