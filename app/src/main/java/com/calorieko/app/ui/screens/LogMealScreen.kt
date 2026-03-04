@@ -81,6 +81,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
@@ -161,6 +169,18 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                     == PackageManager.PERMISSION_GRANTED
         )
     }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasCameraPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasCameraPermission = granted }
@@ -284,7 +304,21 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 Text("Grant permission to use meal logging", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                 Spacer(Modifier.height(24.dp))
                 Button(
-                    onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    onClick = {
+                        val activity = context as? Activity
+                        val shouldShowRationale = activity?.let {
+                            ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                        } ?: false
+
+                        if (shouldShowRationale) {
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        } else {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            context.startActivity(intent)
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
                     shape = RoundedCornerShape(16.dp)
                 ) { Text("Grant Permission") }
