@@ -87,6 +87,8 @@ import com.calorieko.app.ml.DishLabelMapper
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.ui.components.ExpandableNutrientGrid
+import com.calorieko.app.ui.components.NutrientChip
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -910,95 +912,8 @@ private fun MealSummaryOverlay(
     }
 }
 
-@Composable
-private fun NutrientChip(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
-        Text(label, fontSize = 11.sp, color = Color(0xFF9CA3AF))
-    }
-}
-
-/**
- * A detailed nutrient breakdown grid showing all 13 additional nutrients
- * beyond the primary calories/protein/carbs/fat.
- */
-@Composable
-private fun ExpandableNutrientGrid(
-    fiber: Float,
-    sugar: Float,
-    saturatedFat: Float,
-    polyunsaturatedFat: Float,
-    monounsaturatedFat: Float,
-    transFat: Float,
-    cholesterol: Float,
-    sodium: Float,
-    potassium: Float,
-    vitaminA: Float,
-    vitaminC: Float,
-    calcium: Float,
-    iron: Float
-) {
-    val nutrients = listOf(
-        Triple("Fiber",               "${fiber.toInt()}g",              Color(0xFF10B981)),
-        Triple("Sugar",               "${sugar.toInt()}g",              Color(0xFFF59E0B)),
-        Triple("Saturated Fat",       "${saturatedFat.toInt()}g",       Color(0xFFEF4444)),
-        Triple("Polyunsat. Fat",      "${polyunsaturatedFat.toInt()}g", Color(0xFF6366F1)),
-        Triple("Monounsat. Fat",      "${monounsaturatedFat.toInt()}g", Color(0xFF8B5CF6)),
-        Triple("Trans Fat",           "${transFat.toInt()}g",           Color(0xFFDC2626)),
-        Triple("Cholesterol",         "${cholesterol.toInt()}mg",       Color(0xFFEC4899)),
-        Triple("Sodium",              "${sodium.toInt()}mg",            Color(0xFFF97316)),
-        Triple("Potassium",           "${potassium.toInt()}mg",         Color(0xFF14B8A6)),
-        Triple("Vitamin A",           "${vitaminA.toInt()}%",           Color(0xFFEAB308)),
-        Triple("Vitamin C",           "${vitaminC.toInt()}%",           Color(0xFF22C55E)),
-        Triple("Calcium",             "${calcium.toInt()}%",            Color(0xFF0EA5E9)),
-        Triple("Iron",                "${iron.toInt()}%",               Color(0xFF78716C))
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        // Display in 2-column rows
-        nutrients.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                rowItems.forEach { (name, value, dotColor) ->
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(dotColor, CircleShape)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            name,
-                            fontSize = 12.sp,
-                            color = Color(0xFF6B7280),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            value,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF374151)
-                        )
-                    }
-                }
-                // If odd number, fill remaining space
-                if (rowItems.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
+// NutrientChip and ExpandableNutrientGrid are now imported from
+// com.calorieko.app.ui.components.NutrientComponents
 
 // ───────────────────────────────────────────────────────────────
 // Error overlay
