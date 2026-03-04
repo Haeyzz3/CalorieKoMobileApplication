@@ -84,9 +84,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -116,7 +116,7 @@ import kotlin.random.Random
 // ───────────────────────────────────────────────────────────────
 
 /** Phases of the Log-Meal workflow. */
-enum class LogMealPhase { SCANNING, DISH_READY, MEAL_SUMMARY, ERROR }
+enum class LogMealPhase { SCANNING, DISH_READY, MEAL_SUMMARY }
 
 /** A dish that has been recognized and queued for logging. */
 data class LoggedDish(
@@ -197,7 +197,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var phase by remember { mutableStateOf(LogMealPhase.SCANNING) }
     var weight by remember { mutableIntStateOf(0) }
     var weightStable by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+
 
     // AI results from the latest frame
     var topLabel by remember { mutableStateOf("") }
@@ -1046,59 +1046,6 @@ private fun MealSummaryOverlay(
 // NutrientChip and ExpandableNutrientGrid are now imported from
 // com.calorieko.app.ui.components.NutrientComponents
 
-// ───────────────────────────────────────────────────────────────
-// Error overlay
-// ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun ErrorOverlay(message: String, onRetry: () -> Unit, onCancel: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)).clickable(enabled = false) {},
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.padding(24.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier.size(64.dp).background(Color(0xFFFEE2E2), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Warning, null, tint = Color(0xFFDC2626), modifier = Modifier.size(32.dp))
-                }
-                Spacer(Modifier.height(16.dp))
-                Text("Dish Not Supported", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    message,
-                    fontSize = 14.sp,
-                    color = Color(0xFF4B5563),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        onClick = onCancel,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3F4F6), contentColor = Color(0xFF374151)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Cancel") }
-                    Button(
-                        onClick = onRetry,
-                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Try Again") }
-                }
-            }
-        }
-    }
-}
 
 // ───────────────────────────────────────────────────────────────
 // Scanner animation (retained from original)
