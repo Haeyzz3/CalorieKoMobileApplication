@@ -86,11 +86,11 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     // Real GPS Tracking
-    implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation(libs.play.services.location)
 
     // Mapbox Maps SDK + Compose extension
-    implementation("com.mapbox.maps:android:11.18.2")
-    implementation("com.mapbox.extension:maps-compose:11.18.2")
+    implementation(libs.mapbox.maps)
+    implementation(libs.mapbox.maps.compose)
 
 
 
