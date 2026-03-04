@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 
 private data class NutrientRow(
     val name: String,
@@ -23,24 +24,40 @@ private data class NutrientRow(
 )
 
 @Composable
-fun NutrientsTabContent() {
+fun NutrientsTabContent(
+    daySummary: DailyNutritionSummaryEntity?,
+    targetCalories: Int,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
+    targetSodium: Int
+) {
+    // Derived goals from standard dietary guidelines
+    val goalFiber = 38                               // g (USDA recommendation)
+    val goalSugar = (targetCalories * 0.10 / 4).toInt()  // ~10% of calories from sugar
+    val goalSaturatedFat = (targetCalories * 0.10 / 9).toInt() // <10% of calories
+    val goalCholesterol = 300                        // mg
+    val goalPotassium = 3500                         // mg
+
+    val s = daySummary
+
     val nutrients = listOf(
-        NutrientRow("Protein", 0, 109, "g"),
-        NutrientRow("Carbohydrates", 0, 271, "g"),
-        NutrientRow("Fiber", 0, 38, "g"),
-        NutrientRow("Sugar", 0, 81, "g"),
-        NutrientRow("Fat", 0, 72, "g"),
-        NutrientRow("Saturated Fat", 0, 24, "g"),
-        NutrientRow("Polyunsaturated Fat", 0, 0, "g"),
-        NutrientRow("Monounsaturated Fat", 0, 0, "g"),
-        NutrientRow("Trans Fat", 0, 0, "g"),
-        NutrientRow("Cholesterol", 0, 300, "mg"),
-        NutrientRow("Sodium", 0, 2300, "mg"),
-        NutrientRow("Potassium", 0, 3500, "mg"),
-        NutrientRow("Vitamin A", 0, 100, "%"),
-        NutrientRow("Vitamin C", 0, 100, "%"),
-        NutrientRow("Calcium", 0, 100, "%"),
-        NutrientRow("Iron", 0, 100, "%")
+        NutrientRow("Protein",             s?.totalProtein?.toInt() ?: 0,            targetProtein, "g"),
+        NutrientRow("Carbohydrates",       s?.totalCarbs?.toInt() ?: 0,              targetCarbs,   "g"),
+        NutrientRow("Fiber",               s?.totalFiber?.toInt() ?: 0,              goalFiber,     "g"),
+        NutrientRow("Sugar",               s?.totalSugar?.toInt() ?: 0,              goalSugar,     "g"),
+        NutrientRow("Fat",                 s?.totalFat?.toInt() ?: 0,                targetFats,    "g"),
+        NutrientRow("Saturated Fat",       s?.totalSaturatedFat?.toInt() ?: 0,       goalSaturatedFat, "g"),
+        NutrientRow("Polyunsaturated Fat", s?.totalPolyunsaturatedFat?.toInt() ?: 0, 0,             "g"),
+        NutrientRow("Monounsaturated Fat", s?.totalMonounsaturatedFat?.toInt() ?: 0, 0,             "g"),
+        NutrientRow("Trans Fat",           s?.totalTransFat?.toInt() ?: 0,           0,             "g"),
+        NutrientRow("Cholesterol",         s?.totalCholesterol?.toInt() ?: 0,        goalCholesterol, "mg"),
+        NutrientRow("Sodium",              s?.totalSodium?.toInt() ?: 0,             targetSodium,  "mg"),
+        NutrientRow("Potassium",           s?.totalPotassium?.toInt() ?: 0,          goalPotassium, "mg"),
+        NutrientRow("Vitamin A",           s?.totalVitaminA?.toInt() ?: 0,           100,           "%"),
+        NutrientRow("Vitamin C",           s?.totalVitaminC?.toInt() ?: 0,           100,           "%"),
+        NutrientRow("Calcium",             s?.totalCalcium?.toInt() ?: 0,            100,           "%"),
+        NutrientRow("Iron",                s?.totalIron?.toInt() ?: 0,               100,           "%")
     )
 
     Column(
@@ -103,11 +120,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
     } else {
         "$left ${nutrient.unit}"
     }
-    val goalText = if (nutrient.unit == "%") {
-        nutrient.goal.toFormattedString()
-    } else {
-        nutrient.goal.toFormattedString()
-    }
+    val goalText = nutrient.goal.toFormattedString()
     val progress = if (nutrient.goal > 0) {
         (nutrient.total.toFloat() / nutrient.goal).coerceIn(0f, 1f)
     } else {

@@ -21,29 +21,42 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import java.util.Locale
 
 @Composable
-fun CaloriesTabContent(viewMode: String) {
+fun CaloriesTabContent(
+    viewMode: String,
+    daySummary: DailyNutritionSummaryEntity?,
+    goalCalories: Int,
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>
+) {
     if (viewMode == "day") {
-        CaloriesDayView()
+        CaloriesDayView(daySummary = daySummary, goalCalories = goalCalories)
     } else {
-        CaloriesWeekView()
+        CaloriesWeekView(
+            weekDaySummaries = weekDaySummaries,
+            weekDayLabels = weekDayLabels,
+            goalCalories = goalCalories
+        )
     }
 }
 
 // =====================================================
-// DAY VIEW (existing)
+// DAY VIEW
 // =====================================================
 
 @Composable
-private fun CaloriesDayView() {
-    val breakfastCal = 0
-    val lunchCal = 0
-    val dinnerCal = 0
-    val snacksCal = 0
+private fun CaloriesDayView(
+    daySummary: DailyNutritionSummaryEntity?,
+    goalCalories: Int
+) {
+    val breakfastCal = daySummary?.breakfastCalories?.toInt() ?: 0
+    val lunchCal = daySummary?.lunchCalories?.toInt() ?: 0
+    val dinnerCal = daySummary?.dinnerCalories?.toInt() ?: 0
+    val snacksCal = daySummary?.snacksCalories?.toInt() ?: 0
     val totalCalories = breakfastCal + lunchCal + dinnerCal + snacksCal
-    val goalCalories = 2170
     val netCalories = totalCalories
 
     val totalForPercent = if (totalCalories > 0) totalCalories.toFloat() else 1f
@@ -171,26 +184,37 @@ private fun CaloriesDayView() {
 }
 
 // =====================================================
-// WEEK VIEW (new)
+// WEEK VIEW
 // =====================================================
 
 @Composable
-private fun CaloriesWeekView() {
+private fun CaloriesWeekView(
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>,
+    goalCalories: Int
+) {
     var selectedSubTab by remember { mutableIntStateOf(0) } // 0 = Total, 1 = Net
     val isTotal = selectedSubTab == 0
 
-    // Mock data
-    val goalCalories = 2170
-    val weeklyGoal = goalCalories * 7 // 15,190
-    val dayLabels = listOf("Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Avg")
-    val dailyTotalCals = listOf(0, 0, 0, 0, 0, 0, 0) // Mock: all zeros
-    val dailyNetCals = listOf(0, 0, 0, 0, 0, 0, 0)
+    val weeklyGoal = goalCalories * 7
+
+    // Extract daily total cals from real data
+    val dailyTotalCals = weekDaySummaries.map { it?.totalCalories?.toInt() ?: 0 }
+    val dailyNetCals = dailyTotalCals // Net = Total for now (no exercise subtraction here)
+
     val avgTotal = if (dailyTotalCals.sum() > 0) dailyTotalCals.average().toInt() else 0
     val avgNet = if (dailyNetCals.sum() > 0) dailyNetCals.average().toInt() else 0
     val caloriesUnderGoal = weeklyGoal - dailyTotalCals.sum()
     val netUnderGoal = weeklyGoal - dailyNetCals.sum()
 
-    // Meal percentages (for Total tab legend)
+    // Meal breakdown aggregates for the week (Total tab legend)
+    val weekBreakfast = weekDaySummaries.sumOf { (it?.breakfastCalories ?: 0f).toDouble() }.toInt()
+    val weekLunch = weekDaySummaries.sumOf { (it?.lunchCalories ?: 0f).toDouble() }.toInt()
+    val weekDinner = weekDaySummaries.sumOf { (it?.dinnerCalories ?: 0f).toDouble() }.toInt()
+    val weekSnacks = weekDaySummaries.sumOf { (it?.snacksCalories ?: 0f).toDouble() }.toInt()
+    val weekTotal = weekBreakfast + weekLunch + weekDinner + weekSnacks
+    val weekForPct = if (weekTotal > 0) weekTotal.toFloat() else 1f
+
     val breakfastColor = Color(0xFF1565C0)
     val lunchColor = Color(0xFF0D47A1)
     val dinnerColor = Color(0xFF42A5F5)
@@ -343,7 +367,7 @@ private fun CaloriesWeekView() {
                             textSize = 26f
                             textAlign = android.graphics.Paint.Align.CENTER
                         }
-                        dayLabels.forEachIndexed { index, label ->
+                        weekDayLabels.forEachIndexed { index, label ->
                             val x = leftPadding + index * barSpacing + barSpacing / 2
                             drawContext.canvas.nativeCanvas.drawText(
                                 label,
@@ -363,16 +387,32 @@ private fun CaloriesWeekView() {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        MealLegendItem(color = breakfastColor, label = "Breakfast", percent = 0, calories = 0)
-                        MealLegendItem(color = lunchColor, label = "Lunch", percent = 0, calories = 0)
+                        MealLegendItem(
+                            color = breakfastColor, label = "Breakfast",
+                            percent = if (weekTotal > 0) (weekBreakfast / weekForPct * 100).toInt() else 0,
+                            calories = weekBreakfast
+                        )
+                        MealLegendItem(
+                            color = lunchColor, label = "Lunch",
+                            percent = if (weekTotal > 0) (weekLunch / weekForPct * 100).toInt() else 0,
+                            calories = weekLunch
+                        )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        MealLegendItem(color = dinnerColor, label = "Dinner", percent = 0, calories = 0)
-                        MealLegendItem(color = snacksColor, label = "Snacks", percent = 0, calories = 0)
+                        MealLegendItem(
+                            color = dinnerColor, label = "Dinner",
+                            percent = if (weekTotal > 0) (weekDinner / weekForPct * 100).toInt() else 0,
+                            calories = weekDinner
+                        )
+                        MealLegendItem(
+                            color = snacksColor, label = "Snacks",
+                            percent = if (weekTotal > 0) (weekSnacks / weekForPct * 100).toInt() else 0,
+                            calories = weekSnacks
+                        )
                     }
                 }
             }

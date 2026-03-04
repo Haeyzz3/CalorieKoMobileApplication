@@ -19,13 +19,33 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 
 @Composable
-fun MacrosTabContent(viewMode: String) {
+fun MacrosTabContent(
+    viewMode: String,
+    daySummary: DailyNutritionSummaryEntity?,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>
+) {
     if (viewMode == "day") {
-        MacrosDayView()
+        MacrosDayView(
+            daySummary = daySummary,
+            targetProtein = targetProtein,
+            targetCarbs = targetCarbs,
+            targetFats = targetFats
+        )
     } else {
-        MacrosWeekView()
+        MacrosWeekView(
+            weekDaySummaries = weekDaySummaries,
+            weekDayLabels = weekDayLabels,
+            targetProtein = targetProtein,
+            targetCarbs = targetCarbs,
+            targetFats = targetFats
+        )
     }
 }
 
@@ -34,20 +54,28 @@ fun MacrosTabContent(viewMode: String) {
 // =====================================================
 
 @Composable
-private fun MacrosDayView() {
-    // Mock data
-    val carbsGrams = 0
-    val fatGrams = 0
-    val proteinGrams = 0
+private fun MacrosDayView(
+    daySummary: DailyNutritionSummaryEntity?,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int
+) {
+    val carbsGrams = daySummary?.totalCarbs?.toInt() ?: 0
+    val fatGrams = daySummary?.totalFat?.toInt() ?: 0
+    val proteinGrams = daySummary?.totalProtein?.toInt() ?: 0
     val totalGrams = carbsGrams + fatGrams + proteinGrams
 
-    val carbsGoalPct = 50
-    val fatGoalPct = 30
-    val proteinGoalPct = 20
+    // Goal percentages based on targets
+    val totalTargetGrams = (targetCarbs + targetFats + targetProtein).coerceAtLeast(1)
+    val carbsGoalPct = (targetCarbs * 100) / totalTargetGrams
+    val fatGoalPct = (targetFats * 100) / totalTargetGrams
+    val proteinGoalPct = (targetProtein * 100) / totalTargetGrams
 
-    val carbsTotalPct = 0
-    val fatTotalPct = 0
-    val proteinTotalPct = 0
+    // Actual percentages
+    val totalForPct = if (totalGrams > 0) totalGrams else 1
+    val carbsTotalPct = if (totalGrams > 0) (carbsGrams * 100) / totalForPct else 0
+    val fatTotalPct = if (totalGrams > 0) (fatGrams * 100) / totalForPct else 0
+    val proteinTotalPct = if (totalGrams > 0) (proteinGrams * 100) / totalForPct else 0
 
     val carbsColor = Color(0xFFFF9800)   // Orange
     val fatColor = Color(0xFF8B5CF6)     // Purple
@@ -185,22 +213,37 @@ private fun MacrosDayView() {
 // =====================================================
 
 @Composable
-private fun MacrosWeekView() {
-    // Mock data
-    val carbsGrams = 0
-    val fatGrams = 0
-    val proteinGrams = 0
+private fun MacrosWeekView(
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int
+) {
+    // Total grams across the week
+    val carbsGrams = weekDaySummaries.sumOf { (it?.totalCarbs ?: 0f).toDouble() }.toInt()
+    val fatGrams = weekDaySummaries.sumOf { (it?.totalFat ?: 0f).toDouble() }.toInt()
+    val proteinGrams = weekDaySummaries.sumOf { (it?.totalProtein ?: 0f).toDouble() }.toInt()
 
-    val carbsGoalPct = 50
-    val fatGoalPct = 30
-    val proteinGoalPct = 20
+    val totalTargetGrams = (targetCarbs + targetFats + targetProtein).coerceAtLeast(1)
+    val carbsGoalPct = (targetCarbs * 100) / totalTargetGrams
+    val fatGoalPct = (targetFats * 100) / totalTargetGrams
+    val proteinGoalPct = (targetProtein * 100) / totalTargetGrams
 
-    val carbsAvgPct = 0
-    val fatAvgPct = 0
-    val proteinAvgPct = 0
+    // Average percentages (across the week)
+    val daysWithData = weekDaySummaries.count { it != null }.coerceAtLeast(1)
+    val avgCarbs = carbsGrams / daysWithData
+    val avgFat = fatGrams / daysWithData
+    val avgProtein = proteinGrams / daysWithData
+    val avgTotal = (avgCarbs + avgFat + avgProtein).coerceAtLeast(1)
+    val carbsAvgPct = if (avgTotal > 0) (avgCarbs * 100) / avgTotal else 0
+    val fatAvgPct = if (avgTotal > 0) (avgFat * 100) / avgTotal else 0
+    val proteinAvgPct = if (avgTotal > 0) (avgProtein * 100) / avgTotal else 0
 
-    val dayLabels = listOf("Fri", "Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Avg")
-    val dailyGrams = listOf(0, 0, 0, 0, 0, 0, 0)
+    // Daily total macro grams for the bar chart
+    val dailyGrams = weekDaySummaries.map { s ->
+        ((s?.totalCarbs ?: 0f) + (s?.totalFat ?: 0f) + (s?.totalProtein ?: 0f)).toInt()
+    }
     val avgGrams = if (dailyGrams.sum() > 0) dailyGrams.average().toInt() else 0
 
     Column(
@@ -286,7 +329,7 @@ private fun MacrosWeekView() {
                             textSize = 26f
                             textAlign = android.graphics.Paint.Align.CENTER
                         }
-                        dayLabels.forEachIndexed { index, label ->
+                        weekDayLabels.forEachIndexed { index, label ->
                             val x = leftPadding + index * barSpacing + barSpacing / 2
                             drawContext.canvas.nativeCanvas.drawText(
                                 label,
