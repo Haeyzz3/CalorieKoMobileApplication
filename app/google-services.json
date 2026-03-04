@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "945279693201-a5si9m7s58nd5kib361hvu3v1no576l5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.calorieko.app",
+            "certificate_hash": "ff624e36f80ed693f03f436eafa0e05183a5a172"
+          }
+        },
+        {
           "client_id": "945279693201-4i2r0vmiuo743h58rdhm80uh75vpfk96.apps.googleusercontent.com",
           "client_type": 3
         }
