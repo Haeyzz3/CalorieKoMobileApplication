@@ -1,36 +1,13 @@
 package com.calorieko.app.ui.screens
 
 
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.data.model.DailyNutritionSummaryEntity
-import com.calorieko.app.data.model.MealLogWithItems
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.google.firebase.auth.FirebaseAuth
-import com.calorieko.app.ui.components.BottomNavigation
-import com.calorieko.app.ui.components.ExpandableNutrientGrid
-import com.calorieko.app.ui.components.NutrientChip
-import com.calorieko.app.ui.components.ProgressRings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,8 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
@@ -62,16 +39,38 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.data.model.MealLogWithItems
+import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.ExpandableNutrientGrid
+import com.calorieko.app.ui.components.NutrientChip
+import com.calorieko.app.ui.components.ProgressRings
 import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -119,12 +118,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
 
     // --- 3. DYNAMIC TARGET STATE ---
-    var targetCalories by remember { mutableStateOf(2000) }
-    var targetBurned by remember { mutableStateOf(500) }
-    var targetSodium by remember { mutableStateOf(2300) }
-    var targetProtein by remember { mutableStateOf(150) }
-    var targetCarbs by remember { mutableStateOf(200) }
-    var targetFats by remember { mutableStateOf(65) }
+    var targetCalories by remember { mutableIntStateOf(2000) }
+    var targetBurned by remember { mutableIntStateOf(500) }
+    var targetSodium by remember { mutableIntStateOf(2300) }
+    var targetProtein by remember { mutableIntStateOf(150) }
+    var targetCarbs by remember { mutableIntStateOf(200) }
+    var targetFats by remember { mutableIntStateOf(65) }
 
     // --- 4. DATA STATE ---
     var nutritionSummary by remember { mutableStateOf<DailyNutritionSummaryEntity?>(null) }
@@ -182,7 +181,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 }
 
                 // B. Fetch today's nutrition summary (from DailyNutritionSummaryEntity)
-                val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+                val todayEpochDay = LocalDate.now().toEpochDay()
                 nutritionSummary = dailyNutritionSummaryDao.getSummaryForDate(uid, todayEpochDay)
 
                 // C. Fetch today's meal logs (for the activity feed)

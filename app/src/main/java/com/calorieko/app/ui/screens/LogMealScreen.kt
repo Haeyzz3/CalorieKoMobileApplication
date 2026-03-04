@@ -70,7 +70,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -89,10 +88,10 @@ import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ml.DishLabelMapper
 import com.calorieko.app.ui.components.CameraPreview
-import com.calorieko.app.ui.theme.CalorieKoGreen
-import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
+import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
