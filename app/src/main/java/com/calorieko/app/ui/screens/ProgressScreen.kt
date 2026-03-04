@@ -111,7 +111,7 @@ fun ProgressRings(
                                 text = "$sodiumCurrent",
                                 fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFF9800)
+                                color = Color(0xFFEAB308)
                             )
                             Text(
                                 text = "/ $sodiumTarget mg Na",
@@ -134,7 +134,7 @@ fun ProgressRings(
                 Spacer(modifier = Modifier.width(16.dp))
                 LegendDot(color = Color(0xFFEF5350), label = "Burned")
                 Spacer(modifier = Modifier.width(16.dp))
-                LegendDot(color = Color(0xFFFF9800), label = "Sodium")
+                LegendDot(color = Color(0xFFEAB308), label = "Sodium")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -233,16 +233,16 @@ fun TripleRingChart(
             style = Stroke(width = middleStroke, cap = StrokeCap.Round)
         )
 
-        // --- Inner Ring: Sodium (Orange) ---
+        // --- Inner Ring: Sodium (Golden Yellow) ---
         val innerRadius = middleRadius - middleStroke / 2 - gap - innerStroke / 2
         drawCircle(
-            color = Color(0xFFFFF3E0),
+            color = Color(0xFFFEFCE8),
             radius = innerRadius,
             center = center,
             style = Stroke(width = innerStroke)
         )
         drawArc(
-            color = Color(0xFFFF9800),
+            color = Color(0xFFEAB308),
             startAngle = -90f,
             sweepAngle = 360f * animatedSodium,
             useCenter = false,
