@@ -312,12 +312,15 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                     weekDayLabels = weekDayLabels
                 )
                 1 -> NutrientsTabContent(
+                    viewMode = viewMode,
                     daySummary = daySummary,
                     targetCalories = targetCalories,
                     targetProtein = targetProtein,
                     targetCarbs = targetCarbs,
                     targetFats = targetFats,
-                    targetSodium = targetSodium
+                    targetSodium = targetSodium,
+                    weekDaySummaries = weekDaySummaries,
+                    weekDayLabels = weekDayLabels
                 )
                 2 -> MacrosTabContent(
                     viewMode = viewMode,
