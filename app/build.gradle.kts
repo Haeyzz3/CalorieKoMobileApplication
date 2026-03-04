@@ -5,8 +5,8 @@ plugins {
 
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.gms.google-services")
-    id("com.google.devtools.ksp") version "2.3.2"
+    alias(libs.plugins.google.services)
+    id("com.google.devtools.ksp") version "2.3.5"
 }
 
 android {
@@ -71,19 +71,19 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.navigation:navigation-compose:2.8.5")
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.navigation.compose)
+    implementation(libs.coil.compose)
     implementation(libs.androidx.material.icons.extended)
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.firebaseui:firebase-ui-auth:8.0.2")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.ui.auth)
 
     // Credential Manager (Google Sign-In)
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
 
     // Real GPS Tracking
     implementation(libs.play.services.location)
