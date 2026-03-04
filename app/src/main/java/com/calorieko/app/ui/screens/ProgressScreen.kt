@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.ui.theme.*
 
 
 @Composable
@@ -143,7 +144,7 @@ fun ProgressRings(
                 label = "Protein",
                 current = proteinCurrent,
                 target = proteinTarget,
-                color = Color(0xFF3B82F6), // Blue
+                color = CalorieKoGreen,
                 unit = "g"
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -151,7 +152,7 @@ fun ProgressRings(
                 label = "Carbs",
                 current = carbsCurrent,
                 target = carbsTarget,
-                color = Color(0xFFFF9800), // Orange
+                color = CalorieKoOrange,
                 unit = "g"
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -159,7 +160,7 @@ fun ProgressRings(
                 label = "Fats",
                 current = fatsCurrent,
                 target = fatsTarget,
-                color = Color(0xFF8B5CF6), // Purple
+                color = CalorieKoDarkOrange,
                 unit = "g"
             )
         }
