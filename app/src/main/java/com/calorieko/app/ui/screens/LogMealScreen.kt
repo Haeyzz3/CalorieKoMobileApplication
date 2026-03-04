@@ -298,6 +298,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
         CameraPreview(
             modifier = Modifier.fillMaxSize(),
             classifier = classifier,
+            flashEnabled = flashEnabled,
             onFrameAnalyzed = { results ->
                 if (results.isNotEmpty() && phase == LogMealPhase.SCANNING) {
                     topLabel = results[0].first

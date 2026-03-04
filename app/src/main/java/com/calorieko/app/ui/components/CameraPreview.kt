@@ -1,6 +1,7 @@
 package com.calorieko.app.ui.components
 
 import android.view.ViewGroup
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -8,7 +9,11 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -26,17 +31,27 @@ import java.util.concurrent.Executors
  *
  * @param modifier         Layout modifier.
  * @param classifier       The [CalorieKoClassifier] instance to run inference with.
+ * @param flashEnabled     Whether the camera torch (flashlight) should be enabled.
  * @param onFrameAnalyzed  Callback receiving the top-3 classification results per frame.
  */
 @Composable
 fun CameraPreview(
     modifier: Modifier = Modifier,
     classifier: CalorieKoClassifier,
+    flashEnabled: Boolean = false,
     onFrameAnalyzed: (List<Pair<String, Float>>) -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
     val executor = remember { Executors.newSingleThreadExecutor() }
+
+    // Hold a reference to the Camera so we can control torch
+    var camera by remember { mutableStateOf<Camera?>(null) }
+
+    // Toggle torch whenever flashEnabled changes
+    LaunchedEffect(flashEnabled, camera) {
+        camera?.cameraControl?.enableTorch(flashEnabled)
+    }
 
     // Shut down the executor when the composable leaves composition
     DisposableEffect(Unit) {
@@ -76,7 +91,7 @@ fun CameraPreview(
 
                 try {
                     cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
+                    camera = cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
