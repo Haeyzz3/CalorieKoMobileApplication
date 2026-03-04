@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,6 +56,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -190,6 +192,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     }
 
     // ── State ──
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var flashEnabled by remember { mutableStateOf(false) }
     var phase by remember { mutableStateOf(LogMealPhase.SCANNING) }
     var weight by remember { mutableIntStateOf(0) }
@@ -313,10 +316,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                         if (shouldShowRationale) {
                             permissionLauncher.launch(Manifest.permission.CAMERA)
                         } else {
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                            }
-                            context.startActivity(intent)
+                            showSettingsDialog = true
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
@@ -330,6 +330,35 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 ) { Text("Go Back") }
             }
         }
+
+        if (showSettingsDialog) {
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                title = { Text(text = "Permission Required") },
+                text = { Text(text = "Camera permission is permanently denied. Please grant the permission in the app settings.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showSettingsDialog = false
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Text("Go to Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showSettingsDialog = false }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         return
     }
 
