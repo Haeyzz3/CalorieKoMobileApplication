@@ -192,7 +192,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     }
 
     // ── State ──
-    var showSettingsDialog by remember { mutableStateOf(false) }
+    val showSettingsDialog = remember { mutableStateOf(false) }
     var flashEnabled by remember { mutableStateOf(false) }
     var phase by remember { mutableStateOf(LogMealPhase.SCANNING) }
     var weight by remember { mutableIntStateOf(0) }
@@ -220,7 +220,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     val loggedDishes = remember { mutableStateListOf<LoggedDish>() }
 
     // Meal type auto-detected by time of day
-    var mealType by remember {
+    val mealType = remember {
         val hour = LocalTime.now().hour
         mutableStateOf(
             when {
@@ -316,7 +316,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                         if (shouldShowRationale) {
                             permissionLauncher.launch(Manifest.permission.CAMERA)
                         } else {
-                            showSettingsDialog = true
+                            showSettingsDialog.value = true
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
@@ -331,15 +331,15 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
             }
         }
 
-        if (showSettingsDialog) {
+        if (showSettingsDialog.value) {
             AlertDialog(
-                onDismissRequest = { showSettingsDialog = false },
+                onDismissRequest = { showSettingsDialog.value = false },
                 title = { Text(text = "Permission Required") },
                 text = { Text(text = "Camera permission is permanently denied. Please grant the permission in the app settings.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            showSettingsDialog = false
+                            showSettingsDialog.value = false
                             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                 data = Uri.fromParts("package", context.packageName, null)
                             }
@@ -351,7 +351,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { showSettingsDialog = false }
+                        onClick = { showSettingsDialog.value = false }
                     ) {
                         Text("Cancel")
                     }
@@ -366,14 +366,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     if (phase == LogMealPhase.MEAL_SUMMARY) {
         MealSummaryOverlay(
             dishes = loggedDishes,
-            mealType = mealType,
-            onMealTypeChange = { mealType = it },
+            mealType = mealType.value,
+            onMealTypeChange = { mealType.value = it },
             onRemoveDish = { loggedDishes.removeAt(it) },
             onAddMore = { phase = LogMealPhase.SCANNING },
             onConfirmMeal = {
                 scope.launch {
                     withContext(Dispatchers.IO) {
-                        persistMeal(db, uid, mealType, loggedDishes)
+                        persistMeal(db, uid, mealType.value, loggedDishes)
                     }
                     onMealConfirmed()
                 }
