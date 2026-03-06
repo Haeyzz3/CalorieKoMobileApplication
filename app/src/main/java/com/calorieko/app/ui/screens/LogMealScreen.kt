@@ -1175,20 +1175,22 @@ private suspend fun persistMeal(
     db.dailyNutritionSummaryDao().upsertSummary(updated)
 
     // ── 5. Sync to backend (fire-and-forget) ──
-    try {
-        val syncRepo = SyncRepository(
-            userDao = db.userDao(),
-            activityLogDao = db.activityLogDao(),
-            mealLogDao = db.mealLogDao(),
-            mealLogItemDao = db.mealLogItemDao(),
-            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-        )
-        // Sync the meal log with items
-        val mealLogWithItems = db.mealLogDao().getMealLogWithItems(mealLogId)
-        if (mealLogWithItems != null) {
-            syncRepo.syncSingleMealLog(mealLogWithItems)
-        }
-        // Sync the updated nutrition summary
-        syncRepo.syncSingleNutritionSummary(updated)
-    } catch (_: Exception) { /* non-critical — data is safe in Room */ }
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        try {
+            val syncRepo = SyncRepository(
+                userDao = db.userDao(),
+                activityLogDao = db.activityLogDao(),
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+            )
+            // Sync the meal log with items
+            val mealLogWithItems = db.mealLogDao().getMealLogWithItems(mealLogId)
+            if (mealLogWithItems != null) {
+                syncRepo.syncSingleMealLog(mealLogWithItems)
+            }
+            // Sync the updated nutrition summary
+            syncRepo.syncSingleNutritionSummary(updated)
+        } catch (_: Exception) { /* non-critical — data is safe in Room */ }
+    }
 }
