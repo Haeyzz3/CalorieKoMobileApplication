@@ -101,6 +101,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.remote.SyncRepository
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.google.android.gms.location.LocationCallback
@@ -180,6 +181,15 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val activityLogDao = db.activityLogDao()
+    val syncRepository = remember {
+        SyncRepository(
+            userDao = db.userDao(),
+            activityLogDao = db.activityLogDao(),
+            mealLogDao = db.mealLogDao(),
+            mealLogItemDao = db.mealLogItemDao(),
+            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+        )
+    }
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid ?: ""
 
@@ -196,6 +206,9 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 timestamp = System.currentTimeMillis()
             )
             activityLogDao.insertLog(log)
+
+            // Fire-and-forget sync to backend
+            try { syncRepository.syncSingleActivityLog(log) } catch (_: Exception) {}
 
             withContext(Dispatchers.Main) {
                 onBack()

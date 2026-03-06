@@ -224,6 +224,7 @@ fun SignUpScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = Color.LightGray),
                 contentPadding = PaddingValues()
             ) {
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

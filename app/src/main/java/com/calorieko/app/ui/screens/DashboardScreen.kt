@@ -174,6 +174,21 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 val startOfDay = calendar.timeInMillis
 
                 realActivityLog = activityLogDao.getLogsForToday(uid, startOfDay)
+
+                // C. Auto-sync all data to the backend API
+                try {
+                    val syncRepository = com.calorieko.app.data.remote.SyncRepository(
+                        userDao = userDao,
+                        activityLogDao = activityLogDao,
+                        mealLogDao = db.mealLogDao(),
+                        mealLogItemDao = db.mealLogItemDao(),
+                        dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+                    )
+                    syncRepository.syncAll(uid)
+                    android.util.Log.i("DashboardScreen", "Auto-sync completed for $uid")
+                } catch (e: Exception) {
+                    android.util.Log.e("DashboardScreen", "Auto-sync failed", e)
+                }
             }
         }
     }

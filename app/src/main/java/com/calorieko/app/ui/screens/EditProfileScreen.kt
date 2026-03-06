@@ -6,6 +6,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.remote.SyncRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -107,6 +108,15 @@ fun EditProfileScreen(
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
+    val syncRepository = remember {
+        SyncRepository(
+            userDao = db.userDao(),
+            activityLogDao = db.activityLogDao(),
+            mealLogDao = db.mealLogDao(),
+            mealLogItemDao = db.mealLogItemDao(),
+            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+        )
+    }
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
@@ -450,6 +460,10 @@ fun EditProfileScreen(
 
                         scope.launch(Dispatchers.IO) {
                             userDao.insertUser(updatedProfile) // Overwrites existing user because of REPLACE strategy
+
+                            // Sync to backend
+                            try { syncRepository.syncProfile(uid) } catch (_: Exception) {}
+
                             withContext(Dispatchers.Main) {
                                 onSave() // Navigate back
                             }

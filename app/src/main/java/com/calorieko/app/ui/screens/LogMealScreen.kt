@@ -85,6 +85,8 @@ import com.calorieko.app.ml.DishLabelMapper
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.data.remote.SyncRepository
+import com.calorieko.app.data.model.MealLogWithItems
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1038,4 +1040,22 @@ private suspend fun persistMeal(
         )
     }
     db.dailyNutritionSummaryDao().upsertSummary(updated)
+
+    // ── 5. Sync to backend (fire-and-forget) ──
+    try {
+        val syncRepo = SyncRepository(
+            userDao = db.userDao(),
+            activityLogDao = db.activityLogDao(),
+            mealLogDao = db.mealLogDao(),
+            mealLogItemDao = db.mealLogItemDao(),
+            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+        )
+        // Sync the meal log with items
+        val mealLogWithItems = db.mealLogDao().getMealLogWithItems(mealLogId)
+        if (mealLogWithItems != null) {
+            syncRepo.syncSingleMealLog(mealLogWithItems)
+        }
+        // Sync the updated nutrition summary
+        syncRepo.syncSingleNutritionSummary(updated)
+    } catch (_: Exception) { /* non-critical — data is safe in Room */ }
 }
