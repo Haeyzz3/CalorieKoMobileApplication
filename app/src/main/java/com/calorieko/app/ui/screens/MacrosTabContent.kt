@@ -19,13 +19,35 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.ui.theme.*
 
 @Composable
-fun MacrosTabContent(viewMode: String) {
+fun MacrosTabContent(
+    viewMode: String,
+    daySummary: DailyNutritionSummaryEntity?,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>
+) {
     if (viewMode == "day") {
-        MacrosDayView()
+        MacrosDayView(
+            daySummary = daySummary,
+            targetProtein = targetProtein,
+            targetCarbs = targetCarbs,
+            targetFats = targetFats
+        )
     } else {
-        MacrosWeekView()
+        MacrosWeekView(
+            weekDaySummaries = weekDaySummaries,
+            weekDayLabels = weekDayLabels,
+            targetProtein = targetProtein,
+            targetCarbs = targetCarbs,
+            targetFats = targetFats
+        )
     }
 }
 
@@ -34,36 +56,44 @@ fun MacrosTabContent(viewMode: String) {
 // =====================================================
 
 @Composable
-private fun MacrosDayView() {
-    // Mock data
-    val carbsGrams = 0
-    val fatGrams = 0
-    val proteinGrams = 0
+private fun MacrosDayView(
+    daySummary: DailyNutritionSummaryEntity?,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int
+) {
+    val carbsGrams = daySummary?.totalCarbs?.toInt() ?: 0
+    val fatGrams = daySummary?.totalFat?.toInt() ?: 0
+    val proteinGrams = daySummary?.totalProtein?.toInt() ?: 0
     val totalGrams = carbsGrams + fatGrams + proteinGrams
 
-    val carbsGoalPct = 50
-    val fatGoalPct = 30
-    val proteinGoalPct = 20
+    // Goal percentages based on targets
+    val totalTargetGrams = (targetCarbs + targetFats + targetProtein).coerceAtLeast(1)
+    val carbsGoalPct = (targetCarbs * 100) / totalTargetGrams
+    val fatGoalPct = (targetFats * 100) / totalTargetGrams
+    val proteinGoalPct = (targetProtein * 100) / totalTargetGrams
 
-    val carbsTotalPct = 0
-    val fatTotalPct = 0
-    val proteinTotalPct = 0
+    // Actual percentages
+    val totalForPct = if (totalGrams > 0) totalGrams else 1
+    val carbsTotalPct = if (totalGrams > 0) (carbsGrams * 100) / totalForPct else 0
+    val fatTotalPct = if (totalGrams > 0) (fatGrams * 100) / totalForPct else 0
+    val proteinTotalPct = if (totalGrams > 0) (proteinGrams * 100) / totalForPct else 0
 
-    val carbsColor = Color(0xFFFF9800)   // Orange
-    val fatColor = Color(0xFF8B5CF6)     // Purple
-    val proteinColor = Color(0xFF3B82F6) // Blue
+    val carbsColor = CalorieKoOrange
+    val fatColor = CalorieKoDarkOrange
+    val proteinColor = CalorieKoGreen
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -88,7 +118,7 @@ private fun MacrosDayView() {
 
                         if (totalGrams == 0) {
                             drawArc(
-                                color = Color(0xFFE0E0E0),
+                                color = DividerGray,
                                 startAngle = 0f,
                                 sweepAngle = 360f,
                                 useCenter = false,
@@ -134,14 +164,14 @@ private fun MacrosDayView() {
                         text = "Total",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(70.dp)
                     )
                     Text(
                         text = "Goal",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(60.dp)
                     )
                 }
@@ -154,8 +184,7 @@ private fun MacrosDayView() {
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsTotalPct,
-                    goalPct = carbsGoalPct,
-                    valueLabel = "Total"
+                    goalPct = carbsGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
@@ -163,8 +192,7 @@ private fun MacrosDayView() {
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatTotalPct,
-                    goalPct = fatGoalPct,
-                    valueLabel = "Total"
+                    goalPct = fatGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
@@ -172,8 +200,7 @@ private fun MacrosDayView() {
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinTotalPct,
-                    goalPct = proteinGoalPct,
-                    valueLabel = "Total"
+                    goalPct = proteinGoalPct
                 )
             }
         }
@@ -185,35 +212,50 @@ private fun MacrosDayView() {
 // =====================================================
 
 @Composable
-private fun MacrosWeekView() {
-    // Mock data
-    val carbsGrams = 0
-    val fatGrams = 0
-    val proteinGrams = 0
+private fun MacrosWeekView(
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int
+) {
+    // Total grams across the week
+    val carbsGrams = weekDaySummaries.sumOf { (it?.totalCarbs ?: 0f).toDouble() }.toInt()
+    val fatGrams = weekDaySummaries.sumOf { (it?.totalFat ?: 0f).toDouble() }.toInt()
+    val proteinGrams = weekDaySummaries.sumOf { (it?.totalProtein ?: 0f).toDouble() }.toInt()
 
-    val carbsGoalPct = 50
-    val fatGoalPct = 30
-    val proteinGoalPct = 20
+    val totalTargetGrams = (targetCarbs + targetFats + targetProtein).coerceAtLeast(1)
+    val carbsGoalPct = (targetCarbs * 100) / totalTargetGrams
+    val fatGoalPct = (targetFats * 100) / totalTargetGrams
+    val proteinGoalPct = (targetProtein * 100) / totalTargetGrams
 
-    val carbsAvgPct = 0
-    val fatAvgPct = 0
-    val proteinAvgPct = 0
+    // Average percentages (across the week)
+    val daysWithData = weekDaySummaries.count { it != null }.coerceAtLeast(1)
+    val avgCarbs = carbsGrams / daysWithData
+    val avgFat = fatGrams / daysWithData
+    val avgProtein = proteinGrams / daysWithData
+    val avgTotal = (avgCarbs + avgFat + avgProtein).coerceAtLeast(1)
+    val carbsAvgPct = if (avgTotal > 0) (avgCarbs * 100) / avgTotal else 0
+    val fatAvgPct = if (avgTotal > 0) (avgFat * 100) / avgTotal else 0
+    val proteinAvgPct = if (avgTotal > 0) (avgProtein * 100) / avgTotal else 0
 
-    val dayLabels = listOf("Fri", "Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Avg")
-    val dailyGrams = listOf(0, 0, 0, 0, 0, 0, 0)
+    // Daily total macro grams for the bar chart
+    val dailyGrams = weekDaySummaries.map { s ->
+        ((s?.totalCarbs ?: 0f) + (s?.totalFat ?: 0f) + (s?.totalProtein ?: 0f)).toInt()
+    }
     val avgGrams = if (dailyGrams.sum() > 0) dailyGrams.average().toInt() else 0
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Card(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -241,7 +283,7 @@ private fun MacrosWeekView() {
 
                         // Y-axis labels and grid lines
                         val textPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.parseColor("#9E9E9E")
+                            color = "#9E9E9E".toColorInt()
                             textSize = 28f
                             textAlign = android.graphics.Paint.Align.RIGHT
                         }
@@ -249,7 +291,7 @@ private fun MacrosWeekView() {
                         yAxisLabels.forEach { yVal ->
                             val yPos = 20f + chartHeight - (yVal / maxY) * chartHeight
                             drawLine(
-                                color = Color(0xFFEEEEEE),
+                                color = DividerGray,
                                 start = Offset(leftPadding, yPos),
                                 end = Offset(size.width - 20f, yPos),
                                 strokeWidth = 1f
@@ -267,13 +309,13 @@ private fun MacrosWeekView() {
                         val barSpacing = chartWidth / barCount
 
                         chartValues.forEachIndexed { index, value ->
-                            val barHeight = if (maxY > 0) (value / maxY) * chartHeight else 0f
+                            val barHeight = (value / maxY) * chartHeight
                             val x = leftPadding + index * barSpacing + barSpacing / 2 - barWidth / 2
                             val yTop = 20f + chartHeight - barHeight
 
                             if (value > 0) {
                                 drawRect(
-                                    color = Color(0xFF1565C0),
+                                    color = CalorieKoGreen,
                                     topLeft = Offset(x, yTop),
                                     size = Size(barWidth, barHeight)
                                 )
@@ -282,11 +324,11 @@ private fun MacrosWeekView() {
 
                         // X-axis labels
                         val xTextPaint = android.graphics.Paint().apply {
-                            color = android.graphics.Color.parseColor("#9E9E9E")
+                            color = "#9E9E9E".toColorInt()
                             textSize = 26f
                             textAlign = android.graphics.Paint.Align.CENTER
                         }
-                        dayLabels.forEachIndexed { index, label ->
+                        weekDayLabels.forEachIndexed { index, label ->
                             val x = leftPadding + index * barSpacing + barSpacing / 2
                             drawContext.canvas.nativeCanvas.drawText(
                                 label,
@@ -310,14 +352,14 @@ private fun MacrosWeekView() {
                         text = "Avg",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(70.dp)
                     )
                     Text(
                         text = "Goal",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575),
+                        color = SubtleText,
                         modifier = Modifier.width(60.dp)
                     )
                 }
@@ -326,30 +368,27 @@ private fun MacrosWeekView() {
 
                 // --- Macro Rows ---
                 MacroLegendRow(
-                    color = Color(0xFFFF9800),
+                    color = CalorieKoOrange,
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsAvgPct,
-                    goalPct = carbsGoalPct,
-                    valueLabel = "Avg"
+                    goalPct = carbsGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = Color(0xFF8B5CF6),
+                    color = CalorieKoDarkOrange,
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatAvgPct,
-                    goalPct = fatGoalPct,
-                    valueLabel = "Avg"
+                    goalPct = fatGoalPct
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = Color(0xFF3B82F6),
+                    color = CalorieKoGreen,
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinAvgPct,
-                    goalPct = proteinGoalPct,
-                    valueLabel = "Avg"
+                    goalPct = proteinGoalPct
                 )
             }
         }
@@ -366,8 +405,7 @@ private fun MacroLegendRow(
     name: String,
     grams: Int,
     valuePct: Int,
-    goalPct: Int,
-    valueLabel: String
+    goalPct: Int
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -377,7 +415,7 @@ private fun MacroLegendRow(
         Box(
             modifier = Modifier
                 .size(14.dp)
-                .background(color)
+                .background(color, RoundedCornerShape(3.dp))
         )
         Spacer(modifier = Modifier.width(8.dp))
         // Name + grams
@@ -385,14 +423,14 @@ private fun MacroLegendRow(
             text = "$name (${grams}g)",
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
-            color = Color(0xFF424242),
+            color = DarkText,
             modifier = Modifier.weight(1f)
         )
         // Value %
         Text(
             text = "$valuePct%",
             fontSize = 14.sp,
-            color = Color(0xFF616161),
+            color = SubtleText,
             modifier = Modifier.width(70.dp)
         )
         // Goal %
@@ -400,7 +438,7 @@ private fun MacroLegendRow(
             text = "$goalPct%",
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF1565C0),
+            color = CalorieKoGreen,
             modifier = Modifier.width(60.dp)
         )
     }

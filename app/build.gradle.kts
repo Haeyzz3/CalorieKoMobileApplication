@@ -5,8 +5,8 @@ plugins {
 
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.gms.google-services")
-    id("com.google.devtools.ksp") version "2.2.10-2.0.2"
+    alias(libs.plugins.google.services)
+    id("com.google.devtools.ksp") version "2.3.4"
 }
 
 android {
@@ -71,26 +71,26 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.navigation:navigation-compose:2.8.5")
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation(libs.navigation.compose)
+    implementation(libs.coil.compose)
     implementation(libs.androidx.material.icons.extended)
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.firebaseui:firebase-ui-auth:8.0.2")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.ui.auth)
 
     // Credential Manager (Google Sign-In)
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
 
     // Real GPS Tracking
-    implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation(libs.play.services.location)
 
     // Mapbox Maps SDK + Compose extension
-    implementation("com.mapbox.maps:android:11.18.2")
-    implementation("com.mapbox.extension:maps-compose:11.18.2")
+    implementation(libs.mapbox.maps)
+    implementation(libs.mapbox.maps.compose)
 
 
 
@@ -99,12 +99,10 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    ///KSP KOTLIN
-    val room_version = "2.7.0"
-
-    implementation("androidx.room:room-runtime:$room_version")
-    implementation("androidx.room:room-ktx:$room_version")
-    ksp("androidx.room:room-compiler:$room_version")
+    // Room (KSP)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // LiteRT (TensorFlow Lite successor)
     implementation(libs.litert)

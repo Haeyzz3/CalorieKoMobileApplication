@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.ui.theme.*
 
 private data class NutrientRow(
     val name: String,
@@ -23,74 +25,193 @@ private data class NutrientRow(
 )
 
 @Composable
-fun NutrientsTabContent() {
+fun NutrientsTabContent(
+    viewMode: String,
+    daySummary: DailyNutritionSummaryEntity?,
+    targetCalories: Int,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
+    targetSodium: Int,
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>
+) {
+    if (viewMode == "day") {
+        NutrientsDayView(
+            daySummary = daySummary,
+            targetCalories = targetCalories,
+            targetProtein = targetProtein,
+            targetCarbs = targetCarbs,
+            targetFats = targetFats,
+            targetSodium = targetSodium
+        )
+    } else {
+        NutrientsWeekView(
+            weekDaySummaries = weekDaySummaries,
+            targetCalories = targetCalories,
+            targetProtein = targetProtein,
+            targetCarbs = targetCarbs,
+            targetFats = targetFats,
+            targetSodium = targetSodium
+        )
+    }
+}
+
+// =====================================================
+// DAY VIEW
+// =====================================================
+
+@Composable
+private fun NutrientsDayView(
+    daySummary: DailyNutritionSummaryEntity?,
+    targetCalories: Int,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
+    targetSodium: Int
+) {
+    val goalFiber = 38
+    val goalSugar = (targetCalories * 0.10 / 4).toInt()
+    val goalSaturatedFat = (targetCalories * 0.10 / 9).toInt()
+    val goalCholesterol = 300
+    val goalPotassium = 3500
+
     val nutrients = listOf(
-        NutrientRow("Protein", 0, 109, "g"),
-        NutrientRow("Carbohydrates", 0, 271, "g"),
-        NutrientRow("Fiber", 0, 38, "g"),
-        NutrientRow("Sugar", 0, 81, "g"),
-        NutrientRow("Fat", 0, 72, "g"),
-        NutrientRow("Saturated Fat", 0, 24, "g"),
-        NutrientRow("Polyunsaturated Fat", 0, 0, "g"),
-        NutrientRow("Monounsaturated Fat", 0, 0, "g"),
-        NutrientRow("Trans Fat", 0, 0, "g"),
-        NutrientRow("Cholesterol", 0, 300, "mg"),
-        NutrientRow("Sodium", 0, 2300, "mg"),
-        NutrientRow("Potassium", 0, 3500, "mg"),
-        NutrientRow("Vitamin A", 0, 100, "%"),
-        NutrientRow("Vitamin C", 0, 100, "%"),
-        NutrientRow("Calcium", 0, 100, "%"),
-        NutrientRow("Iron", 0, 100, "%")
+        NutrientRow("Protein",             daySummary?.totalProtein?.toInt() ?: 0,            targetProtein, "g"),
+        NutrientRow("Carbohydrates",       daySummary?.totalCarbs?.toInt() ?: 0,              targetCarbs,   "g"),
+        NutrientRow("Fiber",               daySummary?.totalFiber?.toInt() ?: 0,              goalFiber,     "g"),
+        NutrientRow("Sugar",               daySummary?.totalSugar?.toInt() ?: 0,              goalSugar,     "g"),
+        NutrientRow("Fat",                 daySummary?.totalFat?.toInt() ?: 0,                targetFats,    "g"),
+        NutrientRow("Saturated Fat",       daySummary?.totalSaturatedFat?.toInt() ?: 0,       goalSaturatedFat, "g"),
+        NutrientRow("Polyunsaturated Fat", daySummary?.totalPolyunsaturatedFat?.toInt() ?: 0, 0,             "g"),
+        NutrientRow("Monounsaturated Fat", daySummary?.totalMonounsaturatedFat?.toInt() ?: 0, 0,             "g"),
+        NutrientRow("Trans Fat",           daySummary?.totalTransFat?.toInt() ?: 0,           0,             "g"),
+        NutrientRow("Cholesterol",         daySummary?.totalCholesterol?.toInt() ?: 0,        goalCholesterol, "mg"),
+        NutrientRow("Sodium",              daySummary?.totalSodium?.toInt() ?: 0,             targetSodium,  "mg"),
+        NutrientRow("Potassium",           daySummary?.totalPotassium?.toInt() ?: 0,          goalPotassium, "mg"),
+        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           100,           "%"),
+        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           100,           "%"),
+        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            100,           "%"),
+        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               100,           "%")
     )
 
+    NutrientTable(
+        valueColumnHeader = "Total",
+        nutrients = nutrients
+    )
+}
+
+// =====================================================
+// WEEK VIEW
+// =====================================================
+
+@Composable
+private fun NutrientsWeekView(
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    targetCalories: Int,
+    targetProtein: Int,
+    targetCarbs: Int,
+    targetFats: Int,
+    targetSodium: Int
+) {
+    val goalFiber = 38
+    val goalSugar = (targetCalories * 0.10 / 4).toInt()
+    val goalSaturatedFat = (targetCalories * 0.10 / 9).toInt()
+    val goalCholesterol = 300
+    val goalPotassium = 3500
+
+    // Compute daily averages across the 7-day week (divide by 7 always)
+    fun avgOf(selector: (DailyNutritionSummaryEntity) -> Float): Int {
+        val sum = weekDaySummaries.sumOf { (selector(it ?: return@sumOf 0.0) ).toDouble() }
+        return (sum / 7).toInt()
+    }
+
+    val nutrients = listOf(
+        NutrientRow("Protein",             avgOf { it.totalProtein },            targetProtein, "g"),
+        NutrientRow("Carbohydrates",       avgOf { it.totalCarbs },              targetCarbs,   "g"),
+        NutrientRow("Fiber",               avgOf { it.totalFiber },              goalFiber,     "g"),
+        NutrientRow("Sugar",               avgOf { it.totalSugar },              goalSugar,     "g"),
+        NutrientRow("Fat",                 avgOf { it.totalFat },                targetFats,    "g"),
+        NutrientRow("Saturated Fat",       avgOf { it.totalSaturatedFat },       goalSaturatedFat, "g"),
+        NutrientRow("Polyunsaturated Fat", avgOf { it.totalPolyunsaturatedFat }, 0,             "g"),
+        NutrientRow("Monounsaturated Fat", avgOf { it.totalMonounsaturatedFat }, 0,             "g"),
+        NutrientRow("Trans Fat",           avgOf { it.totalTransFat },           0,             "g"),
+        NutrientRow("Cholesterol",         avgOf { it.totalCholesterol },        goalCholesterol, "mg"),
+        NutrientRow("Sodium",              avgOf { it.totalSodium },             targetSodium,  "mg"),
+        NutrientRow("Potassium",           avgOf { it.totalPotassium },          goalPotassium, "mg"),
+        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           100,           "%"),
+        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           100,           "%"),
+        NutrientRow("Calcium",             avgOf { it.totalCalcium },            100,           "%"),
+        NutrientRow("Iron",                avgOf { it.totalIron },               100,           "%")
+    )
+
+    NutrientTable(
+        valueColumnHeader = "Avg",
+        nutrients = nutrients
+    )
+}
+
+// =====================================================
+// SHARED TABLE
+// =====================================================
+
+@Composable
+private fun NutrientTable(
+    valueColumnHeader: String,
+    nutrients: List<NutrientRow>
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(IceGray)
             .verticalScroll(rememberScrollState())
+            .padding(16.dp)
     ) {
-        // --- Header Row ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Name column (takes remaining space)
-            Spacer(modifier = Modifier.weight(1f))
-            // Total
-            Text(
-                text = "Total",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF757575),
-                modifier = Modifier.width(60.dp)
-            )
-            // Goal
-            Text(
-                text = "Goal",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF757575),
-                modifier = Modifier.width(60.dp)
-            )
-            // Left
-            Text(
-                text = "Left",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF757575),
-                modifier = Modifier.width(70.dp)
-            )
-        }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // --- Header Row ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = valueColumnHeader,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SubtleText,
+                        modifier = Modifier.width(60.dp)
+                    )
+                    Text(
+                        text = "Goal",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SubtleText,
+                        modifier = Modifier.width(60.dp)
+                    )
+                    Text(
+                        text = "Left",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SubtleText,
+                        modifier = Modifier.width(70.dp)
+                    )
+                }
 
-        HorizontalDivider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                HorizontalDivider(color = DividerGray, thickness = 1.dp)
 
-        // --- Nutrient Rows ---
-        nutrients.forEach { nutrient ->
-            NutrientItemRow(nutrient)
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                // --- Nutrient Rows ---
+                nutrients.forEach { nutrient ->
+                    NutrientItemRow(nutrient)
+                    HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                }
+            }
         }
     }
 }
@@ -103,21 +224,19 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
     } else {
         "$left ${nutrient.unit}"
     }
-    val goalText = if (nutrient.unit == "%") {
-        nutrient.goal.toFormattedString()
-    } else {
-        nutrient.goal.toFormattedString()
-    }
+    val goalText = nutrient.goal.toFormattedString()
     val progress = if (nutrient.goal > 0) {
         (nutrient.total.toFloat() / nutrient.goal).coerceIn(0f, 1f)
     } else {
         0f
     }
 
+    // Color the progress bar green normally, orange if over 80%
+    val progressColor = if (progress > 0.8f) CalorieKoOrange else CalorieKoGreen
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Row(
@@ -129,28 +248,28 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                 text = nutrient.name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color(0xFF424242),
+                color = DarkText,
                 modifier = Modifier.weight(1f)
             )
-            // Total
+            // Total / Avg
             Text(
                 text = nutrient.total.toString(),
                 fontSize = 14.sp,
-                color = Color(0xFF616161),
+                color = SubtleText,
                 modifier = Modifier.width(60.dp)
             )
             // Goal
             Text(
                 text = goalText,
                 fontSize = 14.sp,
-                color = Color(0xFF616161),
+                color = SubtleText,
                 modifier = Modifier.width(60.dp)
             )
             // Left
             Text(
                 text = leftText,
                 fontSize = 14.sp,
-                color = Color(0xFF616161),
+                color = if (left < 0) CalorieKoOrange else SubtleText,
                 modifier = Modifier.width(70.dp)
             )
         }
@@ -163,7 +282,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                 .fillMaxWidth()
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(Color(0xFFE0E0E0))
+                .background(DividerGray)
         ) {
             if (progress > 0f) {
                 Box(
@@ -171,7 +290,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                         .fillMaxHeight()
                         .fillMaxWidth(progress)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0xFF1565C0))
+                        .background(progressColor)
                 )
             }
         }

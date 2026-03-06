@@ -4,12 +4,15 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,8 +42,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,20 +56,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -75,14 +83,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ml.DishLabelMapper
 import com.calorieko.app.ui.components.CameraPreview
+import com.calorieko.app.ui.components.ExpandableNutrientGrid
+import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.data.remote.SyncRepository
@@ -92,11 +109,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalTime
-import java.util.Date
-import java.util.Locale
 import kotlin.random.Random
 
 // ───────────────────────────────────────────────────────────────
@@ -104,7 +118,7 @@ import kotlin.random.Random
 // ───────────────────────────────────────────────────────────────
 
 /** Phases of the Log-Meal workflow. */
-enum class LogMealPhase { SCANNING, DISH_READY, MEAL_SUMMARY, ERROR }
+enum class LogMealPhase { SCANNING, DISH_READY, MEAL_SUMMARY }
 
 /** A dish that has been recognized and queued for logging. */
 data class LoggedDish(
@@ -159,6 +173,18 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                     == PackageManager.PERMISSION_GRANTED
         )
     }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasCameraPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasCameraPermission = granted }
@@ -168,15 +194,24 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     }
 
     // ── State ──
+    val showSettingsDialog = remember { mutableStateOf(false) }
     var flashEnabled by remember { mutableStateOf(false) }
     var phase by remember { mutableStateOf(LogMealPhase.SCANNING) }
     var weight by remember { mutableIntStateOf(0) }
     var weightStable by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+
 
     // AI results from the latest frame
     var topLabel by remember { mutableStateOf("") }
     var topConfidence by remember { mutableFloatStateOf(0f) }
+
+    // Inline unsupported-dish banner state (replaces intrusive error dialog)
+    var showUnsupportedBanner by remember { mutableStateOf(false) }
+    var bannerCooldownUntil by remember { mutableLongStateOf(0L) }
+
+    // Stable prediction tracking: require 4s of consistent top-1 label
+    var stableLabel by remember { mutableStateOf("") }
+    var stableSince by remember { mutableLongStateOf(0L) }
 
     // Dish being confirmed (DISH_READY phase)
     var pendingDishName by remember { mutableStateOf("") }
@@ -187,7 +222,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     val loggedDishes = remember { mutableStateListOf<LoggedDish>() }
 
     // Meal type auto-detected by time of day
-    var mealType by remember {
+    val mealType = remember {
         val hour = LocalTime.now().hour
         mutableStateOf(
             when {
@@ -224,13 +259,23 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     }
 
     // ── Auto-transition logic ──
-    // When SCANNING: if weight is stable AND AI confidence ≥ threshold → DISH_READY
-    LaunchedEffect(weightStable, topLabel, topConfidence, phase) {
+    // When SCANNING: if weight is stable AND AI confidence ≥ threshold:
+    //   • "negative" → show inline banner (not a dialog), with 20s cooldown
+    //   • supported dish → wait for 4s of consistent prediction, then → DISH_READY
+    LaunchedEffect(weightStable, topLabel, topConfidence, phase, stableSince) {
         if (phase == LogMealPhase.SCANNING && weightStable && weight > 0) {
             if (topLabel == "negative" && topConfidence >= CONFIDENCE_THRESHOLD) {
-                errorMessage = "This dish is not supported by CalorieKo. Please ensure proper lighting and try a supported Filipino dish."
-                phase = LogMealPhase.ERROR
+                // Show non-intrusive banner instead of blocking dialog
+                val now = System.currentTimeMillis()
+                if (!showUnsupportedBanner && now >= bannerCooldownUntil) {
+                    showUnsupportedBanner = true
+                    bannerCooldownUntil = now + 20_000L
+                }
             } else if (DishLabelMapper.isSupported(topLabel) && topConfidence >= CONFIDENCE_THRESHOLD) {
+                // Require 4 seconds of consistent top-1 prediction
+                val elapsed = System.currentTimeMillis() - stableSince
+                if (elapsed < 4000) return@LaunchedEffect
+
                 val foodName = DishLabelMapper.toFoodName(topLabel) ?: return@LaunchedEffect
                 pendingDishName = foodName
                 pendingConfidence = topConfidence
@@ -239,6 +284,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 pendingCaloriesEst = if (food != null) food.caloriesPer100g * weight / 100f else 0f
                 phase = LogMealPhase.DISH_READY
             }
+        }
+    }
+
+    // ── Banner auto-dismiss after 5 seconds ──
+    LaunchedEffect(showUnsupportedBanner) {
+        if (showUnsupportedBanner) {
+            delay(5000)
+            showUnsupportedBanner = false
         }
     }
 
@@ -256,7 +309,18 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 Text("Grant permission to use meal logging", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                 Spacer(Modifier.height(24.dp))
                 Button(
-                    onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                    onClick = {
+                        val activity = context as? Activity
+                        val shouldShowRationale = activity?.let {
+                            ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                        } ?: false
+
+                        if (shouldShowRationale) {
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        } else {
+                            showSettingsDialog.value = true
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
                     shape = RoundedCornerShape(16.dp)
                 ) { Text("Grant Permission") }
@@ -268,6 +332,35 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 ) { Text("Go Back") }
             }
         }
+
+        if (showSettingsDialog.value) {
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog.value = false },
+                title = { Text(text = "Permission Required") },
+                text = { Text(text = "Camera permission is permanently denied. Please grant the permission in the app settings.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showSettingsDialog.value = false
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Text("Go to Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showSettingsDialog.value = false }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         return
     }
 
@@ -275,14 +368,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     if (phase == LogMealPhase.MEAL_SUMMARY) {
         MealSummaryOverlay(
             dishes = loggedDishes,
-            mealType = mealType,
-            onMealTypeChange = { mealType = it },
+            mealType = mealType.value,
+            onMealTypeChange = { mealType.value = it },
             onRemoveDish = { loggedDishes.removeAt(it) },
             onAddMore = { phase = LogMealPhase.SCANNING },
             onConfirmMeal = {
                 scope.launch {
                     withContext(Dispatchers.IO) {
-                        persistMeal(db, uid, mealType, loggedDishes)
+                        persistMeal(db, uid, mealType.value, loggedDishes)
                     }
                     onMealConfirmed()
                 }
@@ -299,10 +392,16 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
         CameraPreview(
             modifier = Modifier.fillMaxSize(),
             classifier = classifier,
+            flashEnabled = flashEnabled,
             onFrameAnalyzed = { results ->
                 if (results.isNotEmpty() && phase == LogMealPhase.SCANNING) {
                     topLabel = results[0].first
                     topConfidence = results[0].second
+                    // Track label stability for the 4-second consistency check
+                    if (results[0].first != stableLabel) {
+                        stableLabel = results[0].first
+                        stableSince = System.currentTimeMillis()
+                    }
                 }
             }
         )
@@ -479,9 +578,14 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
             // Status text (while scanning)
             if (phase == LogMealPhase.SCANNING) {
+                val displayDishName = DishLabelMapper.toFoodName(topLabel) ?: topLabel
+                val isConfirming = DishLabelMapper.isSupported(topLabel)
+                        && topConfidence >= CONFIDENCE_THRESHOLD
+                        && weightStable && weight > 0
                 val statusText = when {
                     !weightStable && weight == 0 -> "Waiting for scale data..."
                     !weightStable               -> "Stabilizing weight..."
+                    isConfirming                -> "Confirming: $displayDishName..."
                     topConfidence < CONFIDENCE_THRESHOLD -> "AI is analyzing the dish..."
                     else                                 -> "Preparing..."
                 }
@@ -537,29 +641,57 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                         // Reset for next scan
                         topLabel = ""
                         topConfidence = 0f
+                        stableLabel = ""
+                        stableSince = 0L
                         phase = LogMealPhase.SCANNING
                     }
                 },
                 onCancel = {
                     topLabel = ""
                     topConfidence = 0f
+                    stableLabel = ""
+                    stableSince = 0L
                     phase = LogMealPhase.SCANNING
                 }
             )
         }
 
-        // 8. Error overlay
-        if (phase == LogMealPhase.ERROR && errorMessage != null) {
-            ErrorOverlay(
-                message = errorMessage!!,
-                onRetry = {
-                    errorMessage = null
-                    topLabel = ""
-                    topConfidence = 0f
-                    phase = LogMealPhase.SCANNING
-                },
-                onCancel = onBack
-            )
+        // 8. Inline unsupported-dish banner (replaces the old blocking ErrorOverlay)
+        AnimatedVisibility(
+            visible = showUnsupportedBanner,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 160.dp, start = 24.dp, end = 24.dp)
+        ) {
+            Surface(
+                color = Color(0xFFF59E0B).copy(alpha = 0.92f),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showUnsupportedBanner = false }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Dish not recognized — try a supported Filipino dish",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
     }
 }
@@ -685,6 +817,10 @@ private fun MealSummaryOverlay(
     val totalCarbs = dishes.sumOf { it.carbs.toDouble() }.toFloat()
     val totalFat = dishes.sumOf { it.fat.toDouble() }.toFloat()
 
+    // Track expanded state per dish (by index)
+    val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
+    var totalsExpanded by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
     ) {
@@ -742,30 +878,61 @@ private fun MealSummaryOverlay(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(dishes) { index, dish ->
+                    val isExpanded = expandedDishes[index] == true
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "${dish.weightGrams.toInt()}g  •  ${dish.calories.toInt()} kcal",
-                                    fontSize = 13.sp, color = Color(0xFF6B7280)
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "P: ${dish.protein.toInt()}g  C: ${dish.carbs.toInt()}g  F: ${dish.fat.toInt()}g",
-                                    fontSize = 12.sp, color = Color(0xFF9CA3AF)
-                                )
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "${dish.weightGrams.toInt()}g  •  ${dish.calories.toInt()} kcal",
+                                        fontSize = 13.sp, color = Color(0xFF6B7280)
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "P: ${dish.protein.toInt()}g  C: ${dish.carbs.toInt()}g  F: ${dish.fat.toInt()}g",
+                                        fontSize = 12.sp, color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                                IconButton(onClick = { expandedDishes[index] = !isExpanded }) {
+                                    Icon(
+                                        if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(onClick = { onRemoveDish(index) }) {
+                                    Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                }
                             }
-                            IconButton(onClick = { onRemoveDish(index) }) {
-                                Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+
+                            // Expandable full nutrition details
+                            if (isExpanded) {
+                                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                                ExpandableNutrientGrid(
+                                    fiber = dish.fiber,
+                                    sugar = dish.sugar,
+                                    saturatedFat = dish.saturatedFat,
+                                    polyunsaturatedFat = dish.polyunsaturatedFat,
+                                    monounsaturatedFat = dish.monounsaturatedFat,
+                                    transFat = dish.transFat,
+                                    cholesterol = dish.cholesterol,
+                                    sodium = dish.sodium,
+                                    potassium = dish.potassium,
+                                    vitaminA = dish.vitaminA,
+                                    vitaminC = dish.vitaminC,
+                                    calcium = dish.calcium,
+                                    iron = dish.iron
+                                )
                             }
                         }
                     }
@@ -792,6 +959,52 @@ private fun MealSummaryOverlay(
                                 NutrientChip("Protein", "${totalProtein.toInt()}g")
                                 NutrientChip("Carbs", "${totalCarbs.toInt()}g")
                                 NutrientChip("Fat", "${totalFat.toInt()}g")
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // Expand/collapse toggle for full totals
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { totalsExpanded = !totalsExpanded }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    if (totalsExpanded) "Hide Full Breakdown" else "View Full Breakdown",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = CalorieKoGreen
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    if (totalsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = CalorieKoGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            if (totalsExpanded) {
+                                Spacer(Modifier.height(4.dp))
+                                HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
+                                ExpandableNutrientGrid(
+                                    fiber = dishes.sumOf { it.fiber.toDouble() }.toFloat(),
+                                    sugar = dishes.sumOf { it.sugar.toDouble() }.toFloat(),
+                                    saturatedFat = dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+                                    polyunsaturatedFat = dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
+                                    monounsaturatedFat = dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
+                                    transFat = dishes.sumOf { it.transFat.toDouble() }.toFloat(),
+                                    cholesterol = dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
+                                    sodium = dishes.sumOf { it.sodium.toDouble() }.toFloat(),
+                                    potassium = dishes.sumOf { it.potassium.toDouble() }.toFloat(),
+                                    vitaminA = dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
+                                    vitaminC = dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
+                                    calcium = dishes.sumOf { it.calcium.toDouble() }.toFloat(),
+                                    iron = dishes.sumOf { it.iron.toDouble() }.toFloat()
+                                )
                             }
                         }
                     }
@@ -832,67 +1045,9 @@ private fun MealSummaryOverlay(
     }
 }
 
-@Composable
-private fun NutrientChip(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1F2937))
-        Text(label, fontSize = 11.sp, color = Color(0xFF9CA3AF))
-    }
-}
+// NutrientChip and ExpandableNutrientGrid are now imported from
+// com.calorieko.app.ui.components.NutrientComponents
 
-// ───────────────────────────────────────────────────────────────
-// Error overlay
-// ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun ErrorOverlay(message: String, onRetry: () -> Unit, onCancel: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)).clickable(enabled = false) {},
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.padding(24.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier.size(64.dp).background(Color(0xFFFEE2E2), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Warning, null, tint = Color(0xFFDC2626), modifier = Modifier.size(32.dp))
-                }
-                Spacer(Modifier.height(16.dp))
-                Text("Dish Not Supported", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    message,
-                    fontSize = 14.sp,
-                    color = Color(0xFF4B5563),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        onClick = onCancel,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3F4F6), contentColor = Color(0xFF374151)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Cancel") }
-                    Button(
-                        onClick = onRetry,
-                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Try Again") }
-                }
-            }
-        }
-    }
-}
 
 // ───────────────────────────────────────────────────────────────
 // Scanner animation (retained from original)
@@ -942,8 +1097,7 @@ fun ScannerAnimation() {
  *
  * 1. Inserts a [MealLogEntity] (parent)
  * 2. Inserts all [MealLogItemEntity] children
- * 3. Inserts an [ActivityLogEntity] per dish (for the Dashboard activity feed)
- * 4. Upserts [DailyNutritionSummaryEntity]
+ * 3. Upserts [DailyNutritionSummaryEntity]
  */
 private suspend fun persistMeal(
     db: AppDatabase,
@@ -952,8 +1106,6 @@ private suspend fun persistMeal(
     dishes: List<LoggedDish>
 ) {
     val now = System.currentTimeMillis()
-    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-    val timeString = timeFormat.format(Date(now))
 
     // 1. Insert parent MealLog
     val mealLogId = db.mealLogDao().insertMealLog(
@@ -988,26 +1140,7 @@ private suspend fun persistMeal(
     }
     db.mealLogItemDao().insertItems(items)
 
-    // 3. Insert ActivityLogEntity per dish (dashboard feed compatibility)
-    for (d in dishes) {
-        db.activityLogDao().insertLog(
-            ActivityLogEntity(
-                uid             = uid,
-                type            = "meal",
-                name            = d.dishNameEn,
-                timeString      = timeString,
-                weightOrDuration = "${d.weightGrams.toInt()}g",
-                calories        = d.calories.toInt(),
-                protein         = d.protein.toInt(),
-                carbs           = d.carbs.toInt(),
-                fats            = d.fat.toInt(),
-                sodium          = d.sodium.toInt(),
-                timestamp       = now
-            )
-        )
-    }
-
-    // 4. Upsert DailyNutritionSummary
+    // 3. Upsert DailyNutritionSummary
     val today = LocalDate.now().toEpochDay()
     val existing = db.dailyNutritionSummaryDao().getSummaryForDate(uid, today)
 
