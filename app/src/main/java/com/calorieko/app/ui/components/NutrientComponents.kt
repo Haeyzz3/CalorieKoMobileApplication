@@ -50,10 +50,10 @@ fun ExpandableNutrientGrid(
         Triple("Cholesterol",         "${cholesterol.toInt()}mg",       Color(0xFFEC4899)),
         Triple("Sodium",              "${sodium.toInt()}mg",            Color(0xFFF97316)),
         Triple("Potassium",           "${potassium.toInt()}mg",         Color(0xFF14B8A6)),
-        Triple("Vitamin A",           "${vitaminA.toInt()}%",           Color(0xFFEAB308)),
-        Triple("Vitamin C",           "${vitaminC.toInt()}%",           Color(0xFF22C55E)),
-        Triple("Calcium",             "${calcium.toInt()}%",            Color(0xFF0EA5E9)),
-        Triple("Iron",                "${iron.toInt()}%",               Color(0xFF78716C))
+        Triple("Vitamin A",           "${vitaminA.toInt()}µg",          Color(0xFFEAB308)),
+        Triple("Vitamin C",           "${vitaminC.toInt()}mg",          Color(0xFF22C55E)),
+        Triple("Calcium",             "${calcium.toInt()}mg",           Color(0xFF0EA5E9)),
+        Triple("Iron",                "${iron.toInt()}mg",              Color(0xFF78716C))
     )
 
     Column(

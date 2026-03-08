@@ -88,10 +88,10 @@ private fun NutrientsDayView(
         NutrientRow("Cholesterol",         daySummary?.totalCholesterol?.toInt() ?: 0,        goalCholesterol, "mg"),
         NutrientRow("Sodium",              daySummary?.totalSodium?.toInt() ?: 0,             targetSodium,  "mg"),
         NutrientRow("Potassium",           daySummary?.totalPotassium?.toInt() ?: 0,          goalPotassium, "mg"),
-        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           100,           "%"),
-        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           100,           "%"),
-        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            100,           "%"),
-        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               100,           "%")
+        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           900,           "µg"),
+        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           90,            "mg"),
+        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            1000,          "mg"),
+        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               18,            "mg")
     )
 
     NutrientTable(
@@ -138,10 +138,10 @@ private fun NutrientsWeekView(
         NutrientRow("Cholesterol",         avgOf { it.totalCholesterol },        goalCholesterol, "mg"),
         NutrientRow("Sodium",              avgOf { it.totalSodium },             targetSodium,  "mg"),
         NutrientRow("Potassium",           avgOf { it.totalPotassium },          goalPotassium, "mg"),
-        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           100,           "%"),
-        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           100,           "%"),
-        NutrientRow("Calcium",             avgOf { it.totalCalcium },            100,           "%"),
-        NutrientRow("Iron",                avgOf { it.totalIron },               100,           "%")
+        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           900,           "µg"),
+        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           90,            "mg"),
+        NutrientRow("Calcium",             avgOf { it.totalCalcium },            1000,          "mg"),
+        NutrientRow("Iron",                avgOf { it.totalIron },               18,            "mg")
     )
 
     NutrientTable(
