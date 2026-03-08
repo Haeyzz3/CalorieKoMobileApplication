@@ -209,7 +209,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var showUnsupportedBanner by remember { mutableStateOf(false) }
     var bannerCooldownUntil by remember { mutableLongStateOf(0L) }
 
-    // Stable prediction tracking: require 2.5s of consistent top-1 label
+    // Stable prediction tracking: require 2s of consistent top-1 label
     var stableLabel by remember { mutableStateOf("") }
     var stableSince by remember { mutableLongStateOf(0L) }
 
@@ -261,7 +261,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     // ── Auto-transition logic ──
     // When SCANNING: if weight is stable AND AI confidence ≥ threshold:
     //   • "negative" → show inline banner (not a dialog), with 20s cooldown
-    //   • supported dish → wait for 2.5s of consistent prediction, then → DISH_READY
+    //   • supported dish → wait for 2s of consistent prediction, then → DISH_READY
     LaunchedEffect(weightStable, topLabel, topConfidence, phase, stableSince) {
         if (phase == LogMealPhase.SCANNING && weightStable && weight > 0) {
             if (topLabel == "negative" && topConfidence >= CONFIDENCE_THRESHOLD) {
@@ -272,9 +272,9 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                     bannerCooldownUntil = now + 20_000L
                 }
             } else if (DishLabelMapper.isSupported(topLabel) && topConfidence >= CONFIDENCE_THRESHOLD) {
-                // Require 2.5 seconds of consistent top-1 prediction
+                // Require 2 seconds of consistent top-1 prediction
                 val elapsed = System.currentTimeMillis() - stableSince
-                if (elapsed < 2500) return@LaunchedEffect
+                if (elapsed < 2000) return@LaunchedEffect
 
                 val foodName = DishLabelMapper.toFoodName(topLabel) ?: return@LaunchedEffect
                 pendingDishName = foodName
@@ -397,7 +397,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 if (results.isNotEmpty() && phase == LogMealPhase.SCANNING) {
                     topLabel = results[0].first
                     topConfidence = results[0].second
-                    // Track label stability for the 2.5-second consistency check
+                    // Track label stability for the 2-second consistency check
                     if (results[0].first != stableLabel) {
                         stableLabel = results[0].first
                         stableSince = System.currentTimeMillis()
