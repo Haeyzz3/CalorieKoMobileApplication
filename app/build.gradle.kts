@@ -30,6 +30,7 @@ android {
                 load(FileInputStream(localPropertiesFile))
             }
         }
+
         val mapboxAccessToken = localProperties.getProperty("MAPBOX_ACCESS_TOKEN")
             ?: throw GradleException(
                 "MAPBOX_ACCESS_TOKEN not found in local.properties. " +

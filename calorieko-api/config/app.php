@@ -123,4 +123,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Panel Credentials
+    |--------------------------------------------------------------------------
+    |
+    | These credentials are used for the CalorieKo Admin Panel login.
+    | Set them in your .env file.
+    |
+    */
+
+
+ 'admin_email'    => env('ADMIN_EMAIL', 'admin@calorieko.ph'),
+    'admin_password' => env('ADMIN_PASSWORD', 'calorieko2026'),
 ];

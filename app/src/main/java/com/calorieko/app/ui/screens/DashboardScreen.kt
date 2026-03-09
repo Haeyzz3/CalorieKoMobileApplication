@@ -584,6 +584,8 @@ fun ActivityItemRevised(activity: ActivityLogEntry, onClick: (() -> Unit)? = nul
                 }
             }
 
+
+
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isMeal && activity.details.weight != null) {

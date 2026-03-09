@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\FoodItemController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\MealLogController;
 use App\Http\Controllers\Api\DailyNutritionSummaryController;
+use App\Http\Controllers\Api\AdminAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,7 +47,11 @@ Route::prefix('sync')
         Route::post('/nutrition-summary', [DailyNutritionSummaryController::class, 'sync']);
     });
 
-// ── Admin Read Endpoints (public for now, add admin auth later) ──
+// ── Admin Auth Endpoints ──
+Route::post('/admin/login',  [AdminAuthController::class, 'login']);
+Route::post('/admin/verify', [AdminAuthController::class, 'verify']);
+
+// ── Admin Read Endpoints ──
 Route::prefix('admin')->group(function () {
     // User Profiles
     Route::get('/profiles',           [UserProfileController::class, 'index']);
