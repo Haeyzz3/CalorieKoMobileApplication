@@ -1,5 +1,9 @@
 package com.calorieko.app.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
@@ -19,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.MonitorWeight
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,35 +37,90 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.ble.BleConnectionState
+import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.ui.theme.*
 import kotlinx.coroutines.delay
 
-// Define the 3 states of the screen
+// Define the states of the screen
 enum class PairingStatus {
-    SEARCHING, CONNECTING, CONNECTED
+    SEARCHING, CONNECTING, CONNECTED, FAILED
 }
 
 @Composable
-fun ScalePairingScreen(onComplete: () -> Unit) {
-    var status by remember { mutableStateOf(PairingStatus.SEARCHING) }
+fun ScalePairingScreen(
+    bleScaleManager: BleScaleManager,
+    onComplete: () -> Unit
+) {
+    // ── Observe real BLE state ──
+    val bleState by bleScaleManager.connectionState.collectAsState()
 
-    // --- 1. The Timeline Logic ---
-    LaunchedEffect(Unit) {
-        delay(2000) // Search for 2 seconds
-        status = PairingStatus.CONNECTING
-
-        delay(2000) // Connect for 2 seconds
-        status = PairingStatus.CONNECTED
-
-        delay(1500) // Show success for 1.5 seconds
-        onComplete()
+    // Map BLE state → UI state
+    val status = when (bleState) {
+        is BleConnectionState.Idle -> PairingStatus.SEARCHING
+        is BleConnectionState.Scanning -> PairingStatus.SEARCHING
+        is BleConnectionState.Connecting -> PairingStatus.CONNECTING
+        is BleConnectionState.Connected -> PairingStatus.CONNECTED
+        is BleConnectionState.Failed -> PairingStatus.FAILED
     }
 
-    // --- 2. Animations ---
-    // Infinite transition for the pulsing circles
+    val failureReason = (bleState as? BleConnectionState.Failed)?.reason ?: ""
+
+    // ── Permission handling ──
+    val requiredPermissions = remember {
+        buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }.toTypedArray()
+    }
+
+    var permissionsGranted by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        permissionsGranted = grants.values.all { it }
+        if (permissionsGranted) {
+            bleScaleManager.startScan()
+        }
+    }
+
+    // Start scan when permissions are granted (or request them)
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(requiredPermissions)
+    }
+
+    // Scan timeout — if still scanning after 15 s, show failure
+    LaunchedEffect(bleState) {
+        if (bleState is BleConnectionState.Scanning) {
+            delay(15_000)
+            // If still scanning after 15 s, stop and fail
+            if (bleScaleManager.connectionState.value is BleConnectionState.Scanning) {
+                bleScaleManager.stopScan()
+            }
+        }
+    }
+
+    // Navigate on success (after showing "Connected" for 1.5 s)
+    LaunchedEffect(status) {
+        if (status == PairingStatus.CONNECTED) {
+            delay(1500)
+            onComplete()
+        }
+    }
+
+    // Clean up BLE resources when leaving the screen
+    DisposableEffect(Unit) {
+        onDispose { bleScaleManager.close() }
+    }
+
+    // ── Animations ──
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
 
-    // Pulse 1
     val pulseScale1 by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.5f,
         animationSpec = infiniteRepeatable(
@@ -76,7 +136,6 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
         ), label = "alpha1"
     )
 
-    // Pulse 2 (Delayed slightly by offset logic in a real app, simplified here)
     val pulseScale2 by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
@@ -92,7 +151,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
         ), label = "alpha2"
     )
 
-    // UI Structure
+    // ── UI ──
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -105,35 +164,36 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
 
-        // --- Central Animation Container ---
+        // ── Central Animation Container ──
         Box(
             modifier = Modifier.size(300.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Background Pulsing Circles
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .scale(pulseScale1)
-                    .alpha(pulseAlpha1)
-                    .background(CalorieKoGreen, CircleShape)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(0.8f)
-                    .scale(pulseScale2)
-                    .alpha(pulseAlpha2)
-                    .background(CalorieKoGreen, CircleShape)
-            )
+            // Background Pulsing Circles (only pulse while searching/connecting)
+            if (status == PairingStatus.SEARCHING || status == PairingStatus.CONNECTING) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .scale(pulseScale1)
+                        .alpha(pulseAlpha1)
+                        .background(CalorieKoGreen, CircleShape)
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.8f)
+                        .scale(pulseScale2)
+                        .alpha(pulseAlpha2)
+                        .background(CalorieKoGreen, CircleShape)
+                )
+            }
 
-            // Center Icon Card
             val isConnected = status == PairingStatus.CONNECTED
+            val isFailed = status == PairingStatus.FAILED
 
-            // Gradient Logic: Blue/Purple if searching, Green if connected
-            val gradientBrush = if (isConnected) {
-                Brush.linearGradient(listOf(CalorieKoGreen, CalorieKoLightGreen))
-            } else {
-                Brush.linearGradient(listOf(Color(0xFF5C6BC0), Color(0xFF7E57C2)))
+            val gradientBrush = when {
+                isConnected -> Brush.linearGradient(listOf(CalorieKoGreen, CalorieKoLightGreen))
+                isFailed -> Brush.linearGradient(listOf(Color(0xFFE53935), Color(0xFFFF7043)))
+                else -> Brush.linearGradient(listOf(Color(0xFF5C6BC0), Color(0xFF7E57C2)))
             }
 
             Surface(
@@ -156,7 +216,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                     ) { connected ->
                         if (connected) {
                             Icon(
-                                imageVector = Icons.Rounded.MonitorWeight, // Scale Icon
+                                imageVector = Icons.Rounded.MonitorWeight,
                                 contentDescription = "Connected",
                                 tint = Color.White,
                                 modifier = Modifier.size(64.dp)
@@ -173,12 +233,14 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                 }
             }
 
-            // Scale Illustration (Shows up at bottom when not searching)
+            // Scale illustration (shows when connecting or connected)
             androidx.compose.animation.AnimatedVisibility(
-                visible = status != PairingStatus.SEARCHING,
+                visible = status == PairingStatus.CONNECTING || status == PairingStatus.CONNECTED,
                 enter = slideInVertically { it } + fadeIn(),
                 exit = slideOutVertically { it } + fadeOut(),
-                modifier = Modifier.align(Alignment.BottomCenter).offset(y = 40.dp)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = 40.dp)
             ) {
                 ScaleGraphic()
             }
@@ -186,7 +248,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
 
         Spacer(modifier = Modifier.height(60.dp))
 
-        // --- Status Text ---
+        // ── Status Text ──
         AnimatedContent(
             targetState = status,
             label = "TextChange"
@@ -197,10 +259,11 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                         PairingStatus.SEARCHING -> "Searching for Device..."
                         PairingStatus.CONNECTING -> "Connecting..."
                         PairingStatus.CONNECTED -> "Connected!"
+                        PairingStatus.FAILED -> "Connection Failed"
                     },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = if (currentStatus == PairingStatus.FAILED) Color(0xFFE53935) else Color(0xFF111827)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -208,6 +271,7 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
                         PairingStatus.SEARCHING -> "Looking for your CalorieKo Smart Scale nearby"
                         PairingStatus.CONNECTING -> "Auto-connecting to your CalorieKo Smart Scale"
                         PairingStatus.CONNECTED -> "Your smart scale is ready to use"
+                        PairingStatus.FAILED -> failureReason.ifEmpty { "Could not reach your scale" }
                     },
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -218,26 +282,26 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- Progress Dots ---
+        // ── Progress Dots ──
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val step = when (status) {
                 PairingStatus.SEARCHING -> 0
                 PairingStatus.CONNECTING -> 1
                 PairingStatus.CONNECTED -> 2
+                PairingStatus.FAILED -> 0
             }
 
             repeat(3) { index ->
-                val active = index <= step
-                val current = index == step
+                val active = index <= step && status != PairingStatus.FAILED
+                val current = index == step && status != PairingStatus.FAILED
 
-                // Animate dots size/color
-                val scale by animateFloatAsState(if (current) 1.2f else 1f, label = "dotScale")
-                val alpha by animateFloatAsState(if (active) 1f else 0.3f, label = "dotAlpha")
+                val dotScale by animateFloatAsState(if (current) 1.2f else 1f, label = "dotScale")
+                val dotAlpha by animateFloatAsState(if (active) 1f else 0.3f, label = "dotAlpha")
 
                 Box(
                     modifier = Modifier
-                        .scale(scale)
-                        .alpha(alpha)
+                        .scale(dotScale)
+                        .alpha(dotAlpha)
                         .size(10.dp)
                         .clip(CircleShape)
                         .background(if (active) CalorieKoGreen else Color.Gray)
@@ -245,26 +309,51 @@ fun ScalePairingScreen(onComplete: () -> Unit) {
             }
         }
 
-        // --- Tips Box (Only when searching) ---
         Spacer(modifier = Modifier.height(48.dp))
+
+        // ── Tips Box (only when searching) ──
         AnimatedVisibility(
             visible = status == PairingStatus.SEARCHING,
             enter = fadeIn(),
             exit = fadeOut()
         ) {
             Surface(
-                color = Color(0xFFEFF6FF), // Blue 50
-                border = BorderStroke(1.dp, Color(0xFFDBEAFE)), // Blue 100
+                color = Color(0xFFEFF6FF),
+                border = BorderStroke(1.dp, Color(0xFFDBEAFE)),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.padding(horizontal = 32.dp)
             ) {
                 Text(
                     text = "Make sure your smart scale is powered on and within range",
-                    color = Color(0xFF1E3A8A), // Blue 900
+                    color = Color(0xFF1E3A8A),
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(16.dp)
                 )
+            }
+        }
+
+        // ── Retry Button (only on failure) ──
+        AnimatedVisibility(
+            visible = status == PairingStatus.FAILED,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+            Button(
+                onClick = { bleScaleManager.startScan() },
+                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .padding(horizontal = 48.dp)
+                    .height(52.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Refresh,
+                    contentDescription = "Retry",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Try Again", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             }
         }
     }
@@ -284,7 +373,6 @@ fun ScaleGraphic() {
             .border(2.dp, Color(0xFFD1D5DB), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center
     ) {
-        // The "Screen" of the scale
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -299,19 +387,20 @@ fun ScaleGraphic() {
         ) {
             Text(
                 text = "888.8",
-                color = Color(0xFF4ADE80), // Bright Green Digital Text
+                color = Color(0xFF4ADE80),
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        // Brand Name at bottom
         Text(
             text = "CalorieKo",
             fontSize = 10.sp,
             color = Color.Gray,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 8.dp)
         )
     }
 }

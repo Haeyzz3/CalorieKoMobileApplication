@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.remote.SyncRepository
@@ -254,7 +255,11 @@ fun AppNavigation() {
 
         // 6. Scale Pairing
         composable("scalePairing") {
-            ScalePairingScreen(onComplete = { navController.navigate("success") })
+            val bleScaleManager = remember { BleScaleManager(context) }
+            ScalePairingScreen(
+                bleScaleManager = bleScaleManager,
+                onComplete = { navController.navigate("success") }
+            )
         }
 
         // 7. Success
