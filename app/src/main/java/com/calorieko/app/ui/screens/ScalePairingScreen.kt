@@ -101,6 +101,7 @@ fun ScalePairingScreen(
             // If still scanning after 15 s, stop and fail
             if (bleScaleManager.connectionState.value is BleConnectionState.Scanning) {
                 bleScaleManager.stopScan()
+                bleScaleManager.failWithReason("Scan timed out. Make sure your scale is on and nearby.")
             }
         }
     }

@@ -89,6 +89,15 @@ class BleScaleManager(private val context: Context) {
         Log.d(TAG, "Scan stopped")
     }
 
+    /**
+     * Transition to [BleConnectionState.Failed] with the given [reason].
+     * Used by the UI layer to signal a scan timeout.
+     */
+    fun failWithReason(reason: String) {
+        _connectionState.value = BleConnectionState.Failed(reason)
+        Log.w(TAG, "Marked as failed: $reason")
+    }
+
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             Log.d(TAG, "Device found: ${result.device.name ?: "unnamed"} @ ${result.device.address}")
