@@ -13,6 +13,8 @@ data class FoodItem(
     @ColumnInfo(name = "name_ph") val namePh: String,
     @ColumnInfo(name = "category") val category: String,
 
+    @ColumnInfo(name = "ml_label") val mlLabel: String,
+
     // Core Energy (kcal)
     @ColumnInfo(name = "calories_per_100g") val caloriesPer100g: Float = 0f,
 

@@ -12,7 +12,7 @@ import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 4 to 5
+// INCREMENT version from 5 to 6
 @Database(
     entities = [
         FoodItem::class,
@@ -22,7 +22,7 @@ import kotlinx.coroutines.CoroutineScope
         MealLogItemEntity::class,
         DailyNutritionSummaryEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -46,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "calorieko_database"
                 )
                     // Pass a lambda providing the INSTANCE to the callback
-                    .addCallback(FoodDatabaseCallback(scope) { INSTANCE!! })
+                    .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

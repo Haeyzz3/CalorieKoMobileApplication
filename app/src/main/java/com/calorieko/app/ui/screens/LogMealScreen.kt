@@ -96,7 +96,6 @@ import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.ml.CalorieKoClassifier
-import com.calorieko.app.ml.DishLabelMapper
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
@@ -205,6 +204,16 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var topLabel by remember { mutableStateOf("") }
     var topConfidence by remember { mutableFloatStateOf(0f) }
 
+    var currentDetectedFood by remember { mutableStateOf<com.calorieko.app.data.model.FoodItem?>(null) }
+    
+    LaunchedEffect(topLabel) {
+        if (topLabel.isNotEmpty() && topLabel != "negative") {
+            currentDetectedFood = withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(topLabel) }
+        } else {
+            currentDetectedFood = null
+        }
+    }
+
     // Inline unsupported-dish banner state (replaces intrusive error dialog)
     var showUnsupportedBanner by remember { mutableStateOf(false) }
     var bannerCooldownUntil by remember { mutableLongStateOf(0L) }
@@ -271,16 +280,16 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                     showUnsupportedBanner = true
                     bannerCooldownUntil = now + 20_000L
                 }
-            } else if (DishLabelMapper.isSupported(topLabel) && topConfidence >= CONFIDENCE_THRESHOLD) {
+            } else if (currentDetectedFood != null && topConfidence >= CONFIDENCE_THRESHOLD) {
                 // Require 2 seconds of consistent top-1 prediction
                 val elapsed = System.currentTimeMillis() - stableSince
                 if (elapsed < 2000) return@LaunchedEffect
 
-                val foodName = DishLabelMapper.toFoodName(topLabel) ?: return@LaunchedEffect
+                val foodName = currentDetectedFood?.nameEn ?: return@LaunchedEffect
                 pendingDishName = foodName
                 pendingConfidence = topConfidence
                 // Quick calorie estimate
-                val food = withContext(Dispatchers.IO) { db.foodDao().getFoodByName(foodName) }
+                val food = currentDetectedFood
                 pendingCaloriesEst = if (food != null) food.caloriesPer100g * weight / 100f else 0f
                 phase = LogMealPhase.DISH_READY
             }
@@ -465,9 +474,9 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
             }
 
             // AI badge
-            val displayLabel = DishLabelMapper.toFoodName(topLabel) ?: topLabel
+            val displayLabel = currentDetectedFood?.nameEn ?: topLabel
             val confPercent = (topConfidence * 100).toInt()
-            val aiReady = DishLabelMapper.isSupported(topLabel) && topConfidence >= CONFIDENCE_THRESHOLD
+            val aiReady = currentDetectedFood != null && topConfidence >= CONFIDENCE_THRESHOLD
             val aiBadgeColor = when {
                 topLabel.isEmpty()            -> Color.White.copy(alpha = 0.95f)
                 aiReady                       -> CalorieKoGreen.copy(alpha = 0.95f)
@@ -578,8 +587,8 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
             // Status text (while scanning)
             if (phase == LogMealPhase.SCANNING) {
-                val displayDishName = DishLabelMapper.toFoodName(topLabel) ?: topLabel
-                val isConfirming = DishLabelMapper.isSupported(topLabel)
+                val displayDishName = currentDetectedFood?.nameEn ?: topLabel
+                val isConfirming = currentDetectedFood != null
                         && topConfidence >= CONFIDENCE_THRESHOLD
                         && weightStable && weight > 0
                 val statusText = when {
