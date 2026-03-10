@@ -86,6 +86,8 @@ fun ScalePairingScreen(
         permissionsGranted = grants.values.all { it }
         if (permissionsGranted) {
             bleScaleManager.startScan()
+        } else {
+            bleScaleManager.failWithReason("Bluetooth permissions are required to connect to your scale.")
         }
     }
 
