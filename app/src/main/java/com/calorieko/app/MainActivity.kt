@@ -260,7 +260,8 @@ fun AppNavigation() {
         composable("scalePairing") {
             ScalePairingScreen(
                 bleScaleManager = bleScaleManager,
-                onComplete = { navController.navigate("success") }
+                onComplete = { navController.navigate("success") },
+                onSkip = { navController.navigate("success") }
             )
         }
 

@@ -50,7 +50,8 @@ enum class PairingStatus {
 @Composable
 fun ScalePairingScreen(
     bleScaleManager: BleScaleManager,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onSkip: () -> Unit = {}
 ) {
     // ── Observe real BLE state ──
     val bleState by bleScaleManager.connectionState.collectAsState()
@@ -357,6 +358,24 @@ fun ScalePairingScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Try Again", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── Connect Later (Skip) ──
+        if (status != PairingStatus.CONNECTED) {
+            TextButton(
+                onClick = {
+                    bleScaleManager.stopScan()
+                    onSkip()
+                }
+            ) {
+                Text(
+                    text = "I don't have a scale yet (Connect Later)",
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
             }
         }
     }
