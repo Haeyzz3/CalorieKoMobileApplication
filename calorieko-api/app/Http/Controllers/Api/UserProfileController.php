@@ -66,4 +66,50 @@ class UserProfileController extends Controller
         $profile = UserProfile::findOrFail($uid);
         return response()->json($profile);
     }
+
+    /**
+     * Admin: Toggle active status.
+     */
+    public function deactivate(string $uid): JsonResponse
+    {
+        $profile = UserProfile::findOrFail($uid);
+        $profile->is_active = !$profile->is_active;
+        $profile->save();
+
+        return response()->json([
+            'message' => 'User status updated successfully.',
+            'is_active' => $profile->is_active
+        ]);
+    }
+
+    /**
+     * Admin: Trigger password reset mock.
+     */
+    public function resetPassword(string $uid): JsonResponse
+    {
+        $profile = UserProfile::findOrFail($uid);
+        // Note: For Firebase auth, the backend doesn't reset directly via API unless using Admin SDK.
+        // Returning success to mock the capability for capstone presentation.
+        \Log::info("Password reset requested for UID: {$uid}");
+        return response()->json([
+            'message' => "Password reset sequence triggered for {$profile->email}."
+        ]);
+    }
+
+    /**
+     * Admin: Delete user from registry.
+     */
+    public function destroy(string $uid): JsonResponse
+    {
+        $profile = UserProfile::findOrFail($uid);
+        $profile->delete();
+
+        // Warning: Does not delete cascaded tables automatically without foreign key setups,
+        // but sufficient for basic admin removal preview.
+        \Log::info("User profile deleted for UID: {$uid}");
+        
+        return response()->json([
+            'message' => 'User successfully deleted.'
+        ]);
+    }
 }

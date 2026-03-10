@@ -54,8 +54,11 @@ Route::post('/admin/verify', [AdminAuthController::class, 'verify']);
 // ── Admin Read Endpoints ──
 Route::prefix('admin')->group(function () {
     // User Profiles
-    Route::get('/profiles',           [UserProfileController::class, 'index']);
-    Route::get('/profiles/{uid}',     [UserProfileController::class, 'show']);
+    Route::get('/profiles',                     [UserProfileController::class, 'index']);
+    Route::get('/profiles/{uid}',               [UserProfileController::class, 'show']);
+    Route::put('/profiles/{uid}/deactivate',    [UserProfileController::class, 'deactivate']);
+    Route::post('/profiles/{uid}/reset-password',[UserProfileController::class, 'resetPassword']);
+    Route::delete('/profiles/{uid}',            [UserProfileController::class, 'destroy']);
 
     // Food Items
     Route::get('/foods',              [FoodItemController::class, 'index']);

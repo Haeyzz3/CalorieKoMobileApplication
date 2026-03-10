@@ -23,13 +23,15 @@ class UserProfile extends Model
         'goal',
         'streak',
         'level',
+        'is_active',
     ];
 
     protected $casts = [
-        'age'    => 'integer',
-        'weight' => 'double',
-        'height' => 'double',
-        'streak' => 'integer',
-        'level'  => 'integer',
+        'age'       => 'integer',
+        'weight'    => 'double',
+        'height'    => 'double',
+        'streak'    => 'integer',
+        'level'     => 'integer',
+        'is_active' => 'boolean',
     ];
 }
