@@ -51,6 +51,9 @@ fun AppNavigation() {
         )
     }
 
+    // BLE manager hoisted to AppNavigation scope so it survives screen transitions
+    val bleScaleManager = remember { BleScaleManager(context) }
+
 
 
     // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
@@ -255,7 +258,6 @@ fun AppNavigation() {
 
         // 6. Scale Pairing
         composable("scalePairing") {
-            val bleScaleManager = remember { BleScaleManager(context) }
             ScalePairingScreen(
                 bleScaleManager = bleScaleManager,
                 onComplete = { navController.navigate("success") }

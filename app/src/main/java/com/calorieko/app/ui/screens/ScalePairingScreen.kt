@@ -116,9 +116,9 @@ fun ScalePairingScreen(
         }
     }
 
-    // Clean up BLE resources when leaving the screen
+    // Clean up scan when leaving the screen (connection stays alive at AppNavigation scope)
     DisposableEffect(Unit) {
-        onDispose { bleScaleManager.close() }
+        onDispose { bleScaleManager.stopScan() }
     }
 
     // ── Animations ──
