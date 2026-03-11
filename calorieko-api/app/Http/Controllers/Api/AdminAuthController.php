@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Models\SystemLog;
 
 /**
  * Handles admin panel authentication.
@@ -45,12 +46,16 @@ class AdminAuthController extends Controller
             // Generate a simple signed token (valid for this server session)
             $token = hash('sha256', $adminEmail . '|' . config('app.key') . '|' . now()->toDateString());
 
+            SystemLog::log($adminEmail, 'Admin Login', null, 'Success', $request->ip(), 'Admin logged in successfully.');
+
             return response()->json([
                 'message' => 'Login successful',
                 'token'   => $token,
                 'email'   => $adminEmail,
             ]);
         }
+
+        SystemLog::log($request->email, 'Admin Login', null, 'Failed', $request->ip(), 'Invalid email or password.');
 
         return response()->json([
             'error' => 'Invalid email or password.'

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\MealLogController;
 use App\Http\Controllers\Api\DailyNutritionSummaryController;
 use App\Http\Controllers\Api\AdminAuthController;
+use App\Http\Controllers\Api\SystemLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -63,6 +64,9 @@ Route::prefix('admin')->group(function () {
     // Food Items
     Route::get('/foods',              [FoodItemController::class, 'index']);
     Route::get('/foods/{id}',         [FoodItemController::class, 'show']);
+    Route::post('/foods',             [FoodItemController::class, 'store']);
+    Route::put('/foods/{id}',         [FoodItemController::class, 'update']);
+    Route::delete('/foods/{id}',      [FoodItemController::class, 'destroy']);
 
     // Activity Logs
     Route::get('/activity-logs',      [ActivityLogController::class, 'index']);
@@ -75,6 +79,9 @@ Route::prefix('admin')->group(function () {
     // Daily Nutrition Summaries
     Route::get('/nutrition-summaries',      [DailyNutritionSummaryController::class, 'index']);
     Route::get('/nutrition-summaries/{id}', [DailyNutritionSummaryController::class, 'show']);
+
+    // System Logs
+    Route::get('/system-logs',              [SystemLogController::class, 'index']);
 });
 
 // Health check

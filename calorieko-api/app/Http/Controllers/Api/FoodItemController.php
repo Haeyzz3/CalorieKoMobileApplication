@@ -74,4 +74,67 @@ class FoodItemController extends Controller
         $food = FoodItem::findOrFail($id);
         return response()->json($food);
     }
+
+    /**
+     * Admin: Create a new food item.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name_en'                     => 'required|string',
+            'name_ph'                     => 'required|string',
+            'category'                    => 'required|string',
+            'calories_per_100g'           => 'nullable|numeric',
+            'protein_per_100g'            => 'nullable|numeric',
+            'carbs_per_100g'              => 'nullable|numeric',
+            'fat_per_100g'                => 'nullable|numeric',
+        ]);
+
+        $food = FoodItem::create($data);
+
+        $adminEmail = config('app.admin_email') ?? 'admin@calorieko.com';
+        \App\Models\SystemLog::log($adminEmail, "Added Food Item", "Food ID: {$food->food_id}", 'Success', request()->ip(), "Admin added food: {$food->name_en}");
+
+        return response()->json($food, 201);
+    }
+
+    /**
+     * Admin: Update an existing food item.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $food = FoodItem::findOrFail($id);
+        
+        $data = $request->validate([
+            'name_en'                     => 'required|string',
+            'name_ph'                     => 'required|string',
+            'category'                    => 'required|string',
+            'calories_per_100g'           => 'nullable|numeric',
+            'protein_per_100g'            => 'nullable|numeric',
+            'carbs_per_100g'              => 'nullable|numeric',
+            'fat_per_100g'                => 'nullable|numeric',
+        ]);
+
+        $food->update($data);
+
+        $adminEmail = config('app.admin_email') ?? 'admin@calorieko.com';
+        \App\Models\SystemLog::log($adminEmail, "Updated Food Item", "Food ID: {$food->food_id}", 'Success', request()->ip(), "Admin updated food: {$food->name_en}");
+
+        return response()->json($food);
+    }
+
+    /**
+     * Admin: Delete a food item.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $food = FoodItem::findOrFail($id);
+        $name = $food->name_en;
+        $food->delete();
+
+        $adminEmail = config('app.admin_email') ?? 'admin@calorieko.com';
+        \App\Models\SystemLog::log($adminEmail, "Deleted Food Item", "Food ID: {$id}", 'Success', request()->ip(), "Admin deleted food: {$name}");
+
+        return response()->json(['message' => 'Food item successfully deleted.']);
+    }
 }

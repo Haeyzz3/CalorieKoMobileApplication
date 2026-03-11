@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserProfile;
+use App\Models\SystemLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -76,6 +77,10 @@ class UserProfileController extends Controller
         $profile->is_active = !$profile->is_active;
         $profile->save();
 
+        $adminEmail = config('app.admin_email') ?? 'admin@calorieko.com';
+        $statusStr = $profile->is_active ? 'Reactivated' : 'Deactivated';
+        SystemLog::log($adminEmail, "User {$statusStr}", "User UID: {$uid}", 'Success', request()->ip(), "Admin {$statusStr} user {$profile->email}.");
+
         return response()->json([
             'message' => 'User status updated successfully.',
             'is_active' => $profile->is_active
@@ -102,7 +107,11 @@ class UserProfileController extends Controller
     public function destroy(string $uid): JsonResponse
     {
         $profile = UserProfile::findOrFail($uid);
+        $email = $profile->email;
         $profile->delete();
+
+        $adminEmail = config('app.admin_email') ?? 'admin@calorieko.com';
+        SystemLog::log($adminEmail, 'Deleted User', "User UID: {$uid}", 'Success', request()->ip(), "Admin deleted user {$email}.");
 
         // Warning: Does not delete cascaded tables automatically without foreign key setups,
         // but sufficient for basic admin removal preview.
