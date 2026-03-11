@@ -190,7 +190,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                         title = "CalorieKo Smart Scale",
                         subtitle = if (scaleConnected) "Connected" else "Disconnected",
                         subtitleColor = if (scaleConnected) CalorieKoGreen else Color.Gray,
-                        onClick = { scaleConnected = !scaleConnected }
+                        onClick = { onNavigate("scalePairing/settings") }
                     ) {
                         Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)
                     }

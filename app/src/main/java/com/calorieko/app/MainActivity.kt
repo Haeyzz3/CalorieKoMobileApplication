@@ -7,9 +7,11 @@ import androidx.compose.runtime.* // Automatically grabs standard runtime compon
 import androidx.compose.runtime.getValue // REQUIRED for 'by' delegate reading
 import androidx.compose.runtime.setValue // REQUIRED for 'by' delegate writing
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
@@ -251,17 +253,33 @@ fun AppNavigation() {
                 targetFats = targetFats,        // PASS NEW VARS
                 goalTitle = setupGoalTitle,
                 onContinue = {
-                    navController.navigate("scalePairing")
+                    navController.navigate("scalePairing/signup")
                 }
             )
         }
 
         // 6. Scale Pairing
-        composable("scalePairing") {
+        composable(
+            route = "scalePairing/{source}",
+            arguments = listOf(navArgument("source") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val source = backStackEntry.arguments?.getString("source") ?: "signup"
             ScalePairingScreen(
                 bleScaleManager = bleScaleManager,
-                onComplete = { navController.navigate("success") },
-                onSkip = { navController.navigate("success") }
+                onComplete = {
+                    if (source == "settings") {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate("success")
+                    }
+                },
+                onSkip = {
+                    if (source == "settings") {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate("success")
+                    }
+                }
             )
         }
 
