@@ -3,10 +3,11 @@ package com.calorieko.app.ble
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,7 +56,8 @@ class BleScaleManager(private val context: Context) {
     // ─── Scan ───────────────────────────────────────────────
 
     /**
-     * Start scanning for the ESP32 scale filtered by SERVICE_UUID.
+     * Start scanning for the ESP32 scale.
+     * Uses null filter to see all devices, then manually matches in the callback.
      */
     fun startScan() {
         val scanner = bluetoothAdapter?.bluetoothLeScanner
@@ -64,19 +66,15 @@ class BleScaleManager(private val context: Context) {
             return
         }
 
-        // Build a scan filter so we only see our scale
-        val filter = ScanFilter.Builder()
-            .setServiceUuid(ParcelUuid(SERVICE_UUID))
-            .build()
-
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
 
         _connectionState.value = BleConnectionState.Scanning
         isScanning = true
-        scanner.startScan(listOf(filter), settings, scanCallback)
-        Log.d(TAG, "Scan started – looking for SERVICE_UUID")
+        // Pass null for the filter to see all devices, just like the prototype
+        scanner.startScan(null, settings, scanCallback)
+        Log.d(TAG, "Scan started – looking for scale")
     }
 
     /**
@@ -100,9 +98,21 @@ class BleScaleManager(private val context: Context) {
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            Log.d(TAG, "Device found: ${result.device.name ?: "unnamed"} @ ${result.device.address}")
-            stopScan()
-            connectToDevice(result.device)
+            val device = result.device
+            val record = result.scanRecord
+            val deviceName = device.name ?: record?.deviceName
+            val serviceUuids = record?.serviceUuids
+
+            val matchedByUuid = serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) == true
+            val matchedByName = deviceName != null && listOf("esp32", "scale", "ble").any {
+                deviceName.contains(it, ignoreCase = true)
+            }
+
+            if (matchedByUuid || matchedByName) {
+                Log.d(TAG, "Device found: ${deviceName ?: "unnamed"} @ ${device.address}")
+                stopScan()
+                connectToDevice(device)
+            }
         }
 
         override fun onScanFailed(errorCode: Int) {
@@ -125,52 +135,69 @@ class BleScaleManager(private val context: Context) {
     private val gattCallback = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            when {
-                newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> {
-                    Log.d(TAG, "Connected! Discovering services…")
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "Connection failed (status=$status, newState=$newState)")
+                gatt.close()
+                bluetoothGatt = null
+                _connectionState.value = BleConnectionState.Failed("Connection error (status $status)")
+                return
+            }
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                Log.d(TAG, "Connected! Waiting 600ms before discovering services…")
+                // Add the 600ms stability delay from the prototype
+                Handler(Looper.getMainLooper()).postDelayed({
                     gatt.discoverServices()
-                }
-                newState == BluetoothProfile.STATE_DISCONNECTED -> {
-                    Log.w(TAG, "Disconnected (status=$status)")
-                    gatt.close()
-                    bluetoothGatt = null
-                    _connectionState.value = BleConnectionState.Failed("Disconnected (status $status)")
-                }
-                else -> {
-                    Log.e(TAG, "Connection failed (status=$status, newState=$newState)")
-                    gatt.close()
-                    bluetoothGatt = null
-                    _connectionState.value = BleConnectionState.Failed("Connection error (status $status)")
-                }
+                }, 600)
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Log.w(TAG, "Disconnected")
+                gatt.close()
+                bluetoothGatt = null
+                _connectionState.value = BleConnectionState.Failed("Disconnected")
             }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.e(TAG, "Service discovery failed (status=$status)")
                 _connectionState.value = BleConnectionState.Failed("Service discovery failed")
                 return
             }
 
             val service = gatt.getService(SERVICE_UUID)
             if (service == null) {
-                Log.e(TAG, "SERVICE_UUID not found on connected device!")
                 _connectionState.value = BleConnectionState.Failed("Scale service not found")
                 return
             }
 
-            // Validate that both characteristics exist
             val weightChar = service.getCharacteristic(WEIGHT_CHAR_UUID)
             val commandChar = service.getCharacteristic(COMMAND_CHAR_UUID)
 
             if (weightChar == null || commandChar == null) {
-                Log.e(TAG, "Expected characteristics missing (weight=$weightChar, command=$commandChar)")
-                _connectionState.value = BleConnectionState.Failed("Scale characteristics missing")
+                _connectionState.value = BleConnectionState.Failed("Characteristics missing")
                 return
             }
 
-            Log.d(TAG, "✅ All services and characteristics validated — connection complete!")
+            // Enable notifications on the weight characteristic
+            gatt.setCharacteristicNotification(weightChar, true)
+            val descriptor = weightChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+            if (descriptor != null) {
+                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                gatt.writeDescriptor(descriptor)
+            }
+
+            Log.d(TAG, "✅ Services validated and notifications enabled!")
             _connectionState.value = BleConnectionState.Connected
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            if (characteristic.uuid == WEIGHT_CHAR_UUID) {
+                val weightStr = characteristic.getStringValue(0)
+                Log.d(TAG, "Weight received: $weightStr")
+                // TODO: Update a StateFlow here so your UI can display the weight
+            }
         }
     }
 
