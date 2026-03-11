@@ -53,6 +53,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,20 +70,29 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.ble.BleConnectionState
+import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(onNavigate: (String) -> Unit) {
+fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManager) {
     var activeTab by remember { mutableStateOf("settings") }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // --- State ---
-    var scaleConnected by remember { mutableStateOf(true) }
+    // --- BLE State ---
+    val bleState by bleScaleManager.connectionState.collectAsState()
+
+    val (statusText, statusColor, iconBgColor) = when (bleState) {
+        is BleConnectionState.Connected -> Triple("Connected", CalorieKoGreen, Color(0xFFECFDF5))
+        is BleConnectionState.Connecting,
+        is BleConnectionState.Scanning -> Triple("Connecting...", Color(0xFFFF9800), Color(0xFFFFF3E0))
+        else -> Triple("Disconnected", Color.Gray, Color(0xFFF3F4F6))
+    }
     var scaleBattery by remember { mutableIntStateOf(87) }
     var dataEncryption by remember { mutableStateOf(true) }
     var localProcessing by remember { mutableStateOf(true) }
@@ -185,11 +195,11 @@ fun SettingsScreen(onNavigate: (String) -> Unit) {
                     // Scale Connectivity
                     SettingsRow(
                         icon = Icons.Default.Bluetooth,
-                        iconBgColor = if (scaleConnected) Color(0xFFECFDF5) else Color(0xFFF3F4F6),
-                        iconColor = if (scaleConnected) CalorieKoGreen else Color.Gray,
+                        iconBgColor = iconBgColor,
+                        iconColor = statusColor,
                         title = "CalorieKo Smart Scale",
-                        subtitle = if (scaleConnected) "Connected" else "Disconnected",
-                        subtitleColor = if (scaleConnected) CalorieKoGreen else Color.Gray,
+                        subtitle = statusText,
+                        subtitleColor = statusColor,
                         onClick = { onNavigate("scalePairing/settings") }
                     ) {
                         Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)

@@ -373,7 +373,8 @@ fun AppNavigation() {
                             }
                         }
                     }
-                }
+                },
+                bleScaleManager = bleScaleManager
             )
         }
 
