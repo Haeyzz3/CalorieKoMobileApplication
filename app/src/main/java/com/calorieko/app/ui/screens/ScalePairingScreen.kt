@@ -56,6 +56,9 @@ fun ScalePairingScreen(
     // ── Observe real BLE state ──
     val bleState by bleScaleManager.connectionState.collectAsState()
 
+    // Track whether a scan was initiated during this screen's lifecycle
+    var scanInitiatedThisSession by remember { mutableStateOf(false) }
+
     // Map BLE state → UI state
     val status = when (bleState) {
         is BleConnectionState.Idle -> PairingStatus.SEARCHING
@@ -86,7 +89,11 @@ fun ScalePairingScreen(
     ) { grants ->
         permissionsGranted = grants.values.all { it }
         if (permissionsGranted) {
-            bleScaleManager.startScan()
+            // Only start scanning if we're not already connected
+            if (bleState !is BleConnectionState.Connected) {
+                scanInitiatedThisSession = true
+                bleScaleManager.startScan()
+            }
         } else {
             bleScaleManager.failWithReason("Bluetooth permissions are required to connect to your scale.")
         }
@@ -109,13 +116,7 @@ fun ScalePairingScreen(
         }
     }
 
-    // Navigate on success (after showing "Connected" for 1.5 s)
-    LaunchedEffect(status) {
-        if (status == PairingStatus.CONNECTED) {
-            delay(1500)
-            onComplete()
-        }
-    }
+    // No auto-navigate — user must tap "Done" to go back
 
     // Clean up scan when leaving the screen (connection stays alive at AppNavigation scope)
     DisposableEffect(Unit) {
@@ -344,7 +345,10 @@ fun ScalePairingScreen(
             exit = fadeOut() + scaleOut()
         ) {
             Button(
-                onClick = { bleScaleManager.startScan() },
+                onClick = {
+                    scanInitiatedThisSession = true
+                    bleScaleManager.startScan()
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -358,6 +362,53 @@ fun ScalePairingScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Try Again", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+        }
+
+        // ── Connected Actions (Disconnect + Done) ──
+        AnimatedVisibility(
+            visible = status == PairingStatus.CONNECTED,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 48.dp)
+            ) {
+                // Done / Go Back button
+                Button(
+                    onClick = { onComplete() },
+                    colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Text("Done", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Disconnect button
+                OutlinedButton(
+                    onClick = {
+                        scanInitiatedThisSession = false
+                        bleScaleManager.close()
+                        onComplete()
+                    },
+                    border = BorderStroke(1.dp, Color(0xFFE53935)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Text(
+                        "Disconnect Scale",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = Color(0xFFE53935)
+                    )
+                }
             }
         }
 
