@@ -42,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -59,6 +60,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.calorieko.app.ble.BleConnectionState
+import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
@@ -96,7 +99,7 @@ data class ActivityDetails(
 )
 
 @Composable
-fun DashboardScreen(onNavigate: (String) -> Unit) {
+fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Unit) {
 
     // 1. Get the current authenticated user
     val auth = FirebaseAuth.getInstance()
@@ -288,8 +291,16 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                     }
 
                     // Right Side: Scale Connected Badge
+                    val bleState by bleScaleManager.connectionState.collectAsState()
+
+                    val (badgeBgColor, badgeContentColor, badgeText) = when (bleState) {
+                        is BleConnectionState.Connected -> Triple(Color(0xFFECFDF5), Color(0xFF059669), "Scale Connected")
+                        is BleConnectionState.Connecting, is BleConnectionState.Scanning -> Triple(Color(0xFFFFFBEB), Color(0xFFD97706), "Connecting...")
+                        else -> Triple(Color(0xFFF3F4F6), Color(0xFF6B7280), "Scale Disconnected")
+                    }
+
                     Surface(
-                        color = Color(0xFFECFDF5),
+                        color = badgeBgColor,
                         shape = RoundedCornerShape(50),
                     ) {
                         Row(
@@ -299,15 +310,15 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                             Icon(
                                 imageVector = Icons.Rounded.Bluetooth,
                                 contentDescription = null,
-                                tint = Color(0xFF059669),
+                                tint = badgeContentColor,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Scale Connected",
+                                text = badgeText,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF047857)
+                                color = badgeContentColor
                             )
                         }
                     }

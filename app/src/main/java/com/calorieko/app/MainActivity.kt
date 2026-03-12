@@ -272,6 +272,7 @@ fun AppNavigation() {
         // 8. Dashboard
         composable("dashboard") {
             DashboardScreen(
+                bleScaleManager = bleScaleManager,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "dashboard") {
