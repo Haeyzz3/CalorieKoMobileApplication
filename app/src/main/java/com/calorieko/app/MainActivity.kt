@@ -55,6 +55,7 @@ fun AppNavigation() {
 
     // BLE manager hoisted to AppNavigation scope so it survives screen transitions
     val bleScaleManager = remember { BleScaleManager(context) }
+    val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
 
 
 
@@ -179,37 +180,17 @@ fun AppNavigation() {
             SignUpScreen(
                 onSignUpSuccess = {
                     // --- 1. Metric calculations ---
-                    val bmr = if (setupSex.equals("Male", ignoreCase = true)) {
-                        (10 * setupWeight) + (6.25 * setupHeight) - (5 * setupAge) + 5
-                    } else {
-                        (10 * setupWeight) + (6.25 * setupHeight) - (5 * setupAge) - 161
-                    }
-
-                    val activityMultiplier = when (setupActivityLevel) {
-                        "not_very_active" -> 1.2
-                        "lightly_active" -> 1.375
-                        "active" -> 1.55
-                        "very_active" -> 1.725
-                        else -> 1.2
-                    }
-                    val tdee = bmr * activityMultiplier
-
-                    targetCalories = when (setupGoalId) {
-                        "weight_loss" -> (tdee - 500).toInt().coerceAtLeast(1200)
-                        "gain_muscle" -> (tdee + 300).toInt()
-                        else -> tdee.toInt()
-                    }
-
-                    val (proteinPct, carbsPct, fatsPct) = when (setupGoalId) {
-                        "weight_loss" -> Triple(0.35, 0.35, 0.30)
-                        "gain_muscle" -> Triple(0.30, 0.45, 0.25)
-                        else -> Triple(0.30, 0.40, 0.30)
-                    }
-
-                    targetProtein = ((targetCalories * proteinPct) / 4).toInt()
-                    targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
-                    targetFats = ((targetCalories * fatsPct) / 9).toInt()
-                    targetSodium = 2300
+                    val targets = nutritionalRepo.getTargets(
+                        age = setupAge,
+                        sex = setupSex,
+                        weightKg = setupWeight,
+                        goal = setupGoalId
+                    )
+                    targetCalories = targets.targetCalories
+                    targetProtein = targets.targetProtein
+                    targetCarbs = targets.targetCarbs
+                    targetFats = targets.targetFats
+                    targetSodium = targets.targetSodium
 
                     // --- 2. Database Save & Navigation ---
                     val currentUser = auth.currentUser

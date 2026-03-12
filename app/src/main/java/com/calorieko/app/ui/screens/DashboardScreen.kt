@@ -110,6 +110,7 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     val activityLogDao = db.activityLogDao()
     val mealLogDao = db.mealLogDao()
     val dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+    val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
 
     val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
     val profileImageUrl = currentUser?.photoUrl
@@ -146,37 +147,12 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
                 val profile = userDao.getUser(uid)
 
                 if (profile != null) {
-                    val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
-                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
-                    } else {
-                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
-                    }
-
-                    val activityMultiplier = when (profile.activityLevel) {
-                        "lightly_active" -> 1.375
-                        "active" -> 1.55
-                        "very_active" -> 1.725
-                        "not_very_active" -> 1.2
-                        else -> 1.2
-                    }
-                    val tdee = bmr * activityMultiplier
-
-                    targetCalories = when (profile.goal) {
-                        "lose_weight", "weight_loss", "weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
-                        "gain_muscle" -> (tdee + 300).toInt()
-                        else -> tdee.toInt()
-                    }
-
-                    val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
-                        "lose_weight", "weight_loss", "weight" -> Triple(0.35, 0.35, 0.30)
-                        "gain_muscle" -> Triple(0.30, 0.45, 0.25)
-                        else -> Triple(0.30, 0.40, 0.30)
-                    }
-
-                    targetProtein = ((targetCalories * proteinPct) / 4).toInt()
-                    targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
-                    targetFats = ((targetCalories * fatsPct) / 9).toInt()
-                    targetSodium = 2300
+                    val targets = nutritionalRepo.getTargetsForUser(profile)
+                    targetCalories = targets.targetCalories
+                    targetProtein = targets.targetProtein
+                    targetCarbs = targets.targetCarbs
+                    targetFats = targets.targetFats
+                    targetSodium = targets.targetSodium
                     targetBurned = 500
                 }
 

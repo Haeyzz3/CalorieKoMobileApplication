@@ -28,30 +28,18 @@ private data class NutrientRow(
 fun NutrientsTabContent(
     viewMode: String,
     daySummary: DailyNutritionSummaryEntity?,
-    targetCalories: Int,
-    targetProtein: Int,
-    targetCarbs: Int,
-    targetFats: Int,
-    targetSodium: Int,
+    targets: com.calorieko.app.data.repository.NutritionalTarget?,
     weekDaySummaries: List<DailyNutritionSummaryEntity?>
 ) {
     if (viewMode == "day") {
         NutrientsDayView(
             daySummary = daySummary,
-            targetCalories = targetCalories,
-            targetProtein = targetProtein,
-            targetCarbs = targetCarbs,
-            targetFats = targetFats,
-            targetSodium = targetSodium
+            targets = targets
         )
     } else {
         NutrientsWeekView(
             weekDaySummaries = weekDaySummaries,
-            targetCalories = targetCalories,
-            targetProtein = targetProtein,
-            targetCarbs = targetCarbs,
-            targetFats = targetFats,
-            targetSodium = targetSodium
+            targets = targets
         )
     }
 }
@@ -63,35 +51,25 @@ fun NutrientsTabContent(
 @Composable
 private fun NutrientsDayView(
     daySummary: DailyNutritionSummaryEntity?,
-    targetCalories: Int,
-    targetProtein: Int,
-    targetCarbs: Int,
-    targetFats: Int,
-    targetSodium: Int
+    targets: com.calorieko.app.data.repository.NutritionalTarget?
 ) {
-    val goalFiber = 38
-    val goalSugar = (targetCalories * 0.10 / 4).toInt()
-    val goalSaturatedFat = (targetCalories * 0.10 / 9).toInt()
-    val goalCholesterol = 300
-    val goalPotassium = 3500
-
     val nutrients = listOf(
-        NutrientRow("Protein",             daySummary?.totalProtein?.toInt() ?: 0,            targetProtein, "g"),
-        NutrientRow("Carbohydrates",       daySummary?.totalCarbs?.toInt() ?: 0,              targetCarbs,   "g"),
-        NutrientRow("Fiber",               daySummary?.totalFiber?.toInt() ?: 0,              goalFiber,     "g"),
-        NutrientRow("Sugar",               daySummary?.totalSugar?.toInt() ?: 0,              goalSugar,     "g"),
-        NutrientRow("Fat",                 daySummary?.totalFat?.toInt() ?: 0,                targetFats,    "g"),
-        NutrientRow("Saturated Fat",       daySummary?.totalSaturatedFat?.toInt() ?: 0,       goalSaturatedFat, "g"),
+        NutrientRow("Protein",             daySummary?.totalProtein?.toInt() ?: 0,            targets?.targetProtein ?: 150, "g"),
+        NutrientRow("Carbohydrates",       daySummary?.totalCarbs?.toInt() ?: 0,              targets?.targetCarbs ?: 200,   "g"),
+        NutrientRow("Fiber",               daySummary?.totalFiber?.toInt() ?: 0,              targets?.targetFiber ?: 38,     "g"),
+        NutrientRow("Sugar",               daySummary?.totalSugar?.toInt() ?: 0,              targets?.targetSugar ?: 50,     "g"),
+        NutrientRow("Fat",                 daySummary?.totalFat?.toInt() ?: 0,                targets?.targetFats ?: 65,    "g"),
+        NutrientRow("Saturated Fat",       daySummary?.totalSaturatedFat?.toInt() ?: 0,       targets?.targetSaturatedFat ?: 20, "g"),
         NutrientRow("Polyunsaturated Fat", daySummary?.totalPolyunsaturatedFat?.toInt() ?: 0, 0,             "g"),
         NutrientRow("Monounsaturated Fat", daySummary?.totalMonounsaturatedFat?.toInt() ?: 0, 0,             "g"),
-        NutrientRow("Trans Fat",           daySummary?.totalTransFat?.toInt() ?: 0,           0,             "g"),
-        NutrientRow("Cholesterol",         daySummary?.totalCholesterol?.toInt() ?: 0,        goalCholesterol, "mg"),
-        NutrientRow("Sodium",              daySummary?.totalSodium?.toInt() ?: 0,             targetSodium,  "mg"),
-        NutrientRow("Potassium",           daySummary?.totalPotassium?.toInt() ?: 0,          goalPotassium, "mg"),
-        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           900,           "µg"),
-        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           90,            "mg"),
-        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            1000,          "mg"),
-        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               18,            "mg")
+        NutrientRow("Trans Fat",           daySummary?.totalTransFat?.toInt() ?: 0,           0,             "g"), // Trans fat goal is 0
+        NutrientRow("Cholesterol",         daySummary?.totalCholesterol?.toInt() ?: 0,        targets?.targetCholesterol ?: 300, "mg"),
+        NutrientRow("Sodium",              daySummary?.totalSodium?.toInt() ?: 0,             targets?.targetSodium ?: 2300,  "mg"),
+        NutrientRow("Potassium",           daySummary?.totalPotassium?.toInt() ?: 0,          targets?.targetPotassium ?: 3500, "mg"),
+        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           targets?.targetVitaminA ?: 900,           "µg"),
+        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           targets?.targetVitaminC ?: 90,            "mg"),
+        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            targets?.targetCalcium ?: 1000,          "mg"),
+        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               targets?.targetIron ?: 18,            "mg")
     )
 
     NutrientTable(
@@ -107,18 +85,8 @@ private fun NutrientsDayView(
 @Composable
 private fun NutrientsWeekView(
     weekDaySummaries: List<DailyNutritionSummaryEntity?>,
-    targetCalories: Int,
-    targetProtein: Int,
-    targetCarbs: Int,
-    targetFats: Int,
-    targetSodium: Int
+    targets: com.calorieko.app.data.repository.NutritionalTarget?
 ) {
-    val goalFiber = 38
-    val goalSugar = (targetCalories * 0.10 / 4).toInt()
-    val goalSaturatedFat = (targetCalories * 0.10 / 9).toInt()
-    val goalCholesterol = 300
-    val goalPotassium = 3500
-
     // Compute daily averages across the 7-day week (divide by 7 always)
     fun avgOf(selector: (DailyNutritionSummaryEntity) -> Float): Int {
         val sum = weekDaySummaries.sumOf { (selector(it ?: return@sumOf 0.0) ).toDouble() }
@@ -126,22 +94,22 @@ private fun NutrientsWeekView(
     }
 
     val nutrients = listOf(
-        NutrientRow("Protein",             avgOf { it.totalProtein },            targetProtein, "g"),
-        NutrientRow("Carbohydrates",       avgOf { it.totalCarbs },              targetCarbs,   "g"),
-        NutrientRow("Fiber",               avgOf { it.totalFiber },              goalFiber,     "g"),
-        NutrientRow("Sugar",               avgOf { it.totalSugar },              goalSugar,     "g"),
-        NutrientRow("Fat",                 avgOf { it.totalFat },                targetFats,    "g"),
-        NutrientRow("Saturated Fat",       avgOf { it.totalSaturatedFat },       goalSaturatedFat, "g"),
+        NutrientRow("Protein",             avgOf { it.totalProtein },            targets?.targetProtein ?: 150, "g"),
+        NutrientRow("Carbohydrates",       avgOf { it.totalCarbs },              targets?.targetCarbs ?: 200,   "g"),
+        NutrientRow("Fiber",               avgOf { it.totalFiber },              targets?.targetFiber ?: 38,     "g"),
+        NutrientRow("Sugar",               avgOf { it.totalSugar },              targets?.targetSugar ?: 50,     "g"),
+        NutrientRow("Fat",                 avgOf { it.totalFat },                targets?.targetFats ?: 65,    "g"),
+        NutrientRow("Saturated Fat",       avgOf { it.totalSaturatedFat },       targets?.targetSaturatedFat ?: 20, "g"),
         NutrientRow("Polyunsaturated Fat", avgOf { it.totalPolyunsaturatedFat }, 0,             "g"),
         NutrientRow("Monounsaturated Fat", avgOf { it.totalMonounsaturatedFat }, 0,             "g"),
         NutrientRow("Trans Fat",           avgOf { it.totalTransFat },           0,             "g"),
-        NutrientRow("Cholesterol",         avgOf { it.totalCholesterol },        goalCholesterol, "mg"),
-        NutrientRow("Sodium",              avgOf { it.totalSodium },             targetSodium,  "mg"),
-        NutrientRow("Potassium",           avgOf { it.totalPotassium },          goalPotassium, "mg"),
-        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           900,           "µg"),
-        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           90,            "mg"),
-        NutrientRow("Calcium",             avgOf { it.totalCalcium },            1000,          "mg"),
-        NutrientRow("Iron",                avgOf { it.totalIron },               18,            "mg")
+        NutrientRow("Cholesterol",         avgOf { it.totalCholesterol },        targets?.targetCholesterol ?: 300, "mg"),
+        NutrientRow("Sodium",              avgOf { it.totalSodium },             targets?.targetSodium ?: 2300,  "mg"),
+        NutrientRow("Potassium",           avgOf { it.totalPotassium },          targets?.targetPotassium ?: 3500, "mg"),
+        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           targets?.targetVitaminA ?: 900,           "µg"),
+        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           targets?.targetVitaminC ?: 90,            "mg"),
+        NutrientRow("Calcium",             avgOf { it.totalCalcium },            targets?.targetCalcium ?: 1000,          "mg"),
+        NutrientRow("Iron",                avgOf { it.totalIron },               targets?.targetIron ?: 18,            "mg")
     )
 
     NutrientTable(

@@ -67,12 +67,8 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
     val auth = remember { FirebaseAuth.getInstance() }
     val uid = auth.currentUser?.uid ?: ""
 
-    // User targets
-    var targetCalories by remember { mutableIntStateOf(2000) }
-    var targetProtein by remember { mutableIntStateOf(150) }
-    var targetCarbs by remember { mutableIntStateOf(200) }
-    var targetFats by remember { mutableIntStateOf(65) }
-    var targetSodium by remember { mutableIntStateOf(2300) }
+    val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
+    var targets by remember { mutableStateOf<com.calorieko.app.data.repository.NutritionalTarget?>(null) }
 
     // Day summary (for the selected day)
     var daySummary by remember { mutableStateOf<DailyNutritionSummaryEntity?>(null) }
@@ -85,38 +81,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
         if (uid.isEmpty()) return@LaunchedEffect
         withContext(Dispatchers.IO) {
             val profile = db.userDao().getUser(uid) ?: return@withContext
-
-            val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
-                (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
-            } else {
-                (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
-            }
-
-            val activityMultiplier = when (profile.activityLevel) {
-                "lightly_active" -> 1.375
-                "active" -> 1.55
-                "very_active" -> 1.725
-                "not_very_active" -> 1.2
-                else -> 1.2
-            }
-            val tdee = bmr * activityMultiplier
-
-            targetCalories = when (profile.goal) {
-                "lose_weight", "weight_loss", "weight" -> (tdee - 500).toInt().coerceAtLeast(1200)
-                "gain_muscle" -> (tdee + 300).toInt()
-                else -> tdee.toInt()
-            }
-
-            val (proteinPct, carbsPct, fatsPct) = when (profile.goal) {
-                "lose_weight", "weight_loss", "weight" -> Triple(0.35, 0.35, 0.30)
-                "gain_muscle" -> Triple(0.30, 0.45, 0.25)
-                else -> Triple(0.30, 0.40, 0.30)
-            }
-
-            targetProtein = ((targetCalories * proteinPct) / 4).toInt()
-            targetCarbs = ((targetCalories * carbsPct) / 4).toInt()
-            targetFats = ((targetCalories * fatsPct) / 9).toInt()
-            targetSodium = 2300
+            targets = nutritionalRepo.getTargetsForUser(profile)
         }
     }
 
@@ -305,26 +270,22 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                 0 -> CaloriesTabContent(
                     viewMode = viewMode,
                     daySummary = daySummary,
-                    goalCalories = targetCalories,
+                    goalCalories = targets?.targetCalories ?: 2000,
                     weekDaySummaries = weekDaySummaries,
                     weekDayLabels = weekDayLabels
                 )
                 1 -> NutrientsTabContent(
                     viewMode = viewMode,
                     daySummary = daySummary,
-                    targetCalories = targetCalories,
-                    targetProtein = targetProtein,
-                    targetCarbs = targetCarbs,
-                    targetFats = targetFats,
-                    targetSodium = targetSodium,
+                    targets = targets,
                     weekDaySummaries = weekDaySummaries
                 )
                 2 -> MacrosTabContent(
                     viewMode = viewMode,
                     daySummary = daySummary,
-                    targetProtein = targetProtein,
-                    targetCarbs = targetCarbs,
-                    targetFats = targetFats,
+                    targetProtein = targets?.targetProtein ?: 150,
+                    targetCarbs = targets?.targetCarbs ?: 200,
+                    targetFats = targets?.targetFats ?: 65,
                     weekDaySummaries = weekDaySummaries,
                     weekDayLabels = weekDayLabels
                 )
