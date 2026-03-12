@@ -32,6 +32,16 @@ class FirebaseAuth
             $verifiedIdToken = $auth->verifyIdToken($token);
             $uid = $verifiedIdToken->claims()->get('sub');
 
+            // Check if user is locally deactivated
+            $profile = \App\Models\UserProfile::find($uid);
+            if ($profile && !$profile->is_active) {
+                \Log::warning("FirebaseAuth: Blocked deactivated user UID: {$uid}");
+                return response()->json([
+                    'error' => 'Account deactivated',
+                    'message' => 'Your account has been deactivated by the administrator.'
+                ], 403);
+            }
+
             // Merge the UID into the request so controllers can use it
             $request->merge(['firebaseUid' => $uid]);
             \Log::info("FirebaseAuth: Token verified for UID " . $uid);
