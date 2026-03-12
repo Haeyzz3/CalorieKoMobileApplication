@@ -19,8 +19,8 @@ import com.calorieko.app.ui.theme.*
 
 private data class NutrientRow(
     val name: String,
-    val total: Int,
-    val goal: Int,
+    val total: Float,
+    val goal: Float,
     val unit: String
 )
 
@@ -54,22 +54,22 @@ private fun NutrientsDayView(
     targets: com.calorieko.app.data.repository.NutritionalTarget?
 ) {
     val nutrients = listOf(
-        NutrientRow("Protein",             daySummary?.totalProtein?.toInt() ?: 0,            targets?.targetProtein ?: 150, "g"),
-        NutrientRow("Carbohydrates",       daySummary?.totalCarbs?.toInt() ?: 0,              targets?.targetCarbs ?: 200,   "g"),
-        NutrientRow("Fiber",               daySummary?.totalFiber?.toInt() ?: 0,              targets?.targetFiber ?: 38,     "g"),
-        NutrientRow("Sugar",               daySummary?.totalSugar?.toInt() ?: 0,              targets?.targetSugar ?: 50,     "g"),
-        NutrientRow("Fat",                 daySummary?.totalFat?.toInt() ?: 0,                targets?.targetFats ?: 65,    "g"),
-        NutrientRow("Saturated Fat",       daySummary?.totalSaturatedFat?.toInt() ?: 0,       targets?.targetSaturatedFat ?: 20, "g"),
-        NutrientRow("Polyunsaturated Fat", daySummary?.totalPolyunsaturatedFat?.toInt() ?: 0, targets?.targetPolyunsaturatedFat ?: 0, "g"),
-        NutrientRow("Monounsaturated Fat", daySummary?.totalMonounsaturatedFat?.toInt() ?: 0, targets?.targetMonounsaturatedFat ?: 0, "g"),
-        NutrientRow("Trans Fat",           daySummary?.totalTransFat?.toInt() ?: 0,           targets?.targetTransFat ?: 0, "g"),
-        NutrientRow("Cholesterol",         daySummary?.totalCholesterol?.toInt() ?: 0,        targets?.targetCholesterol ?: 300, "mg"),
-        NutrientRow("Sodium",              daySummary?.totalSodium?.toInt() ?: 0,             targets?.targetSodium ?: 2300,  "mg"),
-        NutrientRow("Potassium",           daySummary?.totalPotassium?.toInt() ?: 0,          targets?.targetPotassium ?: 3500, "mg"),
-        NutrientRow("Vitamin A",           daySummary?.totalVitaminA?.toInt() ?: 0,           targets?.targetVitaminA ?: 900,           "µg"),
-        NutrientRow("Vitamin C",           daySummary?.totalVitaminC?.toInt() ?: 0,           targets?.targetVitaminC ?: 90,            "mg"),
-        NutrientRow("Calcium",             daySummary?.totalCalcium?.toInt() ?: 0,            targets?.targetCalcium ?: 1000,          "mg"),
-        NutrientRow("Iron",                daySummary?.totalIron?.toInt() ?: 0,               targets?.targetIron ?: 18,            "mg")
+        NutrientRow("Protein",             daySummary?.totalProtein ?: 0f,            targets?.targetProtein?.toFloat() ?: 150f, "g"),
+        NutrientRow("Carbohydrates",       daySummary?.totalCarbs ?: 0f,              targets?.targetCarbs?.toFloat() ?: 200f,   "g"),
+        NutrientRow("Fiber",               daySummary?.totalFiber ?: 0f,              targets?.targetFiber?.toFloat() ?: 38f,     "g"),
+        NutrientRow("Sugar",               daySummary?.totalSugar ?: 0f,              targets?.targetSugar?.toFloat() ?: 50f,     "g"),
+        NutrientRow("Fat",                 daySummary?.totalFat ?: 0f,                targets?.targetFats?.toFloat() ?: 65f,    "g"),
+        NutrientRow("Saturated Fat",       daySummary?.totalSaturatedFat ?: 0f,       targets?.targetSaturatedFat?.toFloat() ?: 20f, "g"),
+        NutrientRow("Polyunsaturated Fat", daySummary?.totalPolyunsaturatedFat ?: 0f, targets?.targetPolyunsaturatedFat?.toFloat() ?: 0f, "g"),
+        NutrientRow("Monounsaturated Fat", daySummary?.totalMonounsaturatedFat ?: 0f, targets?.targetMonounsaturatedFat?.toFloat() ?: 0f, "g"),
+        NutrientRow("Trans Fat",           daySummary?.totalTransFat ?: 0f,           targets?.targetTransFat?.toFloat() ?: 0f, "g"),
+        NutrientRow("Cholesterol",         daySummary?.totalCholesterol ?: 0f,        targets?.targetCholesterol?.toFloat() ?: 300f, "mg"),
+        NutrientRow("Sodium",              daySummary?.totalSodium ?: 0f,             targets?.targetSodium?.toFloat() ?: 2300f,  "mg"),
+        NutrientRow("Potassium",           daySummary?.totalPotassium ?: 0f,          targets?.targetPotassium?.toFloat() ?: 3500f, "mg"),
+        NutrientRow("Vitamin A",           daySummary?.totalVitaminA ?: 0f,           targets?.targetVitaminA?.toFloat() ?: 900f,           "µg"),
+        NutrientRow("Vitamin C",           daySummary?.totalVitaminC ?: 0f,           targets?.targetVitaminC?.toFloat() ?: 90f,            "mg"),
+        NutrientRow("Calcium",             daySummary?.totalCalcium ?: 0f,            targets?.targetCalcium?.toFloat() ?: 1000f,          "mg"),
+        NutrientRow("Iron",                daySummary?.totalIron ?: 0f,               targets?.targetIron?.toFloat() ?: 18f,            "mg")
     )
 
     NutrientTable(
@@ -88,28 +88,28 @@ private fun NutrientsWeekView(
     targets: com.calorieko.app.data.repository.NutritionalTarget?
 ) {
     // Compute daily averages across the 7-day week (divide by 7 always)
-    fun avgOf(selector: (DailyNutritionSummaryEntity) -> Float): Int {
+    fun avgOf(selector: (DailyNutritionSummaryEntity) -> Float): Float {
         val sum = weekDaySummaries.sumOf { (selector(it ?: return@sumOf 0.0) ).toDouble() }
-        return (sum / 7).toInt()
+        return (sum / 7).toFloat()
     }
 
     val nutrients = listOf(
-        NutrientRow("Protein",             avgOf { it.totalProtein },            targets?.targetProtein ?: 150, "g"),
-        NutrientRow("Carbohydrates",       avgOf { it.totalCarbs },              targets?.targetCarbs ?: 200,   "g"),
-        NutrientRow("Fiber",               avgOf { it.totalFiber },              targets?.targetFiber ?: 38,     "g"),
-        NutrientRow("Sugar",               avgOf { it.totalSugar },              targets?.targetSugar ?: 50,     "g"),
-        NutrientRow("Fat",                 avgOf { it.totalFat },                targets?.targetFats ?: 65,    "g"),
-        NutrientRow("Saturated Fat",       avgOf { it.totalSaturatedFat },       targets?.targetSaturatedFat ?: 20, "g"),
-        NutrientRow("Polyunsaturated Fat", avgOf { it.totalPolyunsaturatedFat }, targets?.targetPolyunsaturatedFat ?: 0, "g"),
-        NutrientRow("Monounsaturated Fat", avgOf { it.totalMonounsaturatedFat }, targets?.targetMonounsaturatedFat ?: 0, "g"),
-        NutrientRow("Trans Fat",           avgOf { it.totalTransFat },           targets?.targetTransFat ?: 0, "g"),
-        NutrientRow("Cholesterol",         avgOf { it.totalCholesterol },        targets?.targetCholesterol ?: 300, "mg"),
-        NutrientRow("Sodium",              avgOf { it.totalSodium },             targets?.targetSodium ?: 2300,  "mg"),
-        NutrientRow("Potassium",           avgOf { it.totalPotassium },          targets?.targetPotassium ?: 3500, "mg"),
-        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           targets?.targetVitaminA ?: 900,           "µg"),
-        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           targets?.targetVitaminC ?: 90,            "mg"),
-        NutrientRow("Calcium",             avgOf { it.totalCalcium },            targets?.targetCalcium ?: 1000,          "mg"),
-        NutrientRow("Iron",                avgOf { it.totalIron },               targets?.targetIron ?: 18,            "mg")
+        NutrientRow("Protein",             avgOf { it.totalProtein },            targets?.targetProtein?.toFloat() ?: 150f, "g"),
+        NutrientRow("Carbohydrates",       avgOf { it.totalCarbs },              targets?.targetCarbs?.toFloat() ?: 200f,   "g"),
+        NutrientRow("Fiber",               avgOf { it.totalFiber },              targets?.targetFiber?.toFloat() ?: 38f,     "g"),
+        NutrientRow("Sugar",               avgOf { it.totalSugar },              targets?.targetSugar?.toFloat() ?: 50f,     "g"),
+        NutrientRow("Fat",                 avgOf { it.totalFat },                targets?.targetFats?.toFloat() ?: 65f,    "g"),
+        NutrientRow("Saturated Fat",       avgOf { it.totalSaturatedFat },       targets?.targetSaturatedFat?.toFloat() ?: 20f, "g"),
+        NutrientRow("Polyunsaturated Fat", avgOf { it.totalPolyunsaturatedFat }, targets?.targetPolyunsaturatedFat?.toFloat() ?: 0f, "g"),
+        NutrientRow("Monounsaturated Fat", avgOf { it.totalMonounsaturatedFat }, targets?.targetMonounsaturatedFat?.toFloat() ?: 0f, "g"),
+        NutrientRow("Trans Fat",           avgOf { it.totalTransFat },           targets?.targetTransFat?.toFloat() ?: 0f, "g"),
+        NutrientRow("Cholesterol",         avgOf { it.totalCholesterol },        targets?.targetCholesterol?.toFloat() ?: 300f, "mg"),
+        NutrientRow("Sodium",              avgOf { it.totalSodium },             targets?.targetSodium?.toFloat() ?: 2300f,  "mg"),
+        NutrientRow("Potassium",           avgOf { it.totalPotassium },          targets?.targetPotassium?.toFloat() ?: 3500f, "mg"),
+        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           targets?.targetVitaminA?.toFloat() ?: 900f,           "µg"),
+        NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           targets?.targetVitaminC?.toFloat() ?: 90f,            "mg"),
+        NutrientRow("Calcium",             avgOf { it.totalCalcium },            targets?.targetCalcium?.toFloat() ?: 1000f,          "mg"),
+        NutrientRow("Iron",                avgOf { it.totalIron },               targets?.targetIron?.toFloat() ?: 18f,            "mg")
     )
 
     NutrientTable(
@@ -188,13 +188,13 @@ private fun NutrientTable(
 private fun NutrientItemRow(nutrient: NutrientRow) {
     val left = nutrient.goal - nutrient.total
     val leftText = if (nutrient.unit == "%") {
-        "$left %"
+        "${left.toFormattedString()} %"
     } else {
-        "$left ${nutrient.unit}"
+        "${left.toFormattedString()} ${nutrient.unit}"
     }
     val goalText = nutrient.goal.toFormattedString()
-    val progress = if (nutrient.goal > 0) {
-        (nutrient.total.toFloat() / nutrient.goal).coerceIn(0f, 1f)
+    val progress = if (nutrient.goal > 0f) {
+        (nutrient.total / nutrient.goal).coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -221,7 +221,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
             )
             // Total / Avg
             Text(
-                text = nutrient.total.toString(),
+                text = nutrient.total.toFormattedString(),
                 fontSize = 14.sp,
                 color = SubtleText,
                 modifier = Modifier.width(60.dp)
@@ -265,6 +265,6 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
     }
 }
 
-private fun Int.toFormattedString(): String {
-    return String.format(java.util.Locale.US, "%,d", this)
+private fun Float.toFormattedString(): String {
+    return String.format(java.util.Locale.US, "%,.1f", this)
 }

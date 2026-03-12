@@ -696,13 +696,13 @@ fun MealDetailBottomSheet(
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${item.weightGrams.toInt()}g  •  ${item.calories.toInt()} kcal",
+                                        "${item.weightGrams.toInt()}g  •  ${item.calories.fmt()} kcal",
                                         fontSize = 13.sp,
                                         color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        "P: ${item.protein.toInt()}g  C: ${item.carbs.toInt()}g  F: ${item.fat.toInt()}g",
+                                        "P: ${item.protein.fmt()}g  C: ${item.carbs.fmt()}g  F: ${item.fat.fmt()}g",
                                         fontSize = 12.sp,
                                         color = Color(0xFF9CA3AF)
                                     )
@@ -773,7 +773,7 @@ fun MealDetailBottomSheet(
                                     color = Color(0xFF374151)
                                 )
                                 Text(
-                                    "${totalCalories.toInt()} kcal",
+                                    "${totalCalories.fmt()} kcal",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = CalorieKoGreen
@@ -784,9 +784,9 @@ fun MealDetailBottomSheet(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                NutrientChip("Protein", "${totalProtein.toInt()}g")
-                                NutrientChip("Carbs", "${totalCarbs.toInt()}g")
-                                NutrientChip("Fat", "${totalFat.toInt()}g")
+                                NutrientChip("Protein", "${totalProtein.fmt()}g")
+                                NutrientChip("Carbs", "${totalCarbs.fmt()}g")
+                                NutrientChip("Fat", "${totalFat.fmt()}g")
                             }
 
                             Spacer(Modifier.height(8.dp))
@@ -871,3 +871,5 @@ fun MealDetailBottomSheet(
         }
     }
 }
+
+private fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)

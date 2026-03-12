@@ -902,12 +902,12 @@ private fun MealSummaryOverlay(
                                     Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.toInt()}g  •  ${dish.calories.toInt()} kcal",
+                                        "${dish.weightGrams.toInt()}g  •  ${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        "P: ${dish.protein.toInt()}g  C: ${dish.carbs.toInt()}g  F: ${dish.fat.toInt()}g",
+                                        "P: ${dish.protein.fmt()}g  C: ${dish.carbs.fmt()}g  F: ${dish.fat.fmt()}g",
                                         fontSize = 12.sp, color = Color(0xFF9CA3AF)
                                     )
                                 }
@@ -961,13 +961,13 @@ private fun MealSummaryOverlay(
                             Spacer(Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Calories", fontSize = 14.sp, color = Color(0xFF374151))
-                                Text("${totalCalories.toInt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
+                                Text("${totalCalories.fmt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
                             }
                             Spacer(Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                NutrientChip("Protein", "${totalProtein.toInt()}g")
-                                NutrientChip("Carbs", "${totalCarbs.toInt()}g")
-                                NutrientChip("Fat", "${totalFat.toInt()}g")
+                                NutrientChip("Protein", "${totalProtein.fmt()}g")
+                                NutrientChip("Carbs", "${totalCarbs.fmt()}g")
+                                NutrientChip("Fat", "${totalFat.fmt()}g")
                             }
 
                             Spacer(Modifier.height(8.dp))
@@ -1203,3 +1203,5 @@ private suspend fun persistMeal(
         } catch (_: Exception) { /* non-critical — data is safe in Room */ }
     }
 }
+
+private fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)

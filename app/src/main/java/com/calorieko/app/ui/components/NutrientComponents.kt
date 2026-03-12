@@ -40,20 +40,21 @@ fun ExpandableNutrientGrid(
     calcium: Float,
     iron: Float
 ) {
+    fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)
     val nutrients = listOf(
-        Triple("Fiber",               "${fiber.toInt()}g",              Color(0xFF10B981)),
-        Triple("Sugar",               "${sugar.toInt()}g",              Color(0xFFF59E0B)),
-        Triple("Saturated Fat",       "${saturatedFat.toInt()}g",       Color(0xFFEF4444)),
-        Triple("Polyunsat. Fat",      "${polyunsaturatedFat.toInt()}g", Color(0xFF6366F1)),
-        Triple("Monounsat. Fat",      "${monounsaturatedFat.toInt()}g", Color(0xFF8B5CF6)),
-        Triple("Trans Fat",           "${transFat.toInt()}g",           Color(0xFFDC2626)),
-        Triple("Cholesterol",         "${cholesterol.toInt()}mg",       Color(0xFFEC4899)),
-        Triple("Sodium",              "${sodium.toInt()}mg",            Color(0xFFF97316)),
-        Triple("Potassium",           "${potassium.toInt()}mg",         Color(0xFF14B8A6)),
-        Triple("Vitamin A",           "${vitaminA.toInt()}µg",          Color(0xFFEAB308)),
-        Triple("Vitamin C",           "${vitaminC.toInt()}mg",          Color(0xFF22C55E)),
-        Triple("Calcium",             "${calcium.toInt()}mg",           Color(0xFF0EA5E9)),
-        Triple("Iron",                "${iron.toInt()}mg",              Color(0xFF78716C))
+        Triple("Fiber",               "${fiber.fmt()}g",              Color(0xFF10B981)),
+        Triple("Sugar",               "${sugar.fmt()}g",              Color(0xFFF59E0B)),
+        Triple("Saturated Fat",       "${saturatedFat.fmt()}g",       Color(0xFFEF4444)),
+        Triple("Polyunsat. Fat",      "${polyunsaturatedFat.fmt()}g", Color(0xFF6366F1)),
+        Triple("Monounsat. Fat",      "${monounsaturatedFat.fmt()}g", Color(0xFF8B5CF6)),
+        Triple("Trans Fat",           "${transFat.fmt()}g",           Color(0xFFDC2626)),
+        Triple("Cholesterol",         "${cholesterol.fmt()}mg",       Color(0xFFEC4899)),
+        Triple("Sodium",              "${sodium.fmt()}mg",            Color(0xFFF97316)),
+        Triple("Potassium",           "${potassium.fmt()}mg",         Color(0xFF14B8A6)),
+        Triple("Vitamin A",           "${vitaminA.fmt()}µg",          Color(0xFFEAB308)),
+        Triple("Vitamin C",           "${vitaminC.fmt()}mg",          Color(0xFF22C55E)),
+        Triple("Calcium",             "${calcium.fmt()}mg",           Color(0xFF0EA5E9)),
+        Triple("Iron",                "${iron.fmt()}mg",              Color(0xFF78716C))
     )
 
     Column(
