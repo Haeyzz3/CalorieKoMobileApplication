@@ -14,6 +14,9 @@ data class NutritionalTarget(
     val targetFiber: Int,
     val targetSugar: Int,
     val targetSaturatedFat: Int,
+    val targetPolyunsaturatedFat: Int,
+    val targetMonounsaturatedFat: Int,
+    val targetTransFat: Int,
     val targetCholesterol: Int,
     val targetPotassium: Int,
     val targetVitaminA: Int,
@@ -99,7 +102,12 @@ class NutritionalValuesRepository(private val context: Context) {
         val targetFats = ((finalCalories * 0.25) / 9).toInt()
         val targetCarbs = ((finalCalories * 0.60) / 4).toInt()
         val targetSugar = ((finalCalories * 0.10) / 4).toInt()
+        
         val targetSatFat = ((finalCalories * 0.10) / 9).toInt()
+        val targetTransFat = ((finalCalories * 0.01) / 9).toInt()
+        val remainderFat = (targetFats - targetSatFat - targetTransFat).coerceAtLeast(0)
+        val targetPolyFat = remainderFat / 2
+        val targetMonoFat = remainderFat - targetPolyFat
 
         return NutritionalTarget(
             targetCalories = finalCalories,
@@ -110,6 +118,9 @@ class NutritionalValuesRepository(private val context: Context) {
             targetFiber = (rowFiber * scalingFactor).toInt(),
             targetSugar = targetSugar,
             targetSaturatedFat = targetSatFat,
+            targetPolyunsaturatedFat = targetPolyFat,
+            targetMonounsaturatedFat = targetMonoFat,
+            targetTransFat = targetTransFat,
             targetCholesterol = 300,
             targetPotassium = (rowPotassium * scalingFactor).toInt(),
             targetVitaminA = (rowVitaminA * scalingFactor).toInt(),
