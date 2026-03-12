@@ -10,7 +10,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
@@ -46,6 +48,9 @@ class BleScaleManager(private val context: Context) {
 
     private val _connectionState = MutableStateFlow<BleConnectionState>(BleConnectionState.Idle)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
+
+    private val _calibrationEvent = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    val calibrationEvent: SharedFlow<String> = _calibrationEvent
 
     private val bluetoothAdapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -185,6 +190,20 @@ class BleScaleManager(private val context: Context) {
                 gatt.writeDescriptor(descriptor)
             }
 
+            // Enable notifications on the command characteristic after a short delay to prevent write collisions
+            Handler(Looper.getMainLooper()).postDelayed({
+                gatt.setCharacteristicNotification(commandChar, true)
+                val cmdDescriptor = commandChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                if (cmdDescriptor != null) {
+                    cmdDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    try {
+                        gatt.writeDescriptor(cmdDescriptor)
+                    } catch (e: SecurityException) {
+                        Log.e(TAG, "Failed to write command descriptor: ${e.message}")
+                    }
+                }
+            }, 250)
+
             Log.d(TAG, "✅ Services validated and notifications enabled!")
             _connectionState.value = BleConnectionState.Connected
         }
@@ -193,12 +212,56 @@ class BleScaleManager(private val context: Context) {
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            if (characteristic.uuid == WEIGHT_CHAR_UUID) {
-                val weightStr = characteristic.getStringValue(0)
-                Log.d(TAG, "Weight received: $weightStr")
+            val strValue = characteristic.getStringValue(0) ?: ""
+            
+            if (strValue.trim() == "TARE_OK" || strValue.trim() == "CAL_OK") {
+                Log.d(TAG, "Calibration event received: $strValue on char ${characteristic.uuid}")
+                _calibrationEvent.tryEmit(strValue.trim())
+            } else if (characteristic.uuid == WEIGHT_CHAR_UUID) {
+                Log.d(TAG, "Weight received: $strValue")
                 // TODO: Update a StateFlow here so your UI can display the weight
+            } else if (characteristic.uuid == COMMAND_CHAR_UUID) {
+                Log.d(TAG, "Command response: $strValue")
             }
         }
+    }
+
+    // ─── Commands ───────────────────────────────────────────
+
+    fun sendTareCommand() {
+        val gatt = bluetoothGatt
+        if (gatt == null) {
+            Log.e(TAG, "Cannot send TARE: not connected")
+            return
+        }
+        val service = gatt.getService(SERVICE_UUID)
+        val commandChar = service?.getCharacteristic(COMMAND_CHAR_UUID)
+        if (commandChar == null) {
+            Log.e(TAG, "Cannot send TARE: characteristic not found")
+            return
+        }
+        
+        commandChar.value = "TARE".toByteArray()
+        gatt.writeCharacteristic(commandChar)
+        Log.d(TAG, "Sent TARE command")
+    }
+
+    fun sendCalibrateCommand(knownWeight: Int) {
+        val gatt = bluetoothGatt
+        if (gatt == null) {
+            Log.e(TAG, "Cannot send CAL: not connected")
+            return
+        }
+        val service = gatt.getService(SERVICE_UUID)
+        val commandChar = service?.getCharacteristic(COMMAND_CHAR_UUID)
+        if (commandChar == null) {
+            Log.e(TAG, "Cannot send CAL: characteristic not found")
+            return
+        }
+        
+        commandChar.value = "CAL:$knownWeight".toByteArray()
+        gatt.writeCharacteristic(commandChar)
+        Log.d(TAG, "Sent CAL:$knownWeight command")
     }
 
     // ─── Cleanup ────────────────────────────────────────────

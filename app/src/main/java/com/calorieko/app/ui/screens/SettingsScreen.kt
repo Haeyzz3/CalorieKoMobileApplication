@@ -24,10 +24,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
@@ -44,6 +46,7 @@ import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -55,6 +58,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +72,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ble.BleConnectionState
@@ -102,7 +107,9 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
 
     // Dialog States
 
-    var isCalibrating by remember { mutableStateOf(false) }
+    var showCalibrationWizard by remember { mutableStateOf(false) }
+    var calibrationStep by remember { mutableStateOf(CalibrationStep.INTRO) }
+    var knownWeightInput by remember { mutableStateOf("") }
 
     var showWipeConfirmDialog by remember { mutableStateOf(false) }
     var isWiping by remember { mutableStateOf(false) }
@@ -112,12 +119,9 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
 
     // Logic Handlers
     fun handleRecalibrate() {
-        scope.launch {
-            isCalibrating = true
-            delay(2000) // Simulate work
-            isCalibrating = false
-            snackbarHostState.showSnackbar("Scale recalibrated successfully!")
-        }
+        showCalibrationWizard = true
+        calibrationStep = CalibrationStep.INTRO
+        knownWeightInput = ""
     }
 
     fun handleWipeData() {
@@ -261,17 +265,22 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
                             Text("Recalibrate load cell for accuracy", fontSize = 12.sp, color = Color.Gray)
                         }
                         Button(
-                            onClick = { handleRecalibrate() },
-                            enabled = !isCalibrating,
+                            onClick = { 
+                                if (bleState !is BleConnectionState.Connected) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Device not connected. Proceeding with mocked calibration for testing.")
+                                    }
+                                }
+                                handleRecalibrate() 
+                            },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = CalorieKoGreen,
-                                disabledContainerColor = CalorieKoGreen.copy(alpha = 0.5f)
                             ),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             modifier = Modifier.height(36.dp)
                         ) {
-                            Text(if (isCalibrating) "Calibrating..." else "Recalibrate", fontSize = 12.sp)
+                            Text("Recalibrate", fontSize = 12.sp)
                         }
                     }
                 }
@@ -475,7 +484,135 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
                 textContentColor = Color(0xFF4B5563)
             )
         }
+
+        // Calibration Wizard Dialog
+        if (showCalibrationWizard) {
+            AlertDialog(
+                onDismissRequest = {
+                    // Prevent dismiss if loading
+                    if (calibrationStep != CalibrationStep.TARING && calibrationStep != CalibrationStep.CALCULATING) {
+                        showCalibrationWizard = false
+                    }
+                },
+                title = { Text("Scale Calibration", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        when (calibrationStep) {
+                            CalibrationStep.INTRO -> {
+                                Text("Step 1: Empty the scale completely. Ensure it is on a flat, hard surface.", color = Color(0xFF4B5563))
+                            }
+                            CalibrationStep.TARING -> {
+                                CircularProgressIndicator(color = CalorieKoGreen)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Zeroing scale...", color = Color(0xFF4B5563))
+                            }
+                            CalibrationStep.INPUT_WEIGHT -> {
+                                Text("Step 2: Place a known weight on the center of the scale.", color = Color(0xFF4B5563))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedTextField(
+                                    value = knownWeightInput,
+                                    onValueChange = { knownWeightInput = it },
+                                    label = { Text("Exact weight (grams)") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            CalibrationStep.CALCULATING -> {
+                                CircularProgressIndicator(color = CalorieKoGreen)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Calculating and saving calibration factor...", color = Color(0xFF4B5563))
+                            }
+                            CalibrationStep.SUCCESS -> {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Success",
+                                    tint = CalorieKoGreen,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Success! Your scale is perfectly calibrated.", fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563))
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    when (calibrationStep) {
+                        CalibrationStep.INTRO -> {
+                            Button(
+                                onClick = {
+                                    calibrationStep = CalibrationStep.TARING
+                                    // MOCK TARING
+                                    scope.launch {
+                                        delay(2000)
+                                        calibrationStep = CalibrationStep.INPUT_WEIGHT
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
+                            ) {
+                                Text("Zero Scale")
+                            }
+                        }
+                        CalibrationStep.INPUT_WEIGHT -> {
+                            Button(
+                                onClick = {
+                                    val weight = knownWeightInput.toIntOrNull()
+                                    if (weight != null && weight > 0) {
+                                        calibrationStep = CalibrationStep.CALCULATING
+                                        // MOCK CALCULATING
+                                        scope.launch {
+                                            delay(2000)
+                                            calibrationStep = CalibrationStep.SUCCESS
+                                            snackbarHostState.showSnackbar("Scale recalibrated successfully!")
+                                        }
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Please enter a valid weight in grams")
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
+                            ) {
+                                Text("Calibrate")
+                            }
+                        }
+                        CalibrationStep.SUCCESS -> {
+                            Button(
+                                onClick = { showCalibrationWizard = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
+                            ) {
+                                Text("Done")
+                            }
+                        }
+                        else -> {
+                            // Empty for loading states (TARING, CALCULATING)
+                        }
+                    }
+                },
+                dismissButton = {
+                    if (calibrationStep == CalibrationStep.INTRO || calibrationStep == CalibrationStep.INPUT_WEIGHT) {
+                        TextButton(onClick = { showCalibrationWizard = false }) {
+                            Text("Cancel", color = Color.Gray)
+                        }
+                    }
+                },
+                containerColor = Color.White,
+                titleContentColor = Color(0xFF1F2937),
+                textContentColor = Color(0xFF4B5563)
+            )
+        }
     }
+}
+
+enum class CalibrationStep {
+    INTRO,
+    TARING,
+    INPUT_WEIGHT,
+    CALCULATING,
+    SUCCESS
 }
 
 
