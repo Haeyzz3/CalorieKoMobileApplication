@@ -117,6 +117,27 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
     // --- ADD THIS NEW STATE ---
     var showLogOutConfirmDialog by remember { mutableStateOf(false) }
 
+    // Observe calibration events
+    LaunchedEffect(bleScaleManager) {
+        bleScaleManager.calibrationEvent.collect { event ->
+            when (event) {
+                "TARE_OK" -> {
+                    if (calibrationStep == CalibrationStep.TARING) {
+                        calibrationStep = CalibrationStep.INPUT_WEIGHT
+                    }
+                }
+                "CAL_OK" -> {
+                    if (calibrationStep == CalibrationStep.CALCULATING) {
+                        calibrationStep = CalibrationStep.SUCCESS
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Scale recalibrated successfully!")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Logic Handlers
     fun handleRecalibrate() {
         showCalibrationWizard = true
@@ -545,11 +566,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
                             Button(
                                 onClick = {
                                     calibrationStep = CalibrationStep.TARING
-                                    // MOCK TARING
-                                    scope.launch {
-                                        delay(2000)
-                                        calibrationStep = CalibrationStep.INPUT_WEIGHT
-                                    }
+                                    bleScaleManager.sendTareCommand()
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
                             ) {
@@ -562,12 +579,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManage
                                     val weight = knownWeightInput.toIntOrNull()
                                     if (weight != null && weight > 0) {
                                         calibrationStep = CalibrationStep.CALCULATING
-                                        // MOCK CALCULATING
-                                        scope.launch {
-                                            delay(2000)
-                                            calibrationStep = CalibrationStep.SUCCESS
-                                            snackbarHostState.showSnackbar("Scale recalibrated successfully!")
-                                        }
+                                        bleScaleManager.sendCalibrateCommand(weight)
                                     } else {
                                         scope.launch {
                                             snackbarHostState.showSnackbar("Please enter a valid weight in grams")
