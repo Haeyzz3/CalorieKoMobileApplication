@@ -131,6 +131,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.mapbox.android.gestures.MoveGestureDetector
+import com.mapbox.maps.plugin.gestures.OnMoveListener
+import com.mapbox.maps.plugin.gestures.gestures
 
 // --- Data Models ---
 data class ActivityItem(val id: String, val name: String, val category: String, val met: Double)
@@ -593,6 +596,13 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                         circleManager = annotations.createCircleAnnotationManager()
                         // Hide the scale bar (ft ruler) from the map
                         scalebar.enabled = false
+                        this.gestures.addOnMoveListener(object : OnMoveListener {
+                            override fun onMoveBegin(detector: MoveGestureDetector) {
+                                followUser = false
+                            }
+                            override fun onMove(detector: MoveGestureDetector): Boolean = false
+                            override fun onMoveEnd(detector: MoveGestureDetector) {}
+                        })
                         mapViewRef.value = this
                     }
                 },
@@ -793,7 +803,23 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                             if (followUser) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f),
                             CircleShape
                         )
-                        .clickable { followUser = true },
+                        .clickable { 
+                            followUser = true 
+                            // Force snap instantly even if currentPoint hasn't updated yet!
+                            currentPoint?.let { point ->
+                                val cameraBuilder = CameraOptions.Builder().center(point)
+                                if (isCompassMode && lastLocation?.hasBearing() == true) {
+                                    cameraBuilder.bearing(lastLocation!!.bearing.toDouble())
+                                    cameraBuilder.pitch(60.0).zoom(17.5)
+                                } else {
+                                    cameraBuilder.bearing(0.0).pitch(0.0).zoom(16.0)
+                                }
+                                mapViewRef.value?.camera?.easeTo(
+                                    cameraBuilder.build(),
+                                    MapAnimationOptions.Builder().duration(800L).build()
+                                )
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
