@@ -1,16 +1,14 @@
 package com.calorieko.app.ui.screens
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -63,7 +61,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,28 +79,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
+import com.calorieko.app.data.remote.SyncRepository
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
-import com.calorieko.app.data.remote.SyncRepository
-import com.calorieko.app.data.model.MealLogWithItems
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -208,16 +201,15 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var currentDetectedFood by remember { mutableStateOf<com.calorieko.app.data.model.FoodItem?>(null) }
     
     LaunchedEffect(topLabel) {
-        if (topLabel.isNotEmpty() && topLabel != "negative") {
-            currentDetectedFood = withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(topLabel) }
+        currentDetectedFood = if (topLabel.isNotEmpty() && topLabel != "negative") {
+            withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(topLabel) }
         } else {
-            currentDetectedFood = null
+            null
         }
     }
 
     // Inline unsupported-dish banner state (replaces intrusive error dialog)
     var showUnsupportedBanner by remember { mutableStateOf(false) }
-    var bannerCooldownUntil by remember { mutableLongStateOf(0L) }
 
     var isProcessing by remember { mutableStateOf(false) }
     var showCandidateSelection by remember { mutableStateOf(false) }
@@ -278,7 +270,6 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
         if (top1 != null && top1.first == "negative" && top1.second >= CONFIDENCE_THRESHOLD) {
             showUnsupportedBanner = true
-            bannerCooldownUntil = System.currentTimeMillis() + 20_000L
             return
         }
 
@@ -288,7 +279,6 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
             if (food1 == null) {
                 showUnsupportedBanner = true
-                bannerCooldownUntil = System.currentTimeMillis() + 20_000L
                 isProcessing = false
                 return@launch
             }
@@ -298,7 +288,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 pendingConfidence = top1.second
                 pendingCaloriesEst = food1.caloriesPer100g * weight / 100f
                 phase = LogMealPhase.DISH_READY
-            } else if (top2 != null && (top1.second - top2.second) <= 0.20f && top1.second > 0.10f) {
+            } else if (top2 != null && (top1.second - top2.second) <= 0.30f && top1.second > 0.10f) {
                 val food2 = withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(top2.first) }
                 if (food2 != null) {
                     candidate1 = Pair(food1, top1.second)
@@ -312,7 +302,6 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 }
             } else {
                 showUnsupportedBanner = true
-                bannerCooldownUntil = System.currentTimeMillis() + 20_000L
             }
             isProcessing = false
         }
@@ -1280,7 +1269,7 @@ private suspend fun persistMeal(
     db.dailyNutritionSummaryDao().upsertSummary(updated)
 
     // ── 5. Sync to backend (fire-and-forget) ──
-    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+    CoroutineScope(Dispatchers.IO).launch {
         try {
             val syncRepo = SyncRepository(
                 userDao = db.userDao(),
