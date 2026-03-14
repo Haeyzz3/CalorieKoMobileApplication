@@ -102,8 +102,8 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // --- 1. Progress Bar (66%) ---
-        val progress by animateFloatAsState(targetValue = 0.66f, label = "progress")
+        // --- 1. Progress Bar (75%) ---
+        val progress by animateFloatAsState(targetValue = 0.75f, label = "progress")
 
         Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0xFFF1F5F9))) {
             Box(
@@ -149,7 +149,7 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
 
                 Column {
                     Text(
-                        text = "STEP 2 OF 3",
+                        text = "STEP 3 OF 4",
                         fontSize = 12.sp,
                         color = Color.Gray,
                         fontWeight = FontWeight.Bold,

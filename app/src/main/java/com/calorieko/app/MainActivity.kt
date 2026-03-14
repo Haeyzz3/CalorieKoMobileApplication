@@ -170,13 +170,13 @@ fun AppNavigation() {
                 }
 
                 // Navigate to the signup screen instead of the summary
-                navController.navigate("signUp")
+                navController.navigate("register")
             })
         }
 
         // 7. NEW: Sign Up Screen (After Goals)
-        composable("signUp") {
-            SignUpScreen(
+        composable("register") {
+            RegisterScreen(
                 onSignUpSuccess = {
                     // --- 1. Metric calculations ---
                     val targets = nutritionalRepo.getTargets(
