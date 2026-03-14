@@ -201,6 +201,7 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
 
     // AI results from the latest frame
+    var latestResults by remember { mutableStateOf<List<Pair<String, Float>>>(emptyList()) }
     var topLabel by remember { mutableStateOf("") }
     var topConfidence by remember { mutableFloatStateOf(0f) }
 
@@ -218,9 +219,10 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var showUnsupportedBanner by remember { mutableStateOf(false) }
     var bannerCooldownUntil by remember { mutableLongStateOf(0L) }
 
-    // Stable prediction tracking: require 2s of consistent top-1 label
-    var stableLabel by remember { mutableStateOf("") }
-    var stableSince by remember { mutableLongStateOf(0L) }
+    var isProcessing by remember { mutableStateOf(false) }
+    var showCandidateSelection by remember { mutableStateOf(false) }
+    var candidate1 by remember { mutableStateOf<Pair<com.calorieko.app.data.model.FoodItem, Float>?>(null) }
+    var candidate2 by remember { mutableStateOf<Pair<com.calorieko.app.data.model.FoodItem, Float>?>(null) }
 
     // Dish being confirmed (DISH_READY phase)
     var pendingDishName by remember { mutableStateOf("") }
@@ -267,32 +269,52 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
         }
     }
 
-    // ── Auto-transition logic ──
-    // When SCANNING: if weight is stable AND AI confidence ≥ threshold:
-    //   • "negative" → show inline banner (not a dialog), with 20s cooldown
-    //   • supported dish → wait for 2s of consistent prediction, then → DISH_READY
-    LaunchedEffect(weightStable, topLabel, topConfidence, phase, stableSince) {
-        if (phase == LogMealPhase.SCANNING && weightStable && weight > 0) {
-            if (topLabel == "negative" && topConfidence >= CONFIDENCE_THRESHOLD) {
-                // Show non-intrusive banner instead of blocking dialog
-                val now = System.currentTimeMillis()
-                if (!showUnsupportedBanner && now >= bannerCooldownUntil) {
-                    showUnsupportedBanner = true
-                    bannerCooldownUntil = now + 20_000L
-                }
-            } else if (currentDetectedFood != null && topConfidence >= CONFIDENCE_THRESHOLD) {
-                // Require 2 seconds of consistent top-1 prediction
-                val elapsed = System.currentTimeMillis() - stableSince
-                if (elapsed < 2000) return@LaunchedEffect
+    fun processCapture() {
+        val results = latestResults
+        if (results.isEmpty() || !weightStable || weight <= 0) return
 
-                val foodName = currentDetectedFood?.nameEn ?: return@LaunchedEffect
-                pendingDishName = foodName
-                pendingConfidence = topConfidence
-                // Quick calorie estimate
-                val food = currentDetectedFood
-                pendingCaloriesEst = if (food != null) food.caloriesPer100g * weight / 100f else 0f
-                phase = LogMealPhase.DISH_READY
+        val top1 = results.getOrNull(0)
+        val top2 = results.getOrNull(1)
+
+        if (top1 != null && top1.first == "negative" && top1.second >= CONFIDENCE_THRESHOLD) {
+            showUnsupportedBanner = true
+            bannerCooldownUntil = System.currentTimeMillis() + 20_000L
+            return
+        }
+
+        scope.launch {
+            isProcessing = true
+            val food1 = top1?.let { withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(it.first) } }
+
+            if (food1 == null) {
+                showUnsupportedBanner = true
+                bannerCooldownUntil = System.currentTimeMillis() + 20_000L
+                isProcessing = false
+                return@launch
             }
+
+            if (top1.second >= 0.80f) {
+                pendingDishName = food1.nameEn
+                pendingConfidence = top1.second
+                pendingCaloriesEst = food1.caloriesPer100g * weight / 100f
+                phase = LogMealPhase.DISH_READY
+            } else if (top2 != null && (top1.second - top2.second) <= 0.20f && top1.second > 0.10f) {
+                val food2 = withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(top2.first) }
+                if (food2 != null) {
+                    candidate1 = Pair(food1, top1.second)
+                    candidate2 = Pair(food2, top2.second)
+                    showCandidateSelection = true
+                } else {
+                    pendingDishName = food1.nameEn
+                    pendingConfidence = top1.second
+                    pendingCaloriesEst = food1.caloriesPer100g * weight / 100f
+                    phase = LogMealPhase.DISH_READY
+                }
+            } else {
+                showUnsupportedBanner = true
+                bannerCooldownUntil = System.currentTimeMillis() + 20_000L
+            }
+            isProcessing = false
         }
     }
 
@@ -403,14 +425,10 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
             classifier = classifier,
             flashEnabled = flashEnabled,
             onFrameAnalyzed = { results ->
-                if (results.isNotEmpty() && phase == LogMealPhase.SCANNING) {
+                if (results.isNotEmpty() && phase == LogMealPhase.SCANNING && !isProcessing && !showCandidateSelection) {
+                    latestResults = results
                     topLabel = results[0].first
                     topConfidence = results[0].second
-                    // Track label stability for the 2-second consistency check
-                    if (results[0].first != stableLabel) {
-                        stableLabel = results[0].first
-                        stableSince = System.currentTimeMillis()
-                    }
                 }
             }
         )
@@ -506,10 +524,6 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
             }
         }
 
-        // 4. Scanner animation (while scanning)
-        if (phase == LogMealPhase.SCANNING && !weightStable) {
-            ScannerAnimation()
-        }
 
         // 5. Framing guide
         Box(
@@ -585,24 +599,39 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
             }
 
-            // Status text (while scanning)
+            // Capture Button (while scanning)
             if (phase == LogMealPhase.SCANNING) {
-                val displayDishName = currentDetectedFood?.nameEn ?: topLabel
-                val isConfirming = currentDetectedFood != null
-                        && topConfidence >= CONFIDENCE_THRESHOLD
-                        && weightStable && weight > 0
+                val isReady = weightStable && weight > 0 && latestResults.isNotEmpty()
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color.White.copy(alpha = 0.3f), CircleShape)
+                            .clickable(enabled = isReady && !isProcessing) { processCapture() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(if (isReady && !isProcessing) Color.White else Color.Gray, CircleShape)
+                        )
+                    }
+                }
+                
                 val statusText = when {
+                    isProcessing -> "Processing..."
                     !weightStable && weight == 0 -> "Waiting for scale data..."
-                    !weightStable               -> "Stabilizing weight..."
-                    isConfirming                -> "Confirming: $displayDishName..."
-                    topConfidence < CONFIDENCE_THRESHOLD -> "AI is analyzing the dish..."
-                    else                                 -> "Preparing..."
+                    !weightStable -> "Stabilizing weight..."
+                    else -> "Ready to capture"
                 }
                 Text(
                     statusText,
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp)
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp, bottom = 12.dp)
                 )
             }
 
@@ -648,24 +677,49 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                             )
                         }
                         // Reset for next scan
+                        latestResults = emptyList()
                         topLabel = ""
                         topConfidence = 0f
-                        stableLabel = ""
-                        stableSince = 0L
+                        candidate1 = null
+                        candidate2 = null
+                        showCandidateSelection = false
                         phase = LogMealPhase.SCANNING
                     }
                 },
                 onCancel = {
+                    latestResults = emptyList()
                     topLabel = ""
                     topConfidence = 0f
-                    stableLabel = ""
-                    stableSince = 0L
+                    candidate1 = null
+                    candidate2 = null
+                    showCandidateSelection = false
                     phase = LogMealPhase.SCANNING
                 }
             )
         }
 
-        // 8. Inline unsupported-dish banner (replaces the old blocking ErrorOverlay)
+        // 8. Candidate Selection UI
+        if (showCandidateSelection && candidate1 != null && candidate2 != null) {
+            CandidateSelectionSheet(
+                candidate1 = candidate1!!,
+                candidate2 = candidate2!!,
+                onSelect = { food, conf ->
+                    pendingDishName = food.nameEn
+                    pendingConfidence = conf
+                    pendingCaloriesEst = food.caloriesPer100g * weight / 100f
+                    showCandidateSelection = false
+                    phase = LogMealPhase.DISH_READY
+                },
+                onCancel = { 
+                    showCandidateSelection = false
+                    latestResults = emptyList()
+                    topLabel = ""
+                    topConfidence = 0f 
+                }
+            )
+        }
+
+        // 9. Inline unsupported-dish banner (replaces the old blocking ErrorOverlay)
         AnimatedVisibility(
             visible = showUnsupportedBanner,
             enter = slideInVertically { -it },
@@ -700,6 +754,85 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+            }
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────
+// Candidate Selection Bottom Sheet
+// ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun CandidateSelectionSheet(
+    candidate1: Pair<com.calorieko.app.data.model.FoodItem, Float>,
+    candidate2: Pair<com.calorieko.app.data.model.FoodItem, Float>,
+    onSelect: (com.calorieko.app.data.model.FoodItem, Float) -> Unit,
+    onCancel: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.4f))
+                .clickable(enabled = false) {}
+        )
+
+        Card(
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Box(
+                    Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(Color(0xFFE5E7EB), RoundedCornerShape(50))
+                        .align(Alignment.CenterHorizontally)
+                )
+                Spacer(Modifier.height(16.dp))
+                
+                Text(
+                    "Which dish is this?",
+                    fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "The AI is not absolutely certain. Please select the correct dish from the top 2 matches.",
+                    fontSize = 14.sp, color = Color(0xFF6B7280), textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onSelect(candidate1.first, candidate1.second) },
+                    colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Text("${candidate1.first.nameEn} (${(candidate1.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = { onSelect(candidate2.first, candidate2.second) },
+                    colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Text("${candidate2.first.nameEn} (${(candidate2.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3F4F6), contentColor = Color(0xFF374151)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) { Text("Try Again") }
             }
         }
     }
@@ -1058,44 +1191,7 @@ private fun MealSummaryOverlay(
 // com.calorieko.app.ui.components.NutrientComponents
 
 
-// ───────────────────────────────────────────────────────────────
-// Scanner animation (retained from original)
-// ───────────────────────────────────────────────────────────────
 
-@Composable
-fun ScannerAnimation() {
-    val infiniteTransition = rememberInfiniteTransition(label = "scan")
-    val yPercent by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scanY"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val y = size.height * yPercent
-        drawLine(
-            brush = Brush.horizontalGradient(
-                listOf(Color.Transparent, CalorieKoGreen, Color.Transparent)
-            ),
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
-            strokeWidth = 4.dp.toPx()
-        )
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(CalorieKoGreen.copy(alpha = 0f), CalorieKoGreen.copy(alpha = 0.2f)),
-                startY = y - 50f,
-                endY = y
-            ),
-            topLeft = Offset(0f, y - 50f),
-            size = androidx.compose.ui.geometry.Size(size.width, 50f)
-        )
-    }
-}
 
 // ───────────────────────────────────────────────────────────────
 // Persistence helper
