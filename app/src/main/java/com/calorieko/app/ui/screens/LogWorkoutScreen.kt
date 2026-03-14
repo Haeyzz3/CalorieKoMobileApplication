@@ -388,7 +388,10 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
 
     // Tracking Math
     var timeSeconds by remember { mutableLongStateOf(0L) }
+    var movingTimeSeconds by remember { mutableLongStateOf(0L) }
+    var lastMovementTimeMs by remember { mutableLongStateOf(0L) }
     var distanceKm by remember { mutableDoubleStateOf(0.0) }
+    var currentPace by remember { mutableDoubleStateOf(0.0) }
     var isSaving by remember { mutableStateOf(false) }
 
     // Map Settings
@@ -408,28 +411,78 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (hasLocationPermission) { isTracking = true; isPaused = false }
+        if (hasLocationPermission) { 
+            isTracking = true; isPaused = false
+            pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L; lastLocation = null; movingTimeSeconds = 0L; lastMovementTimeMs = System.currentTimeMillis()
+            currentPace = 0.0
+        }
     }
 
     LaunchedEffect(isTracking, isPaused) {
-        if (isTracking && !isPaused) { while (true) { delay(1000); timeSeconds++ } }
+        if (isTracking && !isPaused) { 
+            while (true) { 
+                delay(1000)
+                timeSeconds++ 
+                // Auto-pause moving timer if no valid distance change recently (12 seconds to allow for slow walkers crossing 6 meters)
+                if (System.currentTimeMillis() - lastMovementTimeMs < 12000L) {
+                    movingTimeSeconds++
+                }
+            } 
+        }
     }
 
     val locationCallback = remember {
         object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
-                    if (location.accuracy < 25f) {
-                        val newPoint = Point.fromLngLat(location.longitude, location.latitude)
-                        currentPoint = newPoint
+                    // Update current point for map display smoothly, if not completely crazy
+                    if (location.accuracy < 50f) {
+                        currentPoint = Point.fromLngLat(location.longitude, location.latitude)
+                    }
 
-                        if (isTracking && !isPaused) {
-                            pathPoints = pathPoints + newPoint
-                            if (lastLocation != null) {
-                                distanceKm += lastLocation!!.distanceTo(location) / 1000.0
+                    if (isTracking && !isPaused) {
+                        // 1. Core Accuracy Check
+                        if (location.accuracy > 30f) continue
+
+                        if (lastLocation != null) {
+                            val distanceToUpdate = lastLocation!!.distanceTo(location)
+                            val timeDeltaSec = (location.time - lastLocation!!.time) / 1000.0
+                            val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
+                            
+                            // 3. Distance, Speed & Teleportation Filter
+                            // MUST travel > 6.0 meters from last anchor AND have a realistic movement speed (> 0.3 m/s).
+                            // This completely neutralizes stationary desk-drift that inflates total distance.
+                            if (distanceToUpdate > 6.0f && calculatedSpeed > 0.3) {
+                                // 15m/s is 54km/h max limit
+                                if (calculatedSpeed < 15.0) {
+                                    // Walk/Run valid move
+                                    distanceKm += distanceToUpdate / 1000.0
+                                    lastMovementTimeMs = System.currentTimeMillis() // Keeps moving timer alive!
+                                    
+                                    val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                                    pathPoints = pathPoints + newPoint
+                                    lastLocation = location
+
+                                    // Safely update pace ONLY when actually moving. This permanently stops 
+                                    // the pace from wildly ticking up/down on the UI while stationary.
+                                    if (distanceKm > 0.01) {
+                                        currentPace = (movingTimeSeconds / 60.0) / distanceKm
+                                    }
+                                } else if (calculatedSpeed >= 15.0) {
+                                    // TELEPORT detected (Massive GPS spike/glitch) !
+                                    // We do NOT add this distance to totalKm, because it's fake.
+                                    val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                                    pathPoints = pathPoints + newPoint
+                                    lastLocation = location
+                                }
                             }
+                        } else {
+                            // First tracking anchor point
+                            val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                            pathPoints = pathPoints + newPoint
+                            lastLocation = location
+                            lastMovementTimeMs = System.currentTimeMillis()
                         }
-                        lastLocation = location
                     }
                 }
             }
@@ -446,12 +499,18 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
         onDispose { fusedLocationClient.removeLocationUpdates(locationCallback) }
     }
 
-    val formatTime = { seconds: Long -> "%02d:%02d:%02d".format(seconds / 3600, (seconds % 3600) / 60, seconds % 60) }
+    val formatTime = { seconds: Long -> 
+        if (seconds < 3600) {
+            "%02d:%02d".format(seconds / 60, seconds % 60)
+        } else {
+            "%02d:%02d:%02d".format(seconds / 3600, (seconds % 3600) / 60, seconds % 60) 
+        }
+    }
 
-    // Smart Calorie calculation using MET formulas based on selected activity
-    val hours = timeSeconds / 3600.0
-    val caloriesBurned = if (timeSeconds > 0) (selectedActivity.met * userWeight * hours).toInt() else 0
-    val pace = if (distanceKm > 0) ((timeSeconds / 60.0) / distanceKm) else 0.0
+    // Smart Calorie calculation using MET formulas based on selected activity (uses moving time to stop stationary calorie bloat)
+    val hours = movingTimeSeconds / 3600.0
+    val caloriesBurned = if (movingTimeSeconds > 0) (selectedActivity.met * userWeight * hours).toInt() else 0
+    // "pace" logic is now handled uniquely inside currentPace to freeze it during stops!
 
     if (showSummary) {
         // --- SUMMARY SCREEN ---
@@ -465,7 +524,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Distance", color = Color.Gray, fontSize = 12.sp) }; Text(String.format(Locale.US, "%.2f", distanceKm), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("kilometers", color = Color.Gray, fontSize = 12.sp) } }
-                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.AutoMirrored.Filled.DirectionsBike, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Avg Pace", color = Color.Gray, fontSize = 12.sp) }; val paceMinutes = pace.toInt(); val paceSeconds = ((pace - paceMinutes) * 60).toInt(); Text(String.format(Locale.US, "%d:%02d", paceMinutes, paceSeconds), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("min/km", color = Color.Gray, fontSize = 12.sp) } }
+                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.AutoMirrored.Filled.DirectionsBike, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Avg Pace", color = Color.Gray, fontSize = 12.sp) }; val validPace = currentPace > 0 && currentPace < 60; val paceMinutes = if (validPace) currentPace.toInt() else 0; val paceSeconds = if (validPace) ((currentPace - paceMinutes) * 60).toInt() else 0; Text(if (validPace) String.format(Locale.US, "%d:%02d", paceMinutes, paceSeconds) else "-:--", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("min/km", color = Color.Gray, fontSize = 12.sp) } }
             }
             Spacer(modifier = Modifier.height(32.dp))
             Button(
@@ -736,38 +795,40 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
             ) {
-                // Stats card
+                // Header Banner (Yellow when stopped, dark when running)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            Color(0xFF1E1E30),
+                            if (isTracking && isPaused) Color(0xFFFFC107) else Color(0xFF222233),
                             RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                         )
-                        .padding(top = 8.dp)
+                        .padding(top = 10.dp, bottom = 12.dp)
                 ) {
-                    // Drag handle
                     Box(
                         modifier = Modifier
                             .width(40.dp)
                             .height(4.dp)
-                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                            .background(if (isTracking && isPaused) Color.Black.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
                             .align(Alignment.CenterHorizontally)
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // Activity name header
                     Text(
-                        text = selectedActivity.name,
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
+                        text = if (isTracking && isPaused) "Stopped" else selectedActivity.name,
+                        color = if (isTracking && isPaused) Color.Black else Color.White,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                // Stats card body
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF16162A))
+                        .padding(top = 16.dp)
+                ) {
                     // Stats row
                     Row(
                         modifier = Modifier
@@ -789,9 +850,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                         // Avg Pace
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = if (pace > 0) {
-                                    val pMin = pace.toInt()
-                                    val pSec = ((pace - pMin) * 60).toInt()
+                                text = if (currentPace > 0 && currentPace < 60) {
+                                    val pMin = currentPace.toInt()
+                                    val pSec = ((currentPace - pMin) * 60).toInt()
                                     String.format(Locale.US, "%d:%02d", pMin, pSec)
                                 } else "-:--",
                                 color = Color.White,
@@ -799,7 +860,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                                 fontSize = 24.sp
                             )
                             Text(
-                                "Avg. pace (/km)",
+                                if (isTracking && !isPaused) "Split avg. pace (/km)" else "Avg. pace (/km)",
                                 color = Color.White.copy(alpha = 0.5f),
                                 fontSize = 12.sp
                             )
@@ -820,17 +881,6 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Drag handle for bottom section
-                    Box(
-                        modifier = Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(2.dp))
-                            .align(Alignment.CenterHorizontally)
-                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -898,7 +948,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                                 onClick = {
                                     if (hasLocationPermission) {
                                         isTracking = true; isPaused = false
-                                        pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L
+                                        pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L; lastLocation = null
                                     } else {
                                         permissionLauncher.launch(
                                             arrayOf(
