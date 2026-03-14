@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -398,6 +399,11 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     var isSaving by remember { mutableStateOf(false) }
     var isMoving by remember { mutableStateOf(false) }
 
+    // Save Activity State
+    var activityTitle by remember { mutableStateOf("") }
+    var privateNotes by remember { mutableStateOf("") }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
     // Map Settings
     var mapType by remember { mutableStateOf("Dark") } // Dark, Standard, Terrain
     var isCompassMode by remember { mutableStateOf(false) } // False = Center/Birds Eye, True = Forward Rotation
@@ -428,8 +434,8 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                 delay(1000)
                 timeSeconds++ 
                 
-                // Auto-pause timer if no new location received from OS in 5 seconds
-                if (System.currentTimeMillis() - lastMovementTimeMs > 5000L) {
+                // Auto-pause timer if no new location received from OS in 3.5 seconds
+                if (System.currentTimeMillis() - lastMovementTimeMs > 3500L) {
                     isMoving = false
                 }
                 
@@ -457,15 +463,33 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                             val distanceToUpdate = lastLocation!!.distanceTo(location)
                             val timeDeltaSec = (location.time - lastLocation!!.time) / 1000.0
                             val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
+                            val physicalSpeed = if (location.hasSpeed()) location.speed else 0.0f
                             
+                            // Hardware Floor: If physical speed is basically zero, we are definitely NOT moving.
+                            if (physicalSpeed < 0.25f) {
+                                isMoving = false
+                            }
+
+                            // --- SHAKE & JITTER FILTER (The Strava Logic) ---
+                            // 1. Accuracy Gate: If the coordinate jump is smaller than the current margin of error, it's jitter.
+                            val isAccurateEnough = distanceToUpdate > (location.accuracy * 0.5f)
+                            
+                            // 2. Velocity Harmony: If coordinates jump but the physical sensor says we are slow, it's a 'shake' jump.
+                            // If calculated speed is 3x higher than what the physical sensors detect, it's likely a signal glitch/shake.
+                            val isConsistentMotion = if (physicalSpeed > 0.5f) {
+                                calculatedSpeed < (physicalSpeed * 3.0) 
+                            } else {
+                                calculatedSpeed < 1.0 // If walking extremely slow, don't allow jumps > 1m/s
+                            }
+
                             // 2. Distance Filter
-                            // Minimum 1.5 meters to verify travel and ignore post-stop GPS overshoot.
-                            if (distanceToUpdate >= 1.5f) {
-                                if (calculatedSpeed < 12.0) { // Max ~43 km/h
+                            // Minimum 3.5 meters + Accuracy check to verify travel.
+                            if (distanceToUpdate >= 3.5f && isAccurateEnough && isConsistentMotion) {
+                                if (calculatedSpeed < 12.0) { // Max ~43 km/h sanity check
+                                    
                                     // VERY SLOW DRIFT CHECK:
-                                    // If we moved 2 meters but it took 10+ seconds, the speed is < 0.2 m/s. 
-                                    // This is slow "GPS wandering" while you are standing still, NOT a human walking.
-                                    if (calculatedSpeed > 0.25) { 
+                                    // Protects against 10-second signal wander.
+                                    if (calculatedSpeed > 0.45 || physicalSpeed > 0.5f) { 
                                         isMoving = true
                                         distanceKm += distanceToUpdate / 1000.0
                                         lastMovementTimeMs = System.currentTimeMillis()
@@ -474,20 +498,15 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                                         pathPoints = pathPoints + newPoint
                                         lastLocation = location
 
-                                        if (distanceKm > 0.01) {
+                                        if (distanceKm > 0.05) {
                                             currentPace = (movingTimeSeconds / 60.0) / distanceKm
                                         }
                                     } else {
-                                        // Speed is < 0.25 m/s. This is long-term stationary drift.
-                                        // We silently update the anchor to reset the drift circle, but we DO NOT add fake distance.
-                                        val newPoint = Point.fromLngLat(location.longitude, location.latitude)
-                                        pathPoints = pathPoints + newPoint
+                                        // Drift or Shake transition
                                         lastLocation = location
                                     }
                                 } else {
-                                    // Teleport detected (massive jump). Don't add fake distance.
-                                    val newPoint = Point.fromLngLat(location.longitude, location.latitude)
-                                    pathPoints = pathPoints + newPoint
+                                    // Massive jump/Teleport. Reset to avoid line-stretching but don't add distance.
                                     lastLocation = location
                                 }
                             }
@@ -532,31 +551,259 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     // "pace" logic is now handled uniquely inside currentPace to freeze it during stops!
 
     if (showSummary) {
-        // --- SUMMARY SCREEN ---
-        Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Box(modifier = Modifier.size(80.dp).background(Color(0xFFDCFCE7), CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(40.dp)) }
-            Spacer(modifier = Modifier.height(24.dp)); Text("${selectedActivity.name} Complete!", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("Great job on your outdoor workout", color = Color.Gray); Spacer(modifier = Modifier.height(32.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = CalorieKoOrange), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalFireDepartment, null, tint = Color.White, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Calories", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp) }; Text("$caloriesBurned", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White) } }
-                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Timer, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Duration", color = Color.Gray, fontSize = 12.sp) }; Text(formatTime(timeSeconds), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) } }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Distance", color = Color.Gray, fontSize = 12.sp) }; Text(String.format(Locale.US, "%.2f", distanceKm), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("kilometers", color = Color.Gray, fontSize = 12.sp) } }
-                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.AutoMirrored.Filled.DirectionsBike, null, tint = Color.Gray, modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)); Text("Avg Pace", color = Color.Gray, fontSize = 12.sp) }; val validPace = currentPace > 0 && currentPace < 60; val paceMinutes = if (validPace) currentPace.toInt() else 0; val paceSeconds = if (validPace) ((currentPace - paceMinutes) * 60).toInt() else 0; Text(if (validPace) String.format(Locale.US, "%d:%02d", paceMinutes, paceSeconds) else "-:--", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)); Text("min/km", color = Color.Gray, fontSize = 12.sp) } }
-            }
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                // UPDATE THIS LINE: Removed "Outdoor " prefix
-                onClick = { isSaving = true; onSave(selectedActivity.name, caloriesBurned, formatTime(timeSeconds)) },
-                enabled = !isSaving,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
-                shape = RoundedCornerShape(12.dp)
+        // --- STRAVA-STYLE SAVE ACTIVITY SCREEN ---
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF121212)) // Deep black background
+        ) {
+            // Header Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp))
-                Text(text = if (isSaving) "Saving..." else "Save to Dashboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Resume",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    modifier = Modifier.clickable { showSummary = false; isPaused = true }
+                )
+                Text(
+                    text = "Save Activity",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(48.dp)) // To center title
             }
+
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Title Field
+                    OutlinedTextField(
+                        value = activityTitle,
+                        onValueChange = { activityTitle = it },
+                        placeholder = { Text("Activity Title", color = Color.Gray) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            unfocusedBorderColor = Color(0xFF2A2A2A),
+                            focusedBorderColor = CalorieKoOrange,
+                            focusedContainerColor = Color(0xFF1E1E1E),
+                            unfocusedContainerColor = Color(0xFF1E1E1E)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        singleLine = true
+                    )
+                }
+
+                item {
+                    // Sport Type Dropdown (Static for now matching pic)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF1E1E1E),
+                        border = BorderStroke(1.dp, Color(0xFF2A2A2A))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.DirectionsRun, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(selectedActivity.name, color = Color.White)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.Search, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                item {
+                    // Map Preview & Photos placeholder
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(140.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Map Preview Placeholder
+                        Box(
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .fillMaxHeight()
+                                .background(Color(0xFF2A2A2A), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+                                Icon(Icons.Default.Landscape, null, tint = Color.Gray, modifier = Modifier.size(32.dp))
+                                Text("Map View", color = Color.Gray, fontSize = 12.sp)
+                            }
+                        }
+
+                        // Add Photos Box
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(Color(0xFF2A2A2A), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Search, null, tint = Color.Gray, modifier = Modifier.size(24.dp))
+                                Text("Add Photos", color = Color.Gray, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    // Change Map Type Button
+                    Button(
+                        onClick = { /* handled by map settings */ },
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, CalorieKoOrange),
+                        shape = RoundedCornerShape(22.dp)
+                    ) {
+                        Text("Change Map Type", color = CalorieKoOrange, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                item {
+                    // Activity Tag Dropdown
+                    OutlinedTextField(
+                        value = "Activity Tag",
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = { Icon(Icons.Default.LocalFireDepartment, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) },
+                        trailingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            unfocusedBorderColor = Color(0xFF2A2A2A),
+                            focusedContainerColor = Color(0xFF1E1E1E),
+                            unfocusedContainerColor = Color(0xFF1E1E1E)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                }
+
+                item {
+                    // Jot down private notes
+                    OutlinedTextField(
+                        value = privateNotes,
+                        onValueChange = { privateNotes = it },
+                        placeholder = { Text("Jot down private notes here. Only you can see these.", color = Color.Gray, fontSize = 14.sp) },
+                        modifier = Modifier.fillMaxWidth().height(100.dp),
+                        leadingIcon = { Icon(Icons.Default.Person, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            unfocusedBorderColor = Color(0xFF2A2A2A),
+                            focusedBorderColor = CalorieKoOrange,
+                            focusedContainerColor = Color(0xFF1E1E1E),
+                            unfocusedContainerColor = Color(0xFF1E1E1E)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                }
+
+                item {
+                    // Add new gear
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF1E1E1E),
+                        border = BorderStroke(1.dp, Color(0xFF2A2A2A))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.DirectionsRun, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Add new gear!", color = Color.Gray)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text("+", color = Color.Gray, fontSize = 20.sp)
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    // Discard Activity Link
+                    Text(
+                        text = "Discard Activity",
+                        color = Color(0xFFEF4444),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
+                            .clickable { showDiscardDialog = true },
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+
+            // Bottom Save Button
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Button(
+                    onClick = { 
+                        isSaving = true
+                        onSave(if(activityTitle.isNotBlank()) activityTitle else selectedActivity.name, caloriesBurned, formatTime(timeSeconds)) 
+                    },
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                    shape = RoundedCornerShape(28.dp)
+                ) {
+                    Text(if (isSaving) "Saving..." else "Save Activity", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+
+        // Discard Confirmation Dialog
+        if (showDiscardDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showDiscardDialog = false },
+                title = { Text("Are you sure?") },
+                text = { Text("Discarding this activity will erase it permanently.") },
+                confirmButton = {
+                    TextButton(onClick = { 
+                        showDiscardDialog = false
+                        showSummary = false 
+                        isTracking = false
+                        // Reset everything
+                        timeSeconds = 0L; movingTimeSeconds = 0L; distanceKm = 0.0; pathPoints = emptyList(); lastLocation = null
+                    }) {
+                        Text("Discard", color = Color(0xFFEF4444))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscardDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = Color(0xFF1E1E1E),
+                titleContentColor = Color.White,
+                textContentColor = Color.Gray
+            )
         }
     } else {
         // --- STRAVA-STYLE DARK GPS TRACKER UI ---
@@ -1050,7 +1297,19 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
 
                                 // Stop button
                                 Button(
-                                    onClick = { isTracking = false; showSummary = true },
+                                    onClick = { 
+                                        isTracking = false
+                                        showSummary = true
+                                        // Set default title based on time of day
+                                        val cal = java.util.Calendar.getInstance()
+                                        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                                        val timePrefix = when {
+                                            hour < 12 -> "Morning"
+                                            hour < 17 -> "Afternoon"
+                                            else -> "Evening"
+                                        }
+                                        activityTitle = "$timePrefix ${selectedActivity.name}"
+                                    },
                                     modifier = Modifier.size(72.dp),
                                     shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
