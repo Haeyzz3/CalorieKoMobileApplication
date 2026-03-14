@@ -393,6 +393,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     var distanceKm by remember { mutableDoubleStateOf(0.0) }
     var currentPace by remember { mutableDoubleStateOf(0.0) }
     var isSaving by remember { mutableStateOf(false) }
+    var isMoving by remember { mutableStateOf(false) }
 
     // Map Settings
     var mapType by remember { mutableStateOf("Dark") } // Dark, Standard, Terrain
@@ -414,7 +415,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
         if (hasLocationPermission) { 
             isTracking = true; isPaused = false
             pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L; lastLocation = null; movingTimeSeconds = 0L; lastMovementTimeMs = System.currentTimeMillis()
-            currentPace = 0.0
+            currentPace = 0.0; isMoving = false
         }
     }
 
@@ -423,8 +424,13 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
             while (true) { 
                 delay(1000)
                 timeSeconds++ 
-                // Auto-pause moving timer if no valid distance change recently (12 seconds to allow for slow walkers crossing 6 meters)
-                if (System.currentTimeMillis() - lastMovementTimeMs < 12000L) {
+                
+                // Auto-pause timer if no new location received from OS in 5 seconds
+                if (System.currentTimeMillis() - lastMovementTimeMs > 5000L) {
+                    isMoving = false
+                }
+                
+                if (isMoving) {
                     movingTimeSeconds++
                 }
             } 
@@ -441,36 +447,42 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                     }
 
                     if (isTracking && !isPaused) {
-                        // 1. Core Accuracy Check
-                        if (location.accuracy > 30f) continue
+                        // 1. Core Accuracy Check (Forgiving for pockets/trees)
+                        if (location.accuracy > 50f) continue
 
                         if (lastLocation != null) {
                             val distanceToUpdate = lastLocation!!.distanceTo(location)
                             val timeDeltaSec = (location.time - lastLocation!!.time) / 1000.0
                             val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
                             
-                            // 3. Distance, Speed & Teleportation Filter
-                            // MUST travel > 6.0 meters from last anchor AND have a realistic movement speed (> 0.3 m/s).
-                            // This completely neutralizes stationary desk-drift that inflates total distance.
-                            if (distanceToUpdate > 6.0f && calculatedSpeed > 0.3) {
-                                // 15m/s is 54km/h max limit
-                                if (calculatedSpeed < 15.0) {
-                                    // Walk/Run valid move
-                                    distanceKm += distanceToUpdate / 1000.0
-                                    lastMovementTimeMs = System.currentTimeMillis() // Keeps moving timer alive!
-                                    
-                                    val newPoint = Point.fromLngLat(location.longitude, location.latitude)
-                                    pathPoints = pathPoints + newPoint
-                                    lastLocation = location
+                            // 2. Distance Filter
+                            // Minimum 1.5 meters to verify travel and ignore post-stop GPS overshoot.
+                            if (distanceToUpdate >= 1.5f) {
+                                if (calculatedSpeed < 12.0) { // Max ~43 km/h
+                                    // VERY SLOW DRIFT CHECK:
+                                    // If we moved 2 meters but it took 10+ seconds, the speed is < 0.2 m/s. 
+                                    // This is slow "GPS wandering" while you are standing still, NOT a human walking.
+                                    if (calculatedSpeed > 0.25) { 
+                                        isMoving = true
+                                        distanceKm += distanceToUpdate / 1000.0
+                                        lastMovementTimeMs = System.currentTimeMillis()
+                                        
+                                        val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                                        pathPoints = pathPoints + newPoint
+                                        lastLocation = location
 
-                                    // Safely update pace ONLY when actually moving. This permanently stops 
-                                    // the pace from wildly ticking up/down on the UI while stationary.
-                                    if (distanceKm > 0.01) {
-                                        currentPace = (movingTimeSeconds / 60.0) / distanceKm
+                                        if (distanceKm > 0.01) {
+                                            currentPace = (movingTimeSeconds / 60.0) / distanceKm
+                                        }
+                                    } else {
+                                        // Speed is < 0.25 m/s. This is long-term stationary drift.
+                                        // We silently update the anchor to reset the drift circle, but we DO NOT add fake distance.
+                                        val newPoint = Point.fromLngLat(location.longitude, location.latitude)
+                                        pathPoints = pathPoints + newPoint
+                                        lastLocation = location
                                     }
-                                } else if (calculatedSpeed >= 15.0) {
-                                    // TELEPORT detected (Massive GPS spike/glitch) !
-                                    // We do NOT add this distance to totalKm, because it's fake.
+                                } else {
+                                    // Teleport detected (massive jump). Don't add fake distance.
                                     val newPoint = Point.fromLngLat(location.longitude, location.latitude)
                                     pathPoints = pathPoints + newPoint
                                     lastLocation = location
@@ -478,6 +490,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                             }
                         } else {
                             // First tracking anchor point
+                            isMoving = true
                             val newPoint = Point.fromLngLat(location.longitude, location.latitude)
                             pathPoints = pathPoints + newPoint
                             lastLocation = location
@@ -491,7 +504,10 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
 
     DisposableEffect(isTracking, isPaused, hasLocationPermission) {
         if (hasLocationPermission) {
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L).setMinUpdateIntervalMillis(2000L).build()
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
+                .setMinUpdateIntervalMillis(2000L)
+                .setMinUpdateDistanceMeters(1.5f) // Let Android natively block stationary jitter
+                .build()
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
             }
