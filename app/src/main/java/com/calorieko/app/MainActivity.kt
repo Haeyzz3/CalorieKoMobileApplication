@@ -100,19 +100,18 @@ fun AppNavigation() {
             )
         }
 
-        // 2. Intro (Change "GET_STARTED" to go straight to BioForm instead of Login)
+        // 2. Intro screen
         composable("intro") {
             IntroScreen(onNavigate = { action ->
                 when (action) {
-                    "GET_STARTED" -> navController.navigate("bioForm") // <--- CHANGED THIS
-                    "LOGIN" -> navController.navigate("login") // Keep this for returning users
+                    "LOGIN" -> navController.navigate("login")
                 }
             })
         }
 
-        // 3. Login Screen (For returning users who clicked "Login" on the intro screen)
+        // 3. Auth Screen
         composable("login") {
-            LoginScreen(
+            AuthScreen(
                 onLoginSuccess = {
                     navController.navigate("dashboard") {
                         popUpTo(0) { inclusive = true }

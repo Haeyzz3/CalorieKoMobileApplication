@@ -1,9 +1,7 @@
 package com.calorieko.app.ui.screens
 
-import com.calorieko.app.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.calorieko.app.R
 
 @Composable
 fun IntroScreen(onNavigate: (String) -> Unit) {
@@ -154,7 +153,7 @@ fun IntroScreen(onNavigate: (String) -> Unit) {
         ) {
             // Get Started Button
             Button(
-                onClick = { onNavigate("GET_STARTED") },
+                onClick = { onNavigate("LOGIN") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -192,26 +191,7 @@ fun IntroScreen(onNavigate: (String) -> Unit) {
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Login Link
-            Row(
-                modifier = Modifier.clickable { onNavigate("LOGIN") },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Already have an account? ",
-                    color = Color.Gray,
-                    fontSize = 14.sp
-                )
-                Text(
-                    text = "Log In",
-                    color = Color(0xFF4CAF50), // Green
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-            }
+            // Removed Login Link since Get Started goes to AuthScreen
         }
     }
 }

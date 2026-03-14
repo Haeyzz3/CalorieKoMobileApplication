@@ -87,7 +87,7 @@ private val FieldBorder = Color(0xFFE0E0E0)
 private val GoogleRed = Color(0xFFDB4437)
 
 @Composable
-fun LoginScreen(
+fun AuthScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit,
     onNavigateToForgotPassword: () -> Unit
@@ -187,11 +187,11 @@ fun LoginScreen(
                 // User cancelled — do nothing
             } catch (e: NoCredentialException) {
                 isLoading = false
-                Log.e("LoginScreen", "No Google accounts found", e)
+                Log.e("AuthScreen", "No Google accounts found", e)
                 errorMessage = "No Google accounts found. Please add an account in your device settings."
             } catch (e: Exception) {
                 isLoading = false
-                Log.e("LoginScreen", "Google Sign-In failed", e)
+                Log.e("AuthScreen", "Google Sign-In failed", e)
                 errorMessage = "Google Sign-In failed. Please try again."
             }
         }
@@ -254,7 +254,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Welcome Back!",
+                        text = "Welcome to CalorieKo!",
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -263,7 +263,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Sign in to continue your journey",
+                        text = "Log in or create a new account to continue",
                         fontSize = 14.sp,
                         color = Color.White.copy(alpha = 0.9f),
                         textAlign = TextAlign.Center
@@ -425,7 +425,7 @@ fun LoginScreen(
                             )
                         } else {
                             Text(
-                                text = "Sign In",
+                                text = "Log In",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White
@@ -492,7 +492,7 @@ fun LoginScreen(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Sign in with Google",
+                            text = "Continue with Google",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             color = TextDark
@@ -516,7 +516,7 @@ fun LoginScreen(
                         fontSize = 14.sp
                     )
                     Text(
-                        text = "Sign Up",
+                        text = "Register",
                         color = CalorieKoGreen,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp

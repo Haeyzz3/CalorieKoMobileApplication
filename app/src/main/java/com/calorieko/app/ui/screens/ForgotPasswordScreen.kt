@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 
-// ─── Brand Colors (matching LoginScreen) ───
+// ─── Brand Colors (matching AuthScreen) ───
 private val CalorieKoGreen = Color(0xFF4CAF50)
 private val CalorieKoLightGreen = Color(0xFF81C784)
 private val CalorieKoOrange = Color(0xFFFDB05E)
