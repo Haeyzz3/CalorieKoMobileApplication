@@ -211,12 +211,12 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
             )
             activityLogDao.insertLog(log)
 
-            // Fire-and-forget sync to backend
-            try { syncRepository.syncSingleActivityLog(log) } catch (_: Exception) {}
-
             withContext(Dispatchers.Main) {
                 onBack()
             }
+
+            // Sync to backend in the background
+            try { syncRepository.syncSingleActivityLog(log) } catch (_: Exception) {}
         }
     }
 
@@ -791,6 +791,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                         isTracking = false
                         // Reset everything
                         timeSeconds = 0L; movingTimeSeconds = 0L; distanceKm = 0.0; pathPoints = emptyList(); lastLocation = null
+                        onBack()
                     }) {
                         Text("Discard", color = Color(0xFFEF4444))
                     }
@@ -1298,7 +1299,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                                 // Stop button
                                 Button(
                                     onClick = { 
-                                        isTracking = false
+                                        isPaused = true // Just pause it, so we can resume from summary if needed
                                         showSummary = true
                                         // Set default title based on time of day
                                         val cal = java.util.Calendar.getInstance()
