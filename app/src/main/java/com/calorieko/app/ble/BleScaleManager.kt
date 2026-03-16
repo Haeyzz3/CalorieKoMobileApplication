@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
+import android.bluetooth.le.ScanFilter
 
 // ── UUIDs must match exactly with the ESP32 firmware ──
 private val SERVICE_UUID: UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
@@ -62,22 +63,32 @@ class BleScaleManager(private val context: Context) {
 
     /**
      * Start scanning for the ESP32 scale.
-     * Uses null filter to see all devices, then manually matches in the callback.
+     * Uses explicit SERVICE_UUID filter for reliability.
      */
     fun startScan() {
+        // 1. Force a clean state before every scan
+        reset()
+
         val scanner = bluetoothAdapter?.bluetoothLeScanner
         if (scanner == null) {
             _connectionState.value = BleConnectionState.Failed("Bluetooth is off or unavailable")
             return
         }
 
+        // 2. Clear previous callback just in case
+        try { scanner.stopScan(scanCallback) } catch (e: Exception) {}
+
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+        
+        // 3. Use explicit scan filter for the Service UUID
+        val filter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
 
         _connectionState.value = BleConnectionState.Scanning
         isScanning = true
-        // Pass null for the filter to see all devices, just like the prototype
         scanner.startScan(null, settings, scanCallback)
         Log.d(TAG, "Scan started – looking for scale")
     }
@@ -105,16 +116,22 @@ class BleScaleManager(private val context: Context) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
             val record = result.scanRecord
-            val deviceName = device.name ?: record?.deviceName
+            val deviceName = device.name ?: record?.deviceName ?: "Unknown Device"
             val serviceUuids = record?.serviceUuids
+            
+            // Diagnostic logging: Log everything found during the scan at Debug level
+            Log.d(TAG, "Found device: $deviceName [${device.address}] - Services: $serviceUuids")
+
+            if (!isScanning) return
 
             val matchedByUuid = serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) == true
-            val matchedByName = deviceName != null && listOf("esp32", "scale", "ble").any {
+            val matchedByName = deviceName != "Unknown Device" && listOf("esp32", "scale", "ble").any {
                 deviceName.contains(it, ignoreCase = true)
             }
 
             if (matchedByUuid || matchedByName) {
-                Log.d(TAG, "Device found: ${deviceName ?: "unnamed"} @ ${device.address}")
+                Log.d(TAG, "🎯 MATCH FOUND: $deviceName [${device.address}]")
+                isScanning = false
                 stopScan()
                 connectToDevice(device)
             }
@@ -130,6 +147,11 @@ class BleScaleManager(private val context: Context) {
     // ─── Connect ────────────────────────────────────────────
 
     private fun connectToDevice(device: BluetoothDevice) {
+        if (bluetoothGatt != null) {
+            Log.w(TAG, "Already connecting/connected to ${bluetoothGatt?.device?.address}. Ignoring redundant connect call to ${device.address}.")
+            return
+        }
+
         _connectionState.value = BleConnectionState.Connecting
         Log.d(TAG, "Connecting to ${device.address}…")
 
@@ -140,10 +162,12 @@ class BleScaleManager(private val context: Context) {
     private val gattCallback = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            Log.d(TAG, "onConnectionStateChange: status=$status, newState=$newState")
+
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.e(TAG, "Connection failed (status=$status, newState=$newState)")
+                Log.e(TAG, "Connection error (status=$status, newState=$newState). Closing GATT.")
                 gatt.close()
-                bluetoothGatt = null
+                if (gatt == bluetoothGatt) bluetoothGatt = null
                 _connectionState.value = BleConnectionState.Failed("Connection error (status $status)")
                 return
             }
@@ -158,7 +182,9 @@ class BleScaleManager(private val context: Context) {
                 Log.w(TAG, "Disconnected")
                 gatt.close()
                 bluetoothGatt = null
-                _connectionState.value = BleConnectionState.Failed("Disconnected")
+                if (_connectionState.value !is BleConnectionState.Idle) {
+                    _connectionState.value = BleConnectionState.Failed("Disconnected")
+                }
             }
         }
 
@@ -267,16 +293,30 @@ class BleScaleManager(private val context: Context) {
     // ─── Cleanup ────────────────────────────────────────────
 
     /**
-     * Release all BLE resources. Call from screen disposal.
+     * Release all BLE resources immediately and force-stop everything.
      */
     fun close() {
+        Log.d(TAG, "close() called")
+        reset()
+        _connectionState.value = BleConnectionState.Idle
+    }
+
+    /**
+     * Resets the BLE internal state, ensuring any existing connection is nuked.
+     */
+    private fun reset() {
         stopScan()
         bluetoothGatt?.let { gatt ->
-            gatt.disconnect()
-            gatt.close()
+            Log.d(TAG, "Resetting GATT: disconnecting and closing")
+            try {
+                gatt.disconnect()
+                // In a reset/close scenario, we close immediately to free resources
+                // even if the DISCONNECTED callback hasn't fired yet.
+                gatt.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during GATT reset: ${e.message}")
+            }
         }
         bluetoothGatt = null
-        _connectionState.value = BleConnectionState.Idle
-        Log.d(TAG, "BleScaleManager closed")
     }
 }
