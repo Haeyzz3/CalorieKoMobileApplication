@@ -93,7 +93,8 @@ dependencies {
     implementation(libs.mapbox.maps)
     implementation(libs.mapbox.maps.compose)
 
-
+    //URI COMPOSE IMAGE
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Retrofit + Gson (API sync layer)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

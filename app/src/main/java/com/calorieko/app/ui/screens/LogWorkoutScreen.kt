@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
@@ -135,6 +136,12 @@ import kotlin.math.roundToInt
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
+import android.net.Uri
+import androidx.activity.result.PickVisualMediaRequest
+import coil.compose.AsyncImage
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.zIndex
 
 // --- Data Models ---
 data class ActivityItem(val id: String, val name: String, val category: String, val met: Double)
@@ -247,8 +254,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
                     WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = saveWorkout)
-                    // UPDATE THIS LINE: Add the onBack parameter
-                    WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = onBack)
+                    WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = { handleBack() })
                 }
             }
         }
@@ -378,10 +384,30 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 }
 
 // --- 3. ADVANCED OPENSTREETMAP TRACKER ---
+
+
+
 @Composable
 
 fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
+
+// Photo and Map Expanded States
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var showExpandedMap by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        selectedPhotoUri = uri
+    }
+
+// Summary Screen Dropdown States
+    var showSummarySportDropdown by remember { mutableStateOf(false) }
+    var showSummaryTagDropdown by remember { mutableStateOf(false) }
+    var showSummaryMapTypeDropdown by remember { mutableStateOf(false) }
+    var selectedTag by remember { mutableStateOf("") }
+    val activityTags = listOf("None", "Commute", "Workout", "Race", "Long Run")
 
     // UI State
     var isTracking by remember { mutableStateOf(false) }
@@ -551,6 +577,92 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
     // "pace" logic is now handled uniquely inside currentPace to freeze it during stops!
 
     if (showSummary) {
+        // --- EXPANDED MAP PREVIEW OVERLAY ---
+        if (showExpandedMap) {
+            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF121212)).zIndex(10f)) {
+                // Read-only Mapbox View
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        com.mapbox.maps.MapView(ctx).apply {
+                            mapboxMap.loadStyle(
+                                when (mapType) {
+                                    "Standard" -> Style.MAPBOX_STREETS
+                                    "Terrain" -> Style.OUTDOORS
+                                    else -> Style.DARK
+                                }
+                            )
+                            val polylineManager = annotations.createPolylineAnnotationManager()
+
+                            // Draw the saved route
+                            if (pathPoints.isNotEmpty()) {
+                                polylineManager.create(
+                                    PolylineAnnotationOptions()
+                                        .withPoints(pathPoints)
+                                        .withLineColor("#F97316") // CalorieKo Orange
+                                        .withLineWidth(5.0)
+                                )
+                                // Center camera on the route
+                                mapboxMap.setCamera(
+                                    CameraOptions.Builder()
+                                        .center(pathPoints.last())
+                                        .zoom(14.0)
+                                        .build()
+                                )
+                            }
+                        }
+                    },
+                    update = { mapView ->
+                        // Update style if changed from dropdown
+                        val style = when (mapType) {
+                            "Standard" -> Style.MAPBOX_STREETS
+                            "Terrain" -> Style.OUTDOORS
+                            else -> Style.DARK
+                        }
+                        mapView.mapboxMap.loadStyle(style)
+                    }
+                )
+
+                // Top Bar for Expanded Map
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(Color(0xFF121212).copy(alpha = 0.8f)).padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { showExpandedMap = false },
+                        modifier = Modifier.background(Color(0xFF2A2A2A), CircleShape).size(40.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                    }
+
+                    // Map Type Dropdown inside the expanded view
+                    Box {
+                        Button(
+                            onClick = { showSummaryMapTypeDropdown = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2A2A)),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text(mapType, color = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = showSummaryMapTypeDropdown,
+                            onDismissRequest = { showSummaryMapTypeDropdown = false },
+                            modifier = Modifier.background(Color(0xFF2A2A2A))
+                        ) {
+                            listOf("Dark", "Standard", "Terrain").forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type, color = Color.White) },
+                                    onClick = { mapType = type; showSummaryMapTypeDropdown = false }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         // --- STRAVA-STYLE SAVE ACTIVITY SCREEN ---
         Column(
             modifier = Modifier
@@ -608,95 +720,176 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                 }
 
                 item {
-                    // Sport Type Dropdown (Static for now matching pic)
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF1E1E1E),
-                        border = BorderStroke(1.dp, Color(0xFF2A2A2A))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    // Sport Type Dropdown
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showSummarySportDropdown = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF1E1E1E),
+                            border = BorderStroke(1.dp, Color(0xFF2A2A2A))
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.DirectionsRun, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(selectedActivity.name, color = Color.White)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.Search, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(getActivityIcon(selectedActivity), null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(selectedActivity.name, color = Color.White)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(Icons.Default.Search, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = showSummarySportDropdown,
+                            onDismissRequest = { showSummarySportDropdown = false },
+                            modifier = Modifier.background(Color(0xFF2A2A2A))
+                        ) {
+                            OUTDOOR_ACTIVITIES.forEach { activity ->
+                                DropdownMenuItem(
+                                    text = { Text(activity.name, color = Color.White) },
+                                    onClick = {
+                                        selectedActivity = activity
+                                        showSummarySportDropdown = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
 
                 item {
-                    // Map Preview & Photos placeholder
+                    // Map Preview & Photos Interactive
                     Row(
                         modifier = Modifier.fillMaxWidth().height(140.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Map Preview Placeholder
+                        // Map Preview Box (Clickable)
                         Box(
                             modifier = Modifier
                                 .weight(1.2f)
                                 .fillMaxHeight()
                                 .background(Color(0xFF2A2A2A), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp)),
+                                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showExpandedMap = true }, // Opens expanded map
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
-                                Icon(Icons.Default.Landscape, null, tint = Color.Gray, modifier = Modifier.size(32.dp))
-                                Text("Map View", color = Color.Gray, fontSize = 12.sp)
+                                Icon(Icons.Default.Map, null, tint = CalorieKoOrange, modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Tap to view route", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("${pathPoints.size} data points", color = Color.Gray, fontSize = 10.sp)
                             }
                         }
 
-                        // Add Photos Box
+                        // Add Photos Box (Clickable Launcher)
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
                                 .background(Color(0xFF2A2A2A), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp)),
+                                .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Search, null, tint = Color.Gray, modifier = Modifier.size(24.dp))
-                                Text("Add Photos", color = Color.Gray, fontSize = 12.sp)
+                            if (selectedPhotoUri != null) {
+                                AsyncImage(
+                                    model = selectedPhotoUri,
+                                    contentDescription = "Workout Photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("+", color = Color.Gray, fontSize = 28.sp)
+                                    Text("Add Photos", color = Color.Gray, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    // Change Map Type Button with Dropdown
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { showSummaryMapTypeDropdown = true },
+                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            border = BorderStroke(1.dp, CalorieKoOrange),
+                            shape = RoundedCornerShape(22.dp)
+                        ) {
+                            Text("Change Map Type: $mapType", color = CalorieKoOrange, fontWeight = FontWeight.Bold)
+                        }
+
+                        DropdownMenu(
+                            expanded = showSummaryMapTypeDropdown,
+                            onDismissRequest = { showSummaryMapTypeDropdown = false },
+                            modifier = Modifier.background(Color(0xFF2A2A2A))
+                        ) {
+                            listOf("Dark", "Standard", "Terrain").forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type, color = Color.White) },
+                                    onClick = {
+                                        mapType = type
+                                        showSummaryMapTypeDropdown = false
+                                    }
+                                )
                             }
                         }
                     }
                 }
 
                 item {
-                    // Change Map Type Button
-                    Button(
-                        onClick = { /* handled by map settings */ },
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                        border = BorderStroke(1.dp, CalorieKoOrange),
-                        shape = RoundedCornerShape(22.dp)
-                    ) {
-                        Text("Change Map Type", color = CalorieKoOrange, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                item {
                     // Activity Tag Dropdown
-                    OutlinedTextField(
-                        value = "Activity Tag",
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.LocalFireDepartment, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) },
-                        trailingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            unfocusedBorderColor = Color(0xFF2A2A2A),
-                            focusedContainerColor = Color(0xFF1E1E1E),
-                            unfocusedContainerColor = Color(0xFF1E1E1E)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = if (selectedTag.isEmpty()) "Activity Tag" else selectedTag,
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.LocalFireDepartment, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) },
+                            trailingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                unfocusedBorderColor = Color(0xFF2A2A2A),
+                                focusedBorderColor = CalorieKoOrange,
+                                focusedContainerColor = Color(0xFF1E1E1E),
+                                unfocusedContainerColor = Color(0xFF1E1E1E)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        // Invisible overlay to catch the click over the text field
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(Color.Transparent)
+                                .clickable { showSummaryTagDropdown = true }
+                        )
+
+                        DropdownMenu(
+                            expanded = showSummaryTagDropdown,
+                            onDismissRequest = { showSummaryTagDropdown = false },
+                            modifier = Modifier.background(Color(0xFF2A2A2A))
+                        ) {
+                            activityTags.forEach { tag ->
+                                DropdownMenuItem(
+                                    text = { Text(tag, color = Color.White) },
+                                    onClick = {
+                                        selectedTag = if (tag == "None") "" else tag
+                                        showSummaryTagDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 item {
@@ -717,27 +910,6 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                         ),
                         shape = RoundedCornerShape(8.dp)
                     )
-                }
-
-                item {
-                    // Add new gear
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF1E1E1E),
-                        border = BorderStroke(1.dp, Color(0xFF2A2A2A))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.DirectionsRun, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Add new gear!", color = Color.Gray)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text("+", color = Color.Gray, fontSize = 20.sp)
-                        }
-                    }
                 }
 
                 item {
@@ -764,9 +936,19 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                     .padding(16.dp)
             ) {
                 Button(
-                    onClick = { 
+                    onClick = {
                         isSaving = true
-                        onSave(if(activityTitle.isNotBlank()) activityTitle else selectedActivity.name, caloriesBurned, formatTime(timeSeconds)) 
+                        // Optionally prepend the tag to the title if one is selected
+                        val finalTitle = if (selectedTag.isNotEmpty() && activityTitle.isNotBlank()) {
+                            "[$selectedTag] $activityTitle"
+                        } else if (activityTitle.isNotBlank()) {
+                            activityTitle
+                        } else if (selectedTag.isNotEmpty()) {
+                            "[$selectedTag] ${selectedActivity.name}"
+                        } else {
+                            selectedActivity.name
+                        }
+                        onSave(finalTitle, caloriesBurned, formatTime(timeSeconds))
                     },
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -785,9 +967,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                 title = { Text("Are you sure?") },
                 text = { Text("Discarding this activity will erase it permanently.") },
                 confirmButton = {
-                    TextButton(onClick = { 
+                    TextButton(onClick = {
                         showDiscardDialog = false
-                        showSummary = false 
+                        showSummary = false
                         isTracking = false
                         // Reset everything
                         timeSeconds = 0L; movingTimeSeconds = 0L; distanceKm = 0.0; pathPoints = emptyList(); lastLocation = null
@@ -946,7 +1128,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
             // --- TOP-LEFT: BACK BUTTON ---
             // --- TOP-LEFT: BACK BUTTON ---
             IconButton(
-                onClick = { onBack() }, // UPDATE THIS LINE: Replace /* handled by parent */ with onBack()
+                onClick = { onBack() },
                 modifier = Modifier
                     .padding(start = 16.dp, top = 48.dp)
                     .align(Alignment.TopStart)
