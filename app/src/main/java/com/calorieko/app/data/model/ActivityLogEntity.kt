@@ -1,17 +1,16 @@
 package com.calorieko.app.data.model
 
-
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "activity_log_table")
 data class ActivityLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val uid: String, // The user who logged this
-    val type: String, // "meal" or "workout"
-    val name: String, // e.g., "Chicken Adobo" or "Morning Walk"
-    val timeString: String, // e.g., "8:30 AM"
-    val weightOrDuration: String, // e.g., "250g" or "30 min"
+    val uid: String,
+    val type: String,
+    val name: String,
+    val timeString: String,
+    val weightOrDuration: String,
 
     // Nutrition / Burn Data
     val calories: Int,
@@ -20,5 +19,15 @@ data class ActivityLogEntity(
     val fats: Int = 0,
     val sodium: Int = 0,
 
-    val timestamp: Long // Used to filter by "today"
+    val timestamp: Long,
+
+    // --- NEW GPS WORKOUT FIELDS ---
+    val distanceKm: Double? = null,
+    val pace: Double? = null,
+    val movingTimeSeconds: Long? = null,
+    val encodedPath: String? = null, // Coordinate string: "lat,lng|lat,lng"
+    val mapType: String? = null,
+    val photoUri: String? = null,
+    val notes: String? = null,
+    val activityTag: String? = null
 )

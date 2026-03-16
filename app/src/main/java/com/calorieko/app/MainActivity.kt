@@ -20,7 +20,10 @@ import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoTheme
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.calorieko.app.data.model.ActivityLogEntity
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -388,6 +391,25 @@ fun AppNavigation() {
                     navController.popBackStack()
                 }
             )
+        }
+
+        // --- NEW: Activity Details Screen ---
+        composable(
+            route = "activity_details/{activityId}",
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId")?.toIntOrNull()
+            if (activityId != null) {
+                var activity by remember { mutableStateOf<ActivityLogEntity?>(null) }
+                LaunchedEffect(activityId) {
+                    withContext(Dispatchers.IO) {
+                        activity = db.activityLogDao().getLogById(activityId)
+                    }
+                }
+                activity?.let {
+                    ActivityDetailsScreen(activity = it, onBack = { navController.popBackStack() })
+                }
+            }
         }
     }
 }

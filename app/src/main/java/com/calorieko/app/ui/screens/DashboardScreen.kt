@@ -370,6 +370,9 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
                             if (mealId != null) {
                                 selectedMeal = todayMealLogs.find { it.mealLog.mealLogId == mealId }
                             }
+                        },
+                        onWorkoutClick = { activityEntry ->
+                            onNavigate("activity_details/${activityEntry.id}")
                         }
                     )
                 }
@@ -444,7 +447,8 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
 @Composable
 fun DailyActivityFeedRevised(
     activities: List<ActivityLogEntry>,
-    onMealClick: (ActivityLogEntry) -> Unit = {}
+    onMealClick: (ActivityLogEntry) -> Unit = {},
+    onWorkoutClick: (ActivityLogEntry) -> Unit = {}
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -483,7 +487,9 @@ fun DailyActivityFeedRevised(
                             activity = activity,
                             onClick = if (activity.type == "meal") {
                                 { onMealClick(activity) }
-                            } else null
+                            } else {
+                                { onWorkoutClick(activity) }
+                            }
                         )
                     }
                 }

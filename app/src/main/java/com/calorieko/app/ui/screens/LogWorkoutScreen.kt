@@ -204,7 +204,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid ?: ""
 
-    val saveWorkout: (String, Int, String) -> Unit = { name, calories, duration ->
+    val saveWorkout: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag ->
         scope.launch(Dispatchers.IO) {
             val currentTimeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
             val log = ActivityLogEntity(
@@ -214,15 +214,22 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 timeString = currentTimeString,
                 weightOrDuration = duration,
                 calories = calories,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                // GPS Fields
+                distanceKm = dist,
+                pace = pace,
+                movingTimeSeconds = movTime,
+                encodedPath = path,
+                mapType = mType,
+                photoUri = pUri,
+                notes = note,
+                activityTag = tag
             )
             activityLogDao.insertLog(log)
 
             withContext(Dispatchers.Main) {
                 onBack()
             }
-
-            // Sync to backend in the background
             try { syncRepository.syncSingleActivityLog(log) } catch (_: Exception) {}
         }
     }
@@ -253,7 +260,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
             AnimatedContent(targetState = mode, label = "ModeTransition") { targetMode ->
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
-                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = saveWorkout)
+                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null) })
                     WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = { handleBack() })
                 }
             }
@@ -389,7 +396,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 
 @Composable
 
-fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit, onBack: () -> Unit) {
+fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
 
 // Photo and Map Expanded States
@@ -938,17 +945,22 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String) -> Unit,
                 Button(
                     onClick = {
                         isSaving = true
-                        // Optionally prepend the tag to the title if one is selected
-                        val finalTitle = if (selectedTag.isNotEmpty() && activityTitle.isNotBlank()) {
-                            "[$selectedTag] $activityTitle"
-                        } else if (activityTitle.isNotBlank()) {
-                            activityTitle
-                        } else if (selectedTag.isNotEmpty()) {
-                            "[$selectedTag] ${selectedActivity.name}"
-                        } else {
-                            selectedActivity.name
-                        }
-                        onSave(finalTitle, caloriesBurned, formatTime(timeSeconds))
+                        val finalTitle = if (activityTitle.isNotBlank()) activityTitle else selectedActivity.name
+                        val pathString = pathPoints.joinToString("|") { "${it.latitude()},${it.longitude()}" }
+                        
+                        onSave(
+                            finalTitle, 
+                            caloriesBurned, 
+                            formatTime(timeSeconds),
+                            distanceKm,
+                            currentPace,
+                            movingTimeSeconds,
+                            pathString,
+                            mapType,
+                            selectedPhotoUri?.toString(),
+                            privateNotes,
+                            selectedTag
+                        ) 
                     },
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth().height(56.dp),

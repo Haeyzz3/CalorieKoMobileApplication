@@ -20,4 +20,7 @@ interface ActivityLogDao {
     /** Fetch only workout entries for a user from a given start-of-day timestamp. */
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND type = 'workout' AND timestamp >= :startOfDay ORDER BY timestamp DESC")
     suspend fun getWorkoutsForToday(uid: String, startOfDay: Long): List<ActivityLogEntity>
+
+    @Query("SELECT * FROM activity_log_table WHERE id = :id")
+    suspend fun getLogById(id: Int): ActivityLogEntity?
 }
