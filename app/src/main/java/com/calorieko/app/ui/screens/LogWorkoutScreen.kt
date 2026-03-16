@@ -414,7 +414,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
     var showSummaryTagDropdown by remember { mutableStateOf(false) }
     var showSummaryMapTypeDropdown by remember { mutableStateOf(false) }
     var selectedTag by remember { mutableStateOf("") }
-    val activityTags = listOf("None", "Commute", "Workout", "Race", "Long Run")
+    val activityTags = listOf("None", "For a Cause", "Workout", "Race", "Recovery")
 
     // UI State
     var isTracking by remember { mutableStateOf(false) }
