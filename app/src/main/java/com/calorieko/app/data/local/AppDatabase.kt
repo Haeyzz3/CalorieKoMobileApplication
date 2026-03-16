@@ -12,7 +12,7 @@ import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 5 to 6
+// INCREMENT version from 6 to 7
 @Database(
     entities = [
         FoodItem::class,
@@ -22,7 +22,7 @@ import kotlinx.coroutines.CoroutineScope
         MealLogItemEntity::class,
         DailyNutritionSummaryEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
