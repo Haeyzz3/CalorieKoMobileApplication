@@ -19,21 +19,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
+import com.calorieko.app.data.local.AppDatabase
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
     onAlreadyLoggedIn: () -> Unit,
-    onNotLoggedIn: () -> Unit
+    onNotLoggedIn: () -> Unit,
+    onProfileIncomplete: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     // Check Firebase auth state after splash delay
     LaunchedEffect(Unit) {
         delay(2500) // 2.5 seconds delay
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser != null) {
-            // User is already logged in → go straight to Dashboard
-            onAlreadyLoggedIn()
+            val db = AppDatabase.getDatabase(context, scope)
+            val profile = withContext(Dispatchers.IO) {
+                db.userDao().getUserProfile(currentUser.uid)
+            }
+            if (profile != null) {
+                // User is already logged in and profile exists → go straight to Dashboard
+                onAlreadyLoggedIn()
+            } else {
+                // User is logged in but profile is missing → go to BioForm
+                onProfileIncomplete()
+            }
         } else {
             // No user → show Intro screen
             onNotLoggedIn()

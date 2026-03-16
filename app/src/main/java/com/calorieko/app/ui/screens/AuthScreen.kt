@@ -154,6 +154,26 @@ fun AuthScreen(
 
                 val googleIdTokenCredential = GoogleIdTokenCredential
                     .createFrom(result.credential.data)
+                    
+                // Extract email from JWT token payload to check for existing password account
+                val email = try {
+                    val parts = googleIdTokenCredential.idToken.split(".")
+                    if (parts.size > 1) {
+                        val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE))
+                        org.json.JSONObject(payload).optString("email")
+                    } else null
+                } catch (e: Exception) { null }
+
+                if (!email.isNullOrEmpty()) {
+                    val methodsResult = auth.fetchSignInMethodsForEmail(email).await()
+                    val methods = methodsResult.signInMethods ?: emptyList()
+                    if (methods.contains(com.google.firebase.auth.EmailAuthProvider.PROVIDER_ID)) {
+                        isLoading = false
+                        errorMessage = "An account with this email already exists. Please log in using your email and password."
+                        return@launch
+                    }
+                }
+
                 val firebaseCredential = GoogleAuthProvider
                     .getCredential(googleIdTokenCredential.idToken, null)
 
