@@ -1,23 +1,17 @@
 package com.calorieko.app.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.net.Uri
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,7 +41,6 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Hiking
 import androidx.compose.material.icons.filled.Landscape
@@ -61,7 +54,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -88,23 +80,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.remote.SyncRepository
-import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -112,10 +105,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.Style
@@ -128,20 +118,20 @@ import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
+import com.mapbox.maps.plugin.gestures.OnMoveListener
+import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.scalebar.scalebar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import kotlin.math.roundToInt
-import com.mapbox.android.gestures.MoveGestureDetector
-import com.mapbox.maps.plugin.gestures.OnMoveListener
-import com.mapbox.maps.plugin.gestures.gestures
-import android.net.Uri
-import androidx.activity.result.PickVisualMediaRequest
-import coil.compose.AsyncImage
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.zIndex
 
 // --- Data Models ---
 data class ActivityItem(val id: String, val name: String, val category: String, val met: Double)
@@ -942,25 +932,34 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
+                // Get context to use our new helper function
+                val context = androidx.compose.ui.platform.LocalContext.current
+
                 Button(
                     onClick = {
                         isSaving = true
                         val finalTitle = if (activityTitle.isNotBlank()) activityTitle else selectedActivity.name
                         val pathString = pathPoints.joinToString("|") { "${it.latitude()},${it.longitude()}" }
-                        
+
+                        // 1. Copy the image permanently to internal storage
+                        val permanentPhotoPath = saveImageToInternalStorage(context, selectedPhotoUri)
+
+                        // 2. Clean up distance to prevent formatting crashes
+                        val safeDistance = if (distanceKm.isNaN()) 0.0 else distanceKm
+
                         onSave(
-                            finalTitle, 
-                            caloriesBurned, 
+                            finalTitle,
+                            caloriesBurned,
                             formatTime(timeSeconds),
-                            distanceKm,
+                            safeDistance, // Crash fix
                             currentPace,
                             movingTimeSeconds,
                             pathString,
                             mapType,
-                            selectedPhotoUri?.toString(),
+                            permanentPhotoPath, // Permanent photo fix
                             privateNotes,
                             selectedTag
-                        ) 
+                        )
                     },
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -1722,5 +1721,27 @@ fun GPSStatItem(
         if (unit.isNotEmpty()) {
             Text(unit, color = Color.White.copy(alpha = 0.3f), fontSize = 11.sp)
         }
+    }
+}
+// Helper function to permanently save temporary URIs
+fun saveImageToInternalStorage(context: Context, uri: Uri?): String? {
+    if (uri == null) return null
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        // Create a unique file name
+        val fileName = "workout_photo_${UUID.randomUUID()}.jpg"
+        val file = File(context.filesDir, fileName)
+
+        val outputStream = FileOutputStream(file)
+        inputStream.copyTo(outputStream)
+
+        inputStream.close()
+        outputStream.close()
+
+        // Return the absolute path as a string
+        file.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }
