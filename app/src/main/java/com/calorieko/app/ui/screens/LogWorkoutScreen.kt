@@ -147,7 +147,11 @@ val ACTIVITIES = listOf(
     ActivityItem("8", "House cleaning, general", "Household", 3.3),
     ActivityItem("15", "Bicycling, leisure", "Cycling", 6.8),
     ActivityItem("19", "Yoga, Hatha", "Exercise", 2.5),
-    ActivityItem("20", "Dancing, general", "Exercise", 4.5)
+    ActivityItem("20", "Dancing, general", "Exercise", 4.5), // Added: Filipino Gawaing Bahay
+    ActivityItem("21", "Pagwawalis (Sweeping)", "Household", 3.3),
+    ActivityItem("22", "Paglalampaso (Floor scrubbing with Bunot)", "Household", 3.8),
+    ActivityItem("23", "Paglalaba (Hand-washing clothes)", "Household", 3.0),
+    ActivityItem("24", "Pagiigib (Fetching water)", "Household", 5.0),
 )
 
 val OUTDOOR_ACTIVITIES = listOf(
