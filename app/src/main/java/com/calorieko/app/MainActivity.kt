@@ -3,11 +3,6 @@ package com.calorieko.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.runtime.* // Automatically grabs standard runtime components
 import androidx.compose.runtime.getValue // REQUIRED for 'by' delegate reading
 import androidx.compose.runtime.setValue // REQUIRED for 'by' delegate writing
@@ -104,11 +99,6 @@ fun AppNavigation() {
                     navController.navigate("intro") {
                         popUpTo("splash") { inclusive = true }
                     }
-                },
-                onProfileIncomplete = {
-                    navController.navigate("bioForm") {
-                        popUpTo("splash") { inclusive = true }
-                    }
                 }
             )
         }
@@ -182,75 +172,52 @@ fun AppNavigation() {
                     else -> "General Health"
                 }
 
-                if (auth.currentUser != null) {
-                    // Google users bypass register screen
-                    navController.navigate("save_profile")
-                } else {
-                    // Email users need to register password
-                    navController.navigate("register")
-                }
+                // Navigate to the signup screen instead of the summary
+                navController.navigate("register")
             })
         }
 
-        // 7. Profile Saving Route (Used by both Google and Email registration)
-        composable("save_profile") {
-            LaunchedEffect(Unit) {
-                // --- 1. Metric calculations ---
-                val targets = nutritionalRepo.getTargets(
-                    age = setupAge,
-                    sex = setupSex,
-                    weightKg = setupWeight,
-                    goal = setupGoalId
-                )
-                targetCalories = targets.targetCalories
-                targetProtein = targets.targetProtein
-                targetCarbs = targets.targetCarbs
-                targetFats = targets.targetFats
-                targetSodium = targets.targetSodium
-
-                // --- 2. Database Save & Navigation ---
-                val currentUser = auth.currentUser
-                if (currentUser != null) {
-                    val userProfile = UserProfile(
-                        uid = currentUser.uid,
-                        name = setupName.ifEmpty { currentUser.displayName ?: "User" },
-                        email = currentUser.email ?: "",
-                        age = setupAge,
-                        weight = setupWeight,
-                        height = setupHeight,
-                        sex = setupSex,
-                        activityLevel = setupActivityLevel,
-                        goal = setupGoalId
-                    )
-                    withContext(Dispatchers.IO) {
-                        userDao.insertUser(userProfile)
-                        // Sync to backend (fire-and-forget)
-                        try { syncRepository.syncProfile(currentUser.uid) } catch (_: Exception) {}
-                    }
-                    
-                    navController.navigate("targetSummary") {
-                        popUpTo("intro") { inclusive = true }
-                    }
-                }
-            }
-            
-            // Loading state while saving profile
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = com.calorieko.app.ui.theme.CalorieKoGreen
-                )
-            }
-        }
-
-        // 7b. NEW: Sign Up Screen (After Goals)
+        // 7. NEW: Sign Up Screen (After Goals)
         composable("register") {
             RegisterScreen(
                 onSignUpSuccess = {
-                    navController.navigate("save_profile") {
-                        popUpTo("register") { inclusive = true }
+                    // --- 1. Metric calculations ---
+                    val targets = nutritionalRepo.getTargets(
+                        age = setupAge,
+                        sex = setupSex,
+                        weightKg = setupWeight,
+                        goal = setupGoalId
+                    )
+                    targetCalories = targets.targetCalories
+                    targetProtein = targets.targetProtein
+                    targetCarbs = targets.targetCarbs
+                    targetFats = targets.targetFats
+                    targetSodium = targets.targetSodium
+
+                    // --- 2. Database Save & Navigation ---
+                    val currentUser = auth.currentUser
+                    if (currentUser != null) {
+                        val userProfile = UserProfile(
+                            uid = currentUser.uid,
+                            name = setupName.ifEmpty { currentUser.displayName ?: "User" },
+                            email = currentUser.email ?: "",
+                            age = setupAge,
+                            weight = setupWeight,
+                            height = setupHeight,
+                            sex = setupSex,
+                            activityLevel = setupActivityLevel,
+                            goal = setupGoalId
+                        )
+                        scope.launch {
+                            userDao.insertUser(userProfile)
+
+                            // Sync to backend (fire-and-forget)
+                            try { syncRepository.syncProfile(currentUser.uid) } catch (_: Exception) {}
+
+                            navController.navigate("targetSummary") {
+                                popUpTo("intro") { inclusive = true }
+                            }
+                        }
                     }
                 },
                 onNavigateBack = {
