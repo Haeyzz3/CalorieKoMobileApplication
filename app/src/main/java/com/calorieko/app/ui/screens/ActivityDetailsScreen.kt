@@ -32,10 +32,45 @@ import com.mapbox.maps.plugin.gestures.gestures
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.calorieko.app.data.local.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { AppDatabase.getDatabase(context, scope) }
+    val userDao = db.userDao()
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = remember { auth.currentUser }
+    var userName by remember { mutableStateOf("CalorieKo athlete") }
+
+// 2. Fetch the user's name from the local database when the screen loads
+    LaunchedEffect(currentUser?.uid) {
+        val uid = currentUser?.uid ?: return@LaunchedEffect
+        withContext(Dispatchers.IO) {
+            val userProfile = userDao.getUserProfile(uid) // Pass the required UID
+
+            if (userProfile != null) {
+                withContext(Dispatchers.Main) {
+                    if (userProfile.name.isNotEmpty()) {
+                        userName = userProfile.name
+                    }
+                }
+            }
+        }
+    }
 
     // Decode the path string back into Mapbox Points
     val points = remember(activity.encodedPath) {
@@ -64,7 +99,7 @@ fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Activity", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text(text = "Activity", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -99,8 +134,8 @@ fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("CalorieKo Athlete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text(displayDate, color = Color(0xFFAAAAAA), fontSize = 12.sp)
+                        Text(text = userName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(text = displayDate, color = Color(0xFFAAAAAA), fontSize = 12.sp)
                     }
                 }
             }
@@ -252,6 +287,7 @@ fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
     }
 }
 
+
 // Reusable Stat Block using Baseline Alignment to stop units from "floating"
 @Composable
 fun StatBlock(label: String, value: String, unit: String) {
@@ -287,3 +323,4 @@ fun com.mapbox.maps.MapView.setGesturesEnabled(enabled: Boolean) {
         pinchToZoomEnabled = enabled
     }
 }
+
