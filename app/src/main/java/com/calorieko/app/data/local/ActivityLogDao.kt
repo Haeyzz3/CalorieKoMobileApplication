@@ -23,4 +23,10 @@ interface ActivityLogDao {
 
     @Query("SELECT * FROM activity_log_table WHERE id = :id")
     suspend fun getLogById(id: Int): ActivityLogEntity?
+
+    @Query("SELECT COUNT(*) FROM activity_log_table WHERE uid = :uid AND type = 'workout'")
+    suspend fun getTotalWorkoutsCount(uid: String): Int
+
+    @Query("SELECT COUNT(*) FROM activity_log_table WHERE uid = :uid AND photoUri IS NOT NULL AND photoUri != ''")
+    suspend fun getWorkoutsWithPhotoCount(uid: String): Int
 }

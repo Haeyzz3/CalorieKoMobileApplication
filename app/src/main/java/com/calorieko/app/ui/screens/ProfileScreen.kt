@@ -1,8 +1,5 @@
 package com.calorieko.app.ui.screens
 
-
-// Make sure to add these imports at the top:
-
 import java.text.SimpleDateFormat
 import java.util.Date
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
@@ -68,7 +65,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,6 +95,13 @@ data class UserData(
     val sex: String = "Male",
     val activityLevel: String = "lightly_active",
     val goal: String = "general"
+)
+
+// NEW: Data class to hold database fetch results for badges
+data class BadgeStats(
+    val totalMeals: Int = 0,
+    val totalWorkouts: Int = 0,
+    val totalPhotos: Int = 0
 )
 
 data class Badge(
@@ -137,27 +140,45 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
+    val mealLogDao = db.mealLogDao()
+    val activityLogDao = db.activityLogDao()
 
-    // 2. Change Mock Data to a MutableState, passing the real Member Since date
+    // 2. Mutable States
     var userData by remember { mutableStateOf(UserData(name = fullName, memberSince = memberSinceDate)) }
+    var badgeStats by remember { mutableStateOf(BadgeStats()) } // Holds real badge tracking data
 
     // 3. Fetch Real Data on Load
     LaunchedEffect(currentUser?.uid) {
         currentUser?.uid?.let { uid ->
             withContext(Dispatchers.IO) {
+                // Fetch Profile
                 val profile = userDao.getUser(uid)
-                if (profile != null) {
-                    // Update the UI state with the real database values, including streak and level
-                    userData = userData.copy(
-                        name = profile.name,
-                        age = profile.age,
-                        height = profile.height,
-                        weight = profile.weight,
-                        sex = profile.sex.ifEmpty { "Male" },
-                        activityLevel = profile.activityLevel.ifEmpty { "lightly_active" },
-                        goal = profile.goal.ifEmpty { "general" },
-                        streak = profile.streak,
-                        level = profile.level
+
+                // Fetch Badge Metrics from DAOs safely
+                val mealsCount = try { mealLogDao.getTotalMealsCount(uid) } catch (e: Exception) { 0 }
+                val workoutsCount = try { activityLogDao.getTotalWorkoutsCount(uid) } catch (e: Exception) { 0 }
+                val actPhotos = try { activityLogDao.getWorkoutsWithPhotoCount(uid) } catch (e: Exception) { 0 }
+
+                withContext(Dispatchers.Main) {
+                    if (profile != null) {
+                        // Update the UI state with the real database values
+                        userData = userData.copy(
+                            name = profile.name,
+                            age = profile.age,
+                            height = profile.height,
+                            weight = profile.weight,
+                            sex = profile.sex.ifEmpty { "Male" },
+                            activityLevel = profile.activityLevel.ifEmpty { "lightly_active" },
+                            goal = profile.goal.ifEmpty { "general" },
+                            streak = profile.streak,
+                            level = profile.level
+                        )
+                    }
+                    // Update Badge tracking state
+                    badgeStats = BadgeStats(
+                        totalMeals = mealsCount,
+                        totalWorkouts = workoutsCount,
+                        totalPhotos = actPhotos
                     )
                 }
             }
@@ -165,7 +186,6 @@ fun ProfileScreen(
     }
 
     Scaffold(
-
         bottomBar = {
             BottomNavigation(activeTab = activeTab, onTabChange = {
                 activeTab = it
@@ -180,21 +200,17 @@ fun ProfileScreen(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
-            // 1. Header Section (Pass the image URL here)
             ProfileHeader(user = userData, profileImageUrl = profileImageUrl)
 
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // 2. Baseline Metrics Grid
                 BaselineMetricsGrid(userData)
-
-                // 3. Health Goals Section
                 HealthGoalsSection(userData.goal, onEditProfile = onEditProfile)
 
-                // 4. Milestones & Badges
-                MilestonesSection(userData.streak)
+                // Pass BOTH the streak and the real database stats to the Milestones section
+                MilestonesSection(userData.streak, badgeStats)
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -203,8 +219,6 @@ fun ProfileScreen(
 }
 
 // --- 1. Header with Animated Streak Ring ---
-// --- 1. Header with Animated Streak Ring ---
-
 @Composable
 fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
     Box(
@@ -212,7 +226,6 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
             .fillMaxWidth()
             .background(
                 brush = Brush.verticalGradient(
-                    // Replaced dark greens with the lighter green theme color
                     colors = listOf(CalorieKoLightGreen, Color(0xFF81C784))
                 )
             )
@@ -232,76 +245,39 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
                 }
 
                 Canvas(modifier = Modifier.size(130.dp)) {
-                    // Background Ring
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.2f),
-                        style = Stroke(width = 4.dp.toPx())
-                    )
-                    // Progress Ring
+                    drawCircle(color = Color.White.copy(alpha = 0.2f), style = Stroke(width = 4.dp.toPx()))
                     drawArc(
                         color = Color(0xFFFFD700), // Gold
-                        startAngle = -90f,
-                        sweepAngle = animatedProgress.value * 360f,
-                        useCenter = false,
-                        style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                        startAngle = -90f, sweepAngle = animatedProgress.value * 360f,
+                        useCenter = false, style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
 
                 // Avatar
-                Surface(
-                    shape = CircleShape,
-                    color = Color.White,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.size(100.dp)
-                ) {
+                Surface(shape = CircleShape, color = Color.White, shadowElevation = 8.dp, modifier = Modifier.size(100.dp)) {
                     Box(contentAlignment = Alignment.Center) {
-                        // Check if Google Image exists, otherwise show default icon
                         if (profileImageUrl != null) {
                             AsyncImage(
-                                model = profileImageUrl,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
+                                model = profileImageUrl, contentDescription = "Profile Picture",
+                                modifier = Modifier.size(100.dp).clip(CircleShape), contentScale = ContentScale.Crop
                             )
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(48.dp)
-                            )
+                            Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
                         }
                     }
                 }
 
                 // Level Badge
                 Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Color.Transparent, // Gradient handled by box
-                    shadowElevation = 4.dp,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .offset(y = 12.dp)
+                    shape = RoundedCornerShape(50), color = Color.Transparent, shadowElevation = 4.dp,
+                    modifier = Modifier.align(Alignment.BottomCenter).offset(y = 12.dp)
                 ) {
                     Box(
-                        modifier = Modifier
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(Color(0xFFFFC107), Color(0xFFFF9800))
-                                )
-                            )
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                        modifier = Modifier.background(Brush.horizontalGradient(listOf(Color(0xFFFFC107), Color(0xFFFF9800)))).padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(12.dp))
-                            Text(
-                                "Level ${user.level}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                            Text("Level ${user.level}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -310,36 +286,24 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
             Spacer(modifier = Modifier.height(20.dp))
 
             // User Info
-            Text(
-                text = user.name,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Text(text = user.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(top = 4.dp)
             ) {
                 Icon(Icons.Default.CalendarToday, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(14.dp))
-                Text(
-                    "Member since ${user.memberSince}",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+                Text("Member since ${user.memberSince}", fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
             }
 
             // Streak Chip
             Spacer(modifier = Modifier.height(16.dp))
             Surface(
-                color = Color.White.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(50),
                 modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(50))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFFD54F), modifier = Modifier.size(16.dp))
                     Text("${user.streak} Day Streak!", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -352,79 +316,31 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
 // --- 2. Baseline Metrics Grid ---
 @Composable
 fun BaselineMetricsGrid(user: UserData) {
-    // Calculate BMI
     val heightInMeters = user.height / 100
     val bmi = user.weight / (heightInMeters * heightInMeters)
     val bmiRounded = String.format(Locale.US, "%.1f", bmi)
 
     val bmiInfo = when {
-        bmi < 18.5 -> Pair("Underweight", Color(0xFF2563EB)) // Blue
-        bmi < 25 -> Pair("Normal", Color(0xFF16A34A)) // Green
-        bmi < 30 -> Pair("Overweight", Color(0xFFEA580C)) // Orange
-        else -> Pair("Obese", Color(0xFFDC2626)) // Red
+        bmi < 18.5 -> Pair("Underweight", Color(0xFF2563EB))
+        bmi < 25 -> Pair("Normal", Color(0xFF16A34A))
+        bmi < 30 -> Pair("Overweight", Color(0xFFEA580C))
+        else -> Pair("Obese", Color(0xFFDC2626))
     }
 
     Column {
-        Text(
-            "Baseline Metrics",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1F2937),
-            modifier = Modifier.padding(bottom = 16.dp, start = 4.dp)
-        )
+        Text("Baseline Metrics", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), modifier = Modifier.padding(bottom = 16.dp, start = 4.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            // Weight
-            MetricCard(
-                title = "Current Weight",
-                value = "${user.weight}",
-                unit = "kilograms",
-                icon = Icons.Default.MonitorWeight,
-                iconColor = CalorieKoGreen,
-                bgColor = Color(0xFFECFDF5),
-                modifier = Modifier.weight(1f)
-            )
-            // Height
-            MetricCard(
-                title = "Height",
-                value = "${user.height}",
-                unit = "centimeters",
-                icon = Icons.Default.Straighten, // Or Height icon if available in extended
-                iconColor = Color(0xFF2563EB),
-                bgColor = Color(0xFFEFF6FF),
-                modifier = Modifier.weight(1f)
-            )
+            MetricCard("Current Weight", "${user.weight}", "kilograms", Icons.Default.MonitorWeight, CalorieKoGreen, Color(0xFFECFDF5), Modifier.weight(1f))
+            MetricCard("Height", "${user.height}", "centimeters", Icons.Default.Straighten, Color(0xFF2563EB), Color(0xFFEFF6FF), Modifier.weight(1f))
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            // Age
-            MetricCard(
-                title = "Age",
-                value = "${user.age}",
-                unit = "years old",
-                icon = Icons.Default.Cake,
-                iconColor = Color(0xFF9333EA),
-                bgColor = Color(0xFFFAF5FF),
-                modifier = Modifier.weight(1f)
-            )
-            // BMI
-            MetricCard(
-                title = "BMI",
-                value = bmiRounded,
-                unit = bmiInfo.first,
-                unitColor = bmiInfo.second,
-                icon = Icons.Default.MonitorHeart,
-                iconColor = Color(0xFFEA580C),
-                bgColor = Color(0xFFFFF7ED),
-                modifier = Modifier.weight(1f)
-            )
+            MetricCard("Age", "${user.age}", "years old", Icons.Default.Cake, Color(0xFF9333EA), Color(0xFFFAF5FF), Modifier.weight(1f))
+            MetricCard("BMI", bmiRounded, bmiInfo.first, Icons.Default.MonitorHeart, Color(0xFFEA580C), Color(0xFFFFF7ED), Modifier.weight(1f), bmiInfo.second)
         }
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Activity Level Card (full width)
         val activityLabel = when (user.activityLevel) {
             "not_very_active" -> "Not Very Active"
             "lightly_active" -> "Lightly Active"
@@ -433,42 +349,17 @@ fun BaselineMetricsGrid(user: UserData) {
             else -> "Not Set"
         }
         Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(Color(0xFFFFF7ED), RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.DirectionsRun,
-                        null,
-                        tint = Color(0xFFEA580C),
-                        modifier = Modifier.size(20.dp)
-                    )
+            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(36.dp).background(Color(0xFFFFF7ED), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.DirectionsRun, null, tint = Color(0xFFEA580C), modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(
-                        "Activity Level",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF4B5563)
-                    )
-                    Text(
-                        activityLabel,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2937)
-                    )
+                    Text("Activity Level", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF4B5563))
+                    Text(activityLabel, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                 }
             }
         }
@@ -477,41 +368,19 @@ fun BaselineMetricsGrid(user: UserData) {
 
 @Composable
 fun MetricCard(
-    title: String,
-    value: String,
-    unit: String,
-    icon: ImageVector,
-    iconColor: Color,
-    bgColor: Color,
-    modifier: Modifier = Modifier,
-    unitColor: Color = Color.Gray
+    title: String, value: String, unit: String, icon: ImageVector, iconColor: Color, bgColor: Color, modifier: Modifier = Modifier, unitColor: Color = Color.Gray
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = modifier
-    ) {
+    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), modifier = modifier) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(bgColor, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.size(36.dp).background(bgColor, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
                     Icon(icon, null, tint = iconColor, modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF4B5563))
             }
             Text(value, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-            Text(
-                unit,
-                fontSize = 12.sp,
-                fontWeight = if (unitColor != Color.Gray) FontWeight.Bold else FontWeight.Normal,
-                color = unitColor
-            )
+            Text(unit, fontSize = 12.sp, fontWeight = if (unitColor != Color.Gray) FontWeight.Bold else FontWeight.Normal, color = unitColor)
         }
     }
 }
@@ -536,29 +405,14 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
     }
 
     Column {
-        Text(
-            "Health Goals",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1F2937),
-            modifier = Modifier.padding(bottom = 16.dp, start = 4.dp)
-        )
-
+        Text("Health Goals", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), modifier = Modifier.padding(bottom = 16.dp, start = 4.dp))
         Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                // Header
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(goalInfo.third.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.size(48.dp).background(goalInfo.third.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                         Icon(goalInfo.second, null, tint = goalInfo.third, modifier = Modifier.size(24.dp))
                     }
                     Spacer(modifier = Modifier.width(16.dp))
@@ -567,33 +421,14 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
                         Text(goalInfo.first, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                     }
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Description Box
-                Surface(
-                    color = Color(0xFFF9FAFB),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = description,
-                        fontSize = 14.sp,
-                        color = Color(0xFF374151),
-                        modifier = Modifier.padding(16.dp),
-                        lineHeight = 20.sp
-                    )
+                Surface(color = Color(0xFFF9FAFB), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(text = description, fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.padding(16.dp), lineHeight = 20.sp)
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Edit Button
                 OutlinedButton(
-                    onClick = { onEditProfile() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(2.dp, CalorieKoGreen),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CalorieKoGreen)
+                    onClick = { onEditProfile() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(2.dp, CalorieKoGreen), colors = ButtonDefaults.outlinedButtonColors(contentColor = CalorieKoGreen)
                 ) {
                     Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
@@ -606,38 +441,41 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
 
 // --- 4. Milestones Section ---
 @Composable
-fun MilestonesSection(currentStreak: Int) {
-    // State for badge detail dialog
+fun MilestonesSection(currentStreak: Int, stats: BadgeStats) {
     var selectedBadge by remember { mutableStateOf<Badge?>(null) }
 
-    // Mock Badges
-    val badges = remember { listOf(
-        Badge(1, "Sodium Defender", "3 Days Under Limit", Icons.Default.WaterDrop, Color(0xFFDBEAFE), Color(0xFF2563EB), true, 3, 3),
-        Badge(2, "Scale Pro", "10 Meals Logged", Icons.Default.MonitorWeight, Color(0xFFDCFCE7), Color(0xFF16A34A), true, 10, 10),
-        Badge(3, "Streak Master", "7 Day Streak", Icons.Default.LocalFireDepartment, Color(0xFFFFEDD5), Color(0xFFEA580C), true, 7, 7),
-        Badge(4, "Photo Logger", "15 Photos Taken", Icons.Default.CameraAlt, Color(0xFFF3E8FF), Color(0xFF9333EA), false, 8, 15),
-        Badge(5, "Workout Warrior", "5 Workouts Logged", Icons.Default.Bolt, Color(0xFFFEF3C7), Color(0xFFD97706), false, 2, 5),
-        Badge(6, "Health Champion", "30 Day Streak", Icons.Default.MilitaryTech, Color(0xFFFCE7F3), Color(0xFFDB2777), false, 7, 30)
-    )}
+    // Real Dynamic Badges based on Database Fetches
+    val badges = remember(currentStreak, stats) {
+        listOf(
+            // Sodium Defender (Tied to streak logic for now as a placeholder for health consistency)
+            Badge(1, "Consistent Logger", "3 Day Streak", Icons.Default.WaterDrop, Color(0xFFDBEAFE), Color(0xFF2563EB), currentStreak >= 3, currentStreak.coerceAtMost(3), 3),
+
+            // Scale Pro: 10 Meals Logged (Real Data)
+            Badge(2, "Scale Pro", "10 Meals Logged", Icons.Default.MonitorWeight, Color(0xFFDCFCE7), Color(0xFF16A34A), stats.totalMeals >= 10, stats.totalMeals.coerceAtMost(10), 10),
+
+            // Streak Master: 7 Day Streak (Real Data)
+            Badge(3, "Streak Master", "7 Day Streak", Icons.Default.LocalFireDepartment, Color(0xFFFFEDD5), Color(0xFFEA580C), currentStreak >= 7, currentStreak.coerceAtMost(7), 7),
+
+            // Photo Logger: 15 Photos Taken (Real Data)
+            Badge(4, "Photo Logger", "15 Photos Taken", Icons.Default.CameraAlt, Color(0xFFF3E8FF), Color(0xFF9333EA), stats.totalPhotos >= 15, stats.totalPhotos.coerceAtMost(15), 15),
+
+            // Workout Warrior: 5 Workouts Logged (Real Data)
+            Badge(5, "Workout Warrior", "5 Workouts Logged", Icons.Default.Bolt, Color(0xFFFEF3C7), Color(0xFFD97706), stats.totalWorkouts >= 5, stats.totalWorkouts.coerceAtMost(5), 5),
+
+            // Health Champion: 30 Day Streak (Real Data)
+            Badge(6, "Health Champion", "30 Day Streak", Icons.Default.MilitaryTech, Color(0xFFFCE7F3), Color(0xFFDB2777), currentStreak >= 30, currentStreak.coerceAtMost(30), 30)
+        )
+    }
 
     val earned = badges.filter { it.earned }
     val inProgress = badges.filter { !it.earned }
 
-    // Badge Detail Dialog
-    selectedBadge?.let { badge ->
-        BadgeDetailDialog(
-            badge = badge,
-            onDismiss = { selectedBadge = null }
-        )
-    }
+    selectedBadge?.let { badge -> BadgeDetailDialog(badge = badge, onDismiss = { selectedBadge = null }) }
 
     Column {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp, start = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp, start = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Milestones & Achievements", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -647,44 +485,26 @@ fun MilestonesSection(currentStreak: Int) {
             }
         }
 
-        // Earned Badges Grid
         if (earned.isNotEmpty()) {
             Text("Earned Badges", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                earned.forEach { badge ->
-                    EarnedBadgeCard(
-                        badge = badge,
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedBadge = badge }
-                    )
-                }
+                earned.forEach { badge -> EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge }) }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // In Progress List
         if (inProgress.isNotEmpty()) {
             Text("In Progress", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                inProgress.forEach { badge ->
-                    InProgressBadgeCard(
-                        badge = badge,
-                        onClick = { selectedBadge = badge }
-                    )
-                }
+                inProgress.forEach { badge -> InProgressBadgeCard(badge = badge, onClick = { selectedBadge = badge }) }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Motivation Card
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF16A34A))))
-                .padding(20.dp)
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF16A34A)))).padding(20.dp)
         ) {
             Row(verticalAlignment = Alignment.Top) {
                 Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(24.dp))
@@ -692,12 +512,7 @@ fun MilestonesSection(currentStreak: Int) {
                 Column {
                     Text("Keep Going! ", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "You're making great progress! Complete more activities to unlock new badges and climb the leaderboard.",
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        lineHeight = 20.sp
-                    )
+                    Text("You're making great progress! Complete more activities to unlock new badges and climb the leaderboard.", fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f), lineHeight = 20.sp)
                 }
             }
         }
@@ -707,20 +522,11 @@ fun MilestonesSection(currentStreak: Int) {
 @Composable
 fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        onClick = onClick,
-        modifier = modifier
+        shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), onClick = onClick, modifier = modifier
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier.size(56.dp).background(badge.colorBg, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
+        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(modifier = Modifier.size(56.dp).background(badge.colorBg, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(badge.icon, null, tint = badge.colorIcon, modifier = Modifier.size(28.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -728,10 +534,7 @@ fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier, onClick: () -> 
             Text(badge.description, fontSize = 10.sp, color = Color(0xFF6B7280), maxLines = 1)
 
             Spacer(modifier = Modifier.height(8.dp))
-            Surface(
-                color = Color(0xFFDCFCE7),
-                shape = RoundedCornerShape(50)
-            ) {
+            Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
                 Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.EmojiEvents, null, tint = Color(0xFF15803D), modifier = Modifier.size(10.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -744,7 +547,6 @@ fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier, onClick: () -> 
 
 @Composable
 fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
-    // Animate Progress Bar
     val animatedProgress = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         animatedProgress.animateTo(
@@ -754,17 +556,11 @@ fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
     }
 
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), onClick = onClick, modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(48.dp).background(badge.colorBg.copy(alpha = 0.6f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.size(48.dp).background(badge.colorBg.copy(alpha = 0.6f), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(badge.icon, null, tint = badge.colorIcon, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
@@ -773,21 +569,18 @@ fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
                 Text(badge.description, fontSize = 12.sp, color = Color(0xFF6B7280))
 
                 Spacer(modifier = Modifier.height(8.dp))
-
-                // Progress Bar
+                // Outer Gray Track
                 Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)).background(Color(0xFFE5E7EB))) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(animatedProgress.value)
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(Color(0xFF4CAF50), Color(0xFF45A049))
-                                )
-                            )
-                    )
+                    // FIX: Only draw the green fill if progress is strictly greater than 0
+                    if (animatedProgress.value > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedProgress.value)
+                                .background(Brush.horizontalGradient(listOf(Color(0xFF4CAF50), Color(0xFF45A049))))
+                        )
+                    }
                 }
-
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("${badge.progress}/${badge.max} completed", fontSize = 11.sp, color = Color(0xFF4B5563))
             }
@@ -801,7 +594,6 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
     val progressFraction = badge.progress.toFloat() / badge.max.toFloat()
     val progressPercent = (progressFraction * 100).toInt()
 
-    // Animated progress for the dialog
     val animatedProgress = remember { Animatable(0f) }
     LaunchedEffect(badge.id) {
         animatedProgress.animateTo(
@@ -810,9 +602,8 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
         )
     }
 
-    // Detailed descriptions per badge
     val detailDescription = when (badge.id) {
-        1 -> "Stay under your daily sodium limit to protect your heart health. Each day you stay under the recommended intake counts toward this badge."
+        1 -> "Build a habit! Log your activities for 3 consecutive days to start building your long-term fitness routine."
         2 -> "Log your meals using the smart scale to track accurate nutrition data. The more meals you log, the better your insights become."
         3 -> "Maintain a daily streak by logging at least one meal every day. Consistency is the key to achieving your health goals!"
         4 -> "Take photos of your meals for AI-powered food recognition. This helps build a visual diary of your nutrition journey."
@@ -821,7 +612,6 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
         else -> "Complete the challenge to earn this badge."
     }
 
-    // How to earn / next step tip
     val tip = if (badge.earned) {
         " Congratulations! You've earned this badge through your dedication and consistency."
     } else {
@@ -844,14 +634,11 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // ── Badge Icon (large) ──
                 Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(
-                            if (badge.earned) badge.colorBg else badge.colorBg.copy(alpha = 0.5f),
-                            CircleShape
-                        ),
+                    modifier = Modifier.size(80.dp).background(
+                        if (badge.earned) badge.colorBg else badge.colorBg.copy(alpha = 0.5f),
+                        CircleShape
+                    ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -863,18 +650,14 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // ── Badge Name ──
                 Text(
                     badge.name,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F2937)
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // ── Status chip ──
                 Surface(
                     color = if (badge.earned) Color(0xFFDCFCE7) else Color(0xFFFEF3C7),
                     shape = RoundedCornerShape(50)
@@ -900,8 +683,6 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // ── Description ──
                 Surface(
                     color = Color(0xFFF9FAFB),
                     shape = RoundedCornerShape(12.dp),
@@ -917,8 +698,6 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // ── Progress Section ──
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -940,65 +719,62 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                             color = badge.colorIcon
                         )
                     }
-
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    // Animated progress bar
+                    // Outer Gray Track
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0xFFE5E7EB))
+                        modifier = Modifier.fillMaxWidth().height(10.dp)
+                            .clip(RoundedCornerShape(50)).background(Color(0xFFE5E7EB))
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(animatedProgress.value)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(badge.colorIcon, badge.colorIcon.copy(alpha = 0.7f))
-                                    ),
-                                    RoundedCornerShape(50)
-                                )
+                        // FIX: Only draw the colored fill if progress is strictly greater than 0
+                        if (animatedProgress.value > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(animatedProgress.value)
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                badge.colorIcon,
+                                                badge.colorIcon.copy(alpha = 0.7f)
+                                            )
+                                        ),
+                                        RoundedCornerShape(50)
+                                    )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        color = if (badge.earned) Color(0xFFECFDF5) else Color(0xFFFFFBEB),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            tip,
+                            fontSize = 13.sp,
+                            color = if (badge.earned) Color(0xFF065F46) else Color(0xFF92400E),
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(14.dp)
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // ── Tip / Encouragement ──
-                Surface(
-                    color = if (badge.earned) Color(0xFFECFDF5) else Color(0xFFFFFBEB),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        tip,
-                        fontSize = 13.sp,
-                        color = if (badge.earned) Color(0xFF065F46) else Color(0xFF92400E),
-                        lineHeight = 18.sp,
-                        modifier = Modifier.padding(14.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // ── Close Button ──
-                Surface(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(12.dp),
-                    color = CalorieKoGreen,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "Got it!",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(14.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Surface(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp),
+                        color = CalorieKoGreen,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Got it!",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(14.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         }

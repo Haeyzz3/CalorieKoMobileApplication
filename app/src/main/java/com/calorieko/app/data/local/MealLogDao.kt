@@ -42,4 +42,7 @@ interface MealLogDao {
         """
     )
     suspend fun getMealLogsWithItemsByDate(uid: String, startTimestamp: Long, endTimestamp: Long): List<MealLogWithItems>
+
+    @Query("SELECT COUNT(*) FROM meal_log_table WHERE uid = :uid")
+    suspend fun getTotalMealsCount(uid: String): Int
 }
