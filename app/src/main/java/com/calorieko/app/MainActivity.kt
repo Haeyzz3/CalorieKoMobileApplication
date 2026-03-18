@@ -340,25 +340,21 @@ fun AppNavigation() {
 
         // --- NEW: Settings Screen ---
         // --- Settings Screen ---
+    
         composable("settings") {
             SettingsScreen(
                 onNavigate = { dest ->
-                    when (dest) {
-                        "logout" -> {
-                            // Clear the entire back stack and go to intro
-                            navController.navigate("intro") {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
-                        "home" -> navController.navigate("dashboard") { launchSingleTop = true }
-                        else -> {
-                            if (dest != "settings") {
-                                navController.navigate(dest) { launchSingleTop = true }
-                            }
-                        }
+                    val route = if (dest == "home") "dashboard" else dest
+                    if (route != "settings") {
+                        navController.navigate(route) { launchSingleTop = true }
                     }
                 },
-                bleScaleManager = bleScaleManager
+                onLogout = {
+                    navController.navigate("intro") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                bleScaleManager = bleScaleManager // Pasing the scale manager back!
             )
         }
 

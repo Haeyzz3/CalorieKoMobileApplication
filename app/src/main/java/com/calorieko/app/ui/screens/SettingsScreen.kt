@@ -1,21 +1,19 @@
 package com.calorieko.app.ui.screens
 
-
-
-import androidx.compose.ui.platform.LocalContext
-import androidx.credentials.ClearCredentialStateRequest
-import androidx.credentials.CredentialManager
-import com.google.firebase.auth.FirebaseAuth
-import com.calorieko.app.ui.components.BottomNavigation
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,43 +21,36 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DividerDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,686 +58,283 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calorieko.app.ble.BleConnectionState
+import androidx.compose.ui.window.DialogProperties
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
 import com.calorieko.app.ble.BleScaleManager
+import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onNavigate: (String) -> Unit, bleScaleManager: BleScaleManager) {
-    var activeTab by remember { mutableStateOf("settings") }
-    val scrollState = rememberScrollState()
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+fun SettingsScreen(
+    onNavigate: (String) -> Unit,
+    onLogout: () -> Unit,
+    bleScaleManager: BleScaleManager? = null // Brought back to handle scale options
+) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val auth = FirebaseAuth.getInstance()
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showWipeDialog by remember { mutableStateOf(false) }
+    var isWipingData by remember { mutableStateOf(false) }
 
-    // --- BLE State ---
-    val bleState by bleScaleManager.connectionState.collectAsState()
+    // State for the cool notification banner
+    var showSuccessBanner by remember { mutableStateOf(false) }
 
-    val (statusText, statusColor, iconBgColor) = when (bleState) {
-        is BleConnectionState.Connected -> Triple("Connected", CalorieKoGreen, Color(0xFFECFDF5))
-        is BleConnectionState.Connecting,
-        is BleConnectionState.Scanning -> Triple("Connecting...", Color(0xFFFF9800), Color(0xFFFFF3E0))
-        else -> Triple("Disconnected", Color.Gray, Color(0xFFF3F4F6))
-    }
-    var scaleBattery by remember { mutableIntStateOf(87) }
-    var dataEncryption by remember { mutableStateOf(true) }
-    var localProcessing by remember { mutableStateOf(true) }
-    var mealReminders by remember { mutableStateOf(true) }
-    var activityAlerts by remember { mutableStateOf(false) }
-    var useMetricUnits by remember { mutableStateOf(true) }
+    // Initialize Database Access
+    val db = remember { AppDatabase.getDatabase(context, scope) }
 
-    // Dialog States
-
-    var showCalibrationWizard by remember { mutableStateOf(false) }
-    var calibrationStep by remember { mutableStateOf(CalibrationStep.INTRO) }
-    var knownWeightInput by remember { mutableStateOf("") }
-
-    var showWipeConfirmDialog by remember { mutableStateOf(false) }
-    var isWiping by remember { mutableStateOf(false) }
-
-    // --- ADD THIS NEW STATE ---
-    var showLogOutConfirmDialog by remember { mutableStateOf(false) }
-
-    // Observe calibration events
-    LaunchedEffect(bleScaleManager) {
-        bleScaleManager.calibrationEvent.collect { event ->
-            when (event) {
-                "TARE_OK" -> {
-                    if (calibrationStep == CalibrationStep.TARING) {
-                        calibrationStep = CalibrationStep.INPUT_WEIGHT
-                    }
-                }
-                "CAL_OK" -> {
-                    if (calibrationStep == CalibrationStep.CALCULATING) {
-                        calibrationStep = CalibrationStep.SUCCESS
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Scale recalibrated successfully!")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Logic Handlers
-    fun handleRecalibrate() {
-        showCalibrationWizard = true
-        calibrationStep = CalibrationStep.INTRO
-        knownWeightInput = ""
-    }
-
-    fun handleWipeData() {
-        showWipeConfirmDialog = false
-        scope.launch {
-            isWiping = true
-            delay(1500) // Simulate work
-            isWiping = false
-            snackbarHostState.showSnackbar("Local data has been wiped successfully.")
-        }
-    }
-    fun handleSignOut() {
-        scope.launch {
-            try {
-                // 1. Clear the Firebase Auth local session
-                FirebaseAuth.getInstance().signOut()
-
-                // 2. Clear the Google Credential Manager cache
-                val credentialManager = CredentialManager.create(context)
-                credentialManager.clearCredentialState(ClearCredentialStateRequest())
-
-                // 3. Trigger navigation back to the intro/login screen
-                onNavigate("logout")
-
-            } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Error signing out: ${e.message}")
-            }
+    // Auto-hide the success banner after 3 seconds
+    LaunchedEffect(showSuccessBanner) {
+        if (showSuccessBanner) {
+            delay(3000)
+            showSuccessBanner = false
         }
     }
 
     Scaffold(
-        bottomBar = {
-            BottomNavigation(activeTab = activeTab, onTabChange = {
-                activeTab = it
-                onNavigate(it)
-            })
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFFF8F9FA)
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Header
-            Surface(
-                color = Color.White,
-                shadowElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
-                    Text(
-                        text = "Settings",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1F2937)
-                    )
-                }
-            }
-
-            // Scrollable Content
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState)
-            ) {
-                // 1. Hardware Section
-                SettingsSectionHeader("Hardware (IoT Integration)")
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = androidx.compose.ui.graphics.RectangleShape,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Scale Connectivity
-                    SettingsRow(
-                        icon = Icons.Default.Bluetooth,
-                        iconBgColor = iconBgColor,
-                        iconColor = statusColor,
-                        title = "CalorieKo Smart Scale",
-                        subtitle = statusText,
-                        subtitleColor = statusColor,
-                        onClick = { onNavigate("scalePairing/settings") }
-                    ) {
-                        Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)
-                    }
-                    HorizontalDivider(
-                        Modifier,
-                        DividerDefaults.Thickness,
-                        color = Color(0xFFF3F4F6)
-                    )
-
-                    // Battery
-                    SettingsRow(
-                        icon = Icons.Default.BatteryStd,
-                        iconBgColor = Color(0xFFF3F4F6),
-                        iconColor = Color(0xFF374151),
-                        title = "Scale Battery",
-                        subtitle = null
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Battery Bar
-                            Box(
-                                modifier = Modifier
-                                    .width(80.dp)
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFFE5E7EB))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(scaleBattery / 100f)
-                                        .background(
-                                            if (scaleBattery > 50) CalorieKoGreen
-                                            else if (scaleBattery > 20) Color(0xFFFF9800)
-                                            else Color(0xFFEF4444)
-                                        )
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("$scaleBattery%", fontSize = 12.sp, color = Color.Gray)
-                        }
-                    }
-                    HorizontalDivider(
-                        Modifier,
-                        DividerDefaults.Thickness,
-                        color = Color(0xFFF3F4F6)
-                    )
-
-                    // Calibration Action
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text("Calibration", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-                            Text("Recalibrate load cell for accuracy", fontSize = 12.sp, color = Color.Gray)
-                        }
-                        Button(
-                            onClick = { 
-                                if (bleState !is BleConnectionState.Connected) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Device not connected. Proceeding with mocked calibration for testing.")
-                                    }
-                                }
-                                handleRecalibrate() 
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = CalorieKoGreen,
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            modifier = Modifier.height(36.dp)
-                        ) {
-                            Text("Recalibrate", fontSize = 12.sp)
-                        }
-                    }
-                }
-
-                // 2. Security Section
-                Spacer(modifier = Modifier.height(24.dp))
-                SettingsSectionHeader("Security & Data Privacy")
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = androidx.compose.ui.graphics.RectangleShape,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Encryption
-                    SettingsRow(
-                        icon = Icons.Default.Shield,
-                        iconBgColor = Color(0xFFEFF6FF),
-                        iconColor = Color(0xFF2563EB),
-                        title = "Data Encryption",
-                        subtitle = "SQLCipher AES-256 Encryption"
-                    ) {
-                        Switch(
-                            checked = dataEncryption,
-                            onCheckedChange = { dataEncryption = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = CalorieKoGreen)
-                        )
-                    }
-                    HorizontalDivider(
-                        Modifier,
-                        DividerDefaults.Thickness,
-                        color = Color(0xFFF3F4F6)
-                    )
-
-                    // Edge AI
-                    SettingsRow(
-                        icon = Icons.Default.Security,
-                        iconBgColor = Color(0xFFFAF5FF),
-                        iconColor = Color(0xFF9333EA),
-                        title = "Edge AI Inference",
-                        subtitle = "Local Image Processing Only"
-                    ) {
-                        Switch(
-                            checked = localProcessing,
-                            onCheckedChange = { localProcessing = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = CalorieKoGreen)
-                        )
-                    }
-
-                    // Wipe Data Button
-                    Column(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        OutlinedButton(
-                            onClick = { showWipeConfirmDialog = true },
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFFDC2626)
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            if (isWiping) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFDC2626), strokeWidth = 2.dp)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Wiping Data...")
-                            } else {
-                                Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Wipe All Local Data", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            "This will delete all locally stored logs and data",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                // --- Sign Out Button ---
-                Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-                    OutlinedButton(
-                        onClick = { showLogOutConfirmDialog = true },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF374151)
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Log Out", fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                // 3. Preferences Section
-                Spacer(modifier = Modifier.height(24.dp))
-                SettingsSectionHeader("Preferences")
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = androidx.compose.ui.graphics.RectangleShape,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Notification Header
-                    SubSectionHeader("Notifications", Icons.Default.Notifications)
-
-                    SettingsToggleRow(
-                        title = "Meal Reminders",
-                        subtitle = "Get notified for breakfast, lunch, and dinner",
-                        checked = mealReminders,
-                        onCheckedChange = { mealReminders = it }
-                    )
-                    HorizontalDivider(
-                        Modifier,
-                        DividerDefaults.Thickness,
-                        color = Color(0xFFF3F4F6)
-                    )
-
-                    SettingsToggleRow(
-                        title = "Activity Alerts",
-                        subtitle = "Reminders to stay active throughout the day",
-                        checked = activityAlerts,
-                        onCheckedChange = { activityAlerts = it }
-                    )
-
-                    // Units Header
-                    SubSectionHeader("Units", Icons.Default.Straighten)
-
-                    // Unit Switcher
-                    Column(modifier = Modifier.padding(24.dp)) {
-                        Text("Measurement System", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            UnitButton(
-                                text = "Metric (kg / cm)",
-                                isSelected = useMetricUnits,
-                                onClick = { useMetricUnits = true },
-                                modifier = Modifier.weight(1f)
-                            )
-                            UnitButton(
-                                text = "Imperial (lbs / in)",
-                                isSelected = !useMetricUnits,
-                                onClick = { useMetricUnits = false },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(40.dp))
-            }
-        }
-
-        // Wipe Data Confirmation Dialog
-        if (showWipeConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = { showWipeConfirmDialog = false },
-                title = { Text("Wipe Local Data?") },
-                text = { Text("Are you sure you want to wipe all local data? This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = { handleWipeData() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
-                    ) {
-                        Text("Wipe Data")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showWipeConfirmDialog = false }) {
-                        Text("Cancel")
-                    }
-                },
-                containerColor = Color.White,
-                titleContentColor = Color(0xFF1F2937),
-                textContentColor = Color(0xFF4B5563)
-            )
-        }
-
-        // Log Out Confirmation Dialog
-        if (showLogOutConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = { showLogOutConfirmDialog = false },
-                title = { Text("Log Out?") },
-                text = { Text("Are you sure you want to log out of your account?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showLogOutConfirmDialog = false
-                            handleSignOut()
-                        },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFDC2626))
-                    ) {
-                        Text("Log Out")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showLogOutConfirmDialog = false }) {
-                        Text("Cancel")
-                    }
-                },
-                containerColor = Color.White,
-                titleContentColor = Color(0xFF1F2937),
-                textContentColor = Color(0xFF4B5563)
-            )
-        }
-
-        // Calibration Wizard Dialog
-        if (showCalibrationWizard) {
-            AlertDialog(
-                onDismissRequest = {
-                    // Prevent dismiss if loading
-                    if (calibrationStep != CalibrationStep.TARING && calibrationStep != CalibrationStep.CALCULATING) {
-                        showCalibrationWizard = false
-                    }
-                },
-                title = { Text("Scale Calibration", fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        when (calibrationStep) {
-                            CalibrationStep.INTRO -> {
-                                Text("Step 1: Empty the scale completely. Ensure it is on a flat, hard surface.", color = Color(0xFF4B5563))
-                            }
-                            CalibrationStep.TARING -> {
-                                CircularProgressIndicator(color = CalorieKoGreen)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Zeroing scale...", color = Color(0xFF4B5563))
-                            }
-                            CalibrationStep.INPUT_WEIGHT -> {
-                                Text("Step 2: Place a known weight on the center of the scale.", color = Color(0xFF4B5563))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                OutlinedTextField(
-                                    value = knownWeightInput,
-                                    onValueChange = { knownWeightInput = it },
-                                    label = { Text("Exact weight (grams)") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                            CalibrationStep.CALCULATING -> {
-                                CircularProgressIndicator(color = CalorieKoGreen)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Calculating and saving calibration factor...", color = Color(0xFF4B5563))
-                            }
-                            CalibrationStep.SUCCESS -> {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Success",
-                                    tint = CalorieKoGreen,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Success! Your scale is perfectly calibrated.", fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563))
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    when (calibrationStep) {
-                        CalibrationStep.INTRO -> {
-                            Button(
-                                onClick = {
-                                    calibrationStep = CalibrationStep.TARING
-                                    bleScaleManager.sendTareCommand()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
-                            ) {
-                                Text("Zero Scale")
-                            }
-                        }
-                        CalibrationStep.INPUT_WEIGHT -> {
-                            Button(
-                                onClick = {
-                                    val weight = knownWeightInput.toIntOrNull()
-                                    if (weight != null && weight > 0) {
-                                        calibrationStep = CalibrationStep.CALCULATING
-                                        bleScaleManager.sendCalibrateCommand(weight)
-                                    } else {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Please enter a valid weight in grams")
-                                        }
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
-                            ) {
-                                Text("Calibrate")
-                            }
-                        }
-                        CalibrationStep.SUCCESS -> {
-                            Button(
-                                onClick = { showCalibrationWizard = false },
-                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
-                            ) {
-                                Text("Done")
-                            }
-                        }
-                        else -> {
-                            // Empty for loading states (TARING, CALCULATING)
-                        }
-                    }
-                },
-                dismissButton = {
-                    if (calibrationStep == CalibrationStep.INTRO || calibrationStep == CalibrationStep.INPUT_WEIGHT) {
-                        TextButton(onClick = { showCalibrationWizard = false }) {
-                            Text("Cancel", color = Color.Gray)
-                        }
-                    }
-                },
-                containerColor = Color.White,
-                titleContentColor = Color(0xFF1F2937),
-                textContentColor = Color(0xFF4B5563)
-            )
-        }
-    }
-}
-
-enum class CalibrationStep {
-    INTRO,
-    TARING,
-    INPUT_WEIGHT,
-    CALCULATING,
-    SUCCESS
-}
-
-
-
-
-// --- Helper Components ---
-
-@Composable
-fun SettingsSectionHeader(text: String) {
-    Text(
-        text = text.uppercase(),
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Bold,
-        color = Color(0xFF6B7280),
-        letterSpacing = 0.5.sp,
-        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-    )
-}
-
-@Composable
-fun SubSectionHeader(text: String, icon: ImageVector) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF9FAFB))
-            .padding(horizontal = 24.dp, vertical = 12.dp)
-            .drawBehind {
-                drawLine(
-                    color = Color(0xFFE5E7EB),
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx()
+        topBar = {
+            Surface(shadowElevation = 2.dp) {
+                TopAppBar(
+                    title = { Text("Settings", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
                 )
             }
-    ) {
-        Icon(icon, null, tint = Color(0xFF4B5563), modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-    }
-}
+        },
+        bottomBar = { BottomNavigation(activeTab = "settings", onTabChange = { onNavigate(it) }) },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
 
-@Composable
-fun SettingsRow(
-    icon: ImageVector,
-    iconBgColor: Color,
-    iconColor: Color,
-    title: String,
-    subtitle: String?,
-    subtitleColor: Color = Color(0xFF6B7280),
-    onClick: (() -> Unit)? = null,
-    trailingContent: @Composable () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(iconBgColor, RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, null, tint = iconColor, modifier = Modifier.size(20.dp))
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-            if (subtitle != null) {
-                Text(subtitle, fontSize = 12.sp, color = subtitleColor)
+            // Added verticalScroll so everything fits on small screens
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+
+                // --- ACCOUNT SECTION ---
+                Text("Account", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp))
+                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
+                    Column {
+                        SettingsRow(icon = Icons.Default.Person, title = "Edit Profile", subtitle = "Update your height, weight, and goals", iconColor = Color(0xFF3B82F6), onClick = { onNavigate("editProfile") })
+                        SettingsDivider()
+                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { Toast.makeText(context, "Password settings coming soon", Toast.LENGTH_SHORT).show() })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- PREFERENCES SECTION ---
+                Text("Preferences", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
+                    Column {
+                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Notifications coming soon", Toast.LENGTH_SHORT).show() })
+                        SettingsDivider()
+                        SettingsRow(icon = Icons.Default.Sync, title = "Sync Data", subtitle = "Manually backup to cloud", iconColor = CalorieKoGreen, onClick = { Toast.makeText(context, "Syncing data...", Toast.LENGTH_SHORT).show() })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- SMART SCALE SECTION ---
+                Text("Smart Scale", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
+                    Column {
+                        SettingsRow(icon = Icons.Default.Bluetooth, title = "Pairing Status", subtitle = "Manage Bluetooth scale", iconColor = Color(0xFF3B82F6), onClick = { onNavigate("scalePairing/settings") })
+                        SettingsDivider()
+                        SettingsRow(icon = Icons.Default.BatteryStd, title = "Battery Level", subtitle = "Check scale battery", iconColor = CalorieKoGreen, onClick = { Toast.makeText(context, "Scale Battery: Good", Toast.LENGTH_SHORT).show() })
+                        SettingsDivider()
+                        SettingsRow(icon = Icons.Default.MonitorWeight, title = "Recalibrate Scale", subtitle = "Tare the scale to zero", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Scale recalibrated to 0.0g", Toast.LENGTH_SHORT).show() })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- ABOUT & LEGAL SECTION ---
+                Text("About", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
+                    Column {
+                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { Toast.makeText(context, "Opening Privacy Notice...", Toast.LENGTH_SHORT).show() })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- DANGER ZONE ---
+                Text("Danger Zone", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
+                    Column {
+                        SettingsRow(
+                            icon = Icons.Default.DeleteForever, title = "Wipe Local Data", subtitle = "Clear all activities and meals from this device",
+                            iconColor = Color(0xFFEF4444), textColor = Color(0xFFEF4444), showArrow = false,
+                            onClick = { showWipeDialog = true }
+                        )
+                        SettingsDivider()
+                        SettingsRow(
+                            icon = Icons.AutoMirrored.Filled.Logout, title = "Logout", subtitle = "Sign out of your account",
+                            iconColor = Color(0xFF6B7280), showArrow = false,
+                            onClick = { showLogoutDialog = true }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(40.dp)) // Extra padding at bottom
+            }
+
+            // --- MODERN ANIMATED SUCCESS BANNER ---
+            AnimatedVisibility(
+                visible = showSuccessBanner,
+                enter = slideInVertically(initialOffsetY = { -it - 50 }, animationSpec = tween(500)) + fadeIn(tween(500)),
+                exit = slideOutVertically(targetOffsetY = { -it - 50 }, animationSpec = tween(500)) + fadeOut(tween(500)),
+                modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 16.dp)
+            ) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF10B981), Color(0xFF059669))))
+                            .padding(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.2f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = "Success", tint = Color.White, modifier = Modifier.size(24.dp))
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text("Data Wiped Successfully", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("Your local device storage is clean.", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
-        trailingContent()
     }
-}
 
-@Composable
-fun SettingsToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
-            Text(subtitle, fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp)
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = CalorieKoGreen)
+    // --- WIPE LOCAL DATA DIALOG ---
+    if (showWipeDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isWipingData) showWipeDialog = false },
+            title = { Text("Wipe All Local Data?", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
+            text = { Text("This will permanently delete all unsynced meals, workouts, and settings from this device. Are you sure?", color = Color(0xFF4B5563)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        isWipingData = true
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                // Physically Wipe the Room Database Tables
+                                db.clearAllTables()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+
+                            withContext(Dispatchers.Main) {
+                                isWipingData = false
+                                showWipeDialog = false
+                                showSuccessBanner = true // Trigger the cool animation
+                            }
+                        }
+                    },
+                    enabled = !isWipingData
+                ) {
+                    Text(if (isWipingData) "Wiping..." else "Yes, Wipe Data", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWipeDialog = false }, enabled = !isWipingData) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            },
+            containerColor = Color.White,
+            properties = DialogProperties(dismissOnBackPress = !isWipingData, dismissOnClickOutside = !isWipingData)
+        )
+    }
+
+    // --- LOGOUT DIALOG ---
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
+            text = { Text("Are you sure you want to log out of your account?", color = Color(0xFF4B5563)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        scope.launch {
+                            try {
+                                val credentialManager = CredentialManager.create(context)
+                                credentialManager.clearCredentialState(ClearCredentialStateRequest())
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                            auth.signOut()
+                            onLogout()
+                        }
+                    }
+                ) {
+                    Text("Logout", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            },
+            containerColor = Color.White
         )
     }
 }
 
+// Reusable Settings Row Component
 @Composable
-fun UnitButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun SettingsRow(
+    icon: ImageVector, title: String, subtitle: String, iconColor: Color,
+    textColor: Color = Color(0xFF1F2937), showArrow: Boolean = true, onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) CalorieKoGreen else Color(0xFFF3F4F6),
-            contentColor = if (isSelected) Color.White else Color(0xFF4B5563)
-        ),
-        shape = RoundedCornerShape(8.dp),
-        modifier = modifier
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(iconColor.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = title, tint = iconColor, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textColor)
+            Text(subtitle, fontSize = 12.sp, color = Color(0xFF6B7280))
+        }
+        if (showArrow) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate", tint = Color(0xFFD1D5DB), modifier = Modifier.size(16.dp))
+        }
     }
+}
+
+@Composable
+fun SettingsDivider() {
+    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF3F4F6)).padding(horizontal = 20.dp))
 }

@@ -87,7 +87,7 @@ import java.util.Locale
 data class UserData(
     val name: String = "Juan Dela Cruz",
     val memberSince: String = "January 2025",
-    val streak: Int = 7,
+    val streak: Int = 0,
     val level: Int = 5,
     val age: Int = 25,
     val height: Double = 170.0, // cm
