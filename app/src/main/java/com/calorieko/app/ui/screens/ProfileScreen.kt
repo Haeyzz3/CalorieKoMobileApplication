@@ -720,28 +720,22 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Outer Gray Track
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(10.dp)
-                            .clip(RoundedCornerShape(50)).background(Color(0xFFE5E7EB))
-                    ) {
-                        // FIX: Only draw the colored fill if progress is strictly greater than 0
-                        if (animatedProgress.value > 0f) {
+// Outer Gray Track
+                    Box(modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(50)).background(Color(0xFFE5E7EB))) {
+
+                        // STRICT CHECK FOR THE POPUP DIALOG
+                        if (badge.progress > 0) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .fillMaxWidth(animatedProgress.value)
                                     .background(
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                badge.colorIcon,
-                                                badge.colorIcon.copy(alpha = 0.7f)
-                                            )
-                                        ),
+                                        Brush.horizontalGradient(listOf(badge.colorIcon, badge.colorIcon.copy(alpha = 0.7f))),
                                         RoundedCornerShape(50)
                                     )
                             )
                         }
+
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
