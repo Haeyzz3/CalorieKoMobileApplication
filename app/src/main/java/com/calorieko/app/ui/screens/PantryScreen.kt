@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
@@ -87,7 +88,8 @@ data class Recipe(
     val fats: Int,
     val ingredients: List<String>,
     val category: String, // "ready" or "almost"
-    val missingIngredients: List<String> = emptyList()
+    val missingIngredients: List<String> = emptyList(),
+    val visualEmoji: String // Added for visual chips
 )
 
 data class PlannedMeal(
@@ -97,14 +99,24 @@ data class PlannedMeal(
 
 // --- Mock Data ---
 val ALL_RECIPES = listOf(
-    Recipe("1", "Pork Adobo", 380, 890, 32, 12, 24, listOf("Pork", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves"), "ready"),
-    Recipe("2", "Chicken Adobo", 320, 820, 38, 10, 18, listOf("Chicken", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves"), "ready"),
-    Recipe("3", "Sinigang na Baboy", 420, 650, 28, 35, 16, listOf("Pork", "Tamarind", "Tomatoes", "Onions", "Kangkong"), "almost", listOf("Kangkong")),
-    Recipe("4", "Tinola", 280, 520, 30, 18, 12, listOf("Chicken", "Ginger", "Green Papaya", "Fish Sauce", "Chili Leaves"), "almost", listOf("Green Papaya", "Chili Leaves")),
-    Recipe("5", "Sisig", 450, 980, 35, 8, 32, listOf("Pork", "Onions", "Chili", "Calamansi", "Soy Sauce"), "ready"),
-    Recipe("6", "Law-uy", 340, 580, 22, 42, 10, listOf("Squash", "String Beans", "Corn", "Ginger", "Salt"), "almost", listOf("Squash")),
-    Recipe("7", "Bicol Express", 520, 720, 28, 14, 38, listOf("Pork", "Coconut Milk", "Chili", "Shrimp Paste", "Ginger"), "almost", listOf("Coconut Milk", "Shrimp Paste")),
-    Recipe("8", "Pinakbet", 260, 680, 18, 28, 12, listOf("Squash", "Eggplant", "String Beans", "Tomatoes", "Shrimp Paste"), "almost", listOf("Eggplant", "Shrimp Paste"))
+    Recipe("1", "Pork Adobo", 380, 890, 32, 12, 24, listOf("Pork", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves"), "ready", emptyList(), "🍲"),
+    Recipe("2", "Chicken Adobo", 320, 820, 38, 10, 18, listOf("Chicken", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves"), "ready", emptyList(), "🍗"),
+    Recipe("3", "Sinigang na Baboy", 420, 650, 28, 35, 16, listOf("Pork", "Tamarind", "Tomatoes", "Onions", "Kangkong"), "almost", listOf("Kangkong"), "🥘"),
+    Recipe("4", "Tinola", 280, 520, 30, 18, 12, listOf("Chicken", "Ginger", "Green Papaya", "Fish Sauce", "Chili Leaves"), "almost", listOf("Green Papaya", "Chili Leaves"), "🥣"),
+    Recipe("5", "Sisig", 450, 980, 35, 8, 32, listOf("Pork", "Onions", "Chili", "Calamansi", "Soy Sauce"), "ready", emptyList(), "🍳"),
+    Recipe("6", "Law-uy", 340, 580, 22, 42, 10, listOf("Squash", "String Beans", "Corn", "Ginger", "Salt"), "almost", listOf("Squash"), "🥗"),
+    Recipe("7", "Bicol Express", 520, 720, 28, 14, 38, listOf("Pork", "Coconut Milk", "Chili", "Shrimp Paste", "Ginger"), "almost", listOf("Coconut Milk", "Shrimp Paste"), "🌶️"),
+    Recipe("8", "Pinakbet", 260, 680, 18, 28, 12, listOf("Squash", "Eggplant", "String Beans", "Tomatoes", "Shrimp Paste"), "almost", listOf("Eggplant", "Shrimp Paste"), "🍲")
+)
+
+// Mock Category Dictionary for Ingredients
+val INGREDIENT_CATEGORIES = mapOf(
+    "Pork" to "Proteins", "Chicken" to "Proteins", "Beef" to "Proteins", "Fish" to "Proteins",
+    "Soy Sauce" to "Condiments & Spices", "Vinegar" to "Condiments & Spices", "Garlic" to "Condiments & Spices",
+    "Onions" to "Condiments & Spices", "Bay Leaves" to "Condiments & Spices", "Chili" to "Condiments & Spices",
+    "Calamansi" to "Condiments & Spices", "Ginger" to "Condiments & Spices", "Salt" to "Condiments & Spices",
+    "Tamarind" to "Vegetables", "Tomatoes" to "Vegetables", "Kangkong" to "Vegetables", "Squash" to "Vegetables",
+    "String Beans" to "Vegetables", "Eggplant" to "Vegetables", "Green Papaya" to "Vegetables", "Corn" to "Vegetables"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -129,7 +141,9 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
 
     fun handleAddIngredient() {
         if (searchQuery.isNotBlank() && !pantryIngredients.contains(searchQuery.trim())) {
-            pantryIngredients = pantryIngredients + searchQuery.trim()
+            // Capitalize first letter to match dictionary
+            val formattedIngredient = searchQuery.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            pantryIngredients = pantryIngredients + formattedIngredient
             searchQuery = ""
             keyboardController?.hide()
         }
@@ -199,51 +213,67 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Pantry Chips
+                    // Pantry Chips - Categorized
+                    val groupedIngredients = pantryIngredients.groupBy { INGREDIENT_CATEGORIES[it] ?: "Other" }
+                    val sortedCategories = listOf("Proteins", "Vegetables", "Condiments & Spices", "Other")
+
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("My Pantry", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("My Pantry", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                                Text("${pantryIngredients.size} items", fontSize = 12.sp, color = Color.Gray)
+                            }
 
-                            // ADD THIS BLOCK
-                            SimpleFlowRow(
-                                horizontalGap = 8.dp,
-                                verticalGap = 8.dp
-                            ) {
-                                pantryIngredients.forEach { ingredient ->
-                                    Surface(
-                                        color = Color(0xFFECFDF5),
-                                        shape = RoundedCornerShape(50),
-                                        border = BorderStroke(1.dp, CalorieKoGreen.copy(alpha = 0.5f))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            if (pantryIngredients.isEmpty()) {
+                                Text(
+                                    "No ingredients added yet. Add some to get recipe suggestions!",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                                )
+                            } else {
+                                sortedCategories.forEach { category ->
+                                    val itemsInCategory = groupedIngredients[category]
+                                    if (!itemsInCategory.isNullOrEmpty()) {
+                                        Text(category, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 8.dp, top = if(category == sortedCategories.first()) 0.dp else 12.dp))
+                                        SimpleFlowRow(
+                                            horizontalGap = 8.dp,
+                                            verticalGap = 8.dp
                                         ) {
-                                            Text(ingredient, fontSize = 13.sp, color = Color(0xFF1F2937))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Icon(
-                                                Icons.Default.Close,
-                                                null,
-                                                tint = Color(0xFF6B7280),
-                                                modifier = Modifier.size(14.dp).clickable {
-                                                    pantryIngredients = pantryIngredients - ingredient
+                                            itemsInCategory.forEach { ingredient ->
+                                                Surface(
+                                                    color = Color(0xFFF3F4F6),
+                                                    shape = RoundedCornerShape(50),
+                                                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(ingredient, fontSize = 13.sp, color = Color(0xFF374151))
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Icon(
+                                                            Icons.Default.Close,
+                                                            null,
+                                                            tint = Color(0xFF9CA3AF),
+                                                            modifier = Modifier.size(14.dp).clickable {
+                                                                pantryIngredients = pantryIngredients - ingredient
+                                                            }
+                                                        )
+                                                    }
                                                 }
-                                            )
+                                            }
                                         }
                                     }
-                                }
-                                if (pantryIngredients.isEmpty()) {
-                                    Text(
-                                        "No ingredients added yet.",
-                                        fontSize = 14.sp,
-                                        color = Color.Gray,
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                    )
                                 }
                             }
                         }
@@ -278,7 +308,6 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
                 MealPlanCalendarSection(
                     plannedMeals = plannedMeals,
                     onAddMeal = { day, recipe ->
-                        // Logic handled by dialog usually, keeping simple for prototype
                         plannedMeals = plannedMeals + PlannedMeal(day, recipe)
                     },
                     onRemoveMeal = { day ->
@@ -303,7 +332,6 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe = null }
                 },
                 onAddToPlan = {
-                    // In a real app, this would open a day selector
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe = null }
                 }
             )
@@ -338,45 +366,63 @@ fun RecipeCard(recipe: Recipe, color: Color, onClick: (Recipe) -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
-            .width(200.dp)
+            .width(220.dp) // Slightly wider to accommodate new layout
             .clickable { onClick(recipe) }
             .border(2.dp, color.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    recipe.name,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2937),
-                    modifier = Modifier.weight(1f)
-                )
+            // Top Row: Visual Chip + Badge
+            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                // Visual Emoji Chip
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = recipe.visualEmoji, fontSize = 28.sp)
+                }
+
                 if (recipe.category == "ready") {
                     Box(modifier = Modifier.size(24.dp).background(Color(0xFFDCFCE7), CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(14.dp))
                     }
                 } else {
                     Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(4.dp)) {
-                        Text("Missing", fontSize = 10.sp, color = CalorieKoOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                        Text("Missing", fontSize = 10.sp, color = CalorieKoOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text("${recipe.calories} kcal", fontSize = 12.sp, color = Color(0xFF4B5563))
+            Text(
+                recipe.name,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${recipe.calories} kcal", fontSize = 12.sp, color = Color(0xFF4B5563), fontWeight = FontWeight.Medium)
+                Text(" • ", fontSize = 12.sp, color = Color.LightGray)
+                Text("${recipe.sodium}mg Na", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+            }
 
             if (recipe.missingIngredients.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Need: ${recipe.missingIngredients.joinToString(", ")}",
                     fontSize = 12.sp,
                     color = CalorieKoOrange,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis
                 )
-            } else {
-                Text("Sodium: ${recipe.sodium}mg", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
         }
     }
@@ -497,10 +543,10 @@ fun MealPlanCalendarSection(
                                     ),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
-                                    Column(modifier = Modifier.padding(4.dp)) {
-                                        Text(meal.recipe.name, fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 12.sp, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text("${meal.recipe.calories}", fontSize = 9.sp, color = Color.DarkGray)
+                                    Column(modifier = Modifier.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(meal.recipe.visualEmoji, fontSize = 16.sp)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(meal.recipe.name, fontSize = 9.sp, fontWeight = FontWeight.Bold, lineHeight = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                                     }
                                 }
                             } else {
@@ -526,7 +572,7 @@ fun MealPlanCalendarSection(
                                 recipeToAdd = recipe
                                 showAddDialog = true
                             },
-                            label = { Text(recipe.name) },
+                            label = { Text("${recipe.visualEmoji} ${recipe.name}") },
                             colors = SuggestionChipDefaults.suggestionChipColors(
                                 containerColor = if (recipe.category == "ready") Color(0xFFECFDF5) else Color(0xFFFFEDD5),
                                 labelColor = Color(0xFF1F2937)
@@ -588,16 +634,25 @@ fun RecipeDetailContent(recipe: Recipe, onClose: () -> Unit, onAddToPlan: () -> 
     ) {
         // Header
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Column {
-                Text(recipe.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                Spacer(modifier = Modifier.height(8.dp))
-                if (recipe.category == "ready") {
-                    Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
-                        Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else {
-                    Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
-                        Text("Missing Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(64.dp).background(Color(0xFFF3F4F6), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = recipe.visualEmoji, fontSize = 36.sp)
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(recipe.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (recipe.category == "ready") {
+                        Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
+                            Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
+                            Text("Missing Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
