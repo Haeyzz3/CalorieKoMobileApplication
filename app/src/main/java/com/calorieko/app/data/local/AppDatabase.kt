@@ -6,13 +6,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.data.model.DishIngredient
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
+import com.calorieko.app.data.model.PantryItem
+import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 7 to 8
+// INCREMENT version from 8 to 9
 @Database(
     entities = [
         FoodItem::class,
@@ -20,9 +23,12 @@ import kotlinx.coroutines.CoroutineScope
         ActivityLogEntity::class,
         MealLogEntity::class,
         MealLogItemEntity::class,
-        DailyNutritionSummaryEntity::class
+        DailyNutritionSummaryEntity::class,
+        DishIngredient::class,
+        PantryItem::class,
+        PlannedMealEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +39,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mealLogDao(): MealLogDao
     abstract fun mealLogItemDao(): MealLogItemDao
     abstract fun dailyNutritionSummaryDao(): DailyNutritionSummaryDao
+    abstract fun pantryDao(): PantryDao
+    abstract fun mealPlanDao(): MealPlanDao
 
     companion object {
         @Volatile

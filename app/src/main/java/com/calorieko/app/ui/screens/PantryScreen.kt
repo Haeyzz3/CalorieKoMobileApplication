@@ -1,7 +1,5 @@
 package com.calorieko.app.ui.screens
 
-import com.calorieko.app.ui.components.BottomNavigation
-import com.calorieko.app.ui.components.SimpleFlowRow
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -18,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,8 +29,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -57,6 +54,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,78 +71,49 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.SimpleFlowRow
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.viewmodel.DishResult
+import com.calorieko.app.viewmodel.PantryViewModel
 import kotlinx.coroutines.launch
 
-// --- Data Models ---
-data class Recipe(
-    val id: String,
-    val name: String,
-    val calories: Int,
-    val sodium: Int,
-    val protein: Int,
-    val carbs: Int,
-    val fats: Int,
-    val ingredients: List<String>,
-    val category: String, // "ready" or "almost"
-    val missingIngredients: List<String> = emptyList(),
-    val visualEmoji: String // Added for visual chips
-)
-
-data class PlannedMeal(
-    val dayIndex: Int, // 0 = Mon, 6 = Sun
-    val recipe: Recipe
-)
-
-// --- Mock Data ---
-val ALL_RECIPES = listOf(
-    Recipe("1", "Pork Adobo", 380, 890, 32, 12, 24, listOf("Pork", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves"), "ready", emptyList(), "🍲"),
-    Recipe("2", "Chicken Adobo", 320, 820, 38, 10, 18, listOf("Chicken", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves"), "ready", emptyList(), "🍗"),
-    Recipe("3", "Sinigang na Baboy", 420, 650, 28, 35, 16, listOf("Pork", "Tamarind", "Tomatoes", "Onions", "Kangkong"), "almost", listOf("Kangkong"), "🥘"),
-    Recipe("4", "Tinola", 280, 520, 30, 18, 12, listOf("Chicken", "Ginger", "Green Papaya", "Fish Sauce", "Chili Leaves"), "almost", listOf("Green Papaya", "Chili Leaves"), "🥣"),
-    Recipe("5", "Sisig", 450, 980, 35, 8, 32, listOf("Pork", "Onions", "Chili", "Calamansi", "Soy Sauce"), "ready", emptyList(), "🍳"),
-    Recipe("6", "Law-uy", 340, 580, 22, 42, 10, listOf("Squash", "String Beans", "Corn", "Ginger", "Salt"), "almost", listOf("Squash"), "🥗"),
-    Recipe("7", "Bicol Express", 520, 720, 28, 14, 38, listOf("Pork", "Coconut Milk", "Chili", "Shrimp Paste", "Ginger"), "almost", listOf("Coconut Milk", "Shrimp Paste"), "🌶️"),
-    Recipe("8", "Pinakbet", 260, 680, 18, 28, 12, listOf("Squash", "Eggplant", "String Beans", "Tomatoes", "Shrimp Paste"), "almost", listOf("Eggplant", "Shrimp Paste"), "🍲")
-)
-
-// Mock Category Dictionary for Ingredients
-val INGREDIENT_CATEGORIES = mapOf(
-    "Pork" to "Proteins", "Chicken" to "Proteins", "Beef" to "Proteins", "Fish" to "Proteins",
-    "Soy Sauce" to "Condiments & Spices", "Vinegar" to "Condiments & Spices", "Garlic" to "Condiments & Spices",
-    "Onions" to "Condiments & Spices", "Bay Leaves" to "Condiments & Spices", "Chili" to "Condiments & Spices",
-    "Calamansi" to "Condiments & Spices", "Ginger" to "Condiments & Spices", "Salt" to "Condiments & Spices",
-    "Tamarind" to "Vegetables", "Tomatoes" to "Vegetables", "Kangkong" to "Vegetables", "Squash" to "Vegetables",
-    "String Beans" to "Vegetables", "Eggplant" to "Vegetables", "Green Papaya" to "Vegetables", "Corn" to "Vegetables"
+// --- Common Ingredients for Quick-Add ---
+val COMMON_INGREDIENTS = listOf(
+    "egg", "garlic", "onion", "salt", "cooking_oil", "black_pepper",
+    "vinegar", "tomato", "pork_liempo", "chicken_breast", "water", "sugar",
+    "soy_sauce", "ginger", "calamansi"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun PantryScreen(onNavigate: (String) -> Unit) {
+fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     var activeTab by remember { mutableStateOf("pantry") }
-    var searchQuery by remember { mutableStateOf("") }
-    var pantryIngredients by remember { mutableStateOf(listOf("Pork", "Chicken", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaves", "Onions", "Chili", "Calamansi")) }
-    var plannedMeals by remember { mutableStateOf<List<PlannedMeal>>(emptyList()) }
+
+    // Collect ViewModel state
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val pantryIngredients by viewModel.pantryItems.collectAsState()
+    val readyRecipes by viewModel.readyToCookDishes.collectAsState()
+    val almostReadyRecipes by viewModel.almostReadyDishes.collectAsState()
+    val autocompleteSuggestions by viewModel.autocompleteSuggestions.collectAsState()
+    val plannedMeals by viewModel.plannedMeals.collectAsState()
+    val weeklyCalories by viewModel.weeklyCalories.collectAsState()
+    val avgDailySodium by viewModel.avgDailySodium.collectAsState()
 
     // Bottom Sheet State for Recipe Details
-    var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
+    var selectedRecipe by remember { mutableStateOf<DishResult?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
     // Keyboard Controller
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Logic: Filter Recipes
-    val readyRecipes = ALL_RECIPES.filter { it.category == "ready" }
-    val almostReadyRecipes = ALL_RECIPES.filter { it.category == "almost" }
-
     fun handleAddIngredient() {
-        if (searchQuery.isNotBlank() && !pantryIngredients.contains(searchQuery.trim())) {
-            // Capitalize first letter to match dictionary
-            val formattedIngredient = searchQuery.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-            pantryIngredients = pantryIngredients + formattedIngredient
-            searchQuery = ""
+        if (searchQuery.isNotBlank()) {
+            viewModel.addIngredient(searchQuery)
+            viewModel.updateSearchQuery("")
             keyboardController?.hide()
         }
     }
@@ -189,8 +158,8 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
                             Spacer(modifier = Modifier.width(12.dp))
                             TextField(
                                 value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text("Add ingredients (e.g., Pork, Vinegar)", color = Color.Gray) },
+                                onValueChange = { viewModel.updateSearchQuery(it) },
+                                placeholder = { Text("Add ingredients (e.g., egg, garlic)", color = Color.Gray) },
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
@@ -211,12 +180,72 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
                         }
                     }
 
+                    // Autocomplete Dropdown
+                    if (autocompleteSuggestions.isNotEmpty()) {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp)
+                        ) {
+                            Column {
+                                autocompleteSuggestions.forEach { suggestion ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.addIngredient(suggestion)
+                                                viewModel.updateSearchQuery("")
+                                                keyboardController?.hide()
+                                            },
+                                        color = Color.Transparent
+                                    ) {
+                                        Text(
+                                            text = viewModel.formatIngredientName(suggestion),
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF374151)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Quick-Add Common Ingredients
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Quick Add", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(COMMON_INGREDIENTS.filter { it !in pantryIngredients }) { ingredient ->
+                                    SuggestionChip(
+                                        onClick = { viewModel.addIngredient(ingredient) },
+                                        label = { Text(viewModel.formatIngredientName(ingredient), fontSize = 12.sp) },
+                                        colors = SuggestionChipDefaults.suggestionChipColors(
+                                            containerColor = Color(0xFFECFDF5),
+                                            labelColor = Color(0xFF374151)
+                                        ),
+                                        border = BorderStroke(1.dp, CalorieKoGreen.copy(alpha = 0.3f)),
+                                        icon = {
+                                            Icon(Icons.Default.Add, null, modifier = Modifier.size(14.dp), tint = CalorieKoGreen)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Pantry Chips - Categorized
-                    val groupedIngredients = pantryIngredients.groupBy { INGREDIENT_CATEGORIES[it] ?: "Other" }
-                    val sortedCategories = listOf("Proteins", "Vegetables", "Condiments & Spices", "Other")
-
+                    // Pantry Chips
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -241,36 +270,30 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
                                     modifier = Modifier.fillMaxWidth().padding(16.dp)
                                 )
                             } else {
-                                sortedCategories.forEach { category ->
-                                    val itemsInCategory = groupedIngredients[category]
-                                    if (!itemsInCategory.isNullOrEmpty()) {
-                                        Text(category, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 8.dp, top = if(category == sortedCategories.first()) 0.dp else 12.dp))
-                                        SimpleFlowRow(
-                                            horizontalGap = 8.dp,
-                                            verticalGap = 8.dp
+                                SimpleFlowRow(
+                                    horizontalGap = 8.dp,
+                                    verticalGap = 8.dp
+                                ) {
+                                    pantryIngredients.forEach { ingredient ->
+                                        Surface(
+                                            color = Color(0xFFF3F4F6),
+                                            shape = RoundedCornerShape(50),
+                                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                                         ) {
-                                            itemsInCategory.forEach { ingredient ->
-                                                Surface(
-                                                    color = Color(0xFFF3F4F6),
-                                                    shape = RoundedCornerShape(50),
-                                                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(ingredient, fontSize = 13.sp, color = Color(0xFF374151))
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Icon(
-                                                            Icons.Default.Close,
-                                                            null,
-                                                            tint = Color(0xFF9CA3AF),
-                                                            modifier = Modifier.size(14.dp).clickable {
-                                                                pantryIngredients = pantryIngredients - ingredient
-                                                            }
-                                                        )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(viewModel.formatIngredientName(ingredient), fontSize = 13.sp, color = Color(0xFF374151))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    null,
+                                                    tint = Color(0xFF9CA3AF),
+                                                    modifier = Modifier.size(14.dp).clickable {
+                                                        viewModel.removeIngredient(ingredient)
                                                     }
-                                                }
+                                                )
                                             }
                                         }
                                     }
@@ -306,13 +329,10 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
             // Meal Plan Calendar
             item {
                 MealPlanCalendarSection(
+                    viewModel = viewModel,
                     plannedMeals = plannedMeals,
-                    onAddMeal = { day, recipe ->
-                        plannedMeals = plannedMeals + PlannedMeal(day, recipe)
-                    },
-                    onRemoveMeal = { day ->
-                        plannedMeals = plannedMeals.filter { it.dayIndex != day }
-                    },
+                    weeklyCalories = weeklyCalories,
+                    avgDailySodium = avgDailySodium,
                     allRecipes = readyRecipes + almostReadyRecipes
                 )
             }
@@ -328,6 +348,7 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
         ) {
             RecipeDetailContent(
                 recipe = selectedRecipe!!,
+                viewModel = viewModel,
                 onClose = {
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe = null }
                 },
@@ -341,7 +362,7 @@ fun PantryScreen(onNavigate: (String) -> Unit) {
 
 // --- Recipe Row Component ---
 @Composable
-fun RecipeRow(title: String, recipes: List<Recipe>, color: Color, onClick: (Recipe) -> Unit) {
+fun RecipeRow(title: String, recipes: List<DishResult>, color: Color, onClick: (DishResult) -> Unit) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
             Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
@@ -360,30 +381,30 @@ fun RecipeRow(title: String, recipes: List<Recipe>, color: Color, onClick: (Reci
 }
 
 @Composable
-fun RecipeCard(recipe: Recipe, color: Color, onClick: (Recipe) -> Unit) {
+fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) {
+    val isReady = recipe.missingIngredients.isEmpty()
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
-            .width(220.dp) // Slightly wider to accommodate new layout
+            .width(220.dp)
             .clickable { onClick(recipe) }
             .border(2.dp, color.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Top Row: Visual Chip + Badge
+            // Top Row: Emoji + Badge
             Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-                // Visual Emoji Chip
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = recipe.visualEmoji, fontSize = 28.sp)
+                    Text(text = getDishEmoji(recipe.dishLabel), fontSize = 28.sp)
                 }
 
-                if (recipe.category == "ready") {
+                if (isReady) {
                     Box(modifier = Modifier.size(24.dp).background(Color(0xFFDCFCE7), CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(14.dp))
                     }
@@ -397,7 +418,7 @@ fun RecipeCard(recipe: Recipe, color: Color, onClick: (Recipe) -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                recipe.name,
+                recipe.dishName,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F2937),
@@ -413,10 +434,19 @@ fun RecipeCard(recipe: Recipe, color: Color, onClick: (Recipe) -> Unit) {
                 Text("${recipe.sodium}mg Na", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
 
+            // Similarity score badge
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "${(recipe.similarityScore * 100).toInt()}% match",
+                fontSize = 11.sp,
+                color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                fontWeight = FontWeight.Medium
+            )
+
             if (recipe.missingIngredients.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Need: ${recipe.missingIngredients.joinToString(", ")}",
+                    "Need: ${recipe.missingIngredients.joinToString(", ") { it.replace("_", " ") }}",
                     fontSize = 12.sp,
                     color = CalorieKoOrange,
                     fontWeight = FontWeight.Medium,
@@ -452,17 +482,19 @@ fun EmptyStateCard() {
 // --- Meal Plan Calendar Section ---
 @Composable
 fun MealPlanCalendarSection(
-    plannedMeals: List<PlannedMeal>,
-    onAddMeal: (Int, Recipe) -> Unit,
-    onRemoveMeal: (Int) -> Unit,
-    allRecipes: List<Recipe>
+    viewModel: PantryViewModel,
+    plannedMeals: List<PlannedMealEntity>,
+    weeklyCalories: Int,
+    avgDailySodium: Int,
+    allRecipes: List<DishResult>
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
-    var recipeToAdd by remember { mutableStateOf<Recipe?>(null) }
+    var recipeToAdd by remember { mutableStateOf<DishResult?>(null) }
 
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    val weeklyCalories = plannedMeals.sumOf { it.recipe.calories }
-    val weeklySodium = if (plannedMeals.isNotEmpty()) plannedMeals.sumOf { it.recipe.sodium } / plannedMeals.size else 0
+
+    // Sodium warning threshold (mg)
+    val sodiumWarning = avgDailySodium > 2000
 
     Column(modifier = Modifier.padding(16.dp)) {
         // Header
@@ -472,11 +504,7 @@ fun MealPlanCalendarSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Meal Plan Calendar", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {}) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.Gray, modifier = Modifier.size(16.dp)) }
-                Text("This Week", fontSize = 14.sp, color = Color.Gray)
-                IconButton(onClick = {}) { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.Gray, modifier = Modifier.size(16.dp)) }
-            }
+            Text("This Week", fontSize = 14.sp, color = Color.Gray)
         }
 
         // Stats
@@ -493,7 +521,15 @@ fun MealPlanCalendarSection(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Avg. Sodium/Day", fontSize = 12.sp, color = Color.Gray)
-                        Text("$weeklySodium mg", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text(
+                            "$avgDailySodium mg",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (sodiumWarning) CalorieKoOrange else Color(0xFF1F2937)
+                        )
+                        if (sodiumWarning) {
+                            Text("⚠ Above recommended", fontSize = 10.sp, color = CalorieKoOrange)
+                        }
                     }
                 }
             }
@@ -530,7 +566,7 @@ fun MealPlanCalendarSection(
                                 .border(0.5.dp, Color(0xFFF3F4F6))
                                 .clickable {
                                     if (meal != null) {
-                                        onRemoveMeal(index)
+                                        viewModel.removeMealFromPlan(index)
                                     }
                                 }
                                 .padding(2.dp),
@@ -539,14 +575,22 @@ fun MealPlanCalendarSection(
                             if (meal != null) {
                                 Card(
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (meal.recipe.category == "ready") Color(0xFFECFDF5) else Color(0xFFFFEDD5)
+                                        containerColor = Color(0xFFECFDF5)
                                     ),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     Column(modifier = Modifier.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(meal.recipe.visualEmoji, fontSize = 16.sp)
+                                        Text(getDishEmoji(meal.dishLabel), fontSize = 16.sp)
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text(meal.recipe.name, fontSize = 9.sp, fontWeight = FontWeight.Bold, lineHeight = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                                        Text(
+                                            viewModel.formatIngredientName(meal.dishLabel),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 10.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
                                     }
                                 }
                             } else {
@@ -561,24 +605,26 @@ fun MealPlanCalendarSection(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Quick Add
-        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Quick Add to Calendar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(allRecipes.take(5)) { recipe ->
-                        SuggestionChip(
-                            onClick = {
-                                recipeToAdd = recipe
-                                showAddDialog = true
-                            },
-                            label = { Text("${recipe.visualEmoji} ${recipe.name}") },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = if (recipe.category == "ready") Color(0xFFECFDF5) else Color(0xFFFFEDD5),
-                                labelColor = Color(0xFF1F2937)
-                            ),
-                            border = BorderStroke(1.dp, if (recipe.category == "ready") CalorieKoGreen else CalorieKoOrange)
-                        )
+        if (allRecipes.isNotEmpty()) {
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Quick Add to Calendar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(allRecipes.take(5)) { recipe ->
+                            SuggestionChip(
+                                onClick = {
+                                    recipeToAdd = recipe
+                                    showAddDialog = true
+                                },
+                                label = { Text("${getDishEmoji(recipe.dishLabel)} ${recipe.dishName}") },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = if (recipe.missingIngredients.isEmpty()) Color(0xFFECFDF5) else Color(0xFFFFEDD5),
+                                    labelColor = Color(0xFF1F2937)
+                                ),
+                                border = BorderStroke(1.dp, if (recipe.missingIngredients.isEmpty()) CalorieKoGreen else CalorieKoOrange)
+                            )
+                        }
                     }
                 }
             }
@@ -592,7 +638,7 @@ fun MealPlanCalendarSection(
             title = { Text("Plan Meal") },
             text = {
                 Column {
-                    Text("Select a day to cook ${recipeToAdd?.name}:")
+                    Text("Select a day to cook ${recipeToAdd?.dishName}:")
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         days.forEachIndexed { index, day ->
@@ -601,7 +647,7 @@ fun MealPlanCalendarSection(
                                     .size(32.dp)
                                     .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
                                     .clickable {
-                                        onAddMeal(index, recipeToAdd!!)
+                                        viewModel.addMealToPlan(index, recipeToAdd!!.dishLabel)
                                         showAddDialog = false
                                     },
                                 contentAlignment = Alignment.Center
@@ -620,10 +666,15 @@ fun MealPlanCalendarSection(
 
 // --- Recipe Detail Content (BottomSheet) ---
 @Composable
-fun RecipeDetailContent(recipe: Recipe, onClose: () -> Unit, onAddToPlan: () -> Unit) {
+fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose: () -> Unit, onAddToPlan: () -> Unit) {
+    val isReady = recipe.missingIngredients.isEmpty()
     val caloriePercent = (recipe.calories / 2000f)
     val sodiumPercent = (recipe.sodium / 2300f)
     val sodiumColor = if (recipe.sodium <= 500) Color(0xFF16A34A) else if (recipe.sodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
+
+    // Add-to-plan dialog state
+    var showPlanDialog by remember { mutableStateOf(false) }
+    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
     Column(
         modifier = Modifier
@@ -639,13 +690,21 @@ fun RecipeDetailContent(recipe: Recipe, onClose: () -> Unit, onAddToPlan: () -> 
                     modifier = Modifier.size(64.dp).background(Color(0xFFF3F4F6), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = recipe.visualEmoji, fontSize = 36.sp)
+                    Text(text = getDishEmoji(recipe.dishLabel), fontSize = 36.sp)
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(recipe.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (recipe.category == "ready") {
+                    Text(recipe.dishName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Cosine similarity score
+                    Text(
+                        "${(recipe.similarityScore * 100).toInt()}% match",
+                        fontSize = 12.sp,
+                        color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (isReady) {
                         Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
                             Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
@@ -664,43 +723,43 @@ fun RecipeDetailContent(recipe: Recipe, onClose: () -> Unit, onAddToPlan: () -> 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Nutrition Cards
-        Text("Nutrition Overview", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Calories
-            NutritionCard(
-                value = "${recipe.calories}",
-                unit = "kcal",
-                subtext = "${(caloriePercent * 100).toInt()}% of daily",
-                progress = caloriePercent,
-                color = CalorieKoGreen,
-                bgColor = Color(0xFFECFDF5),
-                modifier = Modifier.weight(1f)
-            )
-            // Sodium
-            NutritionCard(
-                value = "${recipe.sodium}",
-                unit = "mg",
-                subtext = "${(sodiumPercent * 100).toInt()}% of limit",
-                progress = sodiumPercent,
-                color = sodiumColor,
-                bgColor = if (recipe.sodium <= 500) Color(0xFFECFDF5) else if (recipe.sodium <= 800) Color(0xFFFEF9C3) else Color(0xFFFFF7ED),
-                modifier = Modifier.weight(1f)
-            )
+        if (recipe.calories > 0) {
+            Text("Nutrition Overview", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NutritionCard(
+                    value = "${recipe.calories}",
+                    unit = "kcal",
+                    subtext = "${(caloriePercent * 100).toInt()}% of daily",
+                    progress = caloriePercent,
+                    color = CalorieKoGreen,
+                    bgColor = Color(0xFFECFDF5),
+                    modifier = Modifier.weight(1f)
+                )
+                NutritionCard(
+                    value = "${recipe.sodium}",
+                    unit = "mg",
+                    subtext = "${(sodiumPercent * 100).toInt()}% of limit",
+                    progress = sodiumPercent,
+                    color = sodiumColor,
+                    bgColor = if (recipe.sodium <= 500) Color(0xFFECFDF5) else if (recipe.sodium <= 800) Color(0xFFFEF9C3) else Color(0xFFFFF7ED),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Macros
+            Text("Macronutrients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MacroRow("Protein", "${recipe.protein}g", Color(0xFF3B82F6), "P")
+                MacroRow("Carbohydrates", "${recipe.carbs}g", Color(0xFFEAB308), "C")
+                MacroRow("Fats", "${recipe.fats}g", Color(0xFFA855F7), "F")
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Macros
-        Text("Macronutrients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-        Spacer(modifier = Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            MacroRow("Protein", "${recipe.protein}g", Color(0xFF3B82F6), "P")
-            MacroRow("Carbohydrates", "${recipe.carbs}g", Color(0xFFEAB308), "C")
-            MacroRow("Fats", "${recipe.fats}g", Color(0xFFA855F7), "F")
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         // Ingredients List
         Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
@@ -720,7 +779,11 @@ fun RecipeDetailContent(recipe: Recipe, onClose: () -> Unit, onAddToPlan: () -> 
                         Icon(if (isMissing) Icons.Rounded.Warning else Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(ingredient, color = if (isMissing) CalorieKoOrange else Color(0xFF374151), fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal)
+                    Text(
+                        viewModel.formatIngredientName(ingredient),
+                        color = if (isMissing) CalorieKoOrange else Color(0xFF374151),
+                        fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal
+                    )
                 }
             }
         }
@@ -728,13 +791,64 @@ fun RecipeDetailContent(recipe: Recipe, onClose: () -> Unit, onAddToPlan: () -> 
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = onAddToPlan,
+            onClick = { showPlanDialog = true },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Add to Meal Plan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
+    }
+
+    // Add to Plan Dialog from Detail Sheet
+    if (showPlanDialog) {
+        AlertDialog(
+            onDismissRequest = { showPlanDialog = false },
+            title = { Text("Plan Meal") },
+            text = {
+                Column {
+                    Text("Select a day to cook ${recipe.dishName}:")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        days.forEachIndexed { index, day ->
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
+                                    .clickable {
+                                        viewModel.addMealToPlan(index, recipe.dishLabel)
+                                        showPlanDialog = false
+                                        onAddToPlan()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(day.first().toString(), fontWeight = FontWeight.Bold, color = CalorieKoGreen)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showPlanDialog = false }) { Text("Cancel") } }
+        )
+    }
+}
+
+// --- Utility: Map dish labels to emojis ---
+fun getDishEmoji(dishLabel: String): String {
+    return when {
+        dishLabel.contains("sinigang") -> "🥘"
+        dishLabel.contains("tinola") || dishLabel.contains("chicken") -> "🍗"
+        dishLabel.contains("adobo") -> "🍲"
+        dishLabel.contains("pinakbet") || dishLabel.contains("chopseuy") -> "🥗"
+        dishLabel.contains("egg") -> "🍳"
+        dishLabel.contains("fish") || dishLabel.contains("bangus") || dishLabel.contains("galunggong") || dishLabel.contains("tilapya") || dishLabel.contains("milkfish") || dishLabel.contains("mackerel") -> "🐟"
+        dishLabel.contains("pork") || dishLabel.contains("menudo") || dishLabel.contains("sisig") -> "🥩"
+        dishLabel.contains("rice") -> "🍚"
+        dishLabel.contains("udong") || dishLabel.contains("noodle") -> "🍜"
+        dishLabel.contains("kinilaw") -> "🥗"
+        dishLabel.contains("tinapa") -> "🐟"
+        else -> "🍽️"
     }
 }
 

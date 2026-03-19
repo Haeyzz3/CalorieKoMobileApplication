@@ -7,6 +7,7 @@ import androidx.compose.runtime.* // Automatically grabs standard runtime compon
 import androidx.compose.runtime.getValue // REQUIRED for 'by' delegate reading
 import androidx.compose.runtime.setValue // REQUIRED for 'by' delegate writing
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -360,7 +361,9 @@ fun AppNavigation() {
 
         // --- NEW: Pantry Screen ---
         composable("pantry") {
+            val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = viewModel()
             PantryScreen(
+                viewModel = pantryViewModel,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "pantry") {

@@ -1,5 +1,6 @@
 package com.calorieko.app.data.local
 
+import com.calorieko.app.data.model.DishIngredient
 import com.calorieko.app.data.model.FoodItem
 import java.io.BufferedReader
 import java.io.InputStream
@@ -49,5 +50,38 @@ object FoodCsvParser {
             }
         }
         return dishes
+    }
+
+    /**
+     * Parses dish_ingredients.csv.
+     * Expected format: ml_label,ingredient_name (with a header row).
+     */
+    fun parseDishIngredients(inputStream: InputStream): List<DishIngredient> {
+        val ingredients = mutableListOf<DishIngredient>()
+        val reader = BufferedReader(InputStreamReader(inputStream))
+        var isFirstLine = true
+
+        reader.useLines { lines ->
+            lines.forEach { line ->
+                if (isFirstLine) {
+                    isFirstLine = false
+                    return@forEach
+                }
+
+                val trimmedLine = line.trim()
+                if (trimmedLine.isEmpty()) return@forEach
+
+                val tokens = trimmedLine.split(",")
+                if (tokens.size >= 2) {
+                    ingredients.add(
+                        DishIngredient(
+                            dishLabel = tokens[0].trim(),
+                            ingredientName = tokens[1].trim()
+                        )
+                    )
+                }
+            }
+        }
+        return ingredients
     }
 }
