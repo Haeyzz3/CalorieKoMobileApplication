@@ -103,7 +103,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     val avgDailySodium by viewModel.avgDailySodium.collectAsState()
 
     // Bottom Sheet State for Recipe Details
-    var selectedRecipe by remember { mutableStateOf<DishResult?>(null) }
+    val selectedRecipe = remember { mutableStateOf<DishResult?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -311,13 +311,13 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (readyRecipes.isNotEmpty()) {
-                        RecipeRow("Ready to Cook", readyRecipes, CalorieKoGreen) { selectedRecipe = it }
+                        RecipeRow("Ready to Cook", readyRecipes, CalorieKoGreen) { selectedRecipe.value = it }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (almostReadyRecipes.isNotEmpty()) {
-                        RecipeRow("Almost Ready", almostReadyRecipes, CalorieKoOrange) { selectedRecipe = it }
+                        RecipeRow("Almost Ready", almostReadyRecipes, CalorieKoOrange) { selectedRecipe.value = it }
                     }
 
                     if (readyRecipes.isEmpty() && almostReadyRecipes.isEmpty()) {
@@ -340,20 +340,20 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     }
 
     // Recipe Detail Modal
-    if (selectedRecipe != null) {
+    if (selectedRecipe.value != null) {
         ModalBottomSheet(
-            onDismissRequest = { selectedRecipe = null },
+            onDismissRequest = { selectedRecipe.value = null },
             sheetState = sheetState,
             containerColor = Color.White
         ) {
             RecipeDetailContent(
-                recipe = selectedRecipe!!,
+                recipe = selectedRecipe.value!!,
                 viewModel = viewModel,
                 onClose = {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe = null }
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe.value = null }
                 },
                 onAddToPlan = {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe = null }
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { selectedRecipe.value = null }
                 }
             )
         }
@@ -488,8 +488,8 @@ fun MealPlanCalendarSection(
     avgDailySodium: Int,
     allRecipes: List<DishResult>
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
-    var recipeToAdd by remember { mutableStateOf<DishResult?>(null) }
+    val showAddDialog = remember { mutableStateOf(false) }
+    val recipeToAdd = remember { mutableStateOf<DishResult?>(null) }
 
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -614,8 +614,8 @@ fun MealPlanCalendarSection(
                         items(allRecipes.take(5)) { recipe ->
                             SuggestionChip(
                                 onClick = {
-                                    recipeToAdd = recipe
-                                    showAddDialog = true
+                                    recipeToAdd.value = recipe
+                                    showAddDialog.value = true
                                 },
                                 label = { Text("${getDishEmoji(recipe.dishLabel)} ${recipe.dishName}") },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
@@ -632,13 +632,13 @@ fun MealPlanCalendarSection(
     }
 
     // Add Meal Dialog
-    if (showAddDialog && recipeToAdd != null) {
+    if (showAddDialog.value && recipeToAdd.value != null) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = { showAddDialog.value = false },
             title = { Text("Plan Meal") },
             text = {
                 Column {
-                    Text("Select a day to cook ${recipeToAdd?.dishName}:")
+                    Text("Select a day to cook ${recipeToAdd.value?.dishName}:")
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         days.forEachIndexed { index, day ->
@@ -647,8 +647,8 @@ fun MealPlanCalendarSection(
                                     .size(32.dp)
                                     .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
                                     .clickable {
-                                        viewModel.addMealToPlan(index, recipeToAdd!!.dishLabel)
-                                        showAddDialog = false
+                                        viewModel.addMealToPlan(index, recipeToAdd.value!!.dishLabel)
+                                        showAddDialog.value = false
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -659,7 +659,7 @@ fun MealPlanCalendarSection(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showAddDialog.value = false }) { Text("Cancel") } }
         )
     }
 }
@@ -673,7 +673,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
     val sodiumColor = if (recipe.sodium <= 500) Color(0xFF16A34A) else if (recipe.sodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
 
     // Add-to-plan dialog state
-    var showPlanDialog by remember { mutableStateOf(false) }
+    val showPlanDialog = remember { mutableStateOf(false) }
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
     Column(
@@ -791,7 +791,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { showPlanDialog = true },
+            onClick = { showPlanDialog.value = true },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
             shape = RoundedCornerShape(12.dp)
@@ -801,9 +801,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
     }
 
     // Add to Plan Dialog from Detail Sheet
-    if (showPlanDialog) {
+    if (showPlanDialog.value) {
         AlertDialog(
-            onDismissRequest = { showPlanDialog = false },
+            onDismissRequest = { showPlanDialog.value = false },
             title = { Text("Plan Meal") },
             text = {
                 Column {
@@ -817,7 +817,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
                                     .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
                                     .clickable {
                                         viewModel.addMealToPlan(index, recipe.dishLabel)
-                                        showPlanDialog = false
+                                        showPlanDialog.value = false
                                         onAddToPlan()
                                     },
                                 contentAlignment = Alignment.Center
@@ -829,7 +829,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { showPlanDialog = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showPlanDialog.value = false }) { Text("Cancel") } }
         )
     }
 }
