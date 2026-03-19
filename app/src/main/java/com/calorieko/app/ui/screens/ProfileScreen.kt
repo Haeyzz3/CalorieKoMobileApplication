@@ -94,7 +94,8 @@ data class UserData(
     val weight: Double = 70.0,  // kg
     val sex: String = "Male",
     val activityLevel: String = "lightly_active",
-    val goal: String = "general"
+    val goal: String = "general",
+    val photoUrl: String = "" // Profile photo URL from backend
 )
 
 // NEW: Data class to hold database fetch results for badges
@@ -171,7 +172,8 @@ fun ProfileScreen(
                             activityLevel = profile.activityLevel.ifEmpty { "lightly_active" },
                             goal = profile.goal.ifEmpty { "general" },
                             streak = profile.streak,
-                            level = profile.level
+                            level = profile.level,
+                            photoUrl = profile.photoUrl
                         )
                     }
                     // Update Badge tracking state
@@ -256,9 +258,16 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
                 // Avatar
                 Surface(shape = CircleShape, color = Color.White, shadowElevation = 8.dp, modifier = Modifier.size(100.dp)) {
                     Box(contentAlignment = Alignment.Center) {
-                        if (profileImageUrl != null) {
+                        // Priority: 1) DB photo URL, 2) Firebase Auth photo, 3) Default icon
+                        val photoModel: Any? = if (user.photoUrl.isNotEmpty()) {
+                            "http://192.168.150.50:8000" + user.photoUrl
+                        } else {
+                            profileImageUrl
+                        }
+
+                        if (photoModel != null) {
                             AsyncImage(
-                                model = profileImageUrl, contentDescription = "Profile Picture",
+                                model = photoModel, contentDescription = "Profile Picture",
                                 modifier = Modifier.size(100.dp).clip(CircleShape), contentScale = ContentScale.Crop
                             )
                         } else {

@@ -6,6 +6,10 @@ import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 
 // ─────────────────────────────────────────────────────────────
 // DTOs — match the exact JSON keys the Laravel API expects
@@ -131,4 +135,18 @@ interface CalorieKoApi {
     /** Sync a daily nutrition summary */
     @POST("sync/nutrition-summary")
     suspend fun syncNutritionSummary(@Body summary: DailyNutritionSyncRequest): Response<Any>
+
+
+    @Multipart
+    @POST("sync/profile/photo")
+    suspend fun uploadProfilePhoto(
+        @Part("uid") uid: RequestBody,
+        @Part photo: MultipartBody.Part
+    ): Response<PhotoUploadResponse>
 }
+
+/** Response from the photo upload endpoint */
+data class PhotoUploadResponse(
+    val message: String,
+    @SerializedName("photo_url") val photoUrl: String
+)

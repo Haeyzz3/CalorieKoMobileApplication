@@ -340,7 +340,7 @@ fun AppNavigation() {
 
         // --- NEW: Settings Screen ---
         // --- Settings Screen ---
-    
+
         composable("settings") {
             SettingsScreen(
                 onNavigate = { dest ->

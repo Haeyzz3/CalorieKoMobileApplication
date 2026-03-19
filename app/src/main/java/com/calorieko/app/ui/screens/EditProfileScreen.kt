@@ -75,6 +75,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import com.calorieko.app.data.remote.RetrofitClient
+
+
 
 // ─── Brand colors (matching ProfileScreen) ───
 private val CalorieKoOrange = Color(0xFFFDB05E)
@@ -120,6 +132,16 @@ fun EditProfileScreen(
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
+    //IMAGE API FETCH
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var existingPhotoUrl by remember { mutableStateOf("") } // Loaded from local DB
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
+
     // 2. Editable state (Leave empty initially, they will be filled by the database)
     var name by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -128,6 +150,9 @@ fun EditProfileScreen(
     var sex by remember { mutableStateOf("Male") }
     var selectedGoal by remember { mutableStateOf("general") }
     var selectedActivityLevel by remember { mutableStateOf("lightly_active") }
+
+    // ADD THIS:
+    var isLoading by remember { mutableStateOf(false) }
 
     // 3. Fetch existing data to pre-fill the form
     LaunchedEffect(currentUser?.uid) {
@@ -142,6 +167,7 @@ fun EditProfileScreen(
                     sex = profile.sex.ifEmpty { "Male" }
                     selectedActivityLevel = profile.activityLevel.ifEmpty { "lightly_active" }
                     selectedGoal = profile.goal.ifEmpty { "general" }
+                    existingPhotoUrl = profile.photoUrl
                 }
             }
         }
@@ -233,20 +259,40 @@ fun EditProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(contentAlignment = Alignment.BottomEnd) {
-                        // Profile circle
+                        // Replace the existing avatar Surface with this:
                         Surface(
                             shape = CircleShape,
                             color = Color.White,
                             shadowElevation = 8.dp,
-                            modifier = Modifier.size(100.dp)
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clickable { photoPickerLauncher.launch("image/*") } // Triggers the gallery
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = CalorieKoGreen,
-                                    modifier = Modifier.size(48.dp)
+                            if (selectedImageUri != null) {
+                                AsyncImage(
+                                    model = selectedImageUri,
+                                    contentDescription = "Selected Profile Photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
+                            } else if (existingPhotoUrl.isNotEmpty()) {
+                                // Show existing profile photo from backend
+                                val fullUrl = "http://192.168.150.50:8000" + existingPhotoUrl
+                                AsyncImage(
+                                    model = fullUrl,
+                                    contentDescription = "Current Profile Photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = CalorieKoGreen,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
                             }
                         }
 
@@ -444,28 +490,112 @@ fun EditProfileScreen(
             // ─── Save Button (Orange Gradient) ───
             Button(
                 onClick = {
-                    // 4. Save modifications back to the database
+                    if (isLoading) return@Button
+
                     currentUser?.uid?.let { uid ->
-                        val updatedProfile = UserProfile(
-                            uid = uid,
-                            name = name,
-                            email = currentUser.email ?: "",
-                            age = age.toIntOrNull() ?: 25,
-                            weight = weight.toDoubleOrNull() ?: 70.0,
-                            height = height.toDoubleOrNull() ?: 170.0,
-                            sex = sex,
-                            activityLevel = selectedActivityLevel,
-                            goal = selectedGoal
-                        )
+                        isLoading = true
 
                         scope.launch(Dispatchers.IO) {
-                            userDao.insertUser(updatedProfile) // Overwrites existing user because of REPLACE strategy
+                            // 1. Fetch existing profile to preserve unchanged fields
+                            val existingProfile = userDao.getUser(uid)
 
-                            // Sync to backend
-                            try { syncRepository.syncProfile(uid) } catch (_: Exception) {}
+                            // 2. Build the profile (update existing or create new)
+                            val updatedProfile = if (existingProfile != null) {
+                                existingProfile.copy(
+                                    name = name,
+                                    age = age.toIntOrNull() ?: existingProfile.age,
+                                    weight = weight.toDoubleOrNull() ?: existingProfile.weight,
+                                    height = height.toDoubleOrNull() ?: existingProfile.height,
+                                    sex = sex,
+                                    activityLevel = selectedActivityLevel,
+                                    goal = selectedGoal
+                                )
+                            } else {
+                                // No local profile exists (e.g. after DB migration wipe)
+                                // Create a new one from form data
+                                UserProfile(
+                                    uid = uid,
+                                    name = name,
+                                    email = currentUser.email ?: "",
+                                    age = age.toIntOrNull() ?: 25,
+                                    weight = weight.toDoubleOrNull() ?: 70.0,
+                                    height = height.toDoubleOrNull() ?: 170.0,
+                                    sex = sex,
+                                    activityLevel = selectedActivityLevel,
+                                    goal = selectedGoal
+                                )
+                            }
 
+                            // 3. Save to local Room database
+                            userDao.insertUser(updatedProfile)
+
+                            // 4. Sync text data to Laravel backend asynchronously (fire-and-forget)
+                            launch {
+                                try { syncRepository.syncProfile(uid) } catch (_: Exception) {}
+                            }
+
+                            // 5. Upload Photo if a new one was selected
+                            selectedImageUri?.let { uri ->
+                                try {
+                                    val inputStream = context.contentResolver.openInputStream(uri)
+                                    val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                                    inputStream?.close()
+
+                                    if (originalBitmap != null) {
+                                        // Scale down to max 1024 to save time and stay < 5MB limit
+                                        val maxDim = 1024
+                                        val scale = if (originalBitmap.width > maxDim || originalBitmap.height > maxDim) {
+                                            val maxOrig = maxOf(originalBitmap.width, originalBitmap.height)
+                                            maxDim.toFloat() / maxOrig
+                                        } else 1.0f
+
+                                        val resizedBitmap = if (scale < 1.0f) {
+                                            android.graphics.Bitmap.createScaledBitmap(
+                                                originalBitmap,
+                                                (originalBitmap.width * scale).toInt(),
+                                                (originalBitmap.height * scale).toInt(),
+                                                true
+                                            )
+                                        } else originalBitmap
+
+                                        val outputStream = java.io.ByteArrayOutputStream()
+                                        resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, outputStream)
+                                        val bytes = outputStream.toByteArray()
+
+                                        val requestFile = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                                        val body = MultipartBody.Part.createFormData("photo", "profile_${uid}.jpg", requestFile)
+                                        val uidBody = uid.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                                        android.util.Log.e("UploadProfile", "Starting photo upload to backend...")
+                                        val startTime = System.currentTimeMillis()
+                                        val photoResponse = RetrofitClient.api.uploadProfilePhoto(uidBody, body)
+                                        val endTime = System.currentTimeMillis()
+                                        android.util.Log.e("UploadProfile", "Photo upload finished in ${endTime - startTime}ms. Code: ${photoResponse.code()}")
+                                        
+                                        if (photoResponse.isSuccessful) {
+                                            val returnedUrl = photoResponse.body()?.photoUrl ?: ""
+                                            if (returnedUrl.isNotEmpty()) {
+                                                // Save the photo URL to local Room DB
+                                                val currentProfile = userDao.getUser(uid)
+                                                if (currentProfile != null) {
+                                                    userDao.insertUser(currentProfile.copy(photoUrl = returnedUrl))
+                                                }
+                                            }
+                                        } else {
+                                            val errorBody = photoResponse.errorBody()?.string() ?: "Unknown error"
+                                            android.util.Log.e("UploadProfile", "Server rejected photo: $errorBody")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("UploadProfile", "Exception during photo upload: ${e.message}", e)
+                                    e.printStackTrace()
+                                }
+                            }
+
+                            // 6. Stop loading and navigate back
                             withContext(Dispatchers.Main) {
-                                onSave() // Navigate back
+                                isLoading = false
+                                onSave()
                             }
                         }
                     }
@@ -475,14 +605,16 @@ fun EditProfileScreen(
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 contentPadding = PaddingValues(0.dp),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp),
+                enabled = !isLoading // Disable button while loading
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             brush = Brush.horizontalGradient(
-                                colors = listOf(CalorieKoOrange, CalorieKoDeepOrange)
+                                colors = if (isLoading) listOf(Color.Gray, Color.LightGray)
+                                else listOf(CalorieKoOrange, CalorieKoDeepOrange)
                             ),
                             shape = RoundedCornerShape(14.dp)
                         ),
@@ -492,19 +624,28 @@ fun EditProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Save Changes",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            Text(
+                                "Saving...",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Save Changes",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

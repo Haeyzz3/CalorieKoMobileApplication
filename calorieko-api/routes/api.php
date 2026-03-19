@@ -36,11 +36,13 @@ use App\Http\Controllers\Api\SystemLogController;
 |
 */
 
+
 // ── Mobile Sync Endpoints (Firebase Auth required) ──
 Route::prefix('sync')
     ->middleware('firebase.auth')
     ->group(function () {
         Route::post('/profile',           [UserProfileController::class, 'sync']);
+        Route::post('/profile/photo',     [UserProfileController::class, 'uploadPhoto']); // ADD THIS LINE
         Route::post('/food',              [FoodItemController::class, 'sync']);
         Route::post('/activity-log',      [ActivityLogController::class, 'sync']);
         Route::post('/activity-log/batch',[ActivityLogController::class, 'syncBatch']);

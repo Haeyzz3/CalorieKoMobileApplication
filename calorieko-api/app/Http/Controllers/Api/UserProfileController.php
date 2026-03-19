@@ -16,7 +16,7 @@ class UserProfileController extends Controller
     public function sync(Request $request): JsonResponse
     {
         \Log::info('Profile Sync Request:', $request->all());
-        
+
         try {
             $data = $request->validate([
                 'uid'           => 'required|string',
@@ -104,7 +104,7 @@ class UserProfileController extends Controller
     public function resetPassword(string $uid): JsonResponse
     {
         $profile = UserProfile::findOrFail($uid);
-        
+
         try {
             // Using Firebase Identity Toolkit REST API directly to bypass OAuth signature issues
             $apiKey = config('services.firebase.web_api_key', 'AIzaSyCCHAzAg5VBKJR1SK3aCG2n-rpFhhEBTRc');
@@ -119,7 +119,7 @@ class UserProfileController extends Controller
 
             $adminEmail = config('app.admin_email') ?? 'admin@calorieko.com';
             SystemLog::log($adminEmail, 'Password Reset', "User UID: {$uid}", 'Success', request()->ip(), "Admin sent password reset link to {$profile->email}.");
-            
+
             \Log::info("Password reset sent for UID: {$uid}");
             return response()->json([
                 'message' => "Password reset sequence triggered for {$profile->email}."
@@ -150,9 +150,43 @@ class UserProfileController extends Controller
         SystemLog::log($adminEmail, 'Deleted User', "User UID: {$uid}", 'Success', request()->ip(), "Admin deleted user {$email}.");
 
         \Log::info("User profile deleted for UID: {$uid}");
-        
+
         return response()->json([
             'message' => 'User successfully deleted.'
         ]);
+    }
+
+    public function uploadPhoto(Request $request): JsonResponse
+    {
+        $request->validate([
+            'uid' => 'required|string',
+            'photo' => 'required|image|mimes:jpeg,png,jpg|max:5120', // Max 5MB
+        ]);
+
+        // Ensure the authenticated user matches the profile uid
+        if ($request->firebaseUid !== $request->uid) {
+            return response()->json(['error' => 'UID mismatch'], 403);
+        }
+
+        $profile = UserProfile::where('uid', $request->uid)->firstOrFail();
+
+        if ($request->hasFile('photo')) {
+            // Delete old photo if it exists to save space
+            if ($profile->photo_url && \Storage::disk('public')->exists(str_replace('/storage/', '', $profile->photo_url))) {
+                \Storage::disk('public')->delete(str_replace('/storage/', '', $profile->photo_url));
+            }
+
+            // Store new photo
+            $path = $request->file('photo')->store('profile_photos', 'public');
+            $profile->photo_url = '/storage/' . $path;
+            $profile->save();
+
+            return response()->json([
+                'message' => 'Photo uploaded successfully.',
+                'photo_url' => $profile->photo_url
+            ], 200);
+        }
+
+        return response()->json(['error' => 'No photo provided'], 400);
     }
 }

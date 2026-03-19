@@ -116,7 +116,8 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
     val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
 
     val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
-    val profileImageUrl = currentUser?.photoUrl
+    val firebaseProfileImageUrl = currentUser?.photoUrl
+    var localPhotoUrl by remember { mutableStateOf("") }
 
     var activeTab by remember { mutableStateOf("home") }
     var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
@@ -157,6 +158,7 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
                     targetFats = targets.targetFats
                     targetSodium = targets.targetSodium
                     targetBurned = 500
+                    localPhotoUrl = profile.photoUrl
                 }
 
                 // B. Fetch today's nutrition summary (from DailyNutritionSummaryEntity)
@@ -262,8 +264,13 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
                 ) {
                     // Left Side: Profile Picture and Text
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val profileImageModel: Any? = if (localPhotoUrl.isNotEmpty()) {
+                            "http://192.168.150.50:8000" + localPhotoUrl
+                        } else {
+                            firebaseProfileImageUrl
+                        }
                         AsyncImage(
-                            model = profileImageUrl,
+                            model = profileImageModel,
                             contentDescription = "Profile Picture",
                             modifier = Modifier
                                 .size(36.dp)
