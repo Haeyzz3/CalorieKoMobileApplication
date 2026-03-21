@@ -6,6 +6,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.remote.SyncRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,6 +84,7 @@ import coil.compose.AsyncImage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.calorieko.app.data.remote.RetrofitClient
 
 
 
@@ -118,6 +120,15 @@ fun EditProfileScreen(
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
+    val syncRepository = remember {
+        SyncRepository(
+            userDao = db.userDao(),
+            activityLogDao = db.activityLogDao(),
+            mealLogDao = db.mealLogDao(),
+            mealLogItemDao = db.mealLogItemDao(),
+            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+        )
+    }
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
@@ -518,12 +529,67 @@ fun EditProfileScreen(
                             // 3. Save to local Room database
                             userDao.insertUser(updatedProfile)
 
-                            // 4. (Removed API Sync)
-                            
-                            // 5. Upload Photo if a new one was selected (Backend Removed)
-                            // A future update should implement Firebase Storage for this.
+                            // 4. Sync text data to Laravel backend asynchronously (fire-and-forget)
+                            launch {
+                                try { syncRepository.syncProfile(uid) } catch (_: Exception) {}
+                            }
+
+                            // 5. Upload Photo if a new one was selected
                             selectedImageUri?.let { uri ->
-                                android.util.Log.i("UploadProfile", "Photo selection detected, but API is removed.")
+                                try {
+                                    val inputStream = context.contentResolver.openInputStream(uri)
+                                    val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                                    inputStream?.close()
+
+                                    if (originalBitmap != null) {
+                                        // Scale down to max 1024 to save time and stay < 5MB limit
+                                        val maxDim = 1024
+                                        val scale = if (originalBitmap.width > maxDim || originalBitmap.height > maxDim) {
+                                            val maxOrig = maxOf(originalBitmap.width, originalBitmap.height)
+                                            maxDim.toFloat() / maxOrig
+                                        } else 1.0f
+
+                                        val resizedBitmap = if (scale < 1.0f) {
+                                            android.graphics.Bitmap.createScaledBitmap(
+                                                originalBitmap,
+                                                (originalBitmap.width * scale).toInt(),
+                                                (originalBitmap.height * scale).toInt(),
+                                                true
+                                            )
+                                        } else originalBitmap
+
+                                        val outputStream = java.io.ByteArrayOutputStream()
+                                        resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, outputStream)
+                                        val bytes = outputStream.toByteArray()
+
+                                        val requestFile = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                                        val body = MultipartBody.Part.createFormData("photo", "profile_${uid}.jpg", requestFile)
+                                        val uidBody = uid.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                                        android.util.Log.e("UploadProfile", "Starting photo upload to backend...")
+                                        val startTime = System.currentTimeMillis()
+                                        val photoResponse = RetrofitClient.api.uploadProfilePhoto(uidBody, body)
+                                        val endTime = System.currentTimeMillis()
+                                        android.util.Log.e("UploadProfile", "Photo upload finished in ${endTime - startTime}ms. Code: ${photoResponse.code()}")
+                                        
+                                        if (photoResponse.isSuccessful) {
+                                            val returnedUrl = photoResponse.body()?.photoUrl ?: ""
+                                            if (returnedUrl.isNotEmpty()) {
+                                                // Save the photo URL to local Room DB
+                                                val currentProfile = userDao.getUser(uid)
+                                                if (currentProfile != null) {
+                                                    userDao.insertUser(currentProfile.copy(photoUrl = returnedUrl))
+                                                }
+                                            }
+                                        } else {
+                                            val errorBody = photoResponse.errorBody()?.string() ?: "Unknown error"
+                                            android.util.Log.e("UploadProfile", "Server rejected photo: $errorBody")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("UploadProfile", "Exception during photo upload: ${e.message}", e)
+                                    e.printStackTrace()
+                                }
                             }
 
                             // 6. Stop loading and navigate back
