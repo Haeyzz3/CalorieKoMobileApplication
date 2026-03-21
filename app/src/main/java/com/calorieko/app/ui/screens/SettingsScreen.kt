@@ -161,7 +161,10 @@ fun SettingsScreen(
                         SettingsDivider()
                         SettingsRow(icon = Icons.Default.BatteryStd, title = "Battery Level", subtitle = "Check scale battery", iconColor = CalorieKoGreen, onClick = { Toast.makeText(context, "Scale Battery: Good", Toast.LENGTH_SHORT).show() })
                         SettingsDivider()
-                        SettingsRow(icon = Icons.Default.MonitorWeight, title = "Recalibrate Scale", subtitle = "Tare the scale to zero", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Scale recalibrated to 0.0g", Toast.LENGTH_SHORT).show() })
+                        SettingsRow(icon = Icons.Default.MonitorWeight, title = "Recalibrate Scale", subtitle = "Calibrate load cell using a known weight", iconColor = CalorieKoOrange, onClick = { 
+        // Trigger a calibration dialog or navigate to a calibration screen
+        showCalibrationDialog = true 
+    })
                     }
                 }
 
