@@ -23,11 +23,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowRight
-import androidx.compose.material.icons.automirrored.rounded.TrendingDown
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -65,34 +65,27 @@ data class HealthGoal(
 fun GoalSelectionScreen(onContinue: (String) -> Unit) {
     var selectedGoalId by remember { mutableStateOf<String?>(null) }
 
-    // Define the 4 specific goals from your prototype
+    // Define the 3 specific goals
     val goals = listOf(
         HealthGoal(
             id = "gain_muscle",
             title = "Gain Muscle",
             description = "Build lean muscle through optimized protein and nutrition",
-            icon = Icons.Rounded.Favorite,
+            icon = Icons.Default.FitnessCenter,
             gradientColors = listOf(Color(0xFFEF4444), Color(0xFFEC4899)) // Red to Pink
         ),
         HealthGoal(
-            id = "weight",
+            id = "weight_loss",
             title = "Weight Control",
             description = "Achieve and maintain your ideal weight",
-            icon = Icons.AutoMirrored.Rounded.TrendingDown,
+            icon = Icons.Default.MonitorWeight,
             gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF06B6D4)) // Blue to Cyan
         ),
         HealthGoal(
-            id = "fitness",
-            title = "Fitness & Performance",
-            description = "Optimize nutrition for peak performance",
-            icon = Icons.Rounded.MonitorHeart, // Activity
-            gradientColors = listOf(Color(0xFFA855F7), Color(0xFF6366F1)) // Purple to Indigo
-        ),
-        HealthGoal(
             id = "general",
-            title = "General Wellness",
+            title = "General Health & Wellness",
             description = "Maintain a healthy, balanced lifestyle",
-            icon = Icons.Rounded.TrackChanges, // Target
+            icon = Icons.Default.Favorite, // Heart
             gradientColors = listOf(CalorieKoGreen, CalorieKoLightGreen)
         )
     )

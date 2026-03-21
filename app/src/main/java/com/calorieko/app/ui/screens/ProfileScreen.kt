@@ -400,16 +400,12 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
     val goalInfo = when (goalCode) {
         "gain_muscle" -> Triple("Gain Muscle", Icons.Default.FitnessCenter, Color(0xFFEF4444))
         "weight_loss" -> Triple("Weight Control", Icons.Default.MonitorWeight, Color(0xFF2563EB))
-        "diabetes" -> Triple("Diabetes Management", Icons.Default.MonitorHeart, Color(0xFF9333EA))
-        "fitness" -> Triple("Fitness & Performance", Icons.Default.DirectionsRun, Color(0xFF9333EA))
-        else -> Triple("General Health & Wellness", Icons.Default.TrackChanges, Color(0xFF16A34A))
+        else -> Triple("General Health & Wellness", Icons.Default.Favorite, Color(0xFF16A34A))
     }
 
     val description = when(goalCode) {
         "gain_muscle" -> "Building lean muscle through optimized protein intake and strength-focused nutrition."
         "weight_loss" -> "Achieving sustainable weight loss through calorie management and portion control."
-        "diabetes" -> "Maintaining stable blood sugar levels through carbohydrate tracking and meal timing."
-        "fitness" -> "Optimizing nutrition for peak athletic performance and recovery."
         else -> "Building healthy eating habits and maintaining overall wellness."
     }
 

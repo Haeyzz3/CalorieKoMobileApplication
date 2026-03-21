@@ -176,10 +176,9 @@ fun AppNavigation() {
                 setupGoalId = goalId
 
                 setupGoalTitle = when (goalId) {
-                    "lose_weight" -> "Lose Weight"
-                    "gain_muscle" -> "Build Muscle"
-                    "maintain" -> "Maintain Weight"
-                    else -> "General Health"
+                    "weight_loss" -> "Weight Control"
+                    "gain_muscle" -> "Gain Muscle"
+                    else -> "General Health & Wellness"
                 }
 
                 // Navigate to the signup screen instead of the summary

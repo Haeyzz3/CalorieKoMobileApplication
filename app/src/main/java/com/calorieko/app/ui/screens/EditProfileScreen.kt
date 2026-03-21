@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -182,18 +183,10 @@ fun EditProfileScreen(
                 Color(0xFFDBEAFE)
             ),
             GoalOption(
-                "diabetes",
-                "Diabetes Management",
-                "Maintain stable blood sugar levels",
-                Icons.Default.MonitorHeart,
-                Color(0xFF9333EA),
-                Color(0xFFF3E8FF)
-            ),
-            GoalOption(
                 "general",
                 "General Health & Wellness",
                 "Build healthy eating habits",
-                Icons.Default.TrackChanges,
+                Icons.Default.Favorite,
                 Color(0xFF16A34A),
                 Color(0xFFDCFCE7)
             )
