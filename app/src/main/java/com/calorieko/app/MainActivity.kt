@@ -16,7 +16,6 @@ import androidx.navigation.navArgument
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
-import com.calorieko.app.data.remote.SyncRepository
 import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoTheme
@@ -47,15 +46,6 @@ fun AppNavigation() {
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
     val auth = remember { FirebaseAuth.getInstance() }
-    val syncRepository = remember {
-        SyncRepository(
-            userDao = db.userDao(),
-            activityLogDao = db.activityLogDao(),
-            mealLogDao = db.mealLogDao(),
-            mealLogItemDao = db.mealLogItemDao(),
-            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-        )
-    }
 
     // BLE manager hoisted to AppNavigation scope so it survives screen transitions
     val bleScaleManager = remember { BleScaleManager(context) }
@@ -211,9 +201,6 @@ fun AppNavigation() {
                         )
                         scope.launch {
                             userDao.insertUser(userProfile)
-
-                            // Sync to backend (fire-and-forget)
-                            try { syncRepository.syncProfile(currentUser.uid) } catch (_: Exception) {}
 
                             navController.navigate("targetSummary") {
                                 popUpTo("intro") { inclusive = true }
