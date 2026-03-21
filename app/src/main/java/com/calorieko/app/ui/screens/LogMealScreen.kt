@@ -88,7 +88,6 @@ import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
-import com.calorieko.app.data.remote.SyncRepository
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
@@ -1268,25 +1267,7 @@ private suspend fun persistMeal(
     }
     db.dailyNutritionSummaryDao().upsertSummary(updated)
 
-    // ── 5. Sync to backend (fire-and-forget) ──
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val syncRepo = SyncRepository(
-                userDao = db.userDao(),
-                activityLogDao = db.activityLogDao(),
-                mealLogDao = db.mealLogDao(),
-                mealLogItemDao = db.mealLogItemDao(),
-                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-            )
-            // Sync the meal log with items
-            val mealLogWithItems = db.mealLogDao().getMealLogWithItems(mealLogId)
-            if (mealLogWithItems != null) {
-                syncRepo.syncSingleMealLog(mealLogWithItems)
-            }
-            // Sync the updated nutrition summary
-            syncRepo.syncSingleNutritionSummary(updated)
-        } catch (_: Exception) { /* non-critical — data is safe in Room */ }
-    }
+    // 5. Removed API Sync
 }
 
 private fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)
