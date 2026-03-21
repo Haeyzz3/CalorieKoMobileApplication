@@ -22,10 +22,7 @@ import java.util.concurrent.TimeUnit
  */
 object RetrofitClient {
 
-    // ── Change this to your production URL when deploying ──
-    // For Android emulator → use "http://10.0.2.2:8000/api/"
-    // For a physical device on the same Wi-Fi → use your PC's local IP
-    private const val BASE_URL = "http://192.168.150.50:8000/api/"
+    private const val BASE_URL = "https://admin-calorieko.xyz/api/"
 
     /**
      * OkHttp interceptor that attaches the Firebase ID token
