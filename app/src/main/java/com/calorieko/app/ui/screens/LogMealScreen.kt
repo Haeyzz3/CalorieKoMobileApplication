@@ -57,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -103,6 +104,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.random.Random
+import com.calorieko.app.ble.BleScaleManager
 
 // ───────────────────────────────────────────────────────────────
 // Data classes & enums
@@ -144,7 +146,7 @@ private const val CONFIDENCE_THRESHOLD = 0.70f
 // ───────────────────────────────────────────────────────────────
 
 @Composable
-fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
+fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealConfirmed: () -> Unit) {
 
     // ── Context / DB / Auth ──
     val context = LocalContext.current
@@ -191,6 +193,18 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
     var weight by remember { mutableIntStateOf(0) }
     var weightStable by remember { mutableStateOf(false) }
 
+    // Collect the real weight from the scale
+    val realWeight by bleScaleManager.liveWeight.collectAsState()
+
+    // Determine stability logic based on real weight variations
+    LaunchedEffect(realWeight) {
+        weight = realWeight
+        weightStable = false
+        delay(1000) // Wait 1 second
+        if (weight == realWeight) { // If it hasn't changed, it's stable
+            weightStable = true
+        }
+    }
 
     // AI results from the latest frame
     var latestResults by remember { mutableStateOf<List<Pair<String, Float>>>(emptyList()) }
@@ -234,30 +248,6 @@ fun LogMealScreen(onBack: () -> Unit, onMealConfirmed: () -> Unit) {
                 else      -> "Dinner"
             }
         )
-    }
-
-    // ── Mock BLE Weight Simulation ──
-    fun startWeightSimulation() {
-        weight = 0
-        weightStable = false
-        scope.launch {
-            val target = Random.nextInt(150, 351)
-            var current = 0
-            while (current < target) {
-                delay(80)
-                current += Random.nextInt(8, 25)
-                if (current > target) current = target
-                weight = current
-            }
-            weightStable = true
-        }
-    }
-
-    // Start weight simulation when we enter SCANNING
-    LaunchedEffect(phase) {
-        if (phase == LogMealPhase.SCANNING) {
-            startWeightSimulation()
-        }
     }
 
     fun processCapture() {

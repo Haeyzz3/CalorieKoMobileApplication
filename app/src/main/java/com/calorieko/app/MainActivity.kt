@@ -387,6 +387,7 @@ fun AppNavigation() {
         // --- Log Meal Screen ---
         composable("logMeal") {
             LogMealScreen(
+                bleScaleManager = bleScaleManager,
                 onBack = { navController.popBackStack() },
                 onMealConfirmed = { navController.popBackStack() }
             )

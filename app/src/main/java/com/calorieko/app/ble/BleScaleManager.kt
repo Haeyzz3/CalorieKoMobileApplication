@@ -53,6 +53,9 @@ class BleScaleManager(private val context: Context) {
     private val _calibrationEvent = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
     val calibrationEvent: SharedFlow<String> = _calibrationEvent
 
+    private val _liveWeight = MutableStateFlow(0)
+    val liveWeight: StateFlow<Int> = _liveWeight.asStateFlow()
+
     private val bluetoothAdapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
@@ -244,8 +247,9 @@ class BleScaleManager(private val context: Context) {
                 Log.d(TAG, "Calibration event received: $strValue on char ${characteristic.uuid}")
                 _calibrationEvent.tryEmit(strValue.trim())
             } else if (characteristic.uuid == WEIGHT_CHAR_UUID) {
-                Log.d(TAG, "Weight received: $strValue")
-                // TODO: Update a StateFlow here so your UI can display the weight
+                val weightFloat = strValue.trim().toFloatOrNull() ?: 0f
+                _liveWeight.value = weightFloat.toInt()
+                Log.d(TAG, "Weight received: $strValue (parsed: ${_liveWeight.value}g)")
             } else if (characteristic.uuid == COMMAND_CHAR_UUID) {
                 Log.d(TAG, "Command response: $strValue")
             }
