@@ -74,6 +74,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.remote.SyncRepository
 
 // ─── Brand Colors (reused from theme) ───
 private val CalorieKoGreen = Color(0xFF4CAF50)
@@ -97,6 +98,15 @@ fun AuthScreen(
     val auth = remember { FirebaseAuth.getInstance() }
     val db = remember { AppDatabase.getDatabase(context, scope) }
     val userDao = db.userDao()
+    val syncRepository = remember {
+        SyncRepository(
+            userDao = db.userDao(),
+            activityLogDao = db.activityLogDao(),
+            mealLogDao = db.mealLogDao(),
+            mealLogItemDao = db.mealLogItemDao(),
+            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+        )
+    }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -171,7 +181,10 @@ fun AuthScreen(
                     isLoading = false
 
                     if (existingUser != null) {
-                        // Profile found locally. Skip setup and route to Dashboard.
+                        // Profile found locally — sync to backend, then go to Dashboard.
+                        scope.launch {
+                            syncRepository.syncProfile(uid)
+                        }
                         onLoginSuccess()
                     } else {
                         // Profile missing locally. Route to BioForm to set up metrics.
