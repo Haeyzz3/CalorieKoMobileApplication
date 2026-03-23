@@ -194,7 +194,9 @@ fun AppNavigation() {
                     val targets = nutritionalRepo.getTargets(
                         age = setupAge,
                         sex = setupSex,
+                        heightCm = setupHeight,
                         weightKg = setupWeight,
+                        activityLevel = setupActivityLevel,
                         goal = setupGoalId
                     )
                     targetCalories = targets.targetCalories

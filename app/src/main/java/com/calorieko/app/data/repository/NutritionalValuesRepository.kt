@@ -31,15 +31,21 @@ class NutritionalValuesRepository(private val context: Context) {
         return getTargets(
             age = profile.age,
             sex = profile.sex,
+            heightCm = profile.height,
             weightKg = profile.weight,
+            activityLevel = profile.activityLevel,
             goal = profile.goal
         )
     }
 
-    fun getTargets(age: Int, sex: String, weightKg: Double, goal: String): NutritionalTarget {
-        var rowWeight = 60.5
-        var rowCalories = 2530.0
-        var rowProtein = 71.0
+    fun getTargets(
+        age: Int, 
+        sex: String, 
+        heightCm: Double, 
+        weightKg: Double, 
+        activityLevel: String, 
+        goal: String
+    ): NutritionalTarget {
         var rowFiber = 25.0
         var rowSodium = 2000.0
         var rowPotassium = 3510.0
@@ -48,6 +54,7 @@ class NutritionalValuesRepository(private val context: Context) {
         var rowCalcium = 1000.0
         var rowIron = 45.0
 
+        // Parse CSV exclusively for micronutrients based on Age and Sex
         try {
             val inputStream = context.assets.open("nutrient_daily_values.csv")
             val reader = BufferedReader(InputStreamReader(inputStream))
@@ -68,11 +75,7 @@ class NutritionalValuesRepository(private val context: Context) {
                     val gender = tokens[2].trim()
 
                     if (age in ageMin..ageMax && gender.equals(sex, ignoreCase = true)) {
-                        rowWeight = tokens[3].toDoubleOrNull() ?: rowWeight
-                        rowCalories = tokens[4].toDoubleOrNull() ?: rowCalories
-                        rowProtein = tokens[5].toDoubleOrNull() ?: rowProtein
                         rowFiber = tokens[8].toDoubleOrNull() ?: rowFiber
-                        
                         rowSodium = tokens[15].toDoubleOrNull() ?: rowSodium
                         rowPotassium = tokens[16].toDoubleOrNull() ?: rowPotassium
                         rowVitaminA = tokens[17].toDoubleOrNull() ?: rowVitaminA
@@ -86,47 +89,87 @@ class NutritionalValuesRepository(private val context: Context) {
             reader.close()
         } catch (e: Exception) {
             e.printStackTrace()
-            // In case of error, fallback values are already set based on a 19-29 male profile roughly
+            // Fallbacks act as safety nets if CSV breaks
         }
 
-        val scalingFactor = if (rowWeight > 0.0) weightKg / rowWeight else 1.0
-
-        val scaledCalories = (rowCalories * scalingFactor).toInt()
-        val finalCalories = when (goal.lowercase().trim()) {
-            "lose_weight", "weight_loss", "weight" -> (scaledCalories - 500).coerceAtLeast(1200)
-            "gain_muscle" -> scaledCalories + 300
-            else -> scaledCalories
+        // --- 1. Mifflin-St Jeor Logic ---
+        val bmr = if (sex.equals("Male", ignoreCase = true)) {
+            (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5
+        } else {
+            (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161
         }
 
-        // Exact midpoints as approved
-        val targetFats = ((finalCalories * 0.25) / 9).toInt()
-        val targetCarbs = ((finalCalories * 0.60) / 4).toInt()
-        val targetSugar = ((finalCalories * 0.10) / 4).toInt()
+        // --- 2. Activity Level Multiplier ---
+        val activityMultiplier = when (activityLevel.lowercase().trim()) {
+            "not_very_active" -> 1.2
+            "lightly_active" -> 1.375
+            "active" -> 1.55
+            "very_active" -> 1.725
+            else -> 1.2 // defaults conservative
+        }
+
+        val tdee = bmr * activityMultiplier
+
+        // --- 3. Health Goals (Calorie shift & Macro Splits) ---
+        var finalCalories = tdee.toInt()
+        var proteinPct = 0.30
+        var carbsPct = 0.40
+        var fatsPct = 0.30
         
+        when (goal.lowercase().trim()) {
+            "lose_weight", "weight_loss", "weight", "weight control" -> {
+                finalCalories = (tdee - 500).toInt().coerceAtLeast(1200) // 1200 floor safety
+                proteinPct = 0.35 // Higher protein to preserve muscle mass
+                carbsPct = 0.35
+                fatsPct = 0.30
+            }
+            "gain_muscle" -> {
+                finalCalories = (tdee + 300).toInt()
+                proteinPct = 0.30 
+                carbsPct = 0.45 // Higher carbs to fuel muscle synthesis routines
+                fatsPct = 0.25
+            }
+            else -> {
+                // "General Health" or "Maintain"
+                finalCalories = tdee.toInt()
+                proteinPct = 0.30
+                carbsPct = 0.40
+                fatsPct = 0.30
+            }
+        }
+
+        // --- 4. Sub-Macronutrient Dynamic Parsing ---
+        val targetProtein = ((finalCalories * proteinPct) / 4).toInt()
+        val targetCarbs = ((finalCalories * carbsPct) / 4).toInt()
+        val targetFats = ((finalCalories * fatsPct) / 9).toInt()
+
+        val targetSugar = ((finalCalories * 0.10) / 4).toInt()
         val targetSatFat = ((finalCalories * 0.10) / 9).toInt()
         val targetTransFat = ((finalCalories * 0.01) / 9).toInt()
+        
         val remainderFat = (targetFats - targetSatFat - targetTransFat).coerceAtLeast(0)
         val targetPolyFat = remainderFat / 2
         val targetMonoFat = remainderFat - targetPolyFat
 
+        // --- 5. Return Complete Formatted Target ---
         return NutritionalTarget(
             targetCalories = finalCalories,
-            targetProtein = (rowProtein * scalingFactor).toInt(),
+            targetProtein = targetProtein,
             targetCarbs = targetCarbs,
             targetFats = targetFats,
-            targetSodium = (rowSodium * scalingFactor).toInt(),
-            targetFiber = (rowFiber * scalingFactor).toInt(),
+            targetSodium = rowSodium.toInt(), // Strictly unscaled (2000mg limit typically)
+            targetFiber = rowFiber.toInt(),
             targetSugar = targetSugar,
             targetSaturatedFat = targetSatFat,
             targetPolyunsaturatedFat = targetPolyFat,
             targetMonounsaturatedFat = targetMonoFat,
             targetTransFat = targetTransFat,
             targetCholesterol = 300,
-            targetPotassium = (rowPotassium * scalingFactor).toInt(),
-            targetVitaminA = (rowVitaminA * scalingFactor).toInt(),
-            targetVitaminC = (rowVitaminC * scalingFactor).toInt(),
-            targetCalcium = (rowCalcium * scalingFactor).toInt(),
-            targetIron = (rowIron * scalingFactor).toInt()
+            targetPotassium = rowPotassium.toInt(),
+            targetVitaminA = rowVitaminA.toInt(),
+            targetVitaminC = rowVitaminC.toInt(),
+            targetCalcium = rowCalcium.toInt(),
+            targetIron = rowIron.toInt()
         )
     }
 }
