@@ -1,9 +1,10 @@
 package com.calorieko.app.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.local.FoodDao
+import com.calorieko.app.data.local.MealPlanDao
+import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
 import kotlinx.coroutines.Dispatchers
@@ -36,12 +37,12 @@ data class DishResult(
     val fats: Int = 0
 )
 
-class PantryViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val database = AppDatabase.getDatabase(application, viewModelScope)
-    private val pantryDao = database.pantryDao()
-    private val mealPlanDao = database.mealPlanDao()
-    private val foodDao = database.foodDao()
+@dagger.hilt.android.lifecycle.HiltViewModel
+class PantryViewModel @javax.inject.Inject constructor(
+    private val pantryDao: PantryDao,
+    private val mealPlanDao: MealPlanDao,
+    private val foodDao: FoodDao
+) : ViewModel() {
 
     // --- Cosine Similarity threshold for "Almost Ready" ---
     companion object {

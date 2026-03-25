@@ -25,7 +25,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.remote.SyncRepository
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -371,7 +373,7 @@ fun AppNavigation() {
 
         // --- NEW: Pantry Screen ---
         composable("pantry") {
-            val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = viewModel()
+            val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             PantryScreen(
                 viewModel = pantryViewModel,
                 onNavigate = { dest ->
