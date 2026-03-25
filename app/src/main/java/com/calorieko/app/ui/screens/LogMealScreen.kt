@@ -146,20 +146,16 @@ private const val CONFIDENCE_THRESHOLD = 0.70f
 // ───────────────────────────────────────────────────────────────
 
 @Composable
-fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealConfirmed: () -> Unit) {
-
-    // ── Context / DB / Auth ──
+fun LogMealScreen(
+    viewModel: com.calorieko.app.viewmodel.LogMealViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+    bleScaleManager: BleScaleManager,
+    onBack: () -> Unit,
+    onMealConfirmed: () -> Unit
+) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val auth = remember { FirebaseAuth.getInstance() }
-    val uid = auth.currentUser?.uid ?: ""
-
-    // ── Classifier (lifecycle-aware) ──
     val classifier = remember { CalorieKoClassifier(context) }
     DisposableEffect(Unit) { onDispose { classifier.close() } }
 
-    // ── Camera permission ──
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -186,122 +182,31 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    // ── State ──
     val showSettingsDialog = remember { mutableStateOf(false) }
     var flashEnabled by remember { mutableStateOf(false) }
-    var phase by remember { mutableStateOf(LogMealPhase.SCANNING) }
-    var weight by remember { mutableIntStateOf(0) }
-    var weightStable by remember { mutableStateOf(false) }
 
-    // Collect the real weight from the scale
+    // Observers
+    val phase by viewModel.phase.collectAsState()
+    val weight by viewModel.weight.collectAsState()
+    val weightStable by viewModel.weightStable.collectAsState()
+    val latestResults by viewModel.latestResults.collectAsState()
+    val topLabel by viewModel.topLabel.collectAsState()
+    val topConfidence by viewModel.topConfidence.collectAsState()
+    val currentDetectedFood by viewModel.currentDetectedFood.collectAsState()
+    val showUnsupportedBanner by viewModel.showUnsupportedBanner.collectAsState()
+    val isProcessing by viewModel.isProcessing.collectAsState()
+    val showCandidateSelection by viewModel.showCandidateSelection.collectAsState()
+    val candidate1 by viewModel.candidate1.collectAsState()
+    val candidate2 by viewModel.candidate2.collectAsState()
+    val pendingDishName by viewModel.pendingDishName.collectAsState()
+    val pendingConfidence by viewModel.pendingConfidence.collectAsState()
+    val pendingCaloriesEst by viewModel.pendingCaloriesEst.collectAsState()
+    val loggedDishes by viewModel.loggedDishes.collectAsState()
+    val mealType by viewModel.mealType.collectAsState()
+
     val realWeight by bleScaleManager.liveWeight.collectAsState()
-
-    // Determine stability logic based on real weight variations
     LaunchedEffect(realWeight) {
-        weight = realWeight
-        weightStable = false
-        delay(1000) // Wait 1 second
-        if (weight == realWeight) { // If it hasn't changed, it's stable
-            weightStable = true
-        }
-    }
-
-    // AI results from the latest frame
-    var latestResults by remember { mutableStateOf<List<Pair<String, Float>>>(emptyList()) }
-    var topLabel by remember { mutableStateOf("") }
-    var topConfidence by remember { mutableFloatStateOf(0f) }
-
-    var currentDetectedFood by remember { mutableStateOf<com.calorieko.app.data.model.FoodItem?>(null) }
-    
-    LaunchedEffect(topLabel) {
-        currentDetectedFood = if (topLabel.isNotEmpty() && topLabel != "negative") {
-            withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(topLabel) }
-        } else {
-            null
-        }
-    }
-
-    // Inline unsupported-dish banner state (replaces intrusive error dialog)
-    var showUnsupportedBanner by remember { mutableStateOf(false) }
-
-    var isProcessing by remember { mutableStateOf(false) }
-    var showCandidateSelection by remember { mutableStateOf(false) }
-    var candidate1 by remember { mutableStateOf<Pair<com.calorieko.app.data.model.FoodItem, Float>?>(null) }
-    var candidate2 by remember { mutableStateOf<Pair<com.calorieko.app.data.model.FoodItem, Float>?>(null) }
-
-    // Dish being confirmed (DISH_READY phase)
-    var pendingDishName by remember { mutableStateOf("") }
-    var pendingConfidence by remember { mutableFloatStateOf(0f) }
-    var pendingCaloriesEst by remember { mutableFloatStateOf(0f) }
-
-    // All dishes queued in this meal session
-    val loggedDishes = remember { mutableStateListOf<LoggedDish>() }
-
-    // Meal type auto-detected by time of day
-    val mealType = remember {
-        val hour = LocalTime.now().hour
-        mutableStateOf(
-            when {
-                hour < 10 -> "Breakfast"
-                hour < 14 -> "Lunch"
-                hour < 17 -> "Snacks"
-                else      -> "Dinner"
-            }
-        )
-    }
-
-    fun processCapture() {
-        val results = latestResults
-        if (results.isEmpty() || !weightStable || weight <= 0) return
-
-        val top1 = results.getOrNull(0)
-        val top2 = results.getOrNull(1)
-
-        if (top1 != null && top1.first == "negative" && top1.second >= CONFIDENCE_THRESHOLD) {
-            showUnsupportedBanner = true
-            return
-        }
-
-        scope.launch {
-            isProcessing = true
-            val food1 = top1?.let { withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(it.first) } }
-
-            if (food1 == null) {
-                showUnsupportedBanner = true
-                isProcessing = false
-                return@launch
-            }
-
-            if (top1.second >= 0.80f) {
-                pendingDishName = food1.nameEn
-                pendingConfidence = top1.second
-                pendingCaloriesEst = food1.caloriesPer100g * weight / 100f
-                phase = LogMealPhase.DISH_READY
-            } else if (top2 != null && (top1.second - top2.second) <= 0.30f && top1.second > 0.10f) {
-                val food2 = withContext(Dispatchers.IO) { db.foodDao().getFoodByMlLabel(top2.first) }
-                if (food2 != null) {
-                    candidate1 = Pair(food1, top1.second)
-                    candidate2 = Pair(food2, top2.second)
-                    showCandidateSelection = true
-                } else {
-                    pendingDishName = food1.nameEn
-                    pendingConfidence = top1.second
-                    pendingCaloriesEst = food1.caloriesPer100g * weight / 100f
-                    phase = LogMealPhase.DISH_READY
-                }
-            } else {
-                showUnsupportedBanner = true
-            }
-            isProcessing = false
-        }
-    }
-
-    // ── Banner auto-dismiss after 5 seconds ──
-    LaunchedEffect(showUnsupportedBanner) {
-        if (showUnsupportedBanner) {
-            delay(5000)
-            showUnsupportedBanner = false
-        }
+        viewModel.updateRealWeight(realWeight)
     }
 
     // ── Permission denied fallback ──
@@ -377,18 +282,11 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
     if (phase == LogMealPhase.MEAL_SUMMARY) {
         MealSummaryOverlay(
             dishes = loggedDishes,
-            mealType = mealType.value,
-            onMealTypeChange = { mealType.value = it },
-            onRemoveDish = { loggedDishes.removeAt(it) },
-            onAddMore = { phase = LogMealPhase.SCANNING },
-            onConfirmMeal = {
-                scope.launch {
-                    withContext(Dispatchers.IO) {
-                        persistMeal(db, uid, mealType.value, loggedDishes)
-                    }
-                    onMealConfirmed()
-                }
-            },
+            mealType = mealType,
+            onMealTypeChange = { viewModel.updateMealType(it) },
+            onRemoveDish = { viewModel.removeDish(it) },
+            onAddMore = { viewModel.setPhase(LogMealPhase.SCANNING) },
+            onConfirmMeal = { viewModel.confirmMeal(onComplete = onMealConfirmed) },
             onCancel = onBack
         )
         return
@@ -403,11 +301,7 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
             classifier = classifier,
             flashEnabled = flashEnabled,
             onFrameAnalyzed = { results ->
-                if (results.isNotEmpty() && phase == LogMealPhase.SCANNING && !isProcessing && !showCandidateSelection) {
-                    latestResults = results
-                    topLabel = results[0].first
-                    topConfidence = results[0].second
-                }
+                viewModel.onFrameAnalyzed(results)
             }
         )
 
@@ -562,7 +456,7 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
                 ) {
                     Row(
                         modifier = Modifier
-                            .clickable { phase = LogMealPhase.MEAL_SUMMARY }
+                            .clickable { viewModel.setPhase(LogMealPhase.MEAL_SUMMARY) }
                             .padding(horizontal = 20.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -588,7 +482,7 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
                         modifier = Modifier
                             .size(72.dp)
                             .background(Color.White.copy(alpha = 0.3f), CircleShape)
-                            .clickable(enabled = isReady && !isProcessing) { processCapture() },
+                            .clickable(enabled = isReady && !isProcessing) { viewModel.processCapture() },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -623,56 +517,8 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
                 confidence = pendingConfidence,
                 weight = weight,
                 estimatedCalories = pendingCaloriesEst,
-                onLogDish = {
-                    scope.launch {
-                        val food = withContext(Dispatchers.IO) { db.foodDao().getFoodByName(pendingDishName) }
-                        if (food != null) {
-                            val w = weight.toFloat()
-                            loggedDishes.add(
-                                LoggedDish(
-                                    dishNameEn = pendingDishName,
-                                    weightGrams = w,
-                                    confidence = pendingConfidence,
-                                    foodId = food.foodId,
-                                    calories        = food.caloriesPer100g * w / 100f,
-                                    protein         = food.proteinPer100g * w / 100f,
-                                    carbs           = food.carbsPer100g * w / 100f,
-                                    fat             = food.fatPer100g * w / 100f,
-                                    fiber           = food.fiberPer100g * w / 100f,
-                                    sugar           = food.sugarPer100g * w / 100f,
-                                    saturatedFat    = food.saturatedFatPer100g * w / 100f,
-                                    polyunsaturatedFat = food.polyunsaturatedFatPer100g * w / 100f,
-                                    monounsaturatedFat = food.monounsaturatedFatPer100g * w / 100f,
-                                    transFat        = food.transFatPer100g * w / 100f,
-                                    cholesterol     = food.cholesterolPer100g * w / 100f,
-                                    sodium          = food.sodiumPer100g * w / 100f,
-                                    potassium       = food.potassiumPer100g * w / 100f,
-                                    vitaminA        = food.vitaminAPer100g * w / 100f,
-                                    vitaminC        = food.vitaminCPer100g * w / 100f,
-                                    calcium         = food.calciumPer100g * w / 100f,
-                                    iron            = food.ironPer100g * w / 100f
-                                )
-                            )
-                        }
-                        // Reset for next scan
-                        latestResults = emptyList()
-                        topLabel = ""
-                        topConfidence = 0f
-                        candidate1 = null
-                        candidate2 = null
-                        showCandidateSelection = false
-                        phase = LogMealPhase.SCANNING
-                    }
-                },
-                onCancel = {
-                    latestResults = emptyList()
-                    topLabel = ""
-                    topConfidence = 0f
-                    candidate1 = null
-                    candidate2 = null
-                    showCandidateSelection = false
-                    phase = LogMealPhase.SCANNING
-                }
+                onLogDish = { viewModel.logCurrentDish() },
+                onCancel = { viewModel.cancelDishReady() }
             )
         }
 
@@ -681,19 +527,8 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
             CandidateSelectionSheet(
                 candidate1 = candidate1!!,
                 candidate2 = candidate2!!,
-                onSelect = { food, conf ->
-                    pendingDishName = food.nameEn
-                    pendingConfidence = conf
-                    pendingCaloriesEst = food.caloriesPer100g * weight / 100f
-                    showCandidateSelection = false
-                    phase = LogMealPhase.DISH_READY
-                },
-                onCancel = { 
-                    showCandidateSelection = false
-                    latestResults = emptyList()
-                    topLabel = ""
-                    topConfidence = 0f 
-                }
+                onSelect = { food, conf -> viewModel.onCandidateSelected(food, conf) },
+                onCancel = { viewModel.cancelCandidateSelection() }
             )
         }
 
@@ -712,7 +547,7 @@ fun LogMealScreen(bleScaleManager: BleScaleManager, onBack: () -> Unit, onMealCo
                 shadowElevation = 6.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showUnsupportedBanner = false }
+                    .clickable { viewModel.hideUnsupportedBanner() }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -1171,93 +1006,6 @@ private fun MealSummaryOverlay(
 
 
 
-// ───────────────────────────────────────────────────────────────
-// Persistence helper
-// ───────────────────────────────────────────────────────────────
 
-/**
- * Persists a confirmed meal to Room.
- *
- * 1. Inserts a [MealLogEntity] (parent)
- * 2. Inserts all [MealLogItemEntity] children
- * 3. Upserts [DailyNutritionSummaryEntity]
- */
-private suspend fun persistMeal(
-    db: AppDatabase,
-    uid: String,
-    mealType: String,
-    dishes: List<LoggedDish>
-) {
-    val now = System.currentTimeMillis()
-
-    // 1. Insert parent MealLog
-    val mealLogId = db.mealLogDao().insertMealLog(
-        MealLogEntity(uid = uid, mealType = mealType, timestamp = now)
-    )
-
-    // 2. Insert child items
-    val items = dishes.map { d ->
-        MealLogItemEntity(
-            mealLogId       = mealLogId,
-            foodId          = d.foodId,
-            dishName        = d.dishNameEn,
-            weightGrams     = d.weightGrams,
-            calories        = d.calories,
-            protein         = d.protein,
-            carbs           = d.carbs,
-            fiber           = d.fiber,
-            sugar           = d.sugar,
-            fat             = d.fat,
-            saturatedFat    = d.saturatedFat,
-            polyunsaturatedFat = d.polyunsaturatedFat,
-            monounsaturatedFat = d.monounsaturatedFat,
-            transFat        = d.transFat,
-            cholesterol     = d.cholesterol,
-            sodium          = d.sodium,
-            potassium       = d.potassium,
-            vitaminA        = d.vitaminA,
-            vitaminC        = d.vitaminC,
-            calcium         = d.calcium,
-            iron            = d.iron
-        )
-    }
-    db.mealLogItemDao().insertItems(items)
-
-    // 3. Upsert DailyNutritionSummary
-    val today = LocalDate.now().toEpochDay()
-    val existing = db.dailyNutritionSummaryDao().getSummaryForDate(uid, today)
-
-    val mealCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
-
-    val updated = (existing ?: DailyNutritionSummaryEntity(uid = uid, dateEpochDay = today)).let { s ->
-        s.copy(
-            id                     = s.id,
-            totalCalories          = s.totalCalories + mealCalories,
-            totalProtein           = s.totalProtein + dishes.sumOf { it.protein.toDouble() }.toFloat(),
-            totalCarbs             = s.totalCarbs + dishes.sumOf { it.carbs.toDouble() }.toFloat(),
-            totalFiber             = s.totalFiber + dishes.sumOf { it.fiber.toDouble() }.toFloat(),
-            totalSugar             = s.totalSugar + dishes.sumOf { it.sugar.toDouble() }.toFloat(),
-            totalFat               = s.totalFat + dishes.sumOf { it.fat.toDouble() }.toFloat(),
-            totalSaturatedFat      = s.totalSaturatedFat + dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
-            totalPolyunsaturatedFat = s.totalPolyunsaturatedFat + dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
-            totalMonounsaturatedFat = s.totalMonounsaturatedFat + dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
-            totalTransFat          = s.totalTransFat + dishes.sumOf { it.transFat.toDouble() }.toFloat(),
-            totalCholesterol       = s.totalCholesterol + dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
-            totalSodium            = s.totalSodium + dishes.sumOf { it.sodium.toDouble() }.toFloat(),
-            totalPotassium         = s.totalPotassium + dishes.sumOf { it.potassium.toDouble() }.toFloat(),
-            totalVitaminA          = s.totalVitaminA + dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
-            totalVitaminC          = s.totalVitaminC + dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
-            totalCalcium           = s.totalCalcium + dishes.sumOf { it.calcium.toDouble() }.toFloat(),
-            totalIron              = s.totalIron + dishes.sumOf { it.iron.toDouble() }.toFloat(),
-            breakfastCalories      = s.breakfastCalories + if (mealType == "Breakfast") mealCalories else 0f,
-            lunchCalories          = s.lunchCalories + if (mealType == "Lunch") mealCalories else 0f,
-            dinnerCalories         = s.dinnerCalories + if (mealType == "Dinner") mealCalories else 0f,
-            snacksCalories         = s.snacksCalories + if (mealType == "Snacks") mealCalories else 0f
-        )
-    }
-    db.dailyNutritionSummaryDao().upsertSummary(updated)
-
-    // 5. Removed API Sync
-}
 
 private fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)

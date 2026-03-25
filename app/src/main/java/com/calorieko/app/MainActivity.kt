@@ -389,7 +389,9 @@ fun AppNavigation() {
 
         // --- Log Meal Screen ---
         composable("logMeal") {
+            val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             LogMealScreen(
+                viewModel = logMealViewModel,
                 bleScaleManager = bleScaleManager,
                 onBack = { navController.popBackStack() },
                 onMealConfirmed = { navController.popBackStack() }
