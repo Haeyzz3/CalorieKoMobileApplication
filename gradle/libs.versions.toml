@@ -20,8 +20,6 @@ litert = "2.1.1"
 camerax = "1.5.3"
 playServicesLocation = "21.3.0"
 mapbox = "11.18.2"
-hilt = "2.51.1"
-hiltNavigationCompose = "1.2.0"
 
 [libraries]
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -58,12 +56,8 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 mapbox-maps = { group = "com.mapbox.maps", name = "android-ndk27", version.ref = "mapbox" }
 mapbox-maps-compose = { group = "com.mapbox.extension", name = "maps-compose-ndk27", version.ref = "mapbox" }
-hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
-hilt-android-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
-hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

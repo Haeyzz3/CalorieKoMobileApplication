@@ -37,8 +37,7 @@ data class DishResult(
     val fats: Int = 0
 )
 
-@dagger.hilt.android.lifecycle.HiltViewModel
-class PantryViewModel @javax.inject.Inject constructor(
+class PantryViewModel(
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
     private val foodDao: FoodDao
@@ -48,6 +47,20 @@ class PantryViewModel @javax.inject.Inject constructor(
     companion object {
         /** Minimum cosine similarity score for a dish to appear in "Almost Ready" */
         const val ALMOST_READY_THRESHOLD = 0.6f
+
+        fun provideFactory(
+            pantryDao: PantryDao,
+            mealPlanDao: MealPlanDao,
+            foodDao: FoodDao
+        ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
+                    return PantryViewModel(pantryDao, mealPlanDao, foodDao) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
+            }
+        }
     }
 
     // --- Search ---

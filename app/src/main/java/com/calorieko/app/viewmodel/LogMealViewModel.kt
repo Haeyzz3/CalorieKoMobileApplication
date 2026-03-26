@@ -12,8 +12,8 @@ import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.ui.screens.LogMealPhase
 import com.calorieko.app.ui.screens.LoggedDish
+import androidx.lifecycle.ViewModelProvider
 import com.google.firebase.auth.FirebaseAuth
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,10 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
-import javax.inject.Inject
 
-@HiltViewModel
-class LogMealViewModel @Inject constructor(
+class LogMealViewModel(
     private val foodDao: FoodDao,
     private val mealLogDao: MealLogDao,
     private val mealLogItemDao: MealLogItemDao,
@@ -349,5 +347,23 @@ class LogMealViewModel @Inject constructor(
             )
         }
         dailyNutritionSummaryDao.upsertSummary(updated)
+    }
+
+    companion object {
+        fun provideFactory(
+            foodDao: FoodDao,
+            mealLogDao: MealLogDao,
+            mealLogItemDao: MealLogItemDao,
+            dailyNutritionSummaryDao: DailyNutritionSummaryDao,
+            auth: FirebaseAuth
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                if (modelClass.isAssignableFrom(LogMealViewModel::class.java)) {
+                    return LogMealViewModel(foodDao, mealLogDao, mealLogItemDao, dailyNutritionSummaryDao, auth) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
+            }
+        }
     }
 }

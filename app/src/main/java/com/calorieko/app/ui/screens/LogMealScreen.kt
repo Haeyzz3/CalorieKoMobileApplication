@@ -57,16 +57,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,26 +81,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.DailyNutritionSummaryEntity
-import com.calorieko.app.data.model.MealLogEntity
-import com.calorieko.app.data.model.MealLogItemEntity
+import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.LocalTime
-import kotlin.random.Random
-import com.calorieko.app.ble.BleScaleManager
 
 // ───────────────────────────────────────────────────────────────
 // Data classes & enums
@@ -147,7 +130,7 @@ private const val CONFIDENCE_THRESHOLD = 0.70f
 
 @Composable
 fun LogMealScreen(
-    viewModel: com.calorieko.app.viewmodel.LogMealViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+    viewModel: com.calorieko.app.viewmodel.LogMealViewModel,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
     onMealConfirmed: () -> Unit

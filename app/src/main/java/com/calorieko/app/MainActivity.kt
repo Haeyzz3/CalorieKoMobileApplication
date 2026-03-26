@@ -25,9 +25,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.remote.SyncRepository
-import dagger.hilt.android.AndroidEntryPoint
-
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -373,7 +370,13 @@ fun AppNavigation() {
 
         // --- NEW: Pantry Screen ---
         composable("pantry") {
-            val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.PantryViewModel.provideFactory(
+                    pantryDao = db.pantryDao(),
+                    mealPlanDao = db.mealPlanDao(),
+                    foodDao = db.foodDao()
+                )
+            )
             PantryScreen(
                 viewModel = pantryViewModel,
                 onNavigate = { dest ->
@@ -389,7 +392,15 @@ fun AppNavigation() {
 
         // --- Log Meal Screen ---
         composable("logMeal") {
-            val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
+                    foodDao = db.foodDao(),
+                    mealLogDao = db.mealLogDao(),
+                    mealLogItemDao = db.mealLogItemDao(),
+                    dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                    auth = auth
+                )
+            )
             LogMealScreen(
                 viewModel = logMealViewModel,
                 bleScaleManager = bleScaleManager,
