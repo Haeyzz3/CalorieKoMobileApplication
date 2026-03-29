@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,8 +52,8 @@ fun AppNavigation() {
     val bleScaleManager = remember { BleScaleManager(context) }
     val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
 
-
-
+    // Firestore sync repository for cloud persistence
+    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
 
     // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
@@ -206,7 +207,8 @@ fun AppNavigation() {
                         scope.launch {
                             userDao.insertUser(userProfile)
 
-
+                            // Sync new profile to Firestore
+                            firestoreSyncRepo.syncProfile(currentUser.uid, userProfile)
 
                             navController.navigate("targetSummary") {
                                 popUpTo("intro") { inclusive = true }
@@ -358,7 +360,8 @@ fun AppNavigation() {
                 factory = com.calorieko.app.viewmodel.PantryViewModel.provideFactory(
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
-                    foodDao = db.foodDao()
+                    foodDao = db.foodDao(),
+                    firestoreSyncRepo = firestoreSyncRepo
                 )
             )
             PantryScreen(
@@ -382,7 +385,8 @@ fun AppNavigation() {
                     mealLogDao = db.mealLogDao(),
                     mealLogItemDao = db.mealLogItemDao(),
                     dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                    auth = auth
+                    auth = auth,
+                    firestoreSyncRepo = firestoreSyncRepo
                 )
             )
             LogMealScreen(

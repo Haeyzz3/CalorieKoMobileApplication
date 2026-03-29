@@ -7,6 +7,8 @@ import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,8 +42,12 @@ data class DishResult(
 class PantryViewModel(
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
-    private val foodDao: FoodDao
+    private val foodDao: FoodDao,
+    private val firestoreSyncRepo: FirestoreSyncRepository
 ) : ViewModel() {
+
+    private val auth = FirebaseAuth.getInstance()
+    private val uid: String get() = auth.currentUser?.uid ?: ""
 
     // --- Cosine Similarity threshold for "Almost Ready" ---
     companion object {
@@ -51,12 +57,13 @@ class PantryViewModel(
         fun provideFactory(
             pantryDao: PantryDao,
             mealPlanDao: MealPlanDao,
-            foodDao: FoodDao
+            foodDao: FoodDao,
+            firestoreSyncRepo: FirestoreSyncRepository
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(pantryDao, mealPlanDao, foodDao) as T
+                    return PantryViewModel(pantryDao, mealPlanDao, foodDao, firestoreSyncRepo) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -139,12 +146,14 @@ class PantryViewModel(
         if (trimmed.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
             pantryDao.insertItem(PantryItem(ingredientName = trimmed))
+            if (uid.isNotEmpty()) firestoreSyncRepo.syncPantryItem(uid, trimmed)
         }
     }
 
     fun removeIngredient(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
             pantryDao.deleteItem(name)
+            if (uid.isNotEmpty()) firestoreSyncRepo.deletePantryItem(uid, name)
         }
     }
 
@@ -234,19 +243,20 @@ class PantryViewModel(
 
     fun addMealToPlan(dayIndex: Int, dishLabel: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.insertMeal(
-                PlannedMealEntity(
-                    dayIndex = dayIndex,
-                    dishLabel = dishLabel,
-                    weekStartDate = _currentWeekStart.value
-                )
+            val meal = PlannedMealEntity(
+                dayIndex = dayIndex,
+                dishLabel = dishLabel,
+                weekStartDate = _currentWeekStart.value
             )
+            mealPlanDao.insertMeal(meal)
+            if (uid.isNotEmpty()) firestoreSyncRepo.syncPlannedMeal(uid, meal)
         }
     }
 
     fun removeMealFromPlan(dayIndex: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             mealPlanDao.removeMeal(dayIndex, _currentWeekStart.value)
+            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value)
         }
     }
 

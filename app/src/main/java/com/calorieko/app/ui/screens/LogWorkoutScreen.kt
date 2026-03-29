@@ -97,6 +97,7 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -187,6 +188,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     val activityLogDao = db.activityLogDao()
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid ?: ""
+    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
     val saveWorkout: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag ->
         scope.launch(Dispatchers.IO) {
@@ -210,6 +212,11 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 activityTag = tag
             )
             activityLogDao.insertLog(log)
+
+            // Sync to Firestore
+            if (uid.isNotEmpty()) {
+                firestoreSyncRepo.syncActivityLog(uid, log)
+            }
 
             withContext(Dispatchers.Main) {
                 onBack()
