@@ -3,10 +3,35 @@ package com.calorieko.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Eco
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.* // Automatically grabs standard runtime components
 import androidx.compose.runtime.getValue // REQUIRED for 'by' delegate reading
 import androidx.compose.runtime.setValue // REQUIRED for 'by' delegate writing
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,16 +40,20 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.remote.CloudRestoreManager
+import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.remote.RestoreResult
 import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
+import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoTheme
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +84,23 @@ fun AppNavigation() {
     // Firestore sync repository for cloud persistence
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
+    // Cloud restore manager for pull-from-cloud on login
+    val cloudRestoreManager = remember {
+        CloudRestoreManager(
+            firestoreSyncRepo = firestoreSyncRepo,
+            userDao = userDao,
+            activityLogDao = db.activityLogDao(),
+            mealLogDao = db.mealLogDao(),
+            mealLogItemDao = db.mealLogItemDao(),
+            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+            pantryDao = db.pantryDao(),
+            mealPlanDao = db.mealPlanDao()
+        )
+    }
+
+    // Restore-in-progress state for the syncing overlay
+    var restoreInProgress by remember { mutableStateOf(false) }
+
 
     // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
     var setupAge by remember { mutableStateOf(25) }
@@ -79,14 +125,29 @@ fun AppNavigation() {
 
 
 
+    Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = "splash") {
 
         // 1. Splash
         composable("splash") {
             SplashScreen(
                 onAlreadyLoggedIn = {
-                    navController.navigate("dashboard") {
-                        popUpTo("splash") { inclusive = true }
+                    val uid = auth.currentUser?.uid
+                    if (uid != null) {
+                        restoreInProgress = true
+                        scope.launch(Dispatchers.IO) {
+                            cloudRestoreManager.restoreIfNeeded(uid)
+                            withContext(Dispatchers.Main) {
+                                restoreInProgress = false
+                                navController.navigate("dashboard") {
+                                    popUpTo("splash") { inclusive = true }
+                                }
+                            }
+                        }
+                    } else {
+                        navController.navigate("dashboard") {
+                            popUpTo("splash") { inclusive = true }
+                        }
                     }
                 },
                 onNotLoggedIn = {
@@ -110,9 +171,22 @@ fun AppNavigation() {
         composable("login") {
             AuthScreen(
                 onLoginSuccess = {
-
-                    navController.navigate("dashboard") {
-                        popUpTo(0) { inclusive = true }
+                    val uid = auth.currentUser?.uid
+                    if (uid != null) {
+                        restoreInProgress = true
+                        scope.launch(Dispatchers.IO) {
+                            cloudRestoreManager.restoreIfNeeded(uid)
+                            withContext(Dispatchers.Main) {
+                                restoreInProgress = false
+                                navController.navigate("dashboard") {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        }
+                    } else {
+                        navController.navigate("dashboard") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 },
                 onNavigateToSignUp = {
@@ -425,5 +499,69 @@ fun AppNavigation() {
             }
         }
     }
-}
 
+    // ═══ Syncing Overlay ═══
+    AnimatedVisibility(
+        visible = restoreInProgress,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(CalorieKoGreen, CalorieKoLightGreen)
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.size(100.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.Eco,
+                            contentDescription = "Logo",
+                            tint = CalorieKoGreen,
+                            modifier = Modifier.size(52.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Text(
+                    text = "Syncing your data...",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Restoring from cloud",
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+    }
+    } // end Box
+}

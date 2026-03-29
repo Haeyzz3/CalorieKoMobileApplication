@@ -389,4 +389,268 @@ class FirestoreSyncRepository {
             Log.e(TAG, "Failed to wipe user data from Firestore", e)
         }
     }
+
+    // ════════════════════════════════════════════════════════════
+    //  FETCH METHODS (Pull from Cloud)
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Fetches the user profile from Firestore.
+     * Returns null if the document doesn't exist or on error.
+     */
+    suspend fun fetchProfile(uid: String): UserProfile? {
+        return try {
+            val doc = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .get()
+                .await()
+
+            if (!doc.exists()) {
+                Log.d(TAG, "No Firestore profile found for $uid")
+                return null
+            }
+
+            UserProfile(
+                uid = uid,
+                name = doc.getString("name") ?: "",
+                email = doc.getString("email") ?: "",
+                age = (doc.getLong("age") ?: 25).toInt(),
+                weight = doc.getDouble("weight") ?: 70.0,
+                height = doc.getDouble("height") ?: 170.0,
+                sex = doc.getString("sex") ?: "",
+                activityLevel = doc.getString("activityLevel") ?: "",
+                goal = doc.getString("goal") ?: "general",
+                streak = (doc.getLong("streak") ?: 0).toInt(),
+                level = (doc.getLong("level") ?: 1).toInt()
+            ).also { Log.d(TAG, "Profile fetched for $uid") }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch profile for $uid", e)
+            null
+        }
+    }
+
+    /**
+     * Fetches all activity logs from Firestore for the given user.
+     * Note: `encodedPath` and `photoUri` were intentionally not synced,
+     * so they will be null/default in restored entries.
+     */
+    suspend fun fetchActivityLogs(uid: String): List<ActivityLogEntity> {
+        return try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("activityLogs")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                try {
+                    ActivityLogEntity(
+                        id = 0, // Room will auto-generate a new ID
+                        uid = uid,
+                        type = doc.getString("type") ?: "workout",
+                        name = doc.getString("name") ?: "",
+                        timeString = doc.getString("timeString") ?: "",
+                        weightOrDuration = doc.getString("weightOrDuration") ?: "",
+                        calories = (doc.getLong("calories") ?: 0).toInt(),
+                        protein = (doc.getLong("protein") ?: 0).toInt(),
+                        carbs = (doc.getLong("carbs") ?: 0).toInt(),
+                        fats = (doc.getLong("fats") ?: 0).toInt(),
+                        sodium = (doc.getLong("sodium") ?: 0).toInt(),
+                        timestamp = doc.getLong("timestamp") ?: 0L,
+                        distanceKm = doc.getDouble("distanceKm"),
+                        pace = doc.getDouble("pace"),
+                        movingTimeSeconds = doc.getLong("movingTimeSeconds"),
+                        mapType = doc.getString("mapType"),
+                        notes = doc.getString("notes"),
+                        activityTag = doc.getString("activityTag")
+                        // encodedPath and photoUri intentionally excluded
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping malformed activity log doc ${doc.id}", e)
+                    null
+                }
+            }.also { Log.d(TAG, "Fetched ${it.size} activity logs for $uid") }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch activity logs for $uid", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetches all meal logs and their child items from Firestore.
+     * Returns a list of pairs: (MealLogEntity, List<MealLogItemEntity>).
+     *
+     * The mealLogId on the returned entities is set to 0 — Room will
+     * auto-generate new IDs. The caller (CloudRestoreManager) is
+     * responsible for re-mapping item foreign keys.
+     */
+    suspend fun fetchMealLogs(uid: String): List<Pair<MealLogEntity, List<MealLogItemEntity>>> {
+        return try {
+            val mealSnapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("mealLogs")
+                .get()
+                .await()
+
+            val results = mutableListOf<Pair<MealLogEntity, List<MealLogItemEntity>>>()
+
+            for (mealDoc in mealSnapshot.documents) {
+                try {
+                    val mealLog = MealLogEntity(
+                        mealLogId = 0, // Will be re-assigned by Room
+                        uid = uid,
+                        mealType = mealDoc.getString("mealType") ?: "Snacks",
+                        timestamp = mealDoc.getLong("timestamp") ?: 0L,
+                        notes = mealDoc.getString("notes")
+                    )
+
+                    // Fetch child items
+                    val itemsSnapshot = mealDoc.reference.collection("items")
+                        .get()
+                        .await()
+
+                    val items = itemsSnapshot.documents.mapNotNull { itemDoc ->
+                        try {
+                            MealLogItemEntity(
+                                mealLogItemId = 0, // Will be auto-generated
+                                mealLogId = 0,     // Placeholder — remapped by CloudRestoreManager
+                                foodId = (itemDoc.getLong("foodId") ?: 0).toInt(),
+                                dishName = itemDoc.getString("dishName") ?: "",
+                                weightGrams = (itemDoc.getDouble("weightGrams") ?: 0.0).toFloat(),
+                                calories = (itemDoc.getDouble("calories") ?: 0.0).toFloat(),
+                                protein = (itemDoc.getDouble("protein") ?: 0.0).toFloat(),
+                                carbs = (itemDoc.getDouble("carbs") ?: 0.0).toFloat(),
+                                fiber = (itemDoc.getDouble("fiber") ?: 0.0).toFloat(),
+                                sugar = (itemDoc.getDouble("sugar") ?: 0.0).toFloat(),
+                                fat = (itemDoc.getDouble("fat") ?: 0.0).toFloat(),
+                                saturatedFat = (itemDoc.getDouble("saturatedFat") ?: 0.0).toFloat(),
+                                polyunsaturatedFat = (itemDoc.getDouble("polyunsaturatedFat") ?: 0.0).toFloat(),
+                                monounsaturatedFat = (itemDoc.getDouble("monounsaturatedFat") ?: 0.0).toFloat(),
+                                transFat = (itemDoc.getDouble("transFat") ?: 0.0).toFloat(),
+                                cholesterol = (itemDoc.getDouble("cholesterol") ?: 0.0).toFloat(),
+                                sodium = (itemDoc.getDouble("sodium") ?: 0.0).toFloat(),
+                                potassium = (itemDoc.getDouble("potassium") ?: 0.0).toFloat(),
+                                vitaminA = (itemDoc.getDouble("vitaminA") ?: 0.0).toFloat(),
+                                vitaminC = (itemDoc.getDouble("vitaminC") ?: 0.0).toFloat(),
+                                calcium = (itemDoc.getDouble("calcium") ?: 0.0).toFloat(),
+                                iron = (itemDoc.getDouble("iron") ?: 0.0).toFloat()
+                            )
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Skipping malformed meal log item ${itemDoc.id}", e)
+                            null
+                        }
+                    }
+
+                    results.add(Pair(mealLog, items))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping malformed meal log ${mealDoc.id}", e)
+                }
+            }
+
+            Log.d(TAG, "Fetched ${results.size} meal logs for $uid")
+            results
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch meal logs for $uid", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetches all daily nutrition summaries from Firestore.
+     */
+    suspend fun fetchDailyNutritionSummaries(uid: String): List<DailyNutritionSummaryEntity> {
+        return try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("dailyNutritionSummaries")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                try {
+                    DailyNutritionSummaryEntity(
+                        id = 0, // Auto-generated by Room
+                        uid = uid,
+                        dateEpochDay = doc.getLong("dateEpochDay") ?: return@mapNotNull null,
+                        totalCalories = (doc.getDouble("totalCalories") ?: 0.0).toFloat(),
+                        totalProtein = (doc.getDouble("totalProtein") ?: 0.0).toFloat(),
+                        totalCarbs = (doc.getDouble("totalCarbs") ?: 0.0).toFloat(),
+                        totalFiber = (doc.getDouble("totalFiber") ?: 0.0).toFloat(),
+                        totalSugar = (doc.getDouble("totalSugar") ?: 0.0).toFloat(),
+                        totalFat = (doc.getDouble("totalFat") ?: 0.0).toFloat(),
+                        totalSaturatedFat = (doc.getDouble("totalSaturatedFat") ?: 0.0).toFloat(),
+                        totalPolyunsaturatedFat = (doc.getDouble("totalPolyunsaturatedFat") ?: 0.0).toFloat(),
+                        totalMonounsaturatedFat = (doc.getDouble("totalMonounsaturatedFat") ?: 0.0).toFloat(),
+                        totalTransFat = (doc.getDouble("totalTransFat") ?: 0.0).toFloat(),
+                        totalCholesterol = (doc.getDouble("totalCholesterol") ?: 0.0).toFloat(),
+                        totalSodium = (doc.getDouble("totalSodium") ?: 0.0).toFloat(),
+                        totalPotassium = (doc.getDouble("totalPotassium") ?: 0.0).toFloat(),
+                        totalVitaminA = (doc.getDouble("totalVitaminA") ?: 0.0).toFloat(),
+                        totalVitaminC = (doc.getDouble("totalVitaminC") ?: 0.0).toFloat(),
+                        totalCalcium = (doc.getDouble("totalCalcium") ?: 0.0).toFloat(),
+                        totalIron = (doc.getDouble("totalIron") ?: 0.0).toFloat(),
+                        breakfastCalories = (doc.getDouble("breakfastCalories") ?: 0.0).toFloat(),
+                        lunchCalories = (doc.getDouble("lunchCalories") ?: 0.0).toFloat(),
+                        dinnerCalories = (doc.getDouble("dinnerCalories") ?: 0.0).toFloat(),
+                        snacksCalories = (doc.getDouble("snacksCalories") ?: 0.0).toFloat()
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping malformed nutrition summary ${doc.id}", e)
+                    null
+                }
+            }.also { Log.d(TAG, "Fetched ${it.size} nutrition summaries for $uid") }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch nutrition summaries for $uid", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetches all pantry item names from Firestore.
+     * The document ID is the ingredient name itself.
+     */
+    suspend fun fetchPantryItems(uid: String): List<String> {
+        return try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("pantryItems")
+                .get()
+                .await()
+
+            snapshot.documents.map { it.id }
+                .also { Log.d(TAG, "Fetched ${it.size} pantry items for $uid") }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch pantry items for $uid", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetches all planned meals from Firestore.
+     */
+    suspend fun fetchPlannedMeals(uid: String): List<PlannedMealEntity> {
+        return try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("plannedMeals")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                try {
+                    PlannedMealEntity(
+                        dayIndex = (doc.getLong("dayIndex") ?: return@mapNotNull null).toInt(),
+                        dishLabel = doc.getString("dishLabel") ?: return@mapNotNull null,
+                        weekStartDate = doc.getString("weekStartDate") ?: return@mapNotNull null
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping malformed planned meal ${doc.id}", e)
+                    null
+                }
+            }.also { Log.d(TAG, "Fetched ${it.size} planned meals for $uid") }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch planned meals for $uid", e)
+            emptyList()
+        }
+    }
 }
