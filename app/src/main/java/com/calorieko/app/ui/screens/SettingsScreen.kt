@@ -74,8 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.credentials.ClearCredentialStateRequest
-import androidx.credentials.CredentialManager
+
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
@@ -394,12 +393,7 @@ fun SettingsScreen(
                     onClick = {
                         showLogoutDialog = false
                         scope.launch {
-                            try {
-                                val credentialManager = CredentialManager.create(context)
-                                credentialManager.clearCredentialState(ClearCredentialStateRequest())
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+
                             auth.signOut()
                             onLogout()
                         }

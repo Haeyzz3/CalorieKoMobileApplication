@@ -62,19 +62,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.remote.SyncRepository
 
 // ─── Brand Colors (reused from theme) ───
 private val CalorieKoGreen = Color(0xFF4CAF50)
@@ -85,7 +75,6 @@ private val TextDark = Color(0xFF2D2D2D)
 private val TextGray = Color(0xFF8E8E8E)
 private val FieldBackground = Color(0xFFF7F8FA)
 private val FieldBorder = Color(0xFFE0E0E0)
-private val GoogleRed = Color(0xFFDB4437)
 
 @Composable
 fun AuthScreen(
@@ -96,17 +85,6 @@ fun AuthScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val auth = remember { FirebaseAuth.getInstance() }
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val userDao = db.userDao()
-    val syncRepository = remember {
-        SyncRepository(
-            userDao = db.userDao(),
-            activityLogDao = db.activityLogDao(),
-            mealLogDao = db.mealLogDao(),
-            mealLogItemDao = db.mealLogItemDao(),
-            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-        )
-    }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -133,82 +111,7 @@ fun AuthScreen(
             }
     }
 
-    // ─── Google Sign In ───
-    fun signInWithGoogle() {
-        scope.launch {
-            isLoading = true
-            errorMessage = null
-            try {
-                val credentialManager = CredentialManager.create(context)
 
-                // TODO: Replace with your actual Web Client ID from Firebase Console
-                val serverClientId = "945279693201-4i2r0vmiuo743h58rdhm80uh75vpfk96.apps.googleusercontent.com"
-
-                val googleIdOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(serverClientId)
-                    .build()
-
-                val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId)
-                    .build()
-
-                val request = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
-                    .addCredentialOption(signInWithGoogleOption)
-                    .build()
-
-                val result = credentialManager.getCredential(
-                    request = request,
-                    context = context as Activity
-                )
-
-                val googleIdTokenCredential = GoogleIdTokenCredential
-                    .createFrom(result.credential.data)
-                val firebaseCredential = GoogleAuthProvider
-                    .getCredential(googleIdTokenCredential.idToken, null)
-
-                // Capture the authentication result
-                val authResult = auth.signInWithCredential(firebaseCredential).await()
-                val uid = authResult.user?.uid
-
-                // Determine if this is a first-time Google login
-                val isNewUser = authResult.additionalUserInfo?.isNewUser == true
-
-                if (uid != null) {
-                    // Check local SQLite (Room) database for this UID
-                    val existingUser = userDao.getUserProfile(uid)
-
-                    isLoading = false
-
-                    if (existingUser != null) {
-                        // Profile found locally — sync to backend, then go to Dashboard.
-                        scope.launch {
-                            syncRepository.syncProfile(uid)
-                        }
-                        onLoginSuccess()
-                    } else {
-                        // Profile missing locally. Route to BioForm to set up metrics.
-                        onNavigateToSignUp()
-                    }
-                } else {
-                    isLoading = false
-                    errorMessage = "Authentication failed: Missing UID."
-                }
-
-            } catch (e: GetCredentialCancellationException) {
-                isLoading = false
-                // User cancelled — do nothing
-            } catch (e: NoCredentialException) {
-                isLoading = false
-                Log.e("AuthScreen", "No Google accounts found", e)
-                errorMessage = "No Google accounts found. Please add an account in your device settings."
-            } catch (e: Exception) {
-                isLoading = false
-                Log.e("AuthScreen", "Google Sign-In failed", e)
-                errorMessage = "Google Sign-In failed. Please try again."
-            }
-        }
-    }
 
     // ═══════════════════════ UI ═══════════════════════
 
@@ -447,73 +350,7 @@ fun AuthScreen(
                     }
                 }
 
-                // ─── Divider ───
-                Spacer(modifier = Modifier.height(4.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        color = FieldBorder
-                    )
-                    Text(
-                        text = "  or continue with  ",
-                        fontSize = 13.sp,
-                        color = TextGray
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        color = FieldBorder
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // ─── Google Sign-In Button ───
-                OutlinedButton(
-                    onClick = { signInWithGoogle() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White
-                    ),
-                    border = ButtonDefaults.outlinedButtonBorder(enabled = true),
-                    enabled = !isLoading
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        // Google "G" icon using text (no external asset needed)
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "G",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = GoogleRed
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Continue with Google",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextDark
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
 
                 // ─── Sign Up Link ───
                 Row(
