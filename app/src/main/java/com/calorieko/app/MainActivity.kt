@@ -24,7 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.data.remote.SyncRepository
+import com.calorieko.app.data.remote.FirestoreSyncRepository
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,17 +52,8 @@ fun AppNavigation() {
     val bleScaleManager = remember { BleScaleManager(context) }
     val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
 
-    // Sync repository for pushing data to the Laravel backend
-    val syncRepository = remember {
-        SyncRepository(
-            userDao = db.userDao(),
-            activityLogDao = db.activityLogDao(),
-            mealLogDao = db.mealLogDao(),
-            mealLogItemDao = db.mealLogItemDao(),
-            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-        )
-    }
-
+    // Firestore sync repository for cloud persistence
+    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
 
     // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
@@ -118,13 +110,7 @@ fun AppNavigation() {
         composable("login") {
             AuthScreen(
                 onLoginSuccess = {
-                    // Sync profile to backend after email/password login
-                    val uid = auth.currentUser?.uid
-                    if (uid != null) {
-                        scope.launch {
-                            syncRepository.syncProfile(uid)
-                        }
-                    }
+
                     navController.navigate("dashboard") {
                         popUpTo(0) { inclusive = true }
                     }
@@ -221,8 +207,8 @@ fun AppNavigation() {
                         scope.launch {
                             userDao.insertUser(userProfile)
 
-                            // Sync the new profile to the Laravel backend
-                            syncRepository.syncProfile(currentUser.uid)
+                            // Sync new profile to Firestore
+                            firestoreSyncRepo.syncProfile(currentUser.uid, userProfile)
 
                             navController.navigate("targetSummary") {
                                 popUpTo("intro") { inclusive = true }
@@ -374,7 +360,8 @@ fun AppNavigation() {
                 factory = com.calorieko.app.viewmodel.PantryViewModel.provideFactory(
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
-                    foodDao = db.foodDao()
+                    foodDao = db.foodDao(),
+                    firestoreSyncRepo = firestoreSyncRepo
                 )
             )
             PantryScreen(
@@ -398,7 +385,8 @@ fun AppNavigation() {
                     mealLogDao = db.mealLogDao(),
                     mealLogItemDao = db.mealLogItemDao(),
                     dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                    auth = auth
+                    auth = auth,
+                    firestoreSyncRepo = firestoreSyncRepo
                 )
             )
             LogMealScreen(

@@ -13,6 +13,7 @@ import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.ui.screens.LogMealPhase
 import com.calorieko.app.ui.screens.LoggedDish
 import androidx.lifecycle.ViewModelProvider
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,7 +32,8 @@ class LogMealViewModel(
     private val mealLogDao: MealLogDao,
     private val mealLogItemDao: MealLogItemDao,
     private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val firestoreSyncRepo: FirestoreSyncRepository
 ) : ViewModel() {
 
     private val CONFIDENCE_THRESHOLD = 0.70f
@@ -347,6 +349,11 @@ class LogMealViewModel(
             )
         }
         dailyNutritionSummaryDao.upsertSummary(updated)
+
+        // ── Sync to Firestore ──
+        val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
+        firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
+        firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
     }
 
     companion object {
@@ -355,12 +362,13 @@ class LogMealViewModel(
             mealLogDao: MealLogDao,
             mealLogItemDao: MealLogItemDao,
             dailyNutritionSummaryDao: DailyNutritionSummaryDao,
-            auth: FirebaseAuth
+            auth: FirebaseAuth,
+            firestoreSyncRepo: FirestoreSyncRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(LogMealViewModel::class.java)) {
-                    return LogMealViewModel(foodDao, mealLogDao, mealLogItemDao, dailyNutritionSummaryDao, auth) as T
+                    return LogMealViewModel(foodDao, mealLogDao, mealLogItemDao, dailyNutritionSummaryDao, auth, firestoreSyncRepo) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

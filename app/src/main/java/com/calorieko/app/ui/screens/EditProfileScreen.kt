@@ -81,9 +81,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 
 
@@ -121,6 +119,7 @@ fun EditProfileScreen(
     val userDao = db.userDao()
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
+    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
     //IMAGE API FETCH
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -511,7 +510,8 @@ fun EditProfileScreen(
                             // 3. Save to local Room database
                             userDao.insertUser(updatedProfile)
 
-                            // 4. (Removed API Sync)
+                            // 4. Sync profile to Firestore
+                            firestoreSyncRepo.syncProfile(uid, updatedProfile)
                             
                             // 5. Upload Photo if a new one was selected (Backend Removed)
                             // A future update should implement Firebase Storage for this.

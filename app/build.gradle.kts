@@ -81,12 +81,7 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
-    implementation(libs.firebase.ui.auth)
-
-    // Credential Manager (Google Sign-In)
-    implementation(libs.credentials)
-    implementation(libs.credentials.play.services)
-    implementation(libs.googleid)
+    implementation(libs.firebase.firestore)
 
     // Real GPS Tracking
     implementation(libs.play.services.location)
@@ -97,11 +92,6 @@ dependencies {
 
     //URI COMPOSE IMAGE
     implementation("io.coil-kt:coil-compose:2.5.0")
-
-    // Retrofit + Gson (API sync layer)
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Room (KSP)
     implementation(libs.androidx.room.runtime)
