@@ -46,6 +46,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -518,13 +520,23 @@ fun SettingsScreen(
             confirmButton = {
                 when (calibrationStep) {
                     CalibrationStep.TEST_ACCURACY -> {
-                        Button(
-                            onClick = {
-                                calibrationStep = CalibrationStep.INPUT_TRUTH_VALUE
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange)
-                        ) {
-                            Text("Recalibrate Scale", color = Color.White, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { bleScaleManager?.sendTareCommand() },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, CalorieKoOrange)
+                            ) {
+                                Text("Zero Scale", color = CalorieKoOrange, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    calibrationStep = CalibrationStep.INPUT_TRUTH_VALUE
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Recalibrate", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                     CalibrationStep.INPUT_TRUTH_VALUE -> {
