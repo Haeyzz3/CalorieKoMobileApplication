@@ -88,6 +88,7 @@ import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
 // Data classes & enums
@@ -339,7 +340,7 @@ fun LogMealScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("Weight: ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
                     Text(
-                        "${weight}g",
+                        "${weight.roundToInt()}g",
                         fontSize = 14.sp, fontWeight = FontWeight.Bold,
                         color = if (weightStable) CalorieKoGreen else CalorieKoOrange
                     )
@@ -478,7 +479,7 @@ fun LogMealScreen(
                 
                 val statusText = when {
                     isProcessing -> "Processing..."
-                    !weightStable && weight == 0 -> "Waiting for scale data..."
+                    !weightStable && weight == 0f -> "Waiting for scale data..."
                     !weightStable -> "Stabilizing weight..."
                     else -> "Ready to capture"
                 }
@@ -642,7 +643,7 @@ private fun CandidateSelectionSheet(
 private fun DishReadySheet(
     dishName: String,
     confidence: Float,
-    weight: Int,
+    weight: Float,
     estimatedCalories: Float,
     onLogDish: () -> Unit,
     onCancel: () -> Unit
@@ -697,7 +698,7 @@ private fun DishReadySheet(
                 // Info rows
                 InfoRow("Dish", dishName)
                 InfoRow("Confidence", "${(confidence * 100).toInt()}%")
-                InfoRow("Weight", "${weight}g")
+                InfoRow("Weight", "${weight.roundToInt()}g")
                 InfoRow("Est. Calories", "${estimatedCalories.toInt()} kcal")
 
                 Spacer(Modifier.height(24.dp))
@@ -831,7 +832,7 @@ private fun MealSummaryOverlay(
                                     Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.toInt()}g  •  ${dish.calories.fmt()} kcal",
+                                        "${dish.weightGrams.roundToInt()}g  •  ${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))

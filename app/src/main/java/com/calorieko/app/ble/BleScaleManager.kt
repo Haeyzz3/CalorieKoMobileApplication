@@ -5,7 +5,11 @@ import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.os.Build
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
@@ -50,17 +54,39 @@ class BleScaleManager(private val context: Context) {
     private val _connectionState = MutableStateFlow<BleConnectionState>(BleConnectionState.Idle)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
 
-    private val _calibrationEvent = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    private val _calibrationEvent = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
     val calibrationEvent: SharedFlow<String> = _calibrationEvent
 
-    private val _liveWeight = MutableStateFlow(0)
-    val liveWeight: StateFlow<Int> = _liveWeight.asStateFlow()
+    private val _liveWeight = MutableStateFlow(0f)
+    val liveWeight: StateFlow<Float> = _liveWeight.asStateFlow()
 
     private val bluetoothAdapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
     private var bluetoothGatt: BluetoothGatt? = null
     private var isScanning = false
+
+    private val bluetoothStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                if (state == BluetoothAdapter.STATE_OFF || state == BluetoothAdapter.STATE_TURNING_OFF) {
+                    Log.w(TAG, "Bluetooth stopped – forcing disconnection.")
+                    handleBluetoothDisabled()
+                }
+            }
+        }
+    }
+
+    init {
+        // Register receiver for Bluetooth state changes (System-wide)
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(bluetoothStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(bluetoothStateReceiver, filter)
+        }
+    }
 
     // ─── Scan ───────────────────────────────────────────────
 
@@ -215,8 +241,13 @@ class BleScaleManager(private val context: Context) {
             gatt.setCharacteristicNotification(weightChar, true)
             val descriptor = weightChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
             if (descriptor != null) {
-                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                gatt.writeDescriptor(descriptor)
+                val payload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeDescriptor(descriptor, payload)
+                } else {
+                    descriptor.value = payload
+                    gatt.writeDescriptor(descriptor)
+                }
             }
 
             // Enable notifications on the command characteristic after a short delay to prevent write collisions
@@ -224,9 +255,14 @@ class BleScaleManager(private val context: Context) {
                 gatt.setCharacteristicNotification(commandChar, true)
                 val cmdDescriptor = commandChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
                 if (cmdDescriptor != null) {
-                    cmdDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    val cmdPayload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     try {
-                        gatt.writeDescriptor(cmdDescriptor)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            gatt.writeDescriptor(cmdDescriptor, cmdPayload)
+                        } else {
+                            cmdDescriptor.value = cmdPayload
+                            gatt.writeDescriptor(cmdDescriptor)
+                        }
                     } catch (e: SecurityException) {
                         Log.e(TAG, "Failed to write command descriptor: ${e.message}")
                     }
@@ -248,10 +284,23 @@ class BleScaleManager(private val context: Context) {
                 _calibrationEvent.tryEmit(strValue.trim())
             } else if (characteristic.uuid == WEIGHT_CHAR_UUID) {
                 val weightFloat = strValue.trim().toFloatOrNull() ?: 0f
-                _liveWeight.value = weightFloat.toInt()
+                _liveWeight.value = weightFloat
                 Log.d(TAG, "Weight received: $strValue (parsed: ${_liveWeight.value}g)")
             } else if (characteristic.uuid == COMMAND_CHAR_UUID) {
                 Log.d(TAG, "Command response: $strValue")
+            }
+        }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            val cmdName = if (characteristic.uuid == COMMAND_CHAR_UUID) "COMMAND" else characteristic.uuid.toString()
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG, "Successfully wrote to $cmdName")
+            } else {
+                Log.e(TAG, "Failed to write to $cmdName (status=$status)")
             }
         }
     }
@@ -271,12 +320,17 @@ class BleScaleManager(private val context: Context) {
             return
         }
         
-        commandChar.value = "TARE".toByteArray()
-        gatt.writeCharacteristic(commandChar)
+        val payload = "TARE".toByteArray()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+        } else {
+            commandChar.value = payload
+            gatt.writeCharacteristic(commandChar)
+        }
         Log.d(TAG, "Sent TARE command")
     }
 
-    fun sendCalibrateCommand(knownWeight: Int) {
+    fun sendCalibrateCommand(knownWeight: Float) {
         val gatt = bluetoothGatt
         if (gatt == null) {
             Log.e(TAG, "Cannot send CAL: not connected")
@@ -289,9 +343,21 @@ class BleScaleManager(private val context: Context) {
             return
         }
         
-        commandChar.value = "CAL:$knownWeight".toByteArray()
-        gatt.writeCharacteristic(commandChar)
-        Log.d(TAG, "Sent CAL:$knownWeight command")
+        val payload = String.format(java.util.Locale.US, "CAL:%.1f", knownWeight).toByteArray()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+        } else {
+            commandChar.value = payload
+            gatt.writeCharacteristic(commandChar)
+        }
+        Log.d(TAG, "Sent CAL:%.1f command".format(knownWeight))
+    }
+
+    /**
+     * Resets the calibration event buffer so the UI doesn't re-handle the same event.
+     */
+    fun clearCalibrationEvent() {
+        _calibrationEvent.tryEmit("")
     }
 
     // ─── Cleanup ────────────────────────────────────────────
@@ -301,8 +367,21 @@ class BleScaleManager(private val context: Context) {
      */
     fun close() {
         Log.d(TAG, "close() called")
+        try {
+            context.unregisterReceiver(bluetoothStateReceiver)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering receiver: ${e.message}")
+        }
         reset()
         _connectionState.value = BleConnectionState.Idle
+    }
+
+    /**
+     * Handles the scenario where the system Bluetooth is turned off.
+     */
+    private fun handleBluetoothDisabled() {
+        reset()
+        _connectionState.value = BleConnectionState.Failed("Bluetooth is off")
     }
 
     /**

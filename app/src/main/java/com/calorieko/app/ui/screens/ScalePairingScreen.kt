@@ -1,7 +1,11 @@
 package com.calorieko.app.ui.screens
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.location.LocationManager
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -33,10 +37,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.ui.theme.*
@@ -53,6 +61,7 @@ fun ScalePairingScreen(
     onComplete: () -> Unit,
     onSkip: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     // ── Observe real BLE state ──
     val bleState by bleScaleManager.connectionState.collectAsState()
 
@@ -81,8 +90,20 @@ fun ScalePairingScreen(
             }
         }.toTypedArray()
     }
-
+    
     var permissionsGranted by remember { mutableStateOf(false) }
+    var showLocationDialog by remember { mutableStateOf(false) }
+
+    val checkAndStartScan = {
+        // Only require Location Services toggle to be ON for Android 11 and below.
+        // Android 12+ (API 31) handles this differently via the new Bluetooth permissions.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || isLocationEnabled(context)) {
+            scanInitiatedThisSession = true
+            bleScaleManager.startScan()
+        } else {
+            showLocationDialog = true
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -91,8 +112,7 @@ fun ScalePairingScreen(
         if (permissionsGranted) {
             // Only start scanning if we're not already connected
             if (bleState !is BleConnectionState.Connected) {
-                scanInitiatedThisSession = true
-                bleScaleManager.startScan()
+                checkAndStartScan()
             }
         } else {
             bleScaleManager.failWithReason("Bluetooth permissions are required to connect to your scale.")
@@ -121,6 +141,24 @@ fun ScalePairingScreen(
     // Clean up scan when leaving the screen (connection stays alive at AppNavigation scope)
     DisposableEffect(Unit) {
         onDispose { bleScaleManager.stopScan() }
+    }
+
+    // Re-check location when returning from settings
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // If we were waiting for location and now it's enabled, start scan
+                if (permissionsGranted && showLocationDialog && isLocationEnabled(context)) {
+                    showLocationDialog = false
+                    checkAndStartScan()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     // ── Animations ──
@@ -346,8 +384,7 @@ fun ScalePairingScreen(
         ) {
             Button(
                 onClick = {
-                    scanInitiatedThisSession = true
-                    bleScaleManager.startScan()
+                    checkAndStartScan()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
                 shape = RoundedCornerShape(16.dp),
@@ -412,6 +449,34 @@ fun ScalePairingScreen(
             }
         }
 
+        // ── Location Services Dialog ──
+        if (showLocationDialog) {
+            AlertDialog(
+                onDismissRequest = { showLocationDialog = false },
+                title = { Text("Location Services Required") },
+                text = {
+                    Text("For devices running Android 11 or below, Location Services (GPS) must be enabled to scan for Bluetooth devices. Please turn it on in your device settings.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen)
+                    ) {
+                        Text("Open Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLocationDialog = false }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = Color.White
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // ── Connect Later (Skip) ──
@@ -430,6 +495,19 @@ fun ScalePairingScreen(
             }
         }
     }
+}
+
+/**
+ * Helper to check if Location Services (GPS or Network) are enabled on the device.
+ * Required for BLE scanning on Android 11 (API 30) and below.
+ */
+private fun isLocationEnabled(context: Context): Boolean {
+    // Location check is not strictly required for BLE scanning on Android 12+ 
+    // IF the app uses BLUETOOTH_SCAN permission with 'neverForLocation' flag.
+    // However, our current implementation doesn't use that flag, so we check for safety.
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 }
 
 // Custom Graphic to mimic the "3D Scale" illustration
