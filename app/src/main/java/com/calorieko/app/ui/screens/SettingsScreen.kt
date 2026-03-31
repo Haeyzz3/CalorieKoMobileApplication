@@ -148,6 +148,7 @@ fun SettingsScreen(
                     "TARE_OK" -> {
                         if (calibrationStep == CalibrationStep.TARING) {
                             calibrationStep = CalibrationStep.PLACE_WEIGHT
+                            bleScaleManager.clearCalibrationEvent()
                         }
                     }
                     "CAL_OK" -> {
@@ -157,6 +158,7 @@ fun SettingsScreen(
                             weightInput = ""
                             calibrationBannerMessage = "Calibration Successful"
                             showCalibrationBanner = true
+                            bleScaleManager.clearCalibrationEvent()
                         }
                     }
                 }

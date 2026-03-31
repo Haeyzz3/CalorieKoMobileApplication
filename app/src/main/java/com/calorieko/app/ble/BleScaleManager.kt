@@ -54,7 +54,7 @@ class BleScaleManager(private val context: Context) {
     private val _connectionState = MutableStateFlow<BleConnectionState>(BleConnectionState.Idle)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
 
-    private val _calibrationEvent = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    private val _calibrationEvent = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
     val calibrationEvent: SharedFlow<String> = _calibrationEvent
 
     private val _liveWeight = MutableStateFlow(0)
@@ -338,6 +338,13 @@ class BleScaleManager(private val context: Context) {
             gatt.writeCharacteristic(commandChar)
         }
         Log.d(TAG, "Sent CAL:$knownWeight command")
+    }
+
+    /**
+     * Resets the calibration event buffer so the UI doesn't re-handle the same event.
+     */
+    fun clearCalibrationEvent() {
+        _calibrationEvent.tryEmit("")
     }
 
     // ─── Cleanup ────────────────────────────────────────────
