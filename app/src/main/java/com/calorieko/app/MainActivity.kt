@@ -88,6 +88,7 @@ fun AppNavigation() {
     // Cloud restore manager for pull-from-cloud on login
     val cloudRestoreManager = remember {
         CloudRestoreManager(
+            db = db,
             firestoreSyncRepo = firestoreSyncRepo,
             userDao = userDao,
             activityLogDao = db.activityLogDao(),

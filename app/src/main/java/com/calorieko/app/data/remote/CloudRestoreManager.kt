@@ -1,7 +1,9 @@
 package com.calorieko.app.data.remote
 
 import android.util.Log
+import androidx.room.withTransaction
 import com.calorieko.app.data.local.ActivityLogDao
+import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.local.DailyNutritionSummaryDao
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.MealLogItemDao
@@ -38,8 +40,13 @@ sealed class RestoreResult {
  * Restore order (respecting foreign key dependencies):
  * 1. Profile → 2. Activity Logs → 3. Meal Logs (with ID re-mapping)
  * → 4. Daily Nutrition Summaries → 5. Pantry Items → 6. Planned Meals
+ *
+ * All Room inserts are wrapped in a single [withTransaction] block.
+ * If any step fails, the entire transaction rolls back — leaving the
+ * database clean so the restore can be retried on the next launch.
  */
 class CloudRestoreManager(
+    private val db: AppDatabase,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val userDao: UserDao,
     private val activityLogDao: ActivityLogDao,
@@ -78,56 +85,65 @@ class CloudRestoreManager(
                 return RestoreResult.NoCloudData
             }
 
-            // ═══ Begin Restore ═══
-            Log.d(TAG, "Starting full restore for ${profile.name}...")
+            // ═══ Phase 1: Fetch ALL data from Firestore (network) ═══
+            Log.d(TAG, "Fetching all cloud data for ${profile.name}...")
 
-            // 1. Profile
-            userDao.insertUser(profile)
-            Log.d(TAG, "✓ Profile restored")
-
-            // 2. Activity Logs
             val activityLogs = firestoreSyncRepo.fetchActivityLogs(uid)
-            for (log in activityLogs) {
-                activityLogDao.insertLog(log)
-            }
-            Log.d(TAG, "✓ ${activityLogs.size} activity logs restored")
+            Log.d(TAG, "  Fetched ${activityLogs.size} activity logs")
 
-            // 3. Meal Logs (with parent-child ID re-mapping)
             val mealLogsWithItems = firestoreSyncRepo.fetchMealLogs(uid)
-            for ((mealLog, items) in mealLogsWithItems) {
-                // Insert the parent → get the new Room-generated mealLogId
-                val newMealLogId = mealLogDao.insertMealLog(mealLog)
+            Log.d(TAG, "  Fetched ${mealLogsWithItems.size} meal logs")
 
-                // Re-map each child item's foreign key to the new parent ID
-                val remappedItems = items.map { item ->
-                    item.copy(mealLogId = newMealLogId)
-                }
-                if (remappedItems.isNotEmpty()) {
-                    mealLogItemDao.insertItems(remappedItems)
-                }
-            }
-            Log.d(TAG, "✓ ${mealLogsWithItems.size} meal logs restored (with items)")
-
-            // 4. Daily Nutrition Summaries
             val summaries = firestoreSyncRepo.fetchDailyNutritionSummaries(uid)
-            for (summary in summaries) {
-                dailyNutritionSummaryDao.upsertSummary(summary)
-            }
-            Log.d(TAG, "✓ ${summaries.size} nutrition summaries restored")
+            Log.d(TAG, "  Fetched ${summaries.size} nutrition summaries")
 
-            // 5. Pantry Items
             val pantryItems = firestoreSyncRepo.fetchPantryItems(uid)
-            for (itemName in pantryItems) {
-                pantryDao.insertItem(PantryItem(ingredientName = itemName))
-            }
-            Log.d(TAG, "✓ ${pantryItems.size} pantry items restored")
+            Log.d(TAG, "  Fetched ${pantryItems.size} pantry items")
 
-            // 6. Planned Meals
             val plannedMeals = firestoreSyncRepo.fetchPlannedMeals(uid)
-            for (meal in plannedMeals) {
-                mealPlanDao.insertMeal(meal)
+            Log.d(TAG, "  Fetched ${plannedMeals.size} planned meals")
+
+            // ═══ Phase 2: Insert ALL data into Room (atomic transaction) ═══
+            Log.d(TAG, "Starting atomic Room transaction...")
+
+            db.withTransaction {
+                // 1. Profile
+                userDao.insertUser(profile)
+
+                // 2. Activity Logs
+                for (log in activityLogs) {
+                    activityLogDao.insertLog(log)
+                }
+
+                // 3. Meal Logs (with parent-child ID re-mapping)
+                for ((mealLog, items) in mealLogsWithItems) {
+                    // Insert the parent → get the new Room-generated mealLogId
+                    val newMealLogId = mealLogDao.insertMealLog(mealLog)
+
+                    // Re-map each child item's foreign key to the new parent ID
+                    val remappedItems = items.map { item ->
+                        item.copy(mealLogId = newMealLogId)
+                    }
+                    if (remappedItems.isNotEmpty()) {
+                        mealLogItemDao.insertItems(remappedItems)
+                    }
+                }
+
+                // 4. Daily Nutrition Summaries
+                for (summary in summaries) {
+                    dailyNutritionSummaryDao.upsertSummary(summary)
+                }
+
+                // 5. Pantry Items
+                for (itemName in pantryItems) {
+                    pantryDao.insertItem(PantryItem(ingredientName = itemName))
+                }
+
+                // 6. Planned Meals
+                for (meal in plannedMeals) {
+                    mealPlanDao.insertMeal(meal)
+                }
             }
-            Log.d(TAG, "✓ ${plannedMeals.size} planned meals restored")
 
             Log.d(TAG, "═══ Full restore complete for ${profile.name} ═══")
             RestoreResult.Success(profile.name)
