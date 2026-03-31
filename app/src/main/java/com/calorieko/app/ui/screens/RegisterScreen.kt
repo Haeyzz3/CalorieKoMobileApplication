@@ -273,6 +273,8 @@ fun RegisterScreen(
                                 .addOnCompleteListener { task ->
                                     isLoading = false
                                     if (task.isSuccessful) {
+                                        // Send email verification (fire-and-forget)
+                                        auth.currentUser?.sendEmailVerification()
                                         onSignUpSuccess()
                                     } else {
                                         errorMessage = task.exception?.localizedMessage ?: "Registration failed. Please try again."

@@ -449,10 +449,14 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        scope.launch {
+                        scope.launch(Dispatchers.IO) {
+                            // Clear local Room data so next user gets a clean slate
+                            try { db.clearAllTables() } catch (_: Exception) {}
 
-                            auth.signOut()
-                            onLogout()
+                            withContext(Dispatchers.Main) {
+                                auth.signOut()
+                                onLogout()
+                            }
                         }
                     }
                 ) {

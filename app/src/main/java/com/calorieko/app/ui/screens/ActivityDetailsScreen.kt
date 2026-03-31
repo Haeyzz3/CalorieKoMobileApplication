@@ -270,9 +270,11 @@ fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
             // Photo View - Edge to Edge
             if (!activity.photoUri.isNullOrBlank()) {
                 item {
-                    val bitmap = if (activity.photoUri.startsWith(ImageUtils.BASE64_PREFIX)) {
-                        ImageUtils.decodeBase64ToBitmap(activity.photoUri)
-                    } else null
+                    val bitmap = remember(activity.photoUri) {
+                        if (activity.photoUri.startsWith(ImageUtils.BASE64_PREFIX)) {
+                            ImageUtils.decodeBase64ToBitmap(activity.photoUri)
+                        } else null
+                    }
 
                     if (bitmap != null) {
                         Image(

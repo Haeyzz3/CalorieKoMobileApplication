@@ -259,9 +259,11 @@ fun EditProfileScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else if (existingPhotoUrl.isNotEmpty()) {
-                                val bitmap = if (existingPhotoUrl.startsWith(ImageUtils.BASE64_PREFIX)) {
-                                    ImageUtils.decodeBase64ToBitmap(existingPhotoUrl)
-                                } else null
+                                val bitmap = remember(existingPhotoUrl) {
+                                    if (existingPhotoUrl.startsWith(ImageUtils.BASE64_PREFIX)) {
+                                        ImageUtils.decodeBase64ToBitmap(existingPhotoUrl)
+                                    } else null
+                                }
 
                                 if (bitmap != null) {
                                     Image(

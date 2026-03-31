@@ -271,9 +271,11 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
                         } else {
                             firebaseProfileImageUrl
                         }
-                        val bitmap = if (photoModel is String && photoModel.startsWith(ImageUtils.BASE64_PREFIX)) {
-                            ImageUtils.decodeBase64ToBitmap(photoModel)
-                        } else null
+                        val bitmap = remember(photoModel) {
+                            if (photoModel is String && photoModel.startsWith(ImageUtils.BASE64_PREFIX)) {
+                                ImageUtils.decodeBase64ToBitmap(photoModel)
+                            } else null
+                        }
 
                         if (bitmap != null) {
                             Image(

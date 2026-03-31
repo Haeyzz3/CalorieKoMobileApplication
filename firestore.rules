@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════
+// CalorieKo — Firestore Security Rules
+//
+// Paste these rules into your Firebase Console:
+//   Firebase Console → Firestore Database → Rules
+//
+// Schema:
+//   users/{uid}
+//   ├── activityLogs/{logId}
+//   ├── mealLogs/{mealLogId}
+//   │   └── items/{itemId}
+//   ├── dailyNutritionSummaries/{dateEpochDay}
+//   ├── pantryItems/{ingredientName}
+//   └── plannedMeals/{compositeKey}
+// ═══════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Default: Deny everything ───
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── User-scoped data ───
+    // Only the authenticated owner can read/write their own data.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // All sub-collections under a user document
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}
