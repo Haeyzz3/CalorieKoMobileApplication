@@ -88,6 +88,7 @@ import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
 // Data classes & enums
@@ -339,7 +340,7 @@ fun LogMealScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("Weight: ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
                     Text(
-                        String.format("%.1f g", weight),
+                        "${weight.roundToInt()}g",
                         fontSize = 14.sp, fontWeight = FontWeight.Bold,
                         color = if (weightStable) CalorieKoGreen else CalorieKoOrange
                     )
@@ -697,7 +698,7 @@ private fun DishReadySheet(
                 // Info rows
                 InfoRow("Dish", dishName)
                 InfoRow("Confidence", "${(confidence * 100).toInt()}%")
-                InfoRow("Weight", String.format("%.1f g", weight))
+                InfoRow("Weight", "${weight.roundToInt()}g")
                 InfoRow("Est. Calories", "${estimatedCalories.toInt()} kcal")
 
                 Spacer(Modifier.height(24.dp))
@@ -831,7 +832,7 @@ private fun MealSummaryOverlay(
                                     Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.toInt()}g  •  ${dish.calories.fmt()} kcal",
+                                        "${dish.weightGrams.roundToInt()}g  •  ${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
