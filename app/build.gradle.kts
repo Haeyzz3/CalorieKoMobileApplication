@@ -38,6 +38,10 @@ android {
                 "Please add: MAPBOX_ACCESS_TOKEN=pk.your_token_here"
             )
         resValue("string", "mapbox_access_token", mapboxAccessToken)
+        
+        // Read API Base URL from local.properties (fallback to local laptop IP if missing)
+        val apiBaseUrl = localProperties.getProperty("API_BASE_URL") ?: "http://192.168.150.50:8000/api/"
+        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl}\"")
     }
 
     buildTypes {
@@ -54,6 +58,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
         resValues = true
     }

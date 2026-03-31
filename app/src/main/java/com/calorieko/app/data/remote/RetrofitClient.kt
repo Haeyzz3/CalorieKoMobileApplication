@@ -22,8 +22,9 @@ import java.util.concurrent.TimeUnit
  */
 object RetrofitClient {
 
-    private const val BASE_URL = "https://admin-calorieko.xyz/api/"
-
+    // Pull the API base URL from the local.properties / BuildConfig,
+    // so it doesn't break when deployed or tested on other networks.
+    val BASE_URL = com.calorieko.app.BuildConfig.API_BASE_URL
     /**
      * OkHttp interceptor that attaches the Firebase ID token
      * as a Bearer token on every request.
