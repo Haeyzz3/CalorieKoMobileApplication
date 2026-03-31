@@ -33,4 +33,8 @@ interface DailyNutritionSummaryDao {
         """
     )
     suspend fun getSummariesForRange(uid: String, startEpochDay: Long, endEpochDay: Long): List<DailyNutritionSummaryEntity>
+
+    /** Fetch all nutrition summaries for a user (for cloud sync). */
+    @Query("SELECT * FROM daily_nutrition_summary_table WHERE uid = :uid ORDER BY date_epoch_day ASC")
+    suspend fun getAllSummariesForUser(uid: String): List<DailyNutritionSummaryEntity>
 }

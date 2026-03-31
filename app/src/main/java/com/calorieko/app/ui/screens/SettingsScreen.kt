@@ -81,6 +81,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
@@ -112,6 +113,8 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
     var isWipingData by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
+    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
     // State for the cool notification banner
     var showSuccessBanner by remember { mutableStateOf(false) }
@@ -205,7 +208,54 @@ fun SettingsScreen(
                     Column {
                         SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Notifications coming soon", Toast.LENGTH_SHORT).show() })
                         SettingsDivider()
-                        SettingsRow(icon = Icons.Default.Sync, title = "Sync Data", subtitle = "Manually backup to cloud", iconColor = CalorieKoGreen, onClick = { Toast.makeText(context, "Syncing data...", Toast.LENGTH_SHORT).show() })
+                        SettingsRow(
+                            icon = Icons.Default.Sync,
+                            title = if (isSyncing) "Syncing..." else "Sync Data",
+                            subtitle = "Manually backup to cloud",
+                            iconColor = CalorieKoGreen,
+                            onClick = {
+                                val uid = auth.currentUser?.uid
+                                if (uid == null || isSyncing) return@SettingsRow
+                                isSyncing = true
+                                scope.launch(Dispatchers.IO) {
+                                    try {
+                                        // 1. Profile
+                                        db.userDao().getUser(uid)?.let { profile ->
+                                            firestoreSyncRepo.syncProfile(uid, profile)
+                                        }
+                                        // 2. Activity Logs
+                                        db.activityLogDao().getAllLogsForUser(uid).forEach { log ->
+                                            firestoreSyncRepo.syncActivityLog(uid, log)
+                                        }
+                                        // 3. Meal Logs + Items
+                                        db.mealLogDao().getAllMealLogsWithItems(uid).forEach { mlwi ->
+                                            firestoreSyncRepo.syncMealLog(uid, mlwi.mealLog, mlwi.items)
+                                        }
+                                        // 4. Nutrition Summaries
+                                        db.dailyNutritionSummaryDao().getAllSummariesForUser(uid).forEach { summary ->
+                                            firestoreSyncRepo.syncDailyNutritionSummary(uid, summary)
+                                        }
+                                        // 5. Pantry Items
+                                        db.pantryDao().getAllItemsList().forEach { itemName ->
+                                            firestoreSyncRepo.syncPantryItem(uid, itemName)
+                                        }
+                                        // 6. Planned Meals
+                                        db.mealPlanDao().getAllPlannedMeals().forEach { meal ->
+                                            firestoreSyncRepo.syncPlannedMeal(uid, meal)
+                                        }
+                                        withContext(Dispatchers.Main) {
+                                            isSyncing = false
+                                            Toast.makeText(context, "All data synced to cloud ✓", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            isSyncing = false
+                                            Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
 
@@ -256,7 +306,7 @@ fun SettingsScreen(
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
                         SettingsRow(
-                            icon = Icons.Default.DeleteForever, title = "Wipe Local Data", subtitle = "Clear all activities and meals from this device",
+                            icon = Icons.Default.DeleteForever, title = "Wipe Profile Data", subtitle = "Clear all data from this device and the cloud",
                             iconColor = Color(0xFFEF4444), textColor = Color(0xFFEF4444), showArrow = false,
                             onClick = { showWipeDialog = true }
                         )
@@ -300,7 +350,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text("Data Wiped Successfully", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("Your local device storage is clean.", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                                Text("Your device and cloud data have been cleared.", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
                             }
                         }
                     }
@@ -348,15 +398,20 @@ fun SettingsScreen(
     if (showWipeDialog) {
         AlertDialog(
             onDismissRequest = { if (!isWipingData) showWipeDialog = false },
-            title = { Text("Wipe All Local Data?", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
-            text = { Text("This will permanently delete all unsynced meals, workouts, and settings from this device. Are you sure?", color = Color(0xFF4B5563)) },
+            title = { Text("Wipe All Profile Data?", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
+            text = { Text("This will permanently delete all your meals, workouts, and settings from this device AND the cloud. This cannot be undone.", color = Color(0xFF4B5563)) },
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val uid = auth.currentUser?.uid
                         isWipingData = true
                         scope.launch(Dispatchers.IO) {
                             try {
-                                // Physically Wipe the Room Database Tables
+                                // 1. Wipe Firestore cloud data
+                                if (uid != null) {
+                                    firestoreSyncRepo.wipeAllUserData(uid)
+                                }
+                                // 2. Wipe the local Room database
                                 db.clearAllTables()
                             } catch (e: Exception) {
                                 e.printStackTrace()
@@ -371,7 +426,7 @@ fun SettingsScreen(
                     },
                     enabled = !isWipingData
                 ) {
-                    Text(if (isWipingData) "Wiping..." else "Yes, Wipe Data", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Text(if (isWipingData) "Wiping..." else "Yes, Wipe Everything", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

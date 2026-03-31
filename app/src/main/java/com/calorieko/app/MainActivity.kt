@@ -1,6 +1,7 @@
 package com.calorieko.app
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -136,9 +137,16 @@ fun AppNavigation() {
                     if (uid != null) {
                         restoreInProgress = true
                         scope.launch(Dispatchers.IO) {
-                            cloudRestoreManager.restoreIfNeeded(uid)
+                            val result = cloudRestoreManager.restoreIfNeeded(uid)
                             withContext(Dispatchers.Main) {
                                 restoreInProgress = false
+                                if (result is RestoreResult.Failed) {
+                                    Toast.makeText(
+                                        context,
+                                        "Cloud restore failed: ${result.error}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                                 navController.navigate("dashboard") {
                                     popUpTo("splash") { inclusive = true }
                                 }
@@ -175,9 +183,16 @@ fun AppNavigation() {
                     if (uid != null) {
                         restoreInProgress = true
                         scope.launch(Dispatchers.IO) {
-                            cloudRestoreManager.restoreIfNeeded(uid)
+                            val result = cloudRestoreManager.restoreIfNeeded(uid)
                             withContext(Dispatchers.Main) {
                                 restoreInProgress = false
+                                if (result is RestoreResult.Failed) {
+                                    Toast.makeText(
+                                        context,
+                                        "Cloud restore failed: ${result.error}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                                 navController.navigate("dashboard") {
                                     popUpTo(0) { inclusive = true }
                                 }
@@ -404,7 +419,8 @@ fun AppNavigation() {
                 },
                 onSave = {
                     navController.popBackStack()
-                }
+                },
+                firestoreSyncRepo = firestoreSyncRepo
             )
         }
 
@@ -476,7 +492,8 @@ fun AppNavigation() {
             LogWorkoutScreen(
                 onBack = {
                     navController.popBackStack()
-                }
+                },
+                firestoreSyncRepo = firestoreSyncRepo
             )
         }
 

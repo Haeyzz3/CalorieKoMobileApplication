@@ -185,7 +185,11 @@ fun getActivityIcon(activity: ActivityItem): ImageVector {
 }
 
 @Composable
-fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
+fun LogWorkoutScreen(
+    onBack: () -> Unit,
+    userWeight: Double = 70.0,
+    firestoreSyncRepo: FirestoreSyncRepository
+) {
     var mode by remember { mutableStateOf(WorkoutMode.SELECTION) }
 
     val context = LocalContext.current
@@ -194,7 +198,6 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     val activityLogDao = db.activityLogDao()
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid ?: ""
-    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
     
     var isSaving by remember { mutableStateOf(false) }
@@ -233,11 +236,11 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 notes = note,
                 activityTag = tag
             )
-            activityLogDao.insertLog(log)
+            val newId = activityLogDao.insertLog(log)
 
-            // Sync to Firestore
+            // Sync to Firestore with the real Room-generated ID
             if (uid.isNotEmpty()) {
-                firestoreSyncRepo.syncActivityLog(uid, log)
+                firestoreSyncRepo.syncActivityLog(uid, log.copy(id = newId.toInt()))
             }
 
             withContext(Dispatchers.Main) {

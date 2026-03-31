@@ -8,7 +8,7 @@ import com.calorieko.app.data.model.ActivityLogEntity
 @Dao
 interface ActivityLogDao {
     @Insert
-    suspend fun insertLog(log: ActivityLogEntity)
+    suspend fun insertLog(log: ActivityLogEntity): Long
 
     // Fetch all logs for a specific user within a specific time range, ordered from latest to oldest
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND timestamp >= :startOfDay ORDER BY timestamp DESC")
@@ -29,4 +29,8 @@ interface ActivityLogDao {
 
     @Query("SELECT COUNT(*) FROM activity_log_table WHERE uid = :uid AND photoUri IS NOT NULL AND photoUri != ''")
     suspend fun getWorkoutsWithPhotoCount(uid: String): Int
+
+    /** Fetch all activity logs for a user (for cloud sync). */
+    @Query("SELECT * FROM activity_log_table WHERE uid = :uid ORDER BY timestamp ASC")
+    suspend fun getAllLogsForUser(uid: String): List<ActivityLogEntity>
 }

@@ -45,4 +45,9 @@ interface MealLogDao {
 
     @Query("SELECT COUNT(*) FROM meal_log_table WHERE uid = :uid")
     suspend fun getTotalMealsCount(uid: String): Int
+
+    /** Fetch all meal logs with items for a user (for cloud sync). */
+    @Transaction
+    @Query("SELECT * FROM meal_log_table WHERE uid = :uid ORDER BY timestamp ASC")
+    suspend fun getAllMealLogsWithItems(uid: String): List<MealLogWithItems>
 }

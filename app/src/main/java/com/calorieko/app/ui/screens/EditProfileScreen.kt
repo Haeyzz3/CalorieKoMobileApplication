@@ -110,7 +110,8 @@ private data class GoalOption(
 @Composable
 fun EditProfileScreen(
     onBack: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    firestoreSyncRepo: FirestoreSyncRepository
 ) {
     val scrollState = rememberScrollState()
 
@@ -121,7 +122,6 @@ fun EditProfileScreen(
     val userDao = db.userDao()
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
-    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
     //IMAGE API FETCH
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }

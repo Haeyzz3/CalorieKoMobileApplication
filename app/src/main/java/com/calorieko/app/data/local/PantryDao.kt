@@ -32,6 +32,10 @@ interface PantryDao {
     @Query("SELECT ingredient_name FROM PANTRY_TABLE ORDER BY ingredient_name ASC")
     fun getAllItems(): Flow<List<String>>
 
+    /** One-shot fetch of all pantry item names (for cloud sync). */
+    @Query("SELECT ingredient_name FROM PANTRY_TABLE ORDER BY ingredient_name ASC")
+    suspend fun getAllItemsList(): List<String>
+
     // --- Dish Ingredients Seeding ---
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
