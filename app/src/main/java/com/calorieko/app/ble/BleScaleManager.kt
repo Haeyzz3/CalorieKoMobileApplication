@@ -5,7 +5,11 @@ import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.os.Build
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
@@ -61,6 +65,28 @@ class BleScaleManager(private val context: Context) {
 
     private var bluetoothGatt: BluetoothGatt? = null
     private var isScanning = false
+
+    private val bluetoothStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                if (state == BluetoothAdapter.STATE_OFF || state == BluetoothAdapter.STATE_TURNING_OFF) {
+                    Log.w(TAG, "Bluetooth stopped – forcing disconnection.")
+                    handleBluetoothDisabled()
+                }
+            }
+        }
+    }
+
+    init {
+        // Register receiver for Bluetooth state changes (System-wide)
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(bluetoothStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(bluetoothStateReceiver, filter)
+        }
+    }
 
     // ─── Scan ───────────────────────────────────────────────
 
@@ -301,8 +327,21 @@ class BleScaleManager(private val context: Context) {
      */
     fun close() {
         Log.d(TAG, "close() called")
+        try {
+            context.unregisterReceiver(bluetoothStateReceiver)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering receiver: ${e.message}")
+        }
         reset()
         _connectionState.value = BleConnectionState.Idle
+    }
+
+    /**
+     * Handles the scenario where the system Bluetooth is turned off.
+     */
+    private fun handleBluetoothDisabled() {
+        reset()
+        _connectionState.value = BleConnectionState.Failed("Bluetooth is off")
     }
 
     /**
