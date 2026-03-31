@@ -290,6 +290,19 @@ class BleScaleManager(private val context: Context) {
                 Log.d(TAG, "Command response: $strValue")
             }
         }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            val cmdName = if (characteristic.uuid == COMMAND_CHAR_UUID) "COMMAND" else characteristic.uuid.toString()
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG, "Successfully wrote to $cmdName")
+            } else {
+                Log.e(TAG, "Failed to write to $cmdName (status=$status)")
+            }
+        }
     }
 
     // ─── Commands ───────────────────────────────────────────
