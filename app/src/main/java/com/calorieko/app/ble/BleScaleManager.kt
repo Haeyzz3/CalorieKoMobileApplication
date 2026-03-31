@@ -241,8 +241,13 @@ class BleScaleManager(private val context: Context) {
             gatt.setCharacteristicNotification(weightChar, true)
             val descriptor = weightChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
             if (descriptor != null) {
-                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                gatt.writeDescriptor(descriptor)
+                val payload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeDescriptor(descriptor, payload)
+                } else {
+                    descriptor.value = payload
+                    gatt.writeDescriptor(descriptor)
+                }
             }
 
             // Enable notifications on the command characteristic after a short delay to prevent write collisions
@@ -250,9 +255,14 @@ class BleScaleManager(private val context: Context) {
                 gatt.setCharacteristicNotification(commandChar, true)
                 val cmdDescriptor = commandChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
                 if (cmdDescriptor != null) {
-                    cmdDescriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    val cmdPayload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     try {
-                        gatt.writeDescriptor(cmdDescriptor)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            gatt.writeDescriptor(cmdDescriptor, cmdPayload)
+                        } else {
+                            cmdDescriptor.value = cmdPayload
+                            gatt.writeDescriptor(cmdDescriptor)
+                        }
                     } catch (e: SecurityException) {
                         Log.e(TAG, "Failed to write command descriptor: ${e.message}")
                     }
@@ -297,8 +307,13 @@ class BleScaleManager(private val context: Context) {
             return
         }
         
-        commandChar.value = "TARE".toByteArray()
-        gatt.writeCharacteristic(commandChar)
+        val payload = "TARE".toByteArray()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+        } else {
+            commandChar.value = payload
+            gatt.writeCharacteristic(commandChar)
+        }
         Log.d(TAG, "Sent TARE command")
     }
 
@@ -315,8 +330,13 @@ class BleScaleManager(private val context: Context) {
             return
         }
         
-        commandChar.value = "CAL:$knownWeight".toByteArray()
-        gatt.writeCharacteristic(commandChar)
+        val payload = "CAL:$knownWeight".toByteArray()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+        } else {
+            commandChar.value = payload
+            gatt.writeCharacteristic(commandChar)
+        }
         Log.d(TAG, "Sent CAL:$knownWeight command")
     }
 
