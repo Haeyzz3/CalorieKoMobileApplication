@@ -10,6 +10,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
@@ -97,7 +101,9 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.remote.FirebaseStorageManager
 import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -189,9 +195,25 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid ?: ""
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
+    val firebaseStorageManager = remember { FirebaseStorageManager() }
+    
+    var isSaving by remember { mutableStateOf(false) }
 
     val saveWorkout: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag ->
-        scope.launch(Dispatchers.IO) {
+        if (!isSaving) {
+            isSaving = true
+            scope.launch(Dispatchers.IO) {
+            
+            // 1. Upload photo if present (Option C Fallback)
+            val finalPhotoUri = if (pUri != null && pUri.isNotEmpty()) {
+                val uri = Uri.parse(pUri)
+                val uploadedStr = firebaseStorageManager.uploadWorkoutPhoto(uid, System.currentTimeMillis(), uri)
+                // Option C: If upload fails, just save the local content:// uri so it works locally
+                uploadedStr ?: pUri 
+            } else {
+                pUri
+            }
+
             val currentTimeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
             val log = ActivityLogEntity(
                 uid = uid,
@@ -207,7 +229,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
                 movingTimeSeconds = movTime,
                 encodedPath = path,
                 mapType = mType,
-                photoUri = pUri,
+                photoUri = finalPhotoUri,
                 notes = note,
                 activityTag = tag
             )
@@ -219,7 +241,9 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
             }
 
             withContext(Dispatchers.Main) {
+                isSaving = false
                 onBack()
+            }
             }
         }
     }
@@ -246,12 +270,48 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
         },
         containerColor = Color(0xFFF8F9FA)
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             AnimatedContent(targetState = mode, label = "ModeTransition") { targetMode ->
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
                     WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null) })
                     WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = { handleBack() })
+                }
+            }
+
+            // --- Saving Overlay ---
+            AnimatedVisibility(
+                visible = isSaving,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(color = CalorieKoGreen)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Saving Workout...",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+                    }
                 }
             }
         }

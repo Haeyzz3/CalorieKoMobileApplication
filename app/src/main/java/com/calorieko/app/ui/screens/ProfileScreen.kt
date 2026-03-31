@@ -260,7 +260,7 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
                     Box(contentAlignment = Alignment.Center) {
                         // Priority: 1) DB photo URL, 2) Firebase Auth photo, 3) Default icon
                         val photoModel: Any? = if (user.photoUrl.isNotEmpty()) {
-                            "http://192.168.150.50:8000" + user.photoUrl
+                            user.photoUrl
                         } else {
                             profileImageUrl
                         }

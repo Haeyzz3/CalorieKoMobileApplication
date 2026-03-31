@@ -79,8 +79,7 @@ class FirestoreSyncRepository {
 
     /**
      * Syncs a single activity log entry to Firestore.
-     * Intentionally excludes `encodedPath` (GPS coordinates can be very large)
-     * and `photoUri` (local file path, not useful across devices).
+     * Intentionally excludes `encodedPath` (GPS coordinates can be very large).
      */
     suspend fun syncActivityLog(uid: String, log: ActivityLogEntity) {
         try {
@@ -100,7 +99,8 @@ class FirestoreSyncRepository {
                 "movingTimeSeconds" to log.movingTimeSeconds,
                 "mapType" to log.mapType,
                 "notes" to log.notes,
-                "activityTag" to log.activityTag
+                "activityTag" to log.activityTag,
+                "photoUri" to log.photoUri
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -431,8 +431,8 @@ class FirestoreSyncRepository {
 
     /**
      * Fetches all activity logs from Firestore for the given user.
-     * Note: `encodedPath` and `photoUri` were intentionally not synced,
-     * so they will be null/default in restored entries.
+     * Note: `encodedPath` was intentionally not synced,
+     * so it will be null/default in restored entries.
      */
     suspend fun fetchActivityLogs(uid: String): List<ActivityLogEntity> {
         return try {
@@ -463,7 +463,8 @@ class FirestoreSyncRepository {
                         mapType = doc.getString("mapType"),
                         notes = doc.getString("notes"),
                         activityTag = doc.getString("activityTag")
-                        // encodedPath and photoUri intentionally excluded
+                        // encodedPath intentionally excluded
+                        photoUri = doc.getString("photoUri")
                     )
                 } catch (e: Exception) {
                     Log.w(TAG, "Skipping malformed activity log doc ${doc.id}", e)

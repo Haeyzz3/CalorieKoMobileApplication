@@ -81,6 +81,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import com.calorieko.app.data.remote.FirebaseStorageManager
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 
@@ -120,6 +121,7 @@ fun EditProfileScreen(
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
+    val firebaseStorageManager = remember { FirebaseStorageManager() }
 
     //IMAGE API FETCH
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -258,9 +260,8 @@ fun EditProfileScreen(
                                 )
                             } else if (existingPhotoUrl.isNotEmpty()) {
                                 // Show existing profile photo from backend
-                                val fullUrl = "http://192.168.150.50:8000" + existingPhotoUrl
                                 AsyncImage(
-                                    model = fullUrl,
+                                    model = existingPhotoUrl,
                                     contentDescription = "Current Profile Photo",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
@@ -477,10 +478,17 @@ fun EditProfileScreen(
                         isLoading = true
 
                         scope.launch(Dispatchers.IO) {
-                            // 1. Fetch existing profile to preserve unchanged fields
+                            // 1. Upload new photo first (if selected)
+                            val finalPhotoUrl = selectedImageUri?.let { uri ->
+                                val uploadedStr = firebaseStorageManager.uploadProfilePhoto(uid, uri)
+                                // Option C Fallback: If upload failed (e.g., offline), fallback to the local content:// URI
+                                uploadedStr ?: uri.toString()
+                            } ?: existingPhotoUrl
+
+                            // 2. Fetch existing profile to preserve unchanged fields
                             val existingProfile = userDao.getUser(uid)
 
-                            // 2. Build the profile (update existing or create new)
+                            // 3. Build the profile (update existing or create new)
                             val updatedProfile = if (existingProfile != null) {
                                 existingProfile.copy(
                                     name = name,
@@ -489,7 +497,8 @@ fun EditProfileScreen(
                                     height = height.toDoubleOrNull() ?: existingProfile.height,
                                     sex = sex,
                                     activityLevel = selectedActivityLevel,
-                                    goal = selectedGoal
+                                    goal = selectedGoal,
+                                    photoUrl = finalPhotoUrl
                                 )
                             } else {
                                 // No local profile exists (e.g. after DB migration wipe)
@@ -503,21 +512,16 @@ fun EditProfileScreen(
                                     height = height.toDoubleOrNull() ?: 170.0,
                                     sex = sex,
                                     activityLevel = selectedActivityLevel,
-                                    goal = selectedGoal
+                                    goal = selectedGoal,
+                                    photoUrl = finalPhotoUrl
                                 )
                             }
 
-                            // 3. Save to local Room database
+                            // 4. Save to local Room database
                             userDao.insertUser(updatedProfile)
 
-                            // 4. Sync profile to Firestore
+                            // 5. Sync profile to Firestore
                             firestoreSyncRepo.syncProfile(uid, updatedProfile)
-                            
-                            // 5. Upload Photo if a new one was selected (Backend Removed)
-                            // A future update should implement Firebase Storage for this.
-                            selectedImageUri?.let { uri ->
-                                android.util.Log.i("UploadProfile", "Photo selection detected, but API is removed.")
-                            }
 
                             // 6. Stop loading and navigate back
                             withContext(Dispatchers.Main) {

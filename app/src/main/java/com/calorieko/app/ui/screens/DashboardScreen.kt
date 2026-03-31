@@ -264,13 +264,13 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
                 ) {
                     // Left Side: Profile Picture and Text
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        val profileImageModel: Any? = if (localPhotoUrl.isNotEmpty()) {
-                            "http://192.168.150.50:8000" + localPhotoUrl
+                        val photoModel: Any? = if (localPhotoUrl.isNotEmpty()) {
+                            localPhotoUrl
                         } else {
                             firebaseProfileImageUrl
                         }
                         AsyncImage(
-                            model = profileImageModel,
+                            model = photoModel,
                             contentDescription = "Profile Picture",
                             modifier = Modifier
                                 .size(36.dp)

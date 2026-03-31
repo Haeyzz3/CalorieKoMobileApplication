@@ -270,7 +270,7 @@ fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
                 item {
                     AsyncImage(
                         // Wrap the saved path in a File object so Coil knows how to read it
-                        model = java.io.File(activity.photoUri),
+                        model = activity.photoUri,
                         contentDescription = "Activity Photo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
