@@ -330,7 +330,7 @@ class BleScaleManager(private val context: Context) {
         Log.d(TAG, "Sent TARE command")
     }
 
-    fun sendCalibrateCommand(knownWeight: Int) {
+    fun sendCalibrateCommand(knownWeight: Float) {
         val gatt = bluetoothGatt
         if (gatt == null) {
             Log.e(TAG, "Cannot send CAL: not connected")
@@ -343,14 +343,14 @@ class BleScaleManager(private val context: Context) {
             return
         }
         
-        val payload = "CAL:$knownWeight".toByteArray()
+        val payload = String.format(java.util.Locale.US, "CAL:%.1f", knownWeight).toByteArray()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
         } else {
             commandChar.value = payload
             gatt.writeCharacteristic(commandChar)
         }
-        Log.d(TAG, "Sent CAL:$knownWeight command")
+        Log.d(TAG, "Sent CAL:%.1f command".format(knownWeight))
     }
 
     /**
