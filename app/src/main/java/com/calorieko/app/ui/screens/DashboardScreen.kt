@@ -60,6 +60,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.Image
+import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
@@ -269,15 +271,31 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
                         } else {
                             firebaseProfileImageUrl
                         }
-                        AsyncImage(
-                            model = photoModel,
-                            contentDescription = "Profile Picture",
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .clickable { onNavigate("profile") },
-                            contentScale = ContentScale.Crop
-                        )
+                        val bitmap = if (photoModel is String && photoModel.startsWith(ImageUtils.BASE64_PREFIX)) {
+                            ImageUtils.decodeBase64ToBitmap(photoModel)
+                        } else null
+
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onNavigate("profile") },
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            AsyncImage(
+                                model = photoModel,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onNavigate("profile") },
+                                contentScale = ContentScale.Crop
+                            )
+                        }
 
                         Spacer(modifier = Modifier.width(12.dp))
 

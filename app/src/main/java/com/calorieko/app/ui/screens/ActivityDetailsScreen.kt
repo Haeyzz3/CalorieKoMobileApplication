@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import androidx.compose.foundation.Image
+import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.mapbox.geojson.Point
@@ -268,15 +270,29 @@ fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
             // Photo View - Edge to Edge
             if (!activity.photoUri.isNullOrBlank()) {
                 item {
-                    AsyncImage(
-                        // Wrap the saved path in a File object so Coil knows how to read it
-                        model = activity.photoUri,
-                        contentDescription = "Activity Photo",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 350.dp, max = 500.dp)
-                    )
+                    val bitmap = if (activity.photoUri.startsWith(ImageUtils.BASE64_PREFIX)) {
+                        ImageUtils.decodeBase64ToBitmap(activity.photoUri)
+                    } else null
+
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = "Activity Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 350.dp, max = 500.dp)
+                        )
+                    } else {
+                        AsyncImage(
+                            model = activity.photoUri,
+                            contentDescription = "Activity Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 350.dp, max = 500.dp)
+                        )
+                    }
                 }
             }
 

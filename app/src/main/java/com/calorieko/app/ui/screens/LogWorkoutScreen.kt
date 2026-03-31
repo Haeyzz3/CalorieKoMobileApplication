@@ -101,7 +101,7 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.data.remote.FirebaseStorageManager
+import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
@@ -195,7 +195,7 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid ?: ""
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
-    val firebaseStorageManager = remember { FirebaseStorageManager() }
+
     
     var isSaving by remember { mutableStateOf(false) }
 
@@ -204,12 +204,12 @@ fun LogWorkoutScreen(onBack: () -> Unit, userWeight: Double = 70.0) {
             isSaving = true
             scope.launch(Dispatchers.IO) {
             
-            // 1. Upload photo if present (Option C Fallback)
+            // 1. Compress and encode photo if present (Option C Fallback)
             val finalPhotoUri = if (pUri != null && pUri.isNotEmpty()) {
                 val uri = Uri.parse(pUri)
-                val uploadedStr = firebaseStorageManager.uploadWorkoutPhoto(uid, System.currentTimeMillis(), uri)
-                // Option C: If upload fails, just save the local content:// uri so it works locally
-                uploadedStr ?: pUri 
+                val encodedStr = ImageUtils.compressAndEncode(context, uri, maxDimension = 800, quality = 70)
+                // Option C Fallback: If compression fails, just save the local content:// uri
+                encodedStr ?: pUri 
             } else {
                 pUri
             }

@@ -80,8 +80,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
-import com.calorieko.app.data.remote.FirebaseStorageManager
+import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 
@@ -121,7 +122,6 @@ fun EditProfileScreen(
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
-    val firebaseStorageManager = remember { FirebaseStorageManager() }
 
     //IMAGE API FETCH
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -259,13 +259,26 @@ fun EditProfileScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else if (existingPhotoUrl.isNotEmpty()) {
-                                // Show existing profile photo from backend
-                                AsyncImage(
-                                    model = existingPhotoUrl,
-                                    contentDescription = "Current Profile Photo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                val bitmap = if (existingPhotoUrl.startsWith(ImageUtils.BASE64_PREFIX)) {
+                                    ImageUtils.decodeBase64ToBitmap(existingPhotoUrl)
+                                } else null
+
+                                if (bitmap != null) {
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = "Current Profile Photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    // Show existing profile photo from backend (fallback)
+                                    AsyncImage(
+                                        model = existingPhotoUrl,
+                                        contentDescription = "Current Profile Photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             } else {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -478,11 +491,11 @@ fun EditProfileScreen(
                         isLoading = true
 
                         scope.launch(Dispatchers.IO) {
-                            // 1. Upload new photo first (if selected)
+                            // 1. Compress and encode new photo (if selected)
                             val finalPhotoUrl = selectedImageUri?.let { uri ->
-                                val uploadedStr = firebaseStorageManager.uploadProfilePhoto(uid, uri)
-                                // Option C Fallback: If upload failed (e.g., offline), fallback to the local content:// URI
-                                uploadedStr ?: uri.toString()
+                                val encodedStr = ImageUtils.compressAndEncode(context, uri, maxDimension = 300, quality = 70)
+                                // Option C Fallback: If compression fails, fallback to local content:// URI
+                                encodedStr ?: uri.toString()
                             } ?: existingPhotoUrl
 
                             // 2. Fetch existing profile to preserve unchanged fields

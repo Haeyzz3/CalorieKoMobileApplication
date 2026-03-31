@@ -10,6 +10,8 @@ import com.calorieko.app.data.local.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
+import androidx.compose.foundation.Image
+import com.calorieko.app.data.remote.ImageUtils
 import androidx.compose.ui.layout.ContentScale
 import com.google.firebase.auth.FirebaseAuth
 import com.calorieko.app.ui.components.BottomNavigation
@@ -266,10 +268,21 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
                         }
 
                         if (photoModel != null) {
-                            AsyncImage(
-                                model = photoModel, contentDescription = "Profile Picture",
-                                modifier = Modifier.size(100.dp).clip(CircleShape), contentScale = ContentScale.Crop
-                            )
+                            val bitmap = if (photoModel is String && photoModel.startsWith(ImageUtils.BASE64_PREFIX)) {
+                                ImageUtils.decodeBase64ToBitmap(photoModel)
+                            } else null
+
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap, contentDescription = "Profile Picture",
+                                    modifier = Modifier.size(100.dp).clip(CircleShape), contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                AsyncImage(
+                                    model = photoModel, contentDescription = "Profile Picture",
+                                    modifier = Modifier.size(100.dp).clip(CircleShape), contentScale = ContentScale.Crop
+                                )
+                            }
                         } else {
                             Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
                         }
