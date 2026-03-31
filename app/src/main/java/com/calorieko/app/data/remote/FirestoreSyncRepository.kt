@@ -462,7 +462,7 @@ class FirestoreSyncRepository {
                         movingTimeSeconds = doc.getLong("movingTimeSeconds"),
                         mapType = doc.getString("mapType"),
                         notes = doc.getString("notes"),
-                        activityTag = doc.getString("activityTag")
+                        activityTag = doc.getString("activityTag"),
                         // encodedPath intentionally excluded
                         photoUri = doc.getString("photoUri")
                     )
