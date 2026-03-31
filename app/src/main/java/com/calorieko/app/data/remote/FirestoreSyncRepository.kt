@@ -61,7 +61,8 @@ class FirestoreSyncRepository {
                 "activityLevel" to profile.activityLevel,
                 "goal" to profile.goal,
                 "streak" to profile.streak,
-                "level" to profile.level
+                "level" to profile.level,
+                "photoUrl" to profile.photoUrl
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -79,7 +80,6 @@ class FirestoreSyncRepository {
 
     /**
      * Syncs a single activity log entry to Firestore.
-     * Intentionally excludes `encodedPath` (GPS coordinates can be very large).
      */
     suspend fun syncActivityLog(uid: String, log: ActivityLogEntity) {
         try {
@@ -100,7 +100,8 @@ class FirestoreSyncRepository {
                 "mapType" to log.mapType,
                 "notes" to log.notes,
                 "activityTag" to log.activityTag,
-                "photoUri" to log.photoUri
+                "photoUri" to log.photoUri,
+                "encodedPath" to log.encodedPath
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -421,7 +422,8 @@ class FirestoreSyncRepository {
                 activityLevel = doc.getString("activityLevel") ?: "",
                 goal = doc.getString("goal") ?: "general",
                 streak = (doc.getLong("streak") ?: 0).toInt(),
-                level = (doc.getLong("level") ?: 1).toInt()
+                level = (doc.getLong("level") ?: 1).toInt(),
+                photoUrl = doc.getString("photoUrl") ?: ""
             ).also { Log.d(TAG, "Profile fetched for $uid") }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch profile for $uid", e)
@@ -431,8 +433,6 @@ class FirestoreSyncRepository {
 
     /**
      * Fetches all activity logs from Firestore for the given user.
-     * Note: `encodedPath` was intentionally not synced,
-     * so it will be null/default in restored entries.
      */
     suspend fun fetchActivityLogs(uid: String): List<ActivityLogEntity> {
         return try {
@@ -463,7 +463,7 @@ class FirestoreSyncRepository {
                         mapType = doc.getString("mapType"),
                         notes = doc.getString("notes"),
                         activityTag = doc.getString("activityTag"),
-                        // encodedPath intentionally excluded
+                        encodedPath = doc.getString("encodedPath"),
                         photoUri = doc.getString("photoUri")
                     )
                 } catch (e: Exception) {
