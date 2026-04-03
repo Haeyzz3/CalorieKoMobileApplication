@@ -208,54 +208,79 @@ fun SettingsScreen(
                     Column {
                         SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Notifications coming soon", Toast.LENGTH_SHORT).show() })
                         SettingsDivider()
-                        SettingsRow(
-                            icon = Icons.Default.Sync,
-                            title = if (isSyncing) "Syncing..." else "Sync Data",
-                            subtitle = "Manually backup to cloud",
-                            iconColor = CalorieKoGreen,
-                            onClick = {
-                                val uid = auth.currentUser?.uid
-                                if (uid == null || isSyncing) return@SettingsRow
-                                isSyncing = true
-                                scope.launch(Dispatchers.IO) {
-                                    try {
-                                        // 1. Profile
-                                        db.userDao().getUser(uid)?.let { profile ->
-                                            firestoreSyncRepo.syncProfile(uid, profile)
-                                        }
-                                        // 2. Activity Logs
-                                        db.activityLogDao().getAllLogsForUser(uid).forEach { log ->
-                                            firestoreSyncRepo.syncActivityLog(uid, log)
-                                        }
-                                        // 3. Meal Logs + Items
-                                        db.mealLogDao().getAllMealLogsWithItems(uid).forEach { mlwi ->
-                                            firestoreSyncRepo.syncMealLog(uid, mlwi.mealLog, mlwi.items)
-                                        }
-                                        // 4. Nutrition Summaries
-                                        db.dailyNutritionSummaryDao().getAllSummariesForUser(uid).forEach { summary ->
-                                            firestoreSyncRepo.syncDailyNutritionSummary(uid, summary)
-                                        }
-                                        // 5. Pantry Items
-                                        db.pantryDao().getAllItemsList().forEach { itemName ->
-                                            firestoreSyncRepo.syncPantryItem(uid, itemName)
-                                        }
-                                        // 6. Planned Meals
-                                        db.mealPlanDao().getAllPlannedMeals().forEach { meal ->
-                                            firestoreSyncRepo.syncPlannedMeal(uid, meal)
-                                        }
+                        
+                        // New Sync Data Item
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isSyncing) {
+                                    val uid = auth.currentUser?.uid
+                                    if (uid == null || isSyncing) return@clickable
+                                    
+                                    if (!com.calorieko.app.util.NetworkUtils.isOnline(context)) {
+                                        Toast.makeText(context, "No internet connection. Please connect to Wi-Fi or cellular data to sync.", Toast.LENGTH_LONG).show()
+                                        return@clickable
+                                    }
+
+                                    isSyncing = true
+                                    
+                                    // Use ApiSyncManager to execute the Retrofit call
+                                    scope.launch(Dispatchers.IO) {
+                                        val apiService = com.calorieko.app.data.remote.api.RetrofitClient.getApiService(
+                                            com.calorieko.app.BuildConfig.API_BASE_URL
+                                        )
+                                        val syncManager = com.calorieko.app.data.remote.api.ApiSyncManager(
+                                            apiService = apiService,
+                                            userDao = db.userDao(),
+                                            activityLogDao = db.activityLogDao(),
+                                            mealLogDao = db.mealLogDao(),
+                                            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+                                        )
+                                        
+                                        val result = syncManager.syncToBackend(uid)
+                                        
                                         withContext(Dispatchers.Main) {
                                             isSyncing = false
-                                            Toast.makeText(context, "All data synced to cloud ✓", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            isSyncing = false
-                                            Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            when (result) {
+                                                is com.calorieko.app.data.remote.api.ApiSyncResult.Success -> {
+                                                    Toast.makeText(context, "Sync complete: ${result.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                                is com.calorieko.app.data.remote.api.ApiSyncResult.Error -> {
+                                                    Toast.makeText(context, "Sync failed: ${result.message}", Toast.LENGTH_LONG).show()
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(CalorieKoGreen.copy(alpha = 0.1f)), 
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSyncing) {
+                                    CircularProgressIndicator(
+                                        color = CalorieKoGreen,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Sync, contentDescription = "Sync", tint = CalorieKoGreen, modifier = Modifier.size(20.dp))
+                                }
                             }
-                        )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(if (isSyncing) "Syncing..." else "Sync Data", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+                                Text(if (isSyncing) "Please wait, pushing to cloud" else "Manually backup your logs", fontSize = 12.sp, color = Color(0xFF6B7280))
+                            }
+                            if (!isSyncing) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate", tint = Color(0xFFD1D5DB), modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
                 }
 
@@ -450,9 +475,6 @@ fun SettingsScreen(
                     onClick = {
                         showLogoutDialog = false
                         scope.launch(Dispatchers.IO) {
-                            // Clear local Room data so next user gets a clean slate
-                            try { db.clearAllTables() } catch (_: Exception) {}
-
                             withContext(Dispatchers.Main) {
                                 auth.signOut()
                                 onLogout()
