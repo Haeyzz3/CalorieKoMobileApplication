@@ -470,14 +470,17 @@ fun AppNavigation() {
 
         // --- Log Meal Screen ---
         composable("logMeal") {
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
             val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
                     foodDao = db.foodDao(),
-                    mealLogDao = db.mealLogDao(),
-                    mealLogItemDao = db.mealLogItemDao(),
-                    dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
                     auth = auth,
-                    firestoreSyncRepo = firestoreSyncRepo
+                    mealRepository = mealRepo
                 )
             )
             LogMealScreen(

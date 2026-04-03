@@ -90,6 +90,7 @@ import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.viewmodel.LogMealEvent
 import com.calorieko.app.viewmodel.LogMealViewModel
 import kotlin.math.roundToInt
 
@@ -107,6 +108,15 @@ fun LogMealScreen(
     val context = LocalContext.current
     val classifier = remember { CalorieKoClassifier(context) }
     DisposableEffect(Unit) { onDispose { classifier.close() } }
+
+    // Collect one-shot navigation events from the ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                LogMealEvent.MealConfirmed -> onMealConfirmed()
+            }
+        }
+    }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -239,7 +249,7 @@ fun LogMealScreen(
             onMealTypeChange = { viewModel.updateMealType(it) },
             onRemoveDish = { viewModel.removeDish(it) },
             onAddMore = { viewModel.setPhase(LogMealPhase.SCANNING) },
-            onConfirmMeal = { viewModel.confirmMeal(onComplete = onMealConfirmed) },
+            onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack
         )
         return
