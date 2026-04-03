@@ -34,45 +34,16 @@ import com.mapbox.maps.plugin.gestures.gestures
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.calorieko.app.data.local.AppDatabase
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.runtime.collectAsState
+import com.calorieko.app.viewmodel.ActivityDetailsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActivityDetailsScreen(activity: ActivityLogEntity, onBack: () -> Unit) {
+fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: ActivityLogEntity, onBack: () -> Unit) {
 
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val userDao = db.userDao()
-    val auth = remember { FirebaseAuth.getInstance() }
-    val currentUser = remember { auth.currentUser }
-    var userName by remember { mutableStateOf("CalorieKo athlete") }
-
-// 2. Fetch the user's name from the local database when the screen loads
-    LaunchedEffect(currentUser?.uid) {
-        val uid = currentUser?.uid ?: return@LaunchedEffect
-        withContext(Dispatchers.IO) {
-            val userProfile = userDao.getUserProfile(uid) // Pass the required UID
-
-            if (userProfile != null) {
-                withContext(Dispatchers.Main) {
-                    if (userProfile.name.isNotEmpty()) {
-                        userName = userProfile.name
-                    }
-                }
-            }
-        }
-    }
+    // ── Collect ViewModel State ──
+    val userName by viewModel.userName.collectAsState()
 
     // Decode the path string back into Mapbox Points
     val points = remember(activity.encodedPath) {

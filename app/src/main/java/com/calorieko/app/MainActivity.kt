@@ -411,7 +411,19 @@ fun AppNavigation() {
 
         // --- NEW: Progress Screen ---
         composable("progress") {
+            val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                activityLogDao = db.activityLogDao(),
+                userDao = db.userDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
+            val progressViewModel: com.calorieko.app.viewmodel.ProgressViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ProgressViewModel.provideFactory(
+                    auth = auth,
+                    activityRepository = activityRepo
+                )
+            )
             ProgressScreen(
+                viewModel = progressViewModel,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "progress") {
@@ -552,11 +564,22 @@ fun AppNavigation() {
 
         // --- NEW: Log Workout Screen ---
         composable("logWorkout") {
+            val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                activityLogDao = db.activityLogDao(),
+                userDao = db.userDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
+            val logWorkoutViewModel: com.calorieko.app.viewmodel.LogWorkoutViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.LogWorkoutViewModel.provideFactory(
+                    auth = auth,
+                    activityRepository = activityRepo
+                )
+            )
             LogWorkoutScreen(
+                viewModel = logWorkoutViewModel,
                 onBack = {
                     navController.popBackStack()
-                },
-                firestoreSyncRepo = firestoreSyncRepo
+                }
             )
         }
 
@@ -567,14 +590,25 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val activityId = backStackEntry.arguments?.getString("activityId")?.toIntOrNull()
             if (activityId != null) {
-                var activity by remember { mutableStateOf<ActivityLogEntity?>(null) }
-                LaunchedEffect(activityId) {
-                    withContext(Dispatchers.IO) {
-                        activity = db.activityLogDao().getLogById(activityId)
-                    }
-                }
-                activity?.let {
-                    ActivityDetailsScreen(activity = it, onBack = { navController.popBackStack() })
+                val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                    activityLogDao = db.activityLogDao(),
+                    userDao = db.userDao(),
+                    firestoreSyncRepo = firestoreSyncRepo
+                )
+                val activityDetailsViewModel: com.calorieko.app.viewmodel.ActivityDetailsViewModel = viewModel(
+                    factory = com.calorieko.app.viewmodel.ActivityDetailsViewModel.provideFactory(
+                        auth = auth,
+                        activityRepository = activityRepo,
+                        activityId = activityId
+                    )
+                )
+                val activityLog by activityDetailsViewModel.activityLog.collectAsState()
+                activityLog?.let {
+                    ActivityDetailsScreen(
+                        viewModel = activityDetailsViewModel,
+                        activity = it,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
         }

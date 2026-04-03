@@ -35,20 +35,14 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.ui.components.BottomNavigation
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.calorieko.app.viewmodel.ProgressViewModel
 import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -63,46 +57,14 @@ private data class TopFoodItem(val name: String, val frequency: Int, val avgCalo
 // ==================== MAIN SCREEN ====================
 
 @Composable
-fun ProgressScreen(onNavigate: (String) -> Unit) {
-    val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val userDao = db.userDao()
-    val activityLogDao = db.activityLogDao()
+fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
+    // ── Collect ViewModel State ──
+    val weeklyLogs by viewModel.weeklyLogs.collectAsState()
+    val userWeight by viewModel.userWeight.collectAsState()
+    val viewMode by viewModel.viewMode.collectAsState()
+    val dataLoaded by viewModel.dataLoaded.collectAsState()
 
     var activeTab by remember { mutableStateOf("progress") }
-    var viewMode by remember { mutableStateOf("weekly") }
-
-    var weeklyLogs by remember { mutableStateOf<List<ActivityLogEntity>>(emptyList()) }
-    var userWeight by remember { mutableStateOf(74.0) }
-    var dataLoaded by remember { mutableStateOf(false) }
-
-    // Fetch data
-    LaunchedEffect(currentUser?.uid, viewMode) {
-        currentUser?.uid?.let { uid ->
-            withContext(Dispatchers.IO) {
-                val profile = userDao.getUser(uid)
-                if (profile != null) userWeight = profile.weight
-
-                val calendar = Calendar.getInstance()
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                val endTime = calendar.timeInMillis + 24 * 60 * 60 * 1000L
-
-                val daysBack = if (viewMode == "weekly") 7 else 30
-                calendar.add(Calendar.DAY_OF_YEAR, -(daysBack - 1))
-                val startTime = calendar.timeInMillis
-
-                weeklyLogs = activityLogDao.getLogsForRange(uid, startTime, endTime)
-            }
-            dataLoaded = true
-        }
-        if (currentUser == null) dataLoaded = true
-    }
 
     // Process chart data
     val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -181,7 +143,7 @@ fun ProgressScreen(onNavigate: (String) -> Unit) {
                 .verticalScroll(rememberScrollState())
         ) {
             // ===== HEADER =====
-            ProgressHeaderSection(viewMode = viewMode, onViewModeChange = { viewMode = it })
+            ProgressHeaderSection(viewMode = viewMode, onViewModeChange = { viewModel.setViewMode(it) })
 
             // ===== CHART SECTIONS =====
             Column(

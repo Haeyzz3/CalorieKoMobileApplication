@@ -80,7 +80,6 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,18 +98,15 @@ import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.data.remote.ImageUtils
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.viewmodel.LogWorkoutViewModel
+import androidx.compose.runtime.collectAsState
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.firebase.auth.FirebaseAuth
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -127,14 +123,9 @@ import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManag
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.scalebar.scalebar
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -186,69 +177,29 @@ fun getActivityIcon(activity: ActivityItem): ImageVector {
 
 @Composable
 fun LogWorkoutScreen(
-    onBack: () -> Unit,
-    userWeight: Double = 70.0,
-    firestoreSyncRepo: FirestoreSyncRepository
+    viewModel: LogWorkoutViewModel,
+    onBack: () -> Unit
 ) {
     var mode by remember { mutableStateOf(WorkoutMode.SELECTION) }
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val activityLogDao = db.activityLogDao()
-    val auth = FirebaseAuth.getInstance()
-    val uid = auth.currentUser?.uid ?: ""
 
-    
-    var isSaving by remember { mutableStateOf(false) }
+    // ── Collect ViewModel State ──
+    val userWeight by viewModel.userWeight.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
 
-    val saveWorkout: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag ->
-        if (!isSaving) {
-            isSaving = true
-            scope.launch(Dispatchers.IO) {
-            
-            // 1. Compress and encode photo if present (Option C Fallback)
-            val finalPhotoUri = if (pUri != null && pUri.isNotEmpty()) {
-                val uri = Uri.parse(pUri)
-                val encodedStr = ImageUtils.compressAndEncode(context, uri, maxDimension = 800, quality = 70)
-                // Option C Fallback: If compression fails, just save the local content:// uri
-                encodedStr ?: pUri 
-            } else {
-                pUri
-            }
-
-            val currentTimeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
-            val log = ActivityLogEntity(
-                uid = uid,
-                type = "workout",
-                name = name,
-                timeString = currentTimeString,
-                weightOrDuration = duration,
-                calories = calories,
-                timestamp = System.currentTimeMillis(),
-                // GPS Fields
-                distanceKm = dist,
-                pace = pace,
-                movingTimeSeconds = movTime,
-                encodedPath = path,
-                mapType = mType,
-                photoUri = finalPhotoUri,
-                notes = note,
-                activityTag = tag
-            )
-            val newId = activityLogDao.insertLog(log)
-
-            // Sync to Firestore with the real Room-generated ID
-            if (uid.isNotEmpty()) {
-                firestoreSyncRepo.syncActivityLog(uid, log.copy(id = newId.toInt()))
-            }
-
-            withContext(Dispatchers.Main) {
-                isSaving = false
-                onBack()
-            }
+    // ── Handle one-shot events ──
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is LogWorkoutViewModel.Event.SaveSuccess -> onBack()
+                is LogWorkoutViewModel.Event.SaveError -> { /* Could show a toast here */ }
             }
         }
+    }
+
+    val saveWorkout: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag ->
+        viewModel.saveWorkout(context, name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag)
     }
 
     fun handleBack() {
