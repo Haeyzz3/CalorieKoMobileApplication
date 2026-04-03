@@ -41,21 +41,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,8 +60,8 @@ import androidx.compose.foundation.Image
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
-import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.model.ActivityLogEntry
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.ui.components.BottomNavigation
@@ -73,71 +69,28 @@ import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.components.ProgressRings
 import com.calorieko.app.ui.theme.CalorieKoGreen
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.calorieko.app.viewmodel.DashboardViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-
-// Data Model matching daily-activity-feed.tsx
-data class ActivityLogEntry(
-    val id: String,
-    val type: String, // "meal" or "workout"
-    val time: String,
-    val name: String,
-    val details: ActivityDetails,
-    val timestamp: Long = 0L
-)
-
-data class ActivityDetails(
-    val weight: String? = null,
-    val calories: Int,
-    val sodium: Int? = null,
-    val protein: Int = 0,
-    val carbs: Int = 0,
-    val fats: Int = 0,
-    val duration: String? = null
-)
-
 @Composable
-fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Unit) {
+fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleManager, onNavigate: (String) -> Unit) {
 
-    // 1. Get the current authenticated user
-    val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
+    // ── Collect ViewModel State ──
+    val firstName by viewModel.userName.collectAsState()
+    val localPhotoUrl by viewModel.localPhotoUrl.collectAsState()
+    val firebaseProfileImageUrl = viewModel.firebaseProfileImageUrl
 
-    // 2. Local Context & Database Setup
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val userDao = db.userDao()
-    val activityLogDao = db.activityLogDao()
-    val mealLogDao = db.mealLogDao()
-    val dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-    val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
+    val targetCalories by viewModel.targetCalories.collectAsState()
+    val targetBurned by viewModel.targetBurned.collectAsState()
+    val targetSodium by viewModel.targetSodium.collectAsState()
+    val targetProtein by viewModel.targetProtein.collectAsState()
+    val targetCarbs by viewModel.targetCarbs.collectAsState()
+    val targetFats by viewModel.targetFats.collectAsState()
 
-    val firstName = currentUser?.displayName?.split(" ")?.firstOrNull() ?: "User"
-    val firebaseProfileImageUrl = currentUser?.photoUrl
-    var localPhotoUrl by remember { mutableStateOf("") }
+    val nutritionSummary by viewModel.nutritionSummary.collectAsState()
+    val todayWorkoutLogs by viewModel.todayWorkoutLogs.collectAsState()
 
-    var activeTab by remember { mutableStateOf("home") }
-    var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
-
-    // --- 3. DYNAMIC TARGET STATE ---
-    var targetCalories by remember { mutableIntStateOf(2000) }
-    var targetBurned by remember { mutableIntStateOf(500) }
-    var targetSodium by remember { mutableIntStateOf(2300) }
-    var targetProtein by remember { mutableIntStateOf(150) }
-    var targetCarbs by remember { mutableIntStateOf(200) }
-    var targetFats by remember { mutableIntStateOf(65) }
-
-    // --- 4. DATA STATE ---
-    var nutritionSummary by remember { mutableStateOf<DailyNutritionSummaryEntity?>(null) }
-    var todayMealLogs by remember { mutableStateOf<List<MealLogWithItems>>(emptyList()) }
-    var todayWorkoutLogs by remember { mutableStateOf<List<ActivityLogEntity>>(emptyList()) }
-
-    // --- 5. CALCULATED VALUES (from DailyNutritionSummary + workouts) ---
     val currentCalories = nutritionSummary?.totalCalories?.toInt() ?: 0
     val caloriesBurned = todayWorkoutLogs.sumOf { it.calories }
     val currentSodium = nutritionSummary?.totalSodium?.toInt() ?: 0
@@ -145,96 +98,12 @@ fun DashboardScreen(bleScaleManager: BleScaleManager, onNavigate: (String) -> Un
     val currentCarbs = nutritionSummary?.totalCarbs?.toInt() ?: 0
     val currentFats = nutritionSummary?.totalFat?.toInt() ?: 0
 
-    // --- 6. FETCH USER PROFILE, NUTRITION SUMMARY & LOGS ---
-    LaunchedEffect(currentUser?.uid) {
-        currentUser?.uid?.let { uid ->
-            withContext(Dispatchers.IO) {
-                // A. Fetch user profile for target calculations
-                val profile = userDao.getUser(uid)
+    val todayMealLogs by viewModel.todayMealLogs.collectAsState()
+    val activityLog by viewModel.activityFeed.collectAsState()
 
-                if (profile != null) {
-                    val targets = nutritionalRepo.getTargetsForUser(profile)
-                    targetCalories = targets.targetCalories
-                    targetProtein = targets.targetProtein
-                    targetCarbs = targets.targetCarbs
-                    targetFats = targets.targetFats
-                    targetSodium = targets.targetSodium
-                    targetBurned = 500
-                    localPhotoUrl = profile.photoUrl
-                }
-
-                // B. Fetch today's nutrition summary (from DailyNutritionSummaryEntity)
-                val todayEpochDay = LocalDate.now().toEpochDay()
-                nutritionSummary = dailyNutritionSummaryDao.getSummaryForDate(uid, todayEpochDay)
-
-                // C. Fetch today's meal logs (for the activity feed)
-                val calendar = java.util.Calendar.getInstance()
-                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                calendar.set(java.util.Calendar.MINUTE, 0)
-                calendar.set(java.util.Calendar.SECOND, 0)
-                val startOfDay = calendar.timeInMillis
-                val endOfDay = startOfDay + 86_400_000L
-
-                todayMealLogs = mealLogDao.getMealLogsWithItemsByDate(uid, startOfDay, endOfDay)
-
-                // D. Fetch today's workout logs (workouts remain in ActivityLogEntity)
-                todayWorkoutLogs = activityLogDao.getWorkoutsForToday(uid, startOfDay)
-            }
-        }
-    }
-
-    // --- 7. BUILD UNIFIED ACTIVITY FEED ---
-    val timeFormat = remember { java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()) }
-
-    // Convert meal logs to feed entries
-    val mealFeedEntries = todayMealLogs.map { mealWithItems ->
-        val meal = mealWithItems.mealLog
-        val items = mealWithItems.items
-        val totalCal = items.sumOf { it.calories.toDouble() }.toInt()
-        val totalSod = items.sumOf { it.sodium.toDouble() }.toInt()
-        val totalProt = items.sumOf { it.protein.toDouble() }.toInt()
-        val totalCarb = items.sumOf { it.carbs.toDouble() }.toInt()
-        val totalFat = items.sumOf { it.fat.toDouble() }.toInt()
-        val totalWeight = items.sumOf { it.weightGrams.toDouble() }.toInt()
-        val dishNames = items.joinToString(", ") { it.dishName }
-
-        ActivityLogEntry(
-            id = meal.mealLogId.toString(),
-            type = "meal",
-            time = timeFormat.format(java.util.Date(meal.timestamp)),
-            name = dishNames,
-            details = ActivityDetails(
-                weight = "${totalWeight}g",
-                calories = totalCal,
-                sodium = totalSod,
-                protein = totalProt,
-                carbs = totalCarb,
-                fats = totalFat
-            ),
-            timestamp = meal.timestamp
-        )
-    }
-
-    // Convert workout logs to feed entries
-    val workoutFeedEntries = todayWorkoutLogs.map { entity ->
-        ActivityLogEntry(
-            id = entity.id.toString(),
-            type = entity.type,
-            time = entity.timeString,
-            name = entity.name,
-            details = ActivityDetails(
-                calories = entity.calories,
-                protein = entity.protein,
-                carbs = entity.carbs,
-                fats = entity.fats,
-                duration = entity.weightOrDuration
-            ),
-            timestamp = entity.timestamp
-        )
-    }
-
-    // Merge and sort by timestamp (newest first)
-    val activityLog = (mealFeedEntries + workoutFeedEntries).sortedByDescending { it.timestamp }
+    // ── Local UI State ──
+    var activeTab by remember { mutableStateOf("home") }
+    var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
 
     Scaffold(
         bottomBar = {

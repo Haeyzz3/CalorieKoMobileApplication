@@ -19,11 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.DailyNutritionSummaryEntity
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.calorieko.app.viewmodel.NutritionDetailsViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -32,17 +28,24 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NutritionDetailsScreen(onBackClick: () -> Unit) {
+fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: () -> Unit) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Calories", "Nutrients", "Macros")
 
-    // Shared date navigation state
-    var viewMode by remember { mutableStateOf("day") }
+    // ── Collect ViewModel State ──
+    val viewMode by viewModel.viewMode.collectAsState()
+    val dayOffset by viewModel.dayOffset.collectAsState()
+    val weekOffset by viewModel.weekOffset.collectAsState()
+    val targets by viewModel.targets.collectAsState()
+    val daySummary by viewModel.daySummary.collectAsState()
+    val weekSummaries by viewModel.weekSummaries.collectAsState()
+
+    // ── Local UI State ──
     var showViewDropdown by remember { mutableStateOf(false) }
     val showDatePicker = remember { mutableStateOf(false) }
-    var dayOffset by remember { mutableIntStateOf(0) }
-    var weekOffset by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
 
+    // ── Derived Date Display ──
     val today = LocalDate.now()
     val selectedDate = today.plusDays(dayOffset.toLong())
 
@@ -59,52 +62,6 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
         "$startStr - $endStr"
     }
     val viewLabel = if (viewMode == "day") "Day View" else "Week View"
-
-    // ── Data fetching ──
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val auth = remember { FirebaseAuth.getInstance() }
-    val uid = auth.currentUser?.uid ?: ""
-
-    val nutritionalRepo = remember { com.calorieko.app.data.repository.NutritionalValuesRepository(context) }
-    var targets by remember { mutableStateOf<com.calorieko.app.data.repository.NutritionalTarget?>(null) }
-
-    // Day summary (for the selected day)
-    var daySummary by remember { mutableStateOf<DailyNutritionSummaryEntity?>(null) }
-
-    // Week summaries (7 days)
-    var weekSummaries by remember { mutableStateOf<List<DailyNutritionSummaryEntity>>(emptyList()) }
-
-    // Fetch user targets (once)
-    LaunchedEffect(uid) {
-        if (uid.isEmpty()) return@LaunchedEffect
-        withContext(Dispatchers.IO) {
-            val profile = db.userDao().getUser(uid) ?: return@withContext
-            targets = nutritionalRepo.getTargetsForUser(profile)
-        }
-    }
-
-    // Fetch day summary whenever the selected day changes
-    LaunchedEffect(uid, dayOffset) {
-        if (uid.isEmpty()) return@LaunchedEffect
-        withContext(Dispatchers.IO) {
-            val epochDay = selectedDate.toEpochDay()
-            daySummary = db.dailyNutritionSummaryDao().getSummaryForDate(uid, epochDay)
-        }
-    }
-
-    // Fetch week summaries whenever the week offset changes
-    LaunchedEffect(uid, weekOffset) {
-        if (uid.isEmpty()) return@LaunchedEffect
-        withContext(Dispatchers.IO) {
-            val weekStart = today.plusWeeks(weekOffset.toLong()).with(DayOfWeek.MONDAY)
-            val weekEnd = weekStart.plusDays(6)
-            weekSummaries = db.dailyNutritionSummaryDao().getSummariesForRange(
-                uid, weekStart.toEpochDay(), weekEnd.toEpochDay()
-            )
-        }
-    }
 
     // Build day-by-day list for the selected week (Mon→Sun, 7 slots)
     val weekStartDate = today.plusWeeks(weekOffset.toLong()).with(DayOfWeek.MONDAY)
@@ -186,7 +143,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         IconButton(onClick = {
-                            if (viewMode == "day") dayOffset-- else weekOffset--
+                            if (viewMode == "day") viewModel.decrementDayOffset() else viewModel.decrementWeekOffset()
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.ChevronLeft,
@@ -231,7 +188,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                                         Text("Day", modifier = Modifier.fillMaxWidth(),
                                             fontSize = 15.sp, color = SubtleText)
                                     },
-                                    onClick = { viewMode = "day"; showViewDropdown = false }
+                                    onClick = { viewModel.setViewMode("day"); showViewDropdown = false }
                                 )
                                 HorizontalDivider(color = DividerGray)
                                 DropdownMenuItem(
@@ -239,7 +196,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                                         Text("Week", modifier = Modifier.fillMaxWidth(),
                                             fontSize = 15.sp, color = SubtleText)
                                     },
-                                    onClick = { viewMode = "week"; showViewDropdown = false }
+                                    onClick = { viewModel.setViewMode("week"); showViewDropdown = false }
                                 )
                                 HorizontalDivider(color = DividerGray)
                                 DropdownMenuItem(
@@ -253,7 +210,7 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
                         }
 
                         IconButton(onClick = {
-                            if (viewMode == "day") dayOffset++ else weekOffset++
+                            if (viewMode == "day") viewModel.incrementDayOffset() else viewModel.incrementWeekOffset()
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.ChevronRight,
@@ -295,15 +252,13 @@ fun NutritionDetailsScreen(onBackClick: () -> Unit) {
 
     // --- Date Picker Dialog ---
     if (showDatePicker.value) {
-        val todayForPicker = LocalDate.now()
         val calendar = Calendar.getInstance()
         DisposableEffect(Unit) {
             val dialog = DatePickerDialog(
                 context,
                 { _, year, month, dayOfMonth ->
                     val pickedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                    dayOffset = (pickedDate.toEpochDay() - todayForPicker.toEpochDay()).toInt()
-                    viewMode = "day"
+                    viewModel.pickDate(pickedDate)
                     showDatePicker.value = false
                 },
                 calendar.get(Calendar.YEAR),

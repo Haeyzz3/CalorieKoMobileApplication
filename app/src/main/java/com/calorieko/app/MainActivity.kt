@@ -359,7 +359,21 @@ fun AppNavigation() {
 
         // 8. Dashboard
         composable("dashboard") {
+            val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
+                userDao = db.userDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                mealLogDao = db.mealLogDao(),
+                activityLogDao = db.activityLogDao(),
+                nutritionalValuesRepo = nutritionalRepo
+            )
+            val dashboardViewModel: com.calorieko.app.viewmodel.DashboardViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.DashboardViewModel.provideFactory(
+                    auth = auth,
+                    dashboardRepository = dashboardRepo
+                )
+            )
             DashboardScreen(
+                viewModel = dashboardViewModel,
                 bleScaleManager = bleScaleManager,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
@@ -372,9 +386,23 @@ fun AppNavigation() {
             )
         }
 
-        // --- NEW: Nutrition Details Screen ---
+        // --- Nutrition Details Screen ---
         composable("nutritionDetails") {
+            val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
+                userDao = db.userDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                mealLogDao = db.mealLogDao(),
+                activityLogDao = db.activityLogDao(),
+                nutritionalValuesRepo = nutritionalRepo
+            )
+            val nutritionDetailsViewModel: com.calorieko.app.viewmodel.NutritionDetailsViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.NutritionDetailsViewModel.provideFactory(
+                    auth = auth,
+                    dashboardRepository = dashboardRepo
+                )
+            )
             NutritionDetailsScreen(
+                viewModel = nutritionDetailsViewModel,
                 onBackClick = {
                     navController.popBackStack()
                 }
