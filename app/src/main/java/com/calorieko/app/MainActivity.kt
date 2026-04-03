@@ -425,7 +425,20 @@ fun AppNavigation() {
 
         // --- NEW: Profile Screen ---
         composable("profile") {
+            val userRepo = com.calorieko.app.data.repository.UserRepository(
+                userDao = db.userDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
+            val profileViewModel: com.calorieko.app.viewmodel.ProfileViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ProfileViewModel.provideFactory(
+                    auth = auth,
+                    userRepository = userRepo,
+                    mealLogDao = db.mealLogDao(),
+                    activityLogDao = db.activityLogDao()
+                )
+            )
             ProfileScreen(
+                viewModel = profileViewModel,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "profile") {
@@ -442,14 +455,24 @@ fun AppNavigation() {
 
         // --- NEW: Edit Profile Screen ---
         composable("editProfile") {
+            val userRepo = com.calorieko.app.data.repository.UserRepository(
+                userDao = db.userDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
+            val editProfileViewModel: com.calorieko.app.viewmodel.EditProfileViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.EditProfileViewModel.provideFactory(
+                    auth = auth,
+                    userRepository = userRepo
+                )
+            )
             EditProfileScreen(
+                viewModel = editProfileViewModel,
                 onBack = {
                     navController.popBackStack()
                 },
                 onSave = {
                     navController.popBackStack()
-                },
-                firestoreSyncRepo = firestoreSyncRepo
+                }
             )
         }
 
@@ -457,7 +480,15 @@ fun AppNavigation() {
         // --- Settings Screen ---
 
         composable("settings") {
+            val settingsViewModel: com.calorieko.app.viewmodel.SettingsViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.SettingsViewModel.provideFactory(
+                    auth = auth,
+                    db = db,
+                    firestoreSyncRepo = firestoreSyncRepo
+                )
+            )
             SettingsScreen(
+                viewModel = settingsViewModel,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "settings") {
@@ -469,7 +500,7 @@ fun AppNavigation() {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                bleScaleManager = bleScaleManager // Pasing the scale manager back!
+                bleScaleManager = bleScaleManager
             )
         }
 

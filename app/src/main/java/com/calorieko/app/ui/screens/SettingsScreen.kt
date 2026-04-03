@@ -61,7 +61,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,16 +79,11 @@ import androidx.compose.ui.window.DialogProperties
 
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
+import com.calorieko.app.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Tracks the current step in the calibration wizard.
@@ -103,18 +97,18 @@ private enum class CalibrationStep {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    viewModel: SettingsViewModel,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
     bleScaleManager: BleScaleManager? = null // Brought back to handle scale options
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val auth = FirebaseAuth.getInstance()
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
-    var isWipingData by remember { mutableStateOf(false) }
-    var isSyncing by remember { mutableStateOf(false) }
-    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
+
+    // ── Collect ViewModel State ──
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val isWipingData by viewModel.isWipingData.collectAsState()
 
     // State for the cool notification banner
     var showSuccessBanner by remember { mutableStateOf(false) }
@@ -126,11 +120,29 @@ fun SettingsScreen(
     var showCalibrationBanner by remember { mutableStateOf(false) }
     var calibrationBannerMessage by remember { mutableStateOf("") }
 
-    // Initialize Database Access
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-
     // Collect Live Weight from Scale
     val liveWeight by (bleScaleManager?.liveWeight?.collectAsState()) ?: remember { mutableStateOf(0f) }
+
+    // ── Handle one-shot events from ViewModel ──
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SettingsViewModel.Event.SyncSuccess -> {
+                    Toast.makeText(context, "All data synced to cloud \u2713", Toast.LENGTH_SHORT).show()
+                }
+                is SettingsViewModel.Event.SyncError -> {
+                    Toast.makeText(context, "Sync failed: ${event.message}", Toast.LENGTH_SHORT).show()
+                }
+                is SettingsViewModel.Event.WipeSuccess -> {
+                    showWipeDialog = false
+                    showSuccessBanner = true
+                }
+                is SettingsViewModel.Event.LogoutReady -> {
+                    onLogout()
+                }
+            }
+        }
+    }
 
     // Auto-hide the success banner after 3 seconds
     LaunchedEffect(showSuccessBanner) {
@@ -214,46 +226,7 @@ fun SettingsScreen(
                             subtitle = "Manually backup to cloud",
                             iconColor = CalorieKoGreen,
                             onClick = {
-                                val uid = auth.currentUser?.uid
-                                if (uid == null || isSyncing) return@SettingsRow
-                                isSyncing = true
-                                scope.launch(Dispatchers.IO) {
-                                    try {
-                                        // 1. Profile
-                                        db.userDao().getUser(uid)?.let { profile ->
-                                            firestoreSyncRepo.syncProfile(uid, profile)
-                                        }
-                                        // 2. Activity Logs
-                                        db.activityLogDao().getAllLogsForUser(uid).forEach { log ->
-                                            firestoreSyncRepo.syncActivityLog(uid, log)
-                                        }
-                                        // 3. Meal Logs + Items
-                                        db.mealLogDao().getAllMealLogsWithItems(uid).forEach { mlwi ->
-                                            firestoreSyncRepo.syncMealLog(uid, mlwi.mealLog, mlwi.items)
-                                        }
-                                        // 4. Nutrition Summaries
-                                        db.dailyNutritionSummaryDao().getAllSummariesForUser(uid).forEach { summary ->
-                                            firestoreSyncRepo.syncDailyNutritionSummary(uid, summary)
-                                        }
-                                        // 5. Pantry Items
-                                        db.pantryDao().getAllItemsList().forEach { itemName ->
-                                            firestoreSyncRepo.syncPantryItem(uid, itemName)
-                                        }
-                                        // 6. Planned Meals
-                                        db.mealPlanDao().getAllPlannedMeals().forEach { meal ->
-                                            firestoreSyncRepo.syncPlannedMeal(uid, meal)
-                                        }
-                                        withContext(Dispatchers.Main) {
-                                            isSyncing = false
-                                            Toast.makeText(context, "All data synced to cloud ✓", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            isSyncing = false
-                                            Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
+                                viewModel.syncAllData()
                             }
                         )
                     }
@@ -403,26 +376,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val uid = auth.currentUser?.uid
-                        isWipingData = true
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                // 1. Wipe Firestore cloud data
-                                if (uid != null) {
-                                    firestoreSyncRepo.wipeAllUserData(uid)
-                                }
-                                // 2. Wipe the local Room database
-                                db.clearAllTables()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                isWipingData = false
-                                showWipeDialog = false
-                                showSuccessBanner = true // Trigger the cool animation
-                            }
-                        }
+                        viewModel.wipeAllData()
                     },
                     enabled = !isWipingData
                 ) {
@@ -449,15 +403,7 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        scope.launch(Dispatchers.IO) {
-                            // Clear local Room data so next user gets a clean slate
-                            try { db.clearAllTables() } catch (_: Exception) {}
-
-                            withContext(Dispatchers.Main) {
-                                auth.signOut()
-                                onLogout()
-                            }
-                        }
+                        viewModel.logout()
                     }
                 ) {
                     Text("Logout", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
