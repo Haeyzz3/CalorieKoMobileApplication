@@ -104,7 +104,16 @@ fun AuthScreen(
             .addOnCompleteListener { task ->
                 isLoading = false
                 if (task.isSuccessful) {
-                    onLoginSuccess()
+                    val user = auth.currentUser
+                    if (user != null && user.isEmailVerified) {
+                        // Email is verified — proceed normally
+                        onLoginSuccess()
+                    } else {
+                        // Email NOT verified — resend verification & sign out
+                        user?.sendEmailVerification()
+                        auth.signOut()
+                        errorMessage = "Your email is not yet verified. A new verification link has been sent to your inbox."
+                    }
                 } else {
                     errorMessage = task.exception?.message ?: "Login failed. Please try again."
                 }
