@@ -10,8 +10,8 @@ import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
-import com.calorieko.app.ui.screens.LogMealPhase
-import com.calorieko.app.ui.screens.LoggedDish
+import com.calorieko.app.data.model.LogMealPhase
+import com.calorieko.app.data.model.LoggedDish
 import androidx.lifecycle.ViewModelProvider
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -35,8 +35,6 @@ class LogMealViewModel(
     private val auth: FirebaseAuth,
     private val firestoreSyncRepo: FirestoreSyncRepository
 ) : ViewModel() {
-
-    private val CONFIDENCE_THRESHOLD = 0.70f
 
     // ── UI States ──
 
@@ -64,6 +62,9 @@ class LogMealViewModel(
     private val _showUnsupportedBanner = MutableStateFlow(false)
     val showUnsupportedBanner: StateFlow<Boolean> = _showUnsupportedBanner.asStateFlow()
 
+    private val _showLogFailedBanner = MutableStateFlow(false)
+    val showLogFailedBanner: StateFlow<Boolean> = _showLogFailedBanner.asStateFlow()
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
@@ -75,6 +76,8 @@ class LogMealViewModel(
 
     private val _candidate2 = MutableStateFlow<Pair<FoodItem, Float>?>(null)
     val candidate2: StateFlow<Pair<FoodItem, Float>?> = _candidate2.asStateFlow()
+
+    private val _pendingFoodId = MutableStateFlow(0)
 
     private val _pendingDishName = MutableStateFlow("")
     val pendingDishName: StateFlow<String> = _pendingDishName.asStateFlow()
@@ -163,7 +166,7 @@ class LogMealViewModel(
             }
 
             if (top1.second >= 0.80f) {
-                setDishReady(food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
+                setDishReady(food1.foodId, food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
             } else if (top2 != null && (top1.second - top2.second) <= 0.30f && top1.second > 0.10f) {
                 val food2 = withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(top2.first) }
                 if (food2 != null) {
@@ -171,7 +174,7 @@ class LogMealViewModel(
                     _candidate2.value = Pair(food2, top2.second)
                     _showCandidateSelection.value = true
                 } else {
-                    setDishReady(food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
+                    setDishReady(food1.foodId, food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
                 }
             } else {
                 triggerUnsupportedBanner()
@@ -188,7 +191,8 @@ class LogMealViewModel(
         }
     }
 
-    private fun setDishReady(name: String, confidence: Float, calEst: Float) {
+    private fun setDishReady(foodId: Int, name: String, confidence: Float, calEst: Float) {
+        _pendingFoodId.value = foodId
         _pendingDishName.value = name
         _pendingConfidence.value = confidence
         _pendingCaloriesEst.value = calEst
@@ -196,7 +200,7 @@ class LogMealViewModel(
     }
 
     fun onCandidateSelected(food: FoodItem, confidence: Float) {
-        setDishReady(food.nameEn, confidence, food.caloriesPer100g * _weight.value / 100f)
+        setDishReady(food.foodId, food.nameEn, confidence, food.caloriesPer100g * _weight.value / 100f)
         _showCandidateSelection.value = false
     }
 
@@ -206,12 +210,13 @@ class LogMealViewModel(
     }
 
     fun logCurrentDish() {
+        val foodId = _pendingFoodId.value
         val dishName = _pendingDishName.value
         val confidence = _pendingConfidence.value
         val currentWeight = _weight.value
 
         viewModelScope.launch {
-            val food = withContext(Dispatchers.IO) { foodDao.getFoodByName(dishName) }
+            val food = withContext(Dispatchers.IO) { foodDao.getFoodById(foodId) }
             if (food != null) {
                 val w = currentWeight
                 val dish = LoggedDish(
@@ -238,6 +243,8 @@ class LogMealViewModel(
                     iron = food.ironPer100g * w / 100f
                 )
                 _loggedDishes.update { it + dish }
+            } else {
+                triggerLogFailedBanner()
             }
             resetScanningVariables()
         }
@@ -251,10 +258,23 @@ class LogMealViewModel(
         _latestResults.value = emptyList()
         _topLabel.value = ""
         _topConfidence.value = 0f
+        _pendingFoodId.value = 0
         _candidate1.value = null
         _candidate2.value = null
         _showCandidateSelection.value = false
         _phase.value = LogMealPhase.SCANNING
+    }
+
+    fun hideLogFailedBanner() {
+        _showLogFailedBanner.value = false
+    }
+
+    private fun triggerLogFailedBanner() {
+        _showLogFailedBanner.value = true
+        viewModelScope.launch {
+            delay(5000)
+            _showLogFailedBanner.value = false
+        }
     }
 
     fun setPhase(newPhase: LogMealPhase) {
@@ -357,6 +377,8 @@ class LogMealViewModel(
     }
 
     companion object {
+        const val CONFIDENCE_THRESHOLD = 0.70f
+
         fun provideFactory(
             foodDao: FoodDao,
             mealLogDao: MealLogDao,

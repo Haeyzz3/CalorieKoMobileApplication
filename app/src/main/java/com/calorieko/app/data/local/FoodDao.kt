@@ -17,6 +17,9 @@ interface FoodDao {
     @Query("SELECT * FROM FOOD_TABLE WHERE ml_label = :mlLabel LIMIT 1")
     suspend fun getFoodByMlLabel(mlLabel: String): FoodItem?
 
+    @Query("SELECT * FROM FOOD_TABLE WHERE food_id = :foodId LIMIT 1")
+    suspend fun getFoodById(foodId: Int): FoodItem?
+
     @Query("SELECT * FROM FOOD_TABLE")
     suspend fun getAllFoods(): List<FoodItem>
 }
