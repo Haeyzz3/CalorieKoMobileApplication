@@ -19,35 +19,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.tasks.await
+import com.calorieko.app.viewmodel.SplashViewModel
 
 @Composable
 fun SplashScreen(
+    viewModel: SplashViewModel,
     onAlreadyLoggedIn: () -> Unit,
     onNotLoggedIn: () -> Unit
 ) {
-    // Check Firebase auth state after splash delay
+    // ── Handle one-shot events ──
     LaunchedEffect(Unit) {
-        delay(2500) // 2.5 seconds delay
-        val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser
-        if (currentUser != null) {
-            // Refresh verification status from Firebase servers
-            try { currentUser.reload().await() } catch (_: Exception) { /* offline — use cached value */ }
-
-            if (currentUser.isEmailVerified) {
-                // Verified — proceed to dashboard
-                onAlreadyLoggedIn()
-            } else {
-                // NOT verified — sign out and redirect to login
-                auth.signOut()
-                onNotLoggedIn()
+        viewModel.events.collect { event ->
+            when (event) {
+                is SplashViewModel.Event.AlreadyLoggedIn -> onAlreadyLoggedIn()
+                is SplashViewModel.Event.NotLoggedIn -> onNotLoggedIn()
             }
-        } else {
-            // No user → show Intro screen
-            onNotLoggedIn()
         }
     }
 

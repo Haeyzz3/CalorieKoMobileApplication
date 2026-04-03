@@ -17,13 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.auth.FirebaseAuth
+import com.calorieko.app.viewmodel.ForgotPasswordViewModel
 
 // ─── Brand Colors (matching AuthScreen) ───
 private val CalorieKoGreen = Color(0xFF4CAF50)
@@ -38,36 +37,16 @@ private val FieldBorder = Color(0xFFE0E0E0)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForgotPasswordScreen(
+    viewModel: ForgotPasswordViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val auth = remember { FirebaseAuth.getInstance() }
-    val context = LocalContext.current
-    
-    var email by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
+    // ── Collect ViewModel State ──
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val successMessage by viewModel.successMessage.collectAsState()
 
-    fun resetPassword() {
-        if (email.isBlank()) {
-            errorMessage = "Please enter your email address"
-            return
-        }
-        
-        isLoading = true
-        errorMessage = null
-        successMessage = null
-        
-        auth.sendPasswordResetEmail(email.trim())
-            .addOnCompleteListener { task ->
-                isLoading = false
-                if (task.isSuccessful) {
-                    successMessage = "A password reset link has been sent to $email"
-                } else {
-                    errorMessage = task.exception?.message ?: "Failed to send reset email. Please try again."
-                }
-            }
-    }
+    // ── Local form state ──
+    var email by remember { mutableStateOf("") }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         Column(
@@ -194,7 +173,7 @@ fun ForgotPasswordScreen(
                 )
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it; errorMessage = null; successMessage = null },
+                    onValueChange = { email = it; viewModel.clearMessages() },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text("example@email.com", color = TextGray, fontSize = 14.sp)
@@ -223,7 +202,7 @@ fun ForgotPasswordScreen(
 
                 // ─── Reset Button ───
                 Button(
-                    onClick = { resetPassword() },
+                    onClick = { viewModel.resetPassword(email) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),

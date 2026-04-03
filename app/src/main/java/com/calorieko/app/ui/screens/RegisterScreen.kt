@@ -56,16 +56,22 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoLightOrange
 import com.calorieko.app.ui.theme.CalorieKoOrange
-import com.google.firebase.auth.FirebaseAuth
+import com.calorieko.app.viewmodel.RegisterViewModel
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
+    viewModel: RegisterViewModel,
     onSignUpSuccess: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    val auth = remember { FirebaseAuth.getInstance() }
+    // ── Collect ViewModel State ──
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
+    // ── Local form state ──
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -73,14 +79,20 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
     // Validation
     val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     val isPasswordValid = password.length >= 6
     val doPasswordsMatch = password == confirmPassword && password.isNotEmpty()
     val isFormValid = isEmailValid && isPasswordValid && doPasswordsMatch
+
+    // ── Handle one-shot events ──
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is RegisterViewModel.Event.SignUpSuccess -> onSignUpSuccess()
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Color.White
@@ -173,7 +185,7 @@ fun RegisterScreen(
                     value = email,
                     onValueChange = {
                         email = it
-                        errorMessage = null
+                        viewModel.clearError()
                     },
                     label = { Text("Email Address") },
                     placeholder = { Text("Enter your email", color = Color.LightGray) },
@@ -197,8 +209,8 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = {
-                        password = it
-                        errorMessage = null
+                    password = it
+                    viewModel.clearError()
                     },
                     label = { Text("Password") },
                     placeholder = { Text("At least 6 characters", color = Color.LightGray) },
@@ -229,8 +241,8 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = {
-                        confirmPassword = it
-                        errorMessage = null
+                    confirmPassword = it
+                    viewModel.clearError()
                     },
                     label = { Text("Confirm Password") },
                     placeholder = { Text("Re-enter password", color = Color.LightGray) },
@@ -267,19 +279,7 @@ fun RegisterScreen(
                 Button(
                     onClick = {
                         if (isFormValid) {
-                            isLoading = true
-                            errorMessage = null
-                            auth.createUserWithEmailAndPassword(email, password)
-                                .addOnCompleteListener { task ->
-                                    isLoading = false
-                                    if (task.isSuccessful) {
-                                        // Send email verification (fire-and-forget)
-                                        auth.currentUser?.sendEmailVerification()
-                                        onSignUpSuccess()
-                                    } else {
-                                        errorMessage = task.exception?.localizedMessage ?: "Registration failed. Please try again."
-                                    }
-                                }
+                            viewModel.register(email, password)
                         }
                     },
                     enabled = isFormValid && !isLoading,

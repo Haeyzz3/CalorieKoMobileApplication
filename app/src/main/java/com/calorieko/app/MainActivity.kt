@@ -132,7 +132,14 @@ fun AppNavigation() {
 
         // 1. Splash
         composable("splash") {
+            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
+            val splashViewModel: com.calorieko.app.viewmodel.SplashViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.SplashViewModel.provideFactory(
+                    authRepository = authRepo
+                )
+            )
             SplashScreen(
+                viewModel = splashViewModel,
                 onAlreadyLoggedIn = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
@@ -178,7 +185,14 @@ fun AppNavigation() {
 
         // 3. Auth Screen
         composable("login") {
+            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
+            val authViewModel: com.calorieko.app.viewmodel.AuthViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.AuthViewModel.provideFactory(
+                    authRepository = authRepo
+                )
+            )
             AuthScreen(
+                viewModel = authViewModel,
                 onLoginSuccess = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
@@ -216,7 +230,14 @@ fun AppNavigation() {
 
         // 3b. Forgot Password
         composable("forgotPassword") {
+            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
+            val forgotPasswordViewModel: com.calorieko.app.viewmodel.ForgotPasswordViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ForgotPasswordViewModel.provideFactory(
+                    authRepository = authRepo
+                )
+            )
             ForgotPasswordScreen(
+                viewModel = forgotPasswordViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -263,7 +284,14 @@ fun AppNavigation() {
 
         // 7. NEW: Sign Up Screen (After Goals)
         composable("register") {
+            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
+            val registerViewModel: com.calorieko.app.viewmodel.RegisterViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.RegisterViewModel.provideFactory(
+                    authRepository = authRepo
+                )
+            )
             RegisterScreen(
+                viewModel = registerViewModel,
                 onSignUpSuccess = {
                     // --- 1. Metric calculations ---
                     val targets = nutritionalRepo.getTargets(
