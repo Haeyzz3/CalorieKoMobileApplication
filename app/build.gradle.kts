@@ -38,6 +38,9 @@ android {
                 "Please add: MAPBOX_ACCESS_TOKEN=pk.your_token_here"
             )
         resValue("string", "mapbox_access_token", mapboxAccessToken)
+
+        val apiUrl = localProperties.getProperty("CALORIEKO_API_BASE_URL") ?: "http://10.0.2.2:8000/"
+        buildConfigField("String", "API_BASE_URL", "\"$apiUrl\"")
     }
 
     buildTypes {
@@ -101,6 +104,11 @@ dependencies {
 
     // LiteRT (TensorFlow Lite successor)
     implementation(libs.litert)
+
+    // Retrofit + OkHttp (REST API sync to Laravel backend)
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // CameraX
     implementation(libs.androidx.camera.camera2)
