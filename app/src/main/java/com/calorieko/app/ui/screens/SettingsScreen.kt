@@ -1,4 +1,4 @@
-package com.calorieko.app.ui.screens
+﻿package com.calorieko.app.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -61,7 +61,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,16 +79,11 @@ import androidx.compose.ui.window.DialogProperties
 
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
+import com.calorieko.app.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Tracks the current step in the calibration wizard.
@@ -103,18 +97,18 @@ private enum class CalibrationStep {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    viewModel: SettingsViewModel,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
     bleScaleManager: BleScaleManager? = null // Brought back to handle scale options
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val auth = FirebaseAuth.getInstance()
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
-    var isWipingData by remember { mutableStateOf(false) }
-    var isSyncing by remember { mutableStateOf(false) }
-    val firestoreSyncRepo = remember { FirestoreSyncRepository() }
+
+    // Collect ViewModel State
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val isWipingData by viewModel.isWipingData.collectAsState()
 
     // State for the cool notification banner
     var showSuccessBanner by remember { mutableStateOf(false) }
@@ -126,11 +120,29 @@ fun SettingsScreen(
     var showCalibrationBanner by remember { mutableStateOf(false) }
     var calibrationBannerMessage by remember { mutableStateOf("") }
 
-    // Initialize Database Access
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-
     // Collect Live Weight from Scale
     val liveWeight by (bleScaleManager?.liveWeight?.collectAsState()) ?: remember { mutableStateOf(0f) }
+
+    // Handle one-shot events from ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SettingsViewModel.Event.SyncSuccess -> {
+                    Toast.makeText(context, "All data synced to cloud \u2713", Toast.LENGTH_SHORT).show()
+                }
+                is SettingsViewModel.Event.SyncError -> {
+                    Toast.makeText(context, "Sync failed: ${event.message}", Toast.LENGTH_SHORT).show()
+                }
+                is SettingsViewModel.Event.WipeSuccess -> {
+                    showWipeDialog = false
+                    showSuccessBanner = true
+                }
+                is SettingsViewModel.Event.LogoutReady -> {
+                    onLogout()
+                }
+            }
+        }
+    }
 
     // Auto-hide the success banner after 3 seconds
     LaunchedEffect(showSuccessBanner) {
@@ -208,79 +220,15 @@ fun SettingsScreen(
                     Column {
                         SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Notifications coming soon", Toast.LENGTH_SHORT).show() })
                         SettingsDivider()
-                        
-                        // New Sync Data Item
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = !isSyncing) {
-                                    val uid = auth.currentUser?.uid
-                                    if (uid == null || isSyncing) return@clickable
-                                    
-                                    if (!com.calorieko.app.util.NetworkUtils.isOnline(context)) {
-                                        Toast.makeText(context, "No internet connection. Please connect to Wi-Fi or cellular data to sync.", Toast.LENGTH_LONG).show()
-                                        return@clickable
-                                    }
-
-                                    isSyncing = true
-                                    
-                                    // Use ApiSyncManager to execute the Retrofit call
-                                    scope.launch(Dispatchers.IO) {
-                                        val apiService = com.calorieko.app.data.remote.api.RetrofitClient.getApiService(
-                                            com.calorieko.app.BuildConfig.API_BASE_URL
-                                        )
-                                        val syncManager = com.calorieko.app.data.remote.api.ApiSyncManager(
-                                            apiService = apiService,
-                                            userDao = db.userDao(),
-                                            activityLogDao = db.activityLogDao(),
-                                            mealLogDao = db.mealLogDao(),
-                                            dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
-                                        )
-                                        
-                                        val result = syncManager.syncToBackend(uid)
-                                        
-                                        withContext(Dispatchers.Main) {
-                                            isSyncing = false
-                                            when (result) {
-                                                is com.calorieko.app.data.remote.api.ApiSyncResult.Success -> {
-                                                    Toast.makeText(context, "Sync complete: ${result.message}", Toast.LENGTH_SHORT).show()
-                                                }
-                                                is com.calorieko.app.data.remote.api.ApiSyncResult.Error -> {
-                                                    Toast.makeText(context, "Sync failed: ${result.message}", Toast.LENGTH_LONG).show()
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(CalorieKoGreen.copy(alpha = 0.1f)), 
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSyncing) {
-                                    CircularProgressIndicator(
-                                        color = CalorieKoGreen,
-                                        strokeWidth = 2.dp,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                } else {
-                                    Icon(Icons.Default.Sync, contentDescription = "Sync", tint = CalorieKoGreen, modifier = Modifier.size(20.dp))
-                                }
+                        SettingsRow(
+                            icon = Icons.Default.Sync,
+                            title = if (isSyncing) "Syncing..." else "Sync Data",
+                            subtitle = "Manually backup to cloud",
+                            iconColor = CalorieKoGreen,
+                            onClick = {
+                                viewModel.syncAllData()
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(if (isSyncing) "Syncing..." else "Sync Data", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-                                Text(if (isSyncing) "Please wait, pushing to cloud" else "Manually backup your logs", fontSize = 12.sp, color = Color(0xFF6B7280))
-                            }
-                            if (!isSyncing) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Navigate", tint = Color(0xFFD1D5DB), modifier = Modifier.size(16.dp))
-                            }
-                        }
+                        )
                     }
                 }
 
@@ -428,26 +376,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val uid = auth.currentUser?.uid
-                        isWipingData = true
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                // 1. Wipe Firestore cloud data
-                                if (uid != null) {
-                                    firestoreSyncRepo.wipeAllUserData(uid)
-                                }
-                                // 2. Wipe the local Room database
-                                db.clearAllTables()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                isWipingData = false
-                                showWipeDialog = false
-                                showSuccessBanner = true // Trigger the cool animation
-                            }
-                        }
+                        viewModel.wipeAllData()
                     },
                     enabled = !isWipingData
                 ) {
@@ -474,12 +403,7 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        scope.launch(Dispatchers.IO) {
-                            withContext(Dispatchers.Main) {
-                                auth.signOut()
-                                onLogout()
-                            }
-                        }
+                        viewModel.logout()
                     }
                 ) {
                     Text("Logout", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
