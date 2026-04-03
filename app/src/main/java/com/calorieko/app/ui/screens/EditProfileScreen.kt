@@ -2,14 +2,7 @@ package com.calorieko.app.ui.screens
 
 
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.UserProfile
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -59,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +77,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import com.calorieko.app.data.remote.ImageUtils
-import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.viewmodel.EditProfileViewModel
 
 
 
@@ -109,23 +103,26 @@ private data class GoalOption(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
+    viewModel: EditProfileViewModel,
     onBack: () -> Unit,
-    onSave: () -> Unit,
-    firestoreSyncRepo: FirestoreSyncRepository
+    onSave: () -> Unit
 ) {
     val scrollState = rememberScrollState()
-
-    // 1. Initialize Database & Auth
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val userDao = db.userDao()
-    val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
 
-    //IMAGE API FETCH
+    // ── Collect ViewModel State ──
+    val name by viewModel.name.collectAsState()
+    val age by viewModel.age.collectAsState()
+    val height by viewModel.height.collectAsState()
+    val weight by viewModel.weight.collectAsState()
+    val sex by viewModel.sex.collectAsState()
+    val selectedGoal by viewModel.selectedGoal.collectAsState()
+    val selectedActivityLevel by viewModel.selectedActivityLevel.collectAsState()
+    val existingPhotoUrl by viewModel.existingPhotoUrl.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // ── Local UI State (photo picker) ──
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var existingPhotoUrl by remember { mutableStateOf("") } // Loaded from local DB
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -133,33 +130,12 @@ fun EditProfileScreen(
         selectedImageUri = uri
     }
 
-    // 2. Editable state (Leave empty initially, they will be filled by the database)
-    var name by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
-    var height by remember { mutableStateOf("") }
-    var weight by remember { mutableStateOf("") }
-    var sex by remember { mutableStateOf("Male") }
-    var selectedGoal by remember { mutableStateOf("general") }
-    var selectedActivityLevel by remember { mutableStateOf("lightly_active") }
-
-    // ADD THIS:
-    var isLoading by remember { mutableStateOf(false) }
-
-    // 3. Fetch existing data to pre-fill the form
-    LaunchedEffect(currentUser?.uid) {
-        currentUser?.uid?.let { uid ->
-            withContext(Dispatchers.IO) {
-                val profile = userDao.getUser(uid)
-                if (profile != null) {
-                    name = profile.name
-                    age = profile.age.toString()
-                    height = profile.height.toString()
-                    weight = profile.weight.toString()
-                    sex = profile.sex.ifEmpty { "Male" }
-                    selectedActivityLevel = profile.activityLevel.ifEmpty { "lightly_active" }
-                    selectedGoal = profile.goal.ifEmpty { "general" }
-                    existingPhotoUrl = profile.photoUrl
-                }
+    // ── Handle one-shot events ──
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is EditProfileViewModel.Event.SaveSuccess -> onSave()
+                is EditProfileViewModel.Event.SaveError -> { /* Could show a toast here */ }
             }
         }
     }
@@ -346,7 +322,7 @@ fun EditProfileScreen(
                     EditField(
                         label = "Full Name",
                         value = name,
-                        onValueChange = { name = it },
+                        onValueChange = { viewModel.updateName(it) },
                         icon = Icons.Default.Person,
                         iconColor = CalorieKoGreen,
                         iconBg = Color(0xFFECFDF5)
@@ -364,13 +340,13 @@ fun EditProfileScreen(
                 SexOptionButton(
                     text = "Male",
                     isSelected = sex == "Male",
-                    onClick = { sex = "Male" },
+                    onClick = { viewModel.updateSex("Male") },
                     modifier = Modifier.weight(1f)
                 )
                 SexOptionButton(
                     text = "Female",
                     isSelected = sex == "Female",
-                    onClick = { sex = "Female" },
+                    onClick = { viewModel.updateSex("Female") },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -386,7 +362,7 @@ fun EditProfileScreen(
                 EditMetricCard(
                     label = "Weight",
                     value = weight,
-                    onValueChange = { weight = it },
+                    onValueChange = { viewModel.updateWeight(it) },
                     unit = "kg",
                     icon = Icons.Default.MonitorWeight,
                     iconColor = CalorieKoGreen,
@@ -396,7 +372,7 @@ fun EditProfileScreen(
                 EditMetricCard(
                     label = "Height",
                     value = height,
-                    onValueChange = { height = it },
+                    onValueChange = { viewModel.updateHeight(it) },
                     unit = "cm",
                     icon = Icons.Default.Straighten,
                     iconColor = Color(0xFF2563EB),
@@ -409,7 +385,7 @@ fun EditProfileScreen(
             EditMetricCard(
                 label = "Age",
                 value = age,
-                onValueChange = { age = it },
+                onValueChange = { viewModel.updateAge(it) },
                 unit = "years",
                 icon = Icons.Default.Cake,
                 iconColor = Color(0xFF9333EA),
@@ -440,25 +416,25 @@ fun EditProfileScreen(
                     title = "Not Very Active",
                     description = "Spend most of the day sitting (e.g. bankteller, desk job)",
                     isSelected = selectedActivityLevel == "not_very_active",
-                    onClick = { selectedActivityLevel = "not_very_active" }
+                    onClick = { viewModel.updateActivityLevel("not_very_active") }
                 )
                 ActivityLevelOption(
                     title = "Lightly Active",
                     description = "Spend a good part of the day on your feet (e.g. teacher, salesperson)",
                     isSelected = selectedActivityLevel == "lightly_active",
-                    onClick = { selectedActivityLevel = "lightly_active" }
+                    onClick = { viewModel.updateActivityLevel("lightly_active") }
                 )
                 ActivityLevelOption(
                     title = "Active",
                     description = "Spend a good part of the day doing some physical activity (e.g. food server, postal carrier)",
                     isSelected = selectedActivityLevel == "active",
-                    onClick = { selectedActivityLevel = "active" }
+                    onClick = { viewModel.updateActivityLevel("active") }
                 )
                 ActivityLevelOption(
                     title = "Very Active",
                     description = "Spend most of the day doing heavy physical activity (e.g. bike messenger, carpenter)",
                     isSelected = selectedActivityLevel == "very_active",
-                    onClick = { selectedActivityLevel = "very_active" }
+                    onClick = { viewModel.updateActivityLevel("very_active") }
                 )
             }
 
@@ -477,7 +453,7 @@ fun EditProfileScreen(
                     GoalOptionCard(
                         goal = goal,
                         isSelected = selectedGoal == goal.id,
-                        onClick = { selectedGoal = goal.id }
+                        onClick = { viewModel.updateGoal(goal.id) }
                     )
                 }
             }
@@ -487,64 +463,7 @@ fun EditProfileScreen(
             // ─── Save Button (Orange Gradient) ───
             Button(
                 onClick = {
-                    if (isLoading) return@Button
-
-                    currentUser?.uid?.let { uid ->
-                        isLoading = true
-
-                        scope.launch(Dispatchers.IO) {
-                            // 1. Compress and encode new photo (if selected)
-                            val finalPhotoUrl = selectedImageUri?.let { uri ->
-                                val encodedStr = ImageUtils.compressAndEncode(context, uri, maxDimension = 300, quality = 70)
-                                // Option C Fallback: If compression fails, fallback to local content:// URI
-                                encodedStr ?: uri.toString()
-                            } ?: existingPhotoUrl
-
-                            // 2. Fetch existing profile to preserve unchanged fields
-                            val existingProfile = userDao.getUser(uid)
-
-                            // 3. Build the profile (update existing or create new)
-                            val updatedProfile = if (existingProfile != null) {
-                                existingProfile.copy(
-                                    name = name,
-                                    age = age.toIntOrNull() ?: existingProfile.age,
-                                    weight = weight.toDoubleOrNull() ?: existingProfile.weight,
-                                    height = height.toDoubleOrNull() ?: existingProfile.height,
-                                    sex = sex,
-                                    activityLevel = selectedActivityLevel,
-                                    goal = selectedGoal,
-                                    photoUrl = finalPhotoUrl
-                                )
-                            } else {
-                                // No local profile exists (e.g. after DB migration wipe)
-                                // Create a new one from form data
-                                UserProfile(
-                                    uid = uid,
-                                    name = name,
-                                    email = currentUser.email ?: "",
-                                    age = age.toIntOrNull() ?: 25,
-                                    weight = weight.toDoubleOrNull() ?: 70.0,
-                                    height = height.toDoubleOrNull() ?: 170.0,
-                                    sex = sex,
-                                    activityLevel = selectedActivityLevel,
-                                    goal = selectedGoal,
-                                    photoUrl = finalPhotoUrl
-                                )
-                            }
-
-                            // 4. Save to local Room database
-                            userDao.insertUser(updatedProfile)
-
-                            // 5. Sync profile to Firestore
-                            firestoreSyncRepo.syncProfile(uid, updatedProfile)
-
-                            // 6. Stop loading and navigate back
-                            withContext(Dispatchers.Main) {
-                                isLoading = false
-                                onSave()
-                            }
-                        }
-                    }
+                    viewModel.saveProfile(context, selectedImageUri)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

@@ -82,48 +82,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.calorieko.app.ble.BleScaleManager
+import com.calorieko.app.data.model.LogMealPhase
+import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.viewmodel.LogMealEvent
+import com.calorieko.app.viewmodel.LogMealViewModel
 import kotlin.math.roundToInt
-
-// ───────────────────────────────────────────────────────────────
-// Data classes & enums
-// ───────────────────────────────────────────────────────────────
-
-/** Phases of the Log-Meal workflow. */
-enum class LogMealPhase { SCANNING, DISH_READY, MEAL_SUMMARY }
-
-/** A dish that has been recognized and queued for logging. */
-data class LoggedDish(
-    val dishNameEn: String,
-    val weightGrams: Float,
-    val confidence: Float,
-    val foodId: Int,
-    // Pre-computed nutrients
-    val calories: Float,
-    val protein: Float,
-    val carbs: Float,
-    val fat: Float,
-    val fiber: Float,
-    val sugar: Float,
-    val saturatedFat: Float,
-    val polyunsaturatedFat: Float,
-    val monounsaturatedFat: Float,
-    val transFat: Float,
-    val cholesterol: Float,
-    val sodium: Float,
-    val potassium: Float,
-    val vitaminA: Float,
-    val vitaminC: Float,
-    val calcium: Float,
-    val iron: Float
-)
-
-private const val CONFIDENCE_THRESHOLD = 0.70f
 
 // ───────────────────────────────────────────────────────────────
 // Main Screen
@@ -131,7 +100,7 @@ private const val CONFIDENCE_THRESHOLD = 0.70f
 
 @Composable
 fun LogMealScreen(
-    viewModel: com.calorieko.app.viewmodel.LogMealViewModel,
+    viewModel: LogMealViewModel,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
     onMealConfirmed: () -> Unit
@@ -139,6 +108,15 @@ fun LogMealScreen(
     val context = LocalContext.current
     val classifier = remember { CalorieKoClassifier(context) }
     DisposableEffect(Unit) { onDispose { classifier.close() } }
+
+    // Collect one-shot navigation events from the ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                LogMealEvent.MealConfirmed -> onMealConfirmed()
+            }
+        }
+    }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -178,6 +156,7 @@ fun LogMealScreen(
     val topConfidence by viewModel.topConfidence.collectAsState()
     val currentDetectedFood by viewModel.currentDetectedFood.collectAsState()
     val showUnsupportedBanner by viewModel.showUnsupportedBanner.collectAsState()
+    val showLogFailedBanner by viewModel.showLogFailedBanner.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val showCandidateSelection by viewModel.showCandidateSelection.collectAsState()
     val candidate1 by viewModel.candidate1.collectAsState()
@@ -270,7 +249,7 @@ fun LogMealScreen(
             onMealTypeChange = { viewModel.updateMealType(it) },
             onRemoveDish = { viewModel.removeDish(it) },
             onAddMore = { viewModel.setPhase(LogMealPhase.SCANNING) },
-            onConfirmMeal = { viewModel.confirmMeal(onComplete = onMealConfirmed) },
+            onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack
         )
         return
@@ -350,7 +329,7 @@ fun LogMealScreen(
             // AI badge
             val displayLabel = currentDetectedFood?.nameEn ?: topLabel
             val confPercent = (topConfidence * 100).toInt()
-            val aiReady = currentDetectedFood != null && topConfidence >= CONFIDENCE_THRESHOLD
+            val aiReady = currentDetectedFood != null && topConfidence >= LogMealViewModel.CONFIDENCE_THRESHOLD
             val aiBadgeColor = when {
                 topLabel.isEmpty()            -> Color.White.copy(alpha = 0.95f)
                 aiReady                       -> CalorieKoGreen.copy(alpha = 0.95f)
@@ -546,6 +525,44 @@ fun LogMealScreen(
                     Spacer(Modifier.width(10.dp))
                     Text(
                         "Dish not recognized — try a supported Filipino dish",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // 10. Inline log-failed banner
+        AnimatedVisibility(
+            visible = showLogFailedBanner,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 160.dp, start = 24.dp, end = 24.dp)
+        ) {
+            Surface(
+                color = Color(0xFFEF4444).copy(alpha = 0.92f),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.hideLogFailedBanner() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Failed to log dish — please try again",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold

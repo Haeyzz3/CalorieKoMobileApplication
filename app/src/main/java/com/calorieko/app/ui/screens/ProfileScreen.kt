@@ -1,19 +1,14 @@
 package com.calorieko.app.ui.screens
 
-import java.text.SimpleDateFormat
-import java.util.Date
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.calorieko.app.data.local.AppDatabase
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
 import com.calorieko.app.data.remote.ImageUtils
 import androidx.compose.ui.layout.ContentScale
-import com.google.firebase.auth.FirebaseAuth
+import com.calorieko.app.data.model.BadgeStats
+import com.calorieko.app.viewmodel.ProfileViewModel
+import androidx.compose.runtime.collectAsState
 import com.calorieko.app.ui.components.BottomNavigation
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -100,13 +95,6 @@ data class UserData(
     val photoUrl: String = "" // Profile photo URL from backend
 )
 
-// NEW: Data class to hold database fetch results for badges
-data class BadgeStats(
-    val totalMeals: Int = 0,
-    val totalWorkouts: Int = 0,
-    val totalPhotos: Int = 0
-)
-
 data class Badge(
     val id: Int,
     val name: String,
@@ -121,72 +109,38 @@ data class Badge(
 
 @Composable
 fun ProfileScreen(
+    viewModel: ProfileViewModel,
     onNavigate: (String) -> Unit,
     onEditProfile: () -> Unit = {}
 ) {
     var activeTab by remember { mutableStateOf("profile") }
     val scrollState = rememberScrollState()
 
-    val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
-    val fullName = currentUser?.displayName ?: "User"
-    val profileImageUrl = currentUser?.photoUrl
+    // ── Collect ViewModel State ──
+    val userProfile by viewModel.userProfile.collectAsState()
+    val badgeStats by viewModel.badgeStats.collectAsState()
+    val displayName by viewModel.displayName.collectAsState()
+    val memberSince by viewModel.memberSince.collectAsState()
+    val profileImageUrl = viewModel.firebasePhotoUrl
 
-    // Fetch dynamic "Member Since" date directly from Firebase account metadata
-    val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-    val memberSinceDate = currentUser?.metadata?.creationTimestamp?.let {
-        sdf.format(Date(it))
-    } ?: "January 2025"
-
-    // 1. Initialize Database Access
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context, scope) }
-    val userDao = db.userDao()
-    val mealLogDao = db.mealLogDao()
-    val activityLogDao = db.activityLogDao()
-
-    // 2. Mutable States
-    var userData by remember { mutableStateOf(UserData(name = fullName, memberSince = memberSinceDate)) }
-    var badgeStats by remember { mutableStateOf(BadgeStats()) } // Holds real badge tracking data
-
-    // 3. Fetch Real Data on Load
-    LaunchedEffect(currentUser?.uid) {
-        currentUser?.uid?.let { uid ->
-            withContext(Dispatchers.IO) {
-                // Fetch Profile
-                val profile = userDao.getUser(uid)
-
-                // Fetch Badge Metrics from DAOs safely
-                val mealsCount = try { mealLogDao.getTotalMealsCount(uid) } catch (e: Exception) { 0 }
-                val workoutsCount = try { activityLogDao.getTotalWorkoutsCount(uid) } catch (e: Exception) { 0 }
-                val actPhotos = try { activityLogDao.getWorkoutsWithPhotoCount(uid) } catch (e: Exception) { 0 }
-
-                withContext(Dispatchers.Main) {
-                    if (profile != null) {
-                        // Update the UI state with the real database values
-                        userData = userData.copy(
-                            name = profile.name,
-                            age = profile.age,
-                            height = profile.height,
-                            weight = profile.weight,
-                            sex = profile.sex.ifEmpty { "Male" },
-                            activityLevel = profile.activityLevel.ifEmpty { "lightly_active" },
-                            goal = profile.goal.ifEmpty { "general" },
-                            streak = profile.streak,
-                            level = profile.level,
-                            photoUrl = profile.photoUrl
-                        )
-                    }
-                    // Update Badge tracking state
-                    badgeStats = BadgeStats(
-                        totalMeals = mealsCount,
-                        totalWorkouts = workoutsCount,
-                        totalPhotos = actPhotos
-                    )
-                }
-            }
-        }
+    // ── Build local UI model from ViewModel data ──
+    val userData = if (userProfile != null) {
+        val p = userProfile!!
+        UserData(
+            name = p.name,
+            memberSince = memberSince,
+            streak = p.streak,
+            level = p.level,
+            age = p.age,
+            height = p.height,
+            weight = p.weight,
+            sex = p.sex.ifEmpty { "Male" },
+            activityLevel = p.activityLevel.ifEmpty { "lightly_active" },
+            goal = p.goal.ifEmpty { "general" },
+            photoUrl = p.photoUrl
+        )
+    } else {
+        UserData(name = displayName, memberSince = memberSince)
     }
 
     Scaffold(

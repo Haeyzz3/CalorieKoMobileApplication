@@ -359,7 +359,21 @@ fun AppNavigation() {
 
         // 8. Dashboard
         composable("dashboard") {
+            val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
+                userDao = db.userDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                mealLogDao = db.mealLogDao(),
+                activityLogDao = db.activityLogDao(),
+                nutritionalValuesRepo = nutritionalRepo
+            )
+            val dashboardViewModel: com.calorieko.app.viewmodel.DashboardViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.DashboardViewModel.provideFactory(
+                    auth = auth,
+                    dashboardRepository = dashboardRepo
+                )
+            )
             DashboardScreen(
+                viewModel = dashboardViewModel,
                 bleScaleManager = bleScaleManager,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
@@ -372,9 +386,23 @@ fun AppNavigation() {
             )
         }
 
-        // --- NEW: Nutrition Details Screen ---
+        // --- Nutrition Details Screen ---
         composable("nutritionDetails") {
+            val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
+                userDao = db.userDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                mealLogDao = db.mealLogDao(),
+                activityLogDao = db.activityLogDao(),
+                nutritionalValuesRepo = nutritionalRepo
+            )
+            val nutritionDetailsViewModel: com.calorieko.app.viewmodel.NutritionDetailsViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.NutritionDetailsViewModel.provideFactory(
+                    auth = auth,
+                    dashboardRepository = dashboardRepo
+                )
+            )
             NutritionDetailsScreen(
+                viewModel = nutritionDetailsViewModel,
                 onBackClick = {
                     navController.popBackStack()
                 }
@@ -397,7 +425,20 @@ fun AppNavigation() {
 
         // --- NEW: Profile Screen ---
         composable("profile") {
+            val userRepo = com.calorieko.app.data.repository.UserRepository(
+                userDao = db.userDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
+            val profileViewModel: com.calorieko.app.viewmodel.ProfileViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ProfileViewModel.provideFactory(
+                    auth = auth,
+                    userRepository = userRepo,
+                    mealLogDao = db.mealLogDao(),
+                    activityLogDao = db.activityLogDao()
+                )
+            )
             ProfileScreen(
+                viewModel = profileViewModel,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "profile") {
@@ -414,14 +455,24 @@ fun AppNavigation() {
 
         // --- NEW: Edit Profile Screen ---
         composable("editProfile") {
+            val userRepo = com.calorieko.app.data.repository.UserRepository(
+                userDao = db.userDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
+            val editProfileViewModel: com.calorieko.app.viewmodel.EditProfileViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.EditProfileViewModel.provideFactory(
+                    auth = auth,
+                    userRepository = userRepo
+                )
+            )
             EditProfileScreen(
+                viewModel = editProfileViewModel,
                 onBack = {
                     navController.popBackStack()
                 },
                 onSave = {
                     navController.popBackStack()
-                },
-                firestoreSyncRepo = firestoreSyncRepo
+                }
             )
         }
 
@@ -429,7 +480,15 @@ fun AppNavigation() {
         // --- Settings Screen ---
 
         composable("settings") {
+            val settingsViewModel: com.calorieko.app.viewmodel.SettingsViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.SettingsViewModel.provideFactory(
+                    auth = auth,
+                    db = db,
+                    firestoreSyncRepo = firestoreSyncRepo
+                )
+            )
             SettingsScreen(
+                viewModel = settingsViewModel,
                 onNavigate = { dest ->
                     val route = if (dest == "home") "dashboard" else dest
                     if (route != "settings") {
@@ -441,7 +500,7 @@ fun AppNavigation() {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                bleScaleManager = bleScaleManager // Pasing the scale manager back!
+                bleScaleManager = bleScaleManager
             )
         }
 
@@ -470,14 +529,17 @@ fun AppNavigation() {
 
         // --- Log Meal Screen ---
         composable("logMeal") {
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                firestoreSyncRepo = firestoreSyncRepo
+            )
             val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
                     foodDao = db.foodDao(),
-                    mealLogDao = db.mealLogDao(),
-                    mealLogItemDao = db.mealLogItemDao(),
-                    dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
                     auth = auth,
-                    firestoreSyncRepo = firestoreSyncRepo
+                    mealRepository = mealRepo
                 )
             )
             LogMealScreen(

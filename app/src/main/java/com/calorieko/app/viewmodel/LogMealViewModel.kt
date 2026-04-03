@@ -2,41 +2,37 @@ package com.calorieko.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieko.app.data.local.DailyNutritionSummaryDao
 import com.calorieko.app.data.local.FoodDao
-import com.calorieko.app.data.local.MealLogDao
-import com.calorieko.app.data.local.MealLogItemDao
-import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.FoodItem
-import com.calorieko.app.data.model.MealLogEntity
-import com.calorieko.app.data.model.MealLogItemEntity
-import com.calorieko.app.ui.screens.LogMealPhase
-import com.calorieko.app.ui.screens.LoggedDish
+import com.calorieko.app.data.model.LogMealPhase
+import com.calorieko.app.data.model.LoggedDish
+import com.calorieko.app.data.repository.MealRepository
 import androidx.lifecycle.ViewModelProvider
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
 import java.time.LocalTime
+
+/** One-shot navigation/UI events emitted by LogMealViewModel. */
+sealed interface LogMealEvent {
+    data object MealConfirmed : LogMealEvent
+}
 
 class LogMealViewModel(
     private val foodDao: FoodDao,
-    private val mealLogDao: MealLogDao,
-    private val mealLogItemDao: MealLogItemDao,
-    private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
     private val auth: FirebaseAuth,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val mealRepository: MealRepository
 ) : ViewModel() {
-
-    private val CONFIDENCE_THRESHOLD = 0.70f
 
     // ── UI States ──
 
@@ -64,6 +60,9 @@ class LogMealViewModel(
     private val _showUnsupportedBanner = MutableStateFlow(false)
     val showUnsupportedBanner: StateFlow<Boolean> = _showUnsupportedBanner.asStateFlow()
 
+    private val _showLogFailedBanner = MutableStateFlow(false)
+    val showLogFailedBanner: StateFlow<Boolean> = _showLogFailedBanner.asStateFlow()
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
@@ -75,6 +74,8 @@ class LogMealViewModel(
 
     private val _candidate2 = MutableStateFlow<Pair<FoodItem, Float>?>(null)
     val candidate2: StateFlow<Pair<FoodItem, Float>?> = _candidate2.asStateFlow()
+
+    private val _pendingFoodId = MutableStateFlow(0)
 
     private val _pendingDishName = MutableStateFlow("")
     val pendingDishName: StateFlow<String> = _pendingDishName.asStateFlow()
@@ -92,6 +93,11 @@ class LogMealViewModel(
     val mealType: StateFlow<String> = _mealType.asStateFlow()
 
     private var weightStabilizationJob: Job? = null
+
+    // ── One-shot events ──
+
+    private val _events = Channel<LogMealEvent>(Channel.BUFFERED)
+    val events: Flow<LogMealEvent> = _events.receiveAsFlow()
 
     // ── Functions ──
 
@@ -163,7 +169,7 @@ class LogMealViewModel(
             }
 
             if (top1.second >= 0.80f) {
-                setDishReady(food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
+                setDishReady(food1.foodId, food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
             } else if (top2 != null && (top1.second - top2.second) <= 0.30f && top1.second > 0.10f) {
                 val food2 = withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(top2.first) }
                 if (food2 != null) {
@@ -171,7 +177,7 @@ class LogMealViewModel(
                     _candidate2.value = Pair(food2, top2.second)
                     _showCandidateSelection.value = true
                 } else {
-                    setDishReady(food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
+                    setDishReady(food1.foodId, food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
                 }
             } else {
                 triggerUnsupportedBanner()
@@ -188,7 +194,8 @@ class LogMealViewModel(
         }
     }
 
-    private fun setDishReady(name: String, confidence: Float, calEst: Float) {
+    private fun setDishReady(foodId: Int, name: String, confidence: Float, calEst: Float) {
+        _pendingFoodId.value = foodId
         _pendingDishName.value = name
         _pendingConfidence.value = confidence
         _pendingCaloriesEst.value = calEst
@@ -196,7 +203,7 @@ class LogMealViewModel(
     }
 
     fun onCandidateSelected(food: FoodItem, confidence: Float) {
-        setDishReady(food.nameEn, confidence, food.caloriesPer100g * _weight.value / 100f)
+        setDishReady(food.foodId, food.nameEn, confidence, food.caloriesPer100g * _weight.value / 100f)
         _showCandidateSelection.value = false
     }
 
@@ -206,12 +213,13 @@ class LogMealViewModel(
     }
 
     fun logCurrentDish() {
+        val foodId = _pendingFoodId.value
         val dishName = _pendingDishName.value
         val confidence = _pendingConfidence.value
         val currentWeight = _weight.value
 
         viewModelScope.launch {
-            val food = withContext(Dispatchers.IO) { foodDao.getFoodByName(dishName) }
+            val food = withContext(Dispatchers.IO) { foodDao.getFoodById(foodId) }
             if (food != null) {
                 val w = currentWeight
                 val dish = LoggedDish(
@@ -238,6 +246,8 @@ class LogMealViewModel(
                     iron = food.ironPer100g * w / 100f
                 )
                 _loggedDishes.update { it + dish }
+            } else {
+                triggerLogFailedBanner()
             }
             resetScanningVariables()
         }
@@ -251,10 +261,23 @@ class LogMealViewModel(
         _latestResults.value = emptyList()
         _topLabel.value = ""
         _topConfidence.value = 0f
+        _pendingFoodId.value = 0
         _candidate1.value = null
         _candidate2.value = null
         _showCandidateSelection.value = false
         _phase.value = LogMealPhase.SCANNING
+    }
+
+    fun hideLogFailedBanner() {
+        _showLogFailedBanner.value = false
+    }
+
+    private fun triggerLogFailedBanner() {
+        _showLogFailedBanner.value = true
+        viewModelScope.launch {
+            delay(5000)
+            _showLogFailedBanner.value = false
+        }
     }
 
     fun setPhase(newPhase: LogMealPhase) {
@@ -269,106 +292,33 @@ class LogMealViewModel(
         _mealType.value = type
     }
 
-    fun confirmMeal(onComplete: () -> Unit) {
+    fun confirmMeal() {
         val uid = auth.currentUser?.uid ?: ""
         if (uid.isEmpty()) {
-            onComplete()
+            viewModelScope.launch { _events.send(LogMealEvent.MealConfirmed) }
             return
         }
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                persistMeal(uid, _mealType.value, _loggedDishes.value)
+                mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value)
             }
-            onComplete()
+            _events.send(LogMealEvent.MealConfirmed)
         }
-    }
-
-    private suspend fun persistMeal(uid: String, mealType: String, dishes: List<LoggedDish>) {
-        val now = System.currentTimeMillis()
-
-        val mealLogId = mealLogDao.insertMealLog(
-            MealLogEntity(uid = uid, mealType = mealType, timestamp = now)
-        )
-
-        val items = dishes.map { d ->
-            MealLogItemEntity(
-                mealLogId = mealLogId,
-                foodId = d.foodId,
-                dishName = d.dishNameEn,
-                weightGrams = d.weightGrams,
-                calories = d.calories,
-                protein = d.protein,
-                carbs = d.carbs,
-                fiber = d.fiber,
-                sugar = d.sugar,
-                fat = d.fat,
-                saturatedFat = d.saturatedFat,
-                polyunsaturatedFat = d.polyunsaturatedFat,
-                monounsaturatedFat = d.monounsaturatedFat,
-                transFat = d.transFat,
-                cholesterol = d.cholesterol,
-                sodium = d.sodium,
-                potassium = d.potassium,
-                vitaminA = d.vitaminA,
-                vitaminC = d.vitaminC,
-                calcium = d.calcium,
-                iron = d.iron
-            )
-        }
-        mealLogItemDao.insertItems(items)
-
-        val today = LocalDate.now().toEpochDay()
-        val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, today)
-        val mealCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
-
-        val updated = (existing ?: DailyNutritionSummaryEntity(uid = uid, dateEpochDay = today)).let { s ->
-            s.copy(
-                id = s.id,
-                totalCalories = s.totalCalories + mealCalories,
-                totalProtein = s.totalProtein + dishes.sumOf { it.protein.toDouble() }.toFloat(),
-                totalCarbs = s.totalCarbs + dishes.sumOf { it.carbs.toDouble() }.toFloat(),
-                totalFiber = s.totalFiber + dishes.sumOf { it.fiber.toDouble() }.toFloat(),
-                totalSugar = s.totalSugar + dishes.sumOf { it.sugar.toDouble() }.toFloat(),
-                totalFat = s.totalFat + dishes.sumOf { it.fat.toDouble() }.toFloat(),
-                totalSaturatedFat = s.totalSaturatedFat + dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
-                totalPolyunsaturatedFat = s.totalPolyunsaturatedFat + dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
-                totalMonounsaturatedFat = s.totalMonounsaturatedFat + dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
-                totalTransFat = s.totalTransFat + dishes.sumOf { it.transFat.toDouble() }.toFloat(),
-                totalCholesterol = s.totalCholesterol + dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
-                totalSodium = s.totalSodium + dishes.sumOf { it.sodium.toDouble() }.toFloat(),
-                totalPotassium = s.totalPotassium + dishes.sumOf { it.potassium.toDouble() }.toFloat(),
-                totalVitaminA = s.totalVitaminA + dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
-                totalVitaminC = s.totalVitaminC + dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
-                totalCalcium = s.totalCalcium + dishes.sumOf { it.calcium.toDouble() }.toFloat(),
-                totalIron = s.totalIron + dishes.sumOf { it.iron.toDouble() }.toFloat(),
-                breakfastCalories = s.breakfastCalories + if (mealType == "Breakfast") mealCalories else 0f,
-                lunchCalories = s.lunchCalories + if (mealType == "Lunch") mealCalories else 0f,
-                dinnerCalories = s.dinnerCalories + if (mealType == "Dinner") mealCalories else 0f,
-                snacksCalories = s.snacksCalories + if (mealType == "Snacks") mealCalories else 0f
-            )
-        }
-        dailyNutritionSummaryDao.upsertSummary(updated)
-
-        // ── Sync to Firestore ──
-        val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
-        firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
-        firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
     }
 
     companion object {
+        const val CONFIDENCE_THRESHOLD = 0.70f
+
         fun provideFactory(
             foodDao: FoodDao,
-            mealLogDao: MealLogDao,
-            mealLogItemDao: MealLogItemDao,
-            dailyNutritionSummaryDao: DailyNutritionSummaryDao,
             auth: FirebaseAuth,
-            firestoreSyncRepo: FirestoreSyncRepository
+            mealRepository: MealRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(LogMealViewModel::class.java)) {
-                    return LogMealViewModel(foodDao, mealLogDao, mealLogItemDao, dailyNutritionSummaryDao, auth, firestoreSyncRepo) as T
+                    return LogMealViewModel(foodDao, auth, mealRepository) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
