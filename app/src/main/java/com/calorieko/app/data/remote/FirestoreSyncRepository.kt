@@ -122,8 +122,11 @@ class FirestoreSyncRepository {
     // ════════════════════════════════════════════════════════════
 
     /**
-     * Syncs a meal log header and all its child items to Firestore.
-     * Items are stored as a sub-collection under the meal log document.
+     * Syncs a meal log header and all its child items to Firestore
+     * using a single atomic [WriteBatch].
+     *
+     * This replaces the previous N+1 sequential writes with one
+     * network call that either fully succeeds or fully fails.
      */
     suspend fun syncMealLog(uid: String, mealLog: MealLogEntity, items: List<MealLogItemEntity>) {
         try {
@@ -132,17 +135,21 @@ class FirestoreSyncRepository {
                 .collection("mealLogs")
                 .document(mealLog.mealLogId.toString())
 
-            // 1. Write the meal log header
+            val batch = db.batch()
+
+            // 1. Meal log header
             val mealData = hashMapOf<String, Any?>(
                 "mealType" to mealLog.mealType,
                 "timestamp" to mealLog.timestamp,
                 "notes" to mealLog.notes,
                 "updatedAt" to mealLog.updatedAt
             )
-            mealDocRef.set(mealData).await()
+            batch.set(mealDocRef, mealData)
 
-            // 2. Write each item as a sub-document
+            // 2. All items in the same batch
             for (item in items) {
+                val itemRef = mealDocRef.collection("items")
+                    .document(item.mealLogItemId.toString())
                 val itemData = hashMapOf<String, Any?>(
                     "foodId" to item.foodId,
                     "dishName" to item.dishName,
@@ -166,19 +173,20 @@ class FirestoreSyncRepository {
                     "iron" to item.iron,
                     "updatedAt" to item.updatedAt
                 )
-                mealDocRef.collection("items")
-                    .document(item.mealLogItemId.toString())
-                    .set(itemData)
-                    .await()
+                batch.set(itemRef, itemData)
             }
-            Log.d(TAG, "Meal log ${mealLog.mealLogId} synced with ${items.size} items for $uid")
+
+            // 3. Commit all writes atomically
+            batch.commit().await()
+            Log.d(TAG, "Meal log ${mealLog.mealLogId} synced with ${items.size} items for $uid (batched)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync meal log ${mealLog.mealLogId}", e)
         }
     }
 
     /**
-     * Deletes a meal log and all its child item documents from Firestore.
+     * Deletes a meal log and all its child item documents from Firestore
+     * using a single atomic [WriteBatch].
      */
     suspend fun deleteMealLog(uid: String, mealLogId: Long) {
         try {
@@ -187,15 +195,20 @@ class FirestoreSyncRepository {
                 .collection("mealLogs")
                 .document(mealLogId.toString())
 
-            // Delete all items in the sub-collection first
+            val batch = db.batch()
+
+            // Queue all item deletes
             val itemSnapshots = mealDocRef.collection("items").get().await()
             for (doc in itemSnapshots.documents) {
-                doc.reference.delete().await()
+                batch.delete(doc.reference)
             }
 
-            // Delete the parent meal log document
-            mealDocRef.delete().await()
-            Log.d(TAG, "Meal log $mealLogId deleted from Firestore for $uid")
+            // Queue the parent meal log delete
+            batch.delete(mealDocRef)
+
+            // Commit all deletes atomically
+            batch.commit().await()
+            Log.d(TAG, "Meal log $mealLogId deleted from Firestore for $uid (batched)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete meal log $mealLogId", e)
         }
@@ -345,10 +358,15 @@ class FirestoreSyncRepository {
                 .whereEqualTo("weekStartDate", weekStartDate)
                 .get()
                 .await()
+
+            if (snapshot.isEmpty) return
+
+            val batch = db.batch()
             for (doc in snapshot.documents) {
-                doc.reference.delete().await()
+                batch.delete(doc.reference)
             }
-            Log.d(TAG, "Cleared ${snapshot.size()} planned meals for week $weekStartDate")
+            batch.commit().await()
+            Log.d(TAG, "Cleared ${snapshot.size()} planned meals for week $weekStartDate (batched)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear week planned meals", e)
         }
@@ -363,7 +381,10 @@ class FirestoreSyncRepository {
      * Called when the user chooses "Wipe Profile Data" in Settings.
      *
      * Note: Firestore doesn't support recursive deletes natively on the client.
-     * We iterate each known sub-collection and delete all documents.
+     * We iterate each known sub-collection, collect all document references
+     * (including nested meal log items), then commit in batches of 500
+     * (Firestore's WriteBatch limit).
+     *
      * The user profile document itself is preserved (just cleared).
      */
     suspend fun wipeAllUserData(uid: String) {
@@ -377,20 +398,29 @@ class FirestoreSyncRepository {
                 "plannedMeals"
             )
 
+            // Phase 1: Collect ALL document references to delete
+            val allRefs = mutableListOf<com.google.firebase.firestore.DocumentReference>()
+
             for (collectionName in subCollections) {
                 val snapshot = userDocRef.collection(collectionName).get().await()
                 for (doc in snapshot.documents) {
-                    // For mealLogs, also delete the nested 'items' sub-collection
+                    // For mealLogs, also collect the nested 'items' sub-collection
                     if (collectionName == "mealLogs") {
                         val itemsSnapshot = doc.reference.collection("items").get().await()
-                        for (itemDoc in itemsSnapshot.documents) {
-                            itemDoc.reference.delete().await()
-                        }
+                        allRefs.addAll(itemsSnapshot.documents.map { it.reference })
                     }
-                    doc.reference.delete().await()
+                    allRefs.add(doc.reference)
                 }
             }
-            Log.d(TAG, "All user data wiped from Firestore for $uid")
+
+            // Phase 2: Commit deletes in batches of 500 (WriteBatch limit)
+            allRefs.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                chunk.forEach { ref -> batch.delete(ref) }
+                batch.commit().await()
+            }
+
+            Log.d(TAG, "All user data wiped from Firestore for $uid (${allRefs.size} docs, batched)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to wipe user data from Firestore", e)
         }

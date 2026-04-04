@@ -10,7 +10,14 @@ import com.calorieko.app.data.local.MealLogItemDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.data.model.MealLogEntity
+import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.PantryItem
+import com.calorieko.app.data.model.PlannedMealEntity
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 /**
  * Result of the cloud restore operation.
@@ -61,6 +68,18 @@ class CloudRestoreManager(
     }
 
     /**
+     * Holds all data fetched from Firestore so the 5 parallel fetches
+     * can be destructured cleanly at the call site.
+     */
+    private data class FetchResults(
+        val activityLogs: List<ActivityLogEntity>,
+        val mealLogsWithItems: List<Pair<MealLogEntity, List<MealLogItemEntity>>>,
+        val summaries: List<DailyNutritionSummaryEntity>,
+        val pantryItems: List<String>,
+        val plannedMeals: List<PlannedMealEntity>
+    )
+
+    /**
      * Checks if a cloud restore is needed and performs it if so.
      *
      * This method is safe to call from any coroutine context — it does
@@ -85,23 +104,30 @@ class CloudRestoreManager(
                 return RestoreResult.NoCloudData
             }
 
-            // ═══ Phase 1: Fetch ALL data from Firestore (network) ═══
-            Log.d(TAG, "Fetching all cloud data for ${profile.name}...")
+            // ═══ Phase 1: Fetch ALL data from Firestore (parallel) ═══
+            Log.d(TAG, "Fetching all cloud data for ${profile.name} (parallel)...")
 
-            val activityLogs = firestoreSyncRepo.fetchActivityLogs(uid)
-            Log.d(TAG, "  Fetched ${activityLogs.size} activity logs")
+            val fetchResults = coroutineScope {
+                val activityLogsDeferred = async { firestoreSyncRepo.fetchActivityLogs(uid) }
+                val mealLogsDeferred = async { firestoreSyncRepo.fetchMealLogs(uid) }
+                val summariesDeferred = async { firestoreSyncRepo.fetchDailyNutritionSummaries(uid) }
+                val pantryDeferred = async { firestoreSyncRepo.fetchPantryItems(uid) }
+                val plannedDeferred = async { firestoreSyncRepo.fetchPlannedMeals(uid) }
 
-            val mealLogsWithItems = firestoreSyncRepo.fetchMealLogs(uid)
-            Log.d(TAG, "  Fetched ${mealLogsWithItems.size} meal logs")
+                FetchResults(
+                    activityLogs = activityLogsDeferred.await(),
+                    mealLogsWithItems = mealLogsDeferred.await(),
+                    summaries = summariesDeferred.await(),
+                    pantryItems = pantryDeferred.await(),
+                    plannedMeals = plannedDeferred.await()
+                )
+            }
 
-            val summaries = firestoreSyncRepo.fetchDailyNutritionSummaries(uid)
-            Log.d(TAG, "  Fetched ${summaries.size} nutrition summaries")
-
-            val pantryItems = firestoreSyncRepo.fetchPantryItems(uid)
-            Log.d(TAG, "  Fetched ${pantryItems.size} pantry items")
-
-            val plannedMeals = firestoreSyncRepo.fetchPlannedMeals(uid)
-            Log.d(TAG, "  Fetched ${plannedMeals.size} planned meals")
+            Log.d(TAG, "  Fetched: ${fetchResults.activityLogs.size} activity logs, " +
+                    "${fetchResults.mealLogsWithItems.size} meal logs, " +
+                    "${fetchResults.summaries.size} summaries, " +
+                    "${fetchResults.pantryItems.size} pantry items, " +
+                    "${fetchResults.plannedMeals.size} planned meals")
 
             // ═══ Phase 2: Insert ALL data into Room (atomic transaction) ═══
             Log.d(TAG, "Starting atomic Room transaction...")
@@ -111,12 +137,12 @@ class CloudRestoreManager(
                 userDao.insertUser(profile)
 
                 // 2. Activity Logs
-                for (log in activityLogs) {
+                for (log in fetchResults.activityLogs) {
                     activityLogDao.insertLog(log)
                 }
 
                 // 3. Meal Logs (with parent-child ID re-mapping)
-                for ((mealLog, items) in mealLogsWithItems) {
+                for ((mealLog, items) in fetchResults.mealLogsWithItems) {
                     // Insert the parent → get the new Room-generated mealLogId
                     val newMealLogId = mealLogDao.insertMealLog(mealLog)
 
@@ -130,17 +156,17 @@ class CloudRestoreManager(
                 }
 
                 // 4. Daily Nutrition Summaries
-                for (summary in summaries) {
+                for (summary in fetchResults.summaries) {
                     dailyNutritionSummaryDao.upsertSummary(summary)
                 }
 
                 // 5. Pantry Items
-                for (itemName in pantryItems) {
+                for (itemName in fetchResults.pantryItems) {
                     pantryDao.insertItem(PantryItem(ingredientName = itemName))
                 }
 
                 // 6. Planned Meals
-                for (meal in plannedMeals) {
+                for (meal in fetchResults.plannedMeals) {
                     mealPlanDao.insertMeal(meal)
                 }
             }

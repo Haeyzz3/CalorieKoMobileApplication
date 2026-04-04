@@ -19,8 +19,28 @@ object ImageUtils {
     const val BASE64_PREFIX = "base64:"
 
     /**
+     * Maximum raw byte size before Base64 encoding.
+     *
+     * Firestore has a 1 MiB (1,048,576 bytes) per-document limit.
+     * Since a document may contain multiple Base64 fields (e.g.,
+     * `photoUri` + `encodedPath` on ActivityLogEntity), we cap each
+     * individual encoded image at ~500 KB of Base64 output.
+     *
+     * Base64 expands data by ~4/3, so we target raw JPEG bytes
+     * under this threshold to keep the Base64 string safe.
+     */
+    private const val MAX_RAW_BYTES = 375 * 1024  // ~500 KB after Base64 encoding
+
+    /** Minimum quality floor to prevent unacceptable image degradation. */
+    private const val MIN_QUALITY = 10
+
+    /**
      * Reads an image from the given Uri, scales it down, compresses it to JPEG,
      * and returns a Base64 string prefixed with "base64:".
+     *
+     * If the initial compression exceeds the safe Firestore document size
+     * threshold, quality is progressively reduced until it fits or the
+     * minimum quality floor is reached.
      */
     fun compressAndEncode(context: Context, uri: Uri, maxDimension: Int = 800, quality: Int = 70): String? {
         return try {
@@ -50,16 +70,34 @@ object ImageUtils {
                 originalBitmap // Already small enough
             }
 
-            // Compress to JPEG format
-            val outputStream = ByteArrayOutputStream()
-            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            val byteArray = outputStream.toByteArray()
+            // ── Size-aware compression ──
+            // Compress to JPEG, reducing quality if the result is too large
+            var currentQuality = quality
+            var byteArray: ByteArray
+
+            do {
+                val outputStream = ByteArrayOutputStream()
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, outputStream)
+                byteArray = outputStream.toByteArray()
+
+                if (byteArray.size > MAX_RAW_BYTES && currentQuality > MIN_QUALITY) {
+                    currentQuality -= 10
+                    Log.w(TAG, "Image too large (${byteArray.size / 1024} KB) — " +
+                            "reducing quality to $currentQuality")
+                }
+            } while (byteArray.size > MAX_RAW_BYTES && currentQuality > MIN_QUALITY)
 
             // Encode to Base64
             val base64String = Base64.encodeToString(byteArray, Base64.NO_WRAP)
-            
-            Log.d(TAG, "Image successfully compressed and encoded. Size: ${byteArray.size / 1024} KB")
-            
+
+            if (base64String.length > 500 * 1024) {
+                Log.w(TAG, "⚠ Base64 string is ${base64String.length / 1024} KB — " +
+                        "approaching Firestore document size limit")
+            }
+
+            Log.d(TAG, "Image compressed: ${byteArray.size / 1024} KB, " +
+                    "quality=$currentQuality, base64=${base64String.length / 1024} KB")
+
             // Clean up
             if (scaledBitmap != originalBitmap) {
                 scaledBitmap.recycle()
