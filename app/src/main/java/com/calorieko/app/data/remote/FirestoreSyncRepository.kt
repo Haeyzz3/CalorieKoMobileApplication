@@ -62,7 +62,8 @@ class FirestoreSyncRepository {
                 "goal" to profile.goal,
                 "streak" to profile.streak,
                 "level" to profile.level,
-                "photoUrl" to profile.photoUrl
+                "photoUrl" to profile.photoUrl,
+                "updatedAt" to profile.updatedAt
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -101,7 +102,8 @@ class FirestoreSyncRepository {
                 "notes" to log.notes,
                 "activityTag" to log.activityTag,
                 "photoUri" to log.photoUri,
-                "encodedPath" to log.encodedPath
+                "encodedPath" to log.encodedPath,
+                "updatedAt" to log.updatedAt
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -134,7 +136,8 @@ class FirestoreSyncRepository {
             val mealData = hashMapOf<String, Any?>(
                 "mealType" to mealLog.mealType,
                 "timestamp" to mealLog.timestamp,
-                "notes" to mealLog.notes
+                "notes" to mealLog.notes,
+                "updatedAt" to mealLog.updatedAt
             )
             mealDocRef.set(mealData).await()
 
@@ -160,7 +163,8 @@ class FirestoreSyncRepository {
                     "vitaminA" to item.vitaminA,
                     "vitaminC" to item.vitaminC,
                     "calcium" to item.calcium,
-                    "iron" to item.iron
+                    "iron" to item.iron,
+                    "updatedAt" to item.updatedAt
                 )
                 mealDocRef.collection("items")
                     .document(item.mealLogItemId.toString())
@@ -229,7 +233,8 @@ class FirestoreSyncRepository {
                 "breakfastCalories" to summary.breakfastCalories,
                 "lunchCalories" to summary.lunchCalories,
                 "dinnerCalories" to summary.dinnerCalories,
-                "snacksCalories" to summary.snacksCalories
+                "snacksCalories" to summary.snacksCalories,
+                "updatedAt" to summary.updatedAt
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)

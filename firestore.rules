@@ -24,14 +24,71 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ─── User-scoped data ───
-    // Only the authenticated owner can read/write their own data.
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    // ─── Helper: Ownership check ───
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
 
-      // All sub-collections under a user document
-      match /{subcollection=**} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+    // ─── User-scoped data ───
+    match /users/{uid} {
+
+      // User profile document
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid)
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.age is int
+        && request.resource.data.weight is number
+        && request.resource.data.height is number;
+
+      // Activity Logs
+      match /activityLogs/{logId} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid)
+          && request.resource.data.type is string
+          && request.resource.data.name is string
+          && request.resource.data.timestamp is number
+          && request.resource.data.calories is number;
+      }
+
+      // Meal Logs
+      match /mealLogs/{mealLogId} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid)
+          && request.resource.data.mealType in ['Breakfast', 'Lunch', 'Dinner', 'Snacks']
+          && request.resource.data.timestamp is number;
+
+        // Meal Log Items (sub-collection)
+        match /items/{itemId} {
+          allow read: if isOwner(uid);
+          allow write: if isOwner(uid)
+            && request.resource.data.dishName is string
+            && request.resource.data.calories is number
+            && request.resource.data.weightGrams is number;
+        }
+      }
+
+      // Daily Nutrition Summaries
+      match /dailyNutritionSummaries/{dateId} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid)
+          && request.resource.data.dateEpochDay is number
+          && request.resource.data.totalCalories is number;
+      }
+
+      // Pantry Items
+      match /pantryItems/{ingredientName} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid);
+      }
+
+      // Planned Meals
+      match /plannedMeals/{compositeKey} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid)
+          && request.resource.data.dayIndex is int
+          && request.resource.data.dishLabel is string
+          && request.resource.data.weekStartDate is string;
       }
     }
   }

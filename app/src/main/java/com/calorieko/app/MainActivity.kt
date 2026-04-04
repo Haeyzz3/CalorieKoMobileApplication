@@ -85,6 +85,9 @@ fun AppNavigation() {
     // Firestore sync repository for cloud persistence
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
+    // Auth repository for all authentication screens
+    val authRepo = remember { com.calorieko.app.data.repository.AuthRepository(auth) }
+
     // Cloud restore manager for pull-from-cloud on login
     val cloudRestoreManager = remember {
         CloudRestoreManager(
@@ -132,7 +135,6 @@ fun AppNavigation() {
 
         // 1. Splash
         composable("splash") {
-            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
             val splashViewModel: com.calorieko.app.viewmodel.SplashViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.SplashViewModel.provideFactory(
                     authRepository = authRepo
@@ -185,7 +187,6 @@ fun AppNavigation() {
 
         // 3. Auth Screen
         composable("login") {
-            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
             val authViewModel: com.calorieko.app.viewmodel.AuthViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.AuthViewModel.provideFactory(
                     authRepository = authRepo
@@ -230,7 +231,6 @@ fun AppNavigation() {
 
         // 3b. Forgot Password
         composable("forgotPassword") {
-            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
             val forgotPasswordViewModel: com.calorieko.app.viewmodel.ForgotPasswordViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ForgotPasswordViewModel.provideFactory(
                     authRepository = authRepo
@@ -284,7 +284,6 @@ fun AppNavigation() {
 
         // 7. NEW: Sign Up Screen (After Goals)
         composable("register") {
-            val authRepo = com.calorieko.app.data.repository.AuthRepository(auth)
             val registerViewModel: com.calorieko.app.viewmodel.RegisterViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.RegisterViewModel.provideFactory(
                     authRepository = authRepo
