@@ -277,6 +277,7 @@ class ApiSyncManager(
      * Resets the last sync timestamp, forcing the next sync to transmit ALL records.
      * Use this after a data wipe or account reset.
      */
+
     fun resetSyncTimestamp() {
         prefs.edit().remove(KEY_LAST_SYNC_TIMESTAMP).apply()
         Log.d(TAG, "Sync timestamp reset — next sync will be a full sync.")

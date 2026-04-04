@@ -110,6 +110,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // WorkManager (background auto-sync after Room writes)
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
+
     // CameraX
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)

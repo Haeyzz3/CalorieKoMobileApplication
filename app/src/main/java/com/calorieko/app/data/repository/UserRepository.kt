@@ -9,6 +9,7 @@ import com.calorieko.app.data.model.BadgeStats
 import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
+import com.calorieko.app.data.remote.api.AutoSyncManager
 
 /**
  * Read-write repository for user profile operations.
@@ -16,12 +17,14 @@ import com.calorieko.app.data.remote.ImageUtils
  * Encapsulates:
  * - Room read/write for UserProfile
  * - Firestore sync on writes
+ * - Auto-sync to Laravel backend via WorkManager
  * - Photo compression for profile image updates
  * - Badge stats aggregation from multiple DAOs
  */
 class UserRepository(
     private val userDao: UserDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val appContext: Context
 ) {
 
     // ── Profile Read ──
@@ -33,10 +36,12 @@ class UserRepository(
 
     // ── Profile Write ──
 
-    /** Save a profile to Room and sync to Firestore. */
+    /** Save a profile to Room, sync to Firestore, and trigger auto-sync to Laravel. */
     suspend fun saveProfile(uid: String, profile: UserProfile) {
         userDao.insertUser(profile)
         firestoreSyncRepo.syncProfile(uid, profile)
+        // Trigger auto-sync to Laravel backend (background, debounced)
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 
     /**

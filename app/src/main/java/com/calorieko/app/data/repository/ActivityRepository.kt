@@ -7,6 +7,7 @@ import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
+import com.calorieko.app.data.remote.api.AutoSyncManager
 
 /**
  * Repository for workout CRUD operations.
@@ -14,25 +15,30 @@ import com.calorieko.app.data.remote.ImageUtils
  * Encapsulates:
  * - Room read/write for ActivityLogEntity
  * - Firestore sync on writes
+ * - Auto-sync to Laravel backend via WorkManager
  * - Photo compression for workout images
  * - User weight/name lookups needed by workout screens
  */
 class ActivityRepository(
     private val activityLogDao: ActivityLogDao,
     private val userDao: UserDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val appContext: Context
 ) {
 
     // ── Workout Write ──
 
     /**
-     * Inserts a workout log into Room and syncs to Firestore.
+     * Inserts a workout log into Room, syncs to Firestore, and
+     * triggers auto-sync to the Laravel backend.
      * Returns the Room-generated row ID.
      */
     suspend fun insertWorkoutLog(uid: String, log: ActivityLogEntity): Long {
         val newId = activityLogDao.insertLog(log)
         if (uid.isNotEmpty()) {
             firestoreSyncRepo.syncActivityLog(uid, log.copy(id = newId.toInt()))
+            // Trigger auto-sync to Laravel backend (background, debounced)
+            AutoSyncManager.triggerSync(appContext, uid)
         }
         return newId
     }

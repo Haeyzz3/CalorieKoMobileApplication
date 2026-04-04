@@ -1,5 +1,6 @@
 package com.calorieko.app.data.repository
 
+import android.content.Context
 import com.calorieko.app.data.local.DailyNutritionSummaryDao
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.MealLogItemDao
@@ -8,6 +9,7 @@ import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import java.time.LocalDate
 
 /**
@@ -17,6 +19,7 @@ import java.time.LocalDate
  * - Insert a meal log + items into Room
  * - Upsert the daily nutrition summary
  * - Sync both to Firestore
+ * - Trigger auto-sync to Laravel backend via WorkManager
  *
  * The ViewModel should call these methods within `Dispatchers.IO`.
  */
@@ -24,7 +27,8 @@ class MealRepository(
     private val mealLogDao: MealLogDao,
     private val mealLogItemDao: MealLogItemDao,
     private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val appContext: Context
 ) {
 
     /**
@@ -109,6 +113,9 @@ class MealRepository(
         val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
         firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
         firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
+
+        // 5. Trigger auto-sync to Laravel backend (background, debounced)
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 
     /**

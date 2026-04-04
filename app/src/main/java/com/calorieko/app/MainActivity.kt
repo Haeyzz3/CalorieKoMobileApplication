@@ -328,6 +328,11 @@ fun AppNavigation() {
                             // Sync new profile to Firestore
                             firestoreSyncRepo.syncProfile(currentUser.uid, userProfile)
 
+                            // Auto-sync to Laravel backend
+                            com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
+                                context.applicationContext, currentUser.uid
+                            )
+
                             navController.navigate("targetSummary") {
                                 popUpTo("intro") { inclusive = true }
                             }
@@ -442,7 +447,8 @@ fun AppNavigation() {
             val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                 activityLogDao = db.activityLogDao(),
                 userDao = db.userDao(),
-                firestoreSyncRepo = firestoreSyncRepo
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
             )
             val progressViewModel: com.calorieko.app.viewmodel.ProgressViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ProgressViewModel.provideFactory(
@@ -467,7 +473,8 @@ fun AppNavigation() {
         composable("profile") {
             val userRepo = com.calorieko.app.data.repository.UserRepository(
                 userDao = db.userDao(),
-                firestoreSyncRepo = firestoreSyncRepo
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
             )
             val profileViewModel: com.calorieko.app.viewmodel.ProfileViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ProfileViewModel.provideFactory(
@@ -497,7 +504,8 @@ fun AppNavigation() {
         composable("editProfile") {
             val userRepo = com.calorieko.app.data.repository.UserRepository(
                 userDao = db.userDao(),
-                firestoreSyncRepo = firestoreSyncRepo
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
             )
             val editProfileViewModel: com.calorieko.app.viewmodel.EditProfileViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.EditProfileViewModel.provideFactory(
@@ -575,7 +583,8 @@ fun AppNavigation() {
                 mealLogDao = db.mealLogDao(),
                 mealLogItemDao = db.mealLogItemDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                firestoreSyncRepo = firestoreSyncRepo
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
             )
             val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
@@ -597,7 +606,8 @@ fun AppNavigation() {
             val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                 activityLogDao = db.activityLogDao(),
                 userDao = db.userDao(),
-                firestoreSyncRepo = firestoreSyncRepo
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
             )
             val logWorkoutViewModel: com.calorieko.app.viewmodel.LogWorkoutViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogWorkoutViewModel.provideFactory(
@@ -623,7 +633,8 @@ fun AppNavigation() {
                 val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                     activityLogDao = db.activityLogDao(),
                     userDao = db.userDao(),
-                    firestoreSyncRepo = firestoreSyncRepo
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    appContext = context.applicationContext
                 )
                 val activityDetailsViewModel: com.calorieko.app.viewmodel.ActivityDetailsViewModel = viewModel(
                     factory = com.calorieko.app.viewmodel.ActivityDetailsViewModel.provideFactory(
