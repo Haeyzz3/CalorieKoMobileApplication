@@ -391,7 +391,7 @@ class MobileSyncController extends Controller
             return response()->json([
                 'success'              => true,
                 'message'              => "Delta sync complete: {$totalProcessed} records processed in {$elapsed}ms",
-                'last_successful_sync' => now()->getTimestampMs(),
+                'last_successful_sync' => (int) (microtime(true) * 1000),
                 'stats'                => $stats,
                 'conflicts'            => $conflicts,
                 'error'                => null,

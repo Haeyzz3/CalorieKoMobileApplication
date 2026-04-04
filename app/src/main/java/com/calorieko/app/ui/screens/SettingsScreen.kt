@@ -1,7 +1,8 @@
 package com.calorieko.app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,16 +29,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Logout
-// import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,6 +50,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -65,17 +70,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
@@ -84,6 +92,13 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
+
+/**
+ * Type of notification banner to display in the Settings screen.
+ */
+private enum class NotificationType {
+    SUCCESS, ERROR, WARNING, INFO
+}
 
 /**
  * Tracks the current step in the calibration wizard.
@@ -102,7 +117,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     bleScaleManager: BleScaleManager? = null // Brought back to handle scale options
 ) {
-    val context = LocalContext.current
+
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
 
@@ -110,8 +125,11 @@ fun SettingsScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val isWipingData by viewModel.isWipingData.collectAsState()
 
-    // State for the cool notification banner
-    var showSuccessBanner by remember { mutableStateOf(false) }
+    // State for the notification banner system
+    var showNotificationBanner by remember { mutableStateOf(false) }
+    var notificationType by remember { mutableStateOf(NotificationType.SUCCESS) }
+    var notificationTitle by remember { mutableStateOf("") }
+    var notificationMessage by remember { mutableStateOf("") }
 
     // --- Calibration Dialog State ---
     var showCalibrationDialog by remember { mutableStateOf(false) }
@@ -123,22 +141,46 @@ fun SettingsScreen(
     // Collect Live Weight from Scale
     val liveWeight by (bleScaleManager?.liveWeight?.collectAsState()) ?: remember { mutableStateOf(0f) }
 
+    // Helper to show notification banner
+    fun showBanner(type: NotificationType, title: String, message: String) {
+        notificationType = type
+        notificationTitle = title
+        notificationMessage = message
+        showNotificationBanner = true
+    }
+
     // Handle one-shot events from ViewModel
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is SettingsViewModel.Event.SyncSuccess -> {
-                    Toast.makeText(context, "All data synced to cloud \u2713", Toast.LENGTH_SHORT).show()
+                    showBanner(
+                        NotificationType.SUCCESS,
+                        "Sync Complete",
+                        "All data synced successfully to cloud ✓"
+                    )
                 }
                 is SettingsViewModel.Event.SyncPartial -> {
-                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+                    showBanner(
+                        NotificationType.WARNING,
+                        "Partial Sync",
+                        event.message
+                    )
                 }
                 is SettingsViewModel.Event.SyncError -> {
-                    Toast.makeText(context, "Sync failed: ${event.message}", Toast.LENGTH_SHORT).show()
+                    showBanner(
+                        NotificationType.ERROR,
+                        "Sync Failed",
+                        event.message
+                    )
                 }
                 is SettingsViewModel.Event.WipeSuccess -> {
                     showWipeDialog = false
-                    showSuccessBanner = true
+                    showBanner(
+                        NotificationType.SUCCESS,
+                        "Data Wiped Successfully",
+                        "Your device and cloud data have been cleared."
+                    )
                 }
                 is SettingsViewModel.Event.LogoutReady -> {
                     onLogout()
@@ -147,11 +189,11 @@ fun SettingsScreen(
         }
     }
 
-    // Auto-hide the success banner after 3 seconds
-    LaunchedEffect(showSuccessBanner) {
-        if (showSuccessBanner) {
-            delay(3000)
-            showSuccessBanner = false
+    // Auto-hide the notification banner after 4 seconds
+    LaunchedEffect(showNotificationBanner) {
+        if (showNotificationBanner) {
+            delay(4000)
+            showNotificationBanner = false
         }
     }
 
@@ -211,7 +253,7 @@ fun SettingsScreen(
                     Column {
                         SettingsRow(icon = Icons.Default.Person, title = "Edit Profile", subtitle = "Update your height, weight, and goals", iconColor = Color(0xFF3B82F6), onClick = { onNavigate("editProfile") })
                         SettingsDivider()
-                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { Toast.makeText(context, "Password settings coming soon", Toast.LENGTH_SHORT).show() })
+                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { showBanner(NotificationType.INFO, "Coming Soon", "Password settings will be available in a future update.") })
                     }
                 }
 
@@ -221,7 +263,7 @@ fun SettingsScreen(
                 Text("Preferences", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
-                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { Toast.makeText(context, "Notifications coming soon", Toast.LENGTH_SHORT).show() })
+                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { showBanner(NotificationType.INFO, "Coming Soon", "Notification settings will be available in a future update.") })
                         SettingsDivider()
                         SettingsRow(
                             icon = Icons.Default.Sync,
@@ -258,7 +300,7 @@ fun SettingsScreen(
                                     weightInput = ""
                                     showCalibrationDialog = true
                                 } else {
-                                    Toast.makeText(context, "Scale is not connected. Please pair first.", Toast.LENGTH_SHORT).show()
+                                    showBanner(NotificationType.WARNING, "Scale Not Connected", "Please pair your Bluetooth scale first.")
                                 }
                             }
                         )
@@ -271,7 +313,7 @@ fun SettingsScreen(
                 Text("About", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
-                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { Toast.makeText(context, "Opening Privacy Notice...", Toast.LENGTH_SHORT).show() })
+                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { showBanner(NotificationType.INFO, "Privacy Notice", "Privacy policy details coming soon.") })
                     }
                 }
 
@@ -298,75 +340,31 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(40.dp)) // Extra padding at bottom
             }
 
-            // --- MODERN ANIMATED SUCCESS BANNER ---
-            AnimatedVisibility(
-                visible = showSuccessBanner,
-                enter = slideInVertically(initialOffsetY = { -it - 50 }, animationSpec = tween(500)) + fadeIn(tween(500)),
-                exit = slideOutVertically(targetOffsetY = { -it - 50 }, animationSpec = tween(500)) + fadeOut(tween(500)),
-                modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 16.dp)
-            ) {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF10B981), Color(0xFF059669))))
-                            .padding(16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.2f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = "Success", tint = Color.White, modifier = Modifier.size(24.dp))
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text("Data Wiped Successfully", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("Your device and cloud data have been cleared.", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
-                            }
-                        }
-                    }
-                }
-            }
+            // --- PREMIUM NOTIFICATION BANNER ---
+            NotificationBanner(
+                visible = showNotificationBanner,
+                type = notificationType,
+                title = notificationTitle,
+                message = notificationMessage,
+                onDismiss = { showNotificationBanner = false },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .zIndex(10f)
+            )
 
             // --- CALIBRATION SUCCESS BANNER ---
-            AnimatedVisibility(
+            NotificationBanner(
                 visible = showCalibrationBanner,
-                enter = slideInVertically(initialOffsetY = { -it - 50 }, animationSpec = tween(500)) + fadeIn(tween(500)),
-                exit = slideOutVertically(targetOffsetY = { -it - 50 }, animationSpec = tween(500)) + fadeOut(tween(500)),
-                modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 16.dp)
-            ) {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF3B82F6), Color(0xFF6366F1))))
-                            .padding(16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.2f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = "Success", tint = Color.White, modifier = Modifier.size(24.dp))
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(calibrationBannerMessage, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("Your scale is now accurately calibrated.", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
-                            }
-                        }
-                    }
-                }
-            }
+                type = NotificationType.INFO,
+                title = calibrationBannerMessage,
+                message = "Your scale is now accurately calibrated.",
+                onDismiss = { showCalibrationBanner = false },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .zIndex(10f)
+            )
         }
     }
 
@@ -555,7 +553,11 @@ fun SettingsScreen(
                                     calibrationStep = CalibrationStep.CALIBRATING
                                     bleScaleManager?.sendCalibrateCommand(weight)
                                 } else {
-                                    Toast.makeText(context, "Enter a valid weight in grams", Toast.LENGTH_SHORT).show()
+                                    showBanner(
+                                        NotificationType.WARNING,
+                                        "Invalid Weight",
+                                        "Enter a valid weight in grams"
+                                    )
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
@@ -615,4 +617,125 @@ fun SettingsRow(
 @Composable
 fun SettingsDivider() {
     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF3F4F6)).padding(horizontal = 20.dp))
+}
+
+/**
+ * Premium animated notification banner that slides in from the top.
+ *
+ * Supports 4 types (SUCCESS, ERROR, WARNING, INFO) each with a curated
+ * gradient palette, matching icon, and smooth spring animation.
+ * Includes a dismiss button for manual close.
+ */
+@Composable
+private fun NotificationBanner(
+    visible: Boolean,
+    type: NotificationType,
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val (gradient, icon) = when (type) {
+        NotificationType.SUCCESS -> Pair(
+            listOf(Color(0xFF10B981), Color(0xFF059669)),
+            Icons.Default.CheckCircle
+        )
+        NotificationType.ERROR -> Pair(
+            listOf(Color(0xFFEF4444), Color(0xFFDC2626)),
+            Icons.Default.Error
+        )
+        NotificationType.WARNING -> Pair(
+            listOf(Color(0xFFF59E0B), Color(0xFFD97706)),
+            Icons.Default.Warning
+        )
+        NotificationType.INFO -> Pair(
+            listOf(Color(0xFF3B82F6), Color(0xFF6366F1)),
+            Icons.Default.Info
+        )
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(
+            initialOffsetY = { -it - 60 },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
+        ) + fadeIn(tween(300)),
+        exit = slideOutVertically(
+            targetOffsetY = { -it - 60 },
+            animationSpec = tween(400)
+        ) + fadeOut(tween(300)),
+        modifier = modifier
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(16.dp, RoundedCornerShape(16.dp))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.horizontalGradient(gradient))
+                    .padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Icon circle
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            icon,
+                            contentDescription = type.name,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    // Text content
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (message.isNotBlank()) {
+                            Text(
+                                text = message,
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 13.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                lineHeight = 17.sp
+                            )
+                        }
+                    }
+                    // Dismiss button
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
