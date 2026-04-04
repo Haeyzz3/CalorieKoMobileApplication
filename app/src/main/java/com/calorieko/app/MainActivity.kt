@@ -524,7 +524,8 @@ fun AppNavigation() {
                 factory = com.calorieko.app.viewmodel.SettingsViewModel.provideFactory(
                     auth = auth,
                     db = db,
-                    firestoreSyncRepo = firestoreSyncRepo
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    appContext = context.applicationContext
                 )
             )
             SettingsScreen(

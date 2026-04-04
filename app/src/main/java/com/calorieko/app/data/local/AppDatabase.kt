@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.DishIngredient
@@ -15,7 +17,7 @@ import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 8 to 9
+// INCREMENT version from 9 to 10 — adds updated_at column for delta sync
 @Database(
     entities = [
         FoodItem::class,
@@ -28,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -46,6 +48,35 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        /**
+         * Migration 9 → 10: Adds `updated_at` column to all sync-enabled tables.
+         *
+         * Uses ALTER TABLE to preserve existing user data. Default value is set to
+         * the current epoch millis so that pre-existing rows participate in the
+         * first delta sync (they will all be treated as "modified since epoch 0").
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val now = System.currentTimeMillis()
+
+                db.execSQL(
+                    "ALTER TABLE activity_log_table ADD COLUMN updated_at INTEGER NOT NULL DEFAULT $now"
+                )
+                db.execSQL(
+                    "ALTER TABLE meal_log_table ADD COLUMN updated_at INTEGER NOT NULL DEFAULT $now"
+                )
+                db.execSQL(
+                    "ALTER TABLE meal_log_item_table ADD COLUMN updated_at INTEGER NOT NULL DEFAULT $now"
+                )
+                db.execSQL(
+                    "ALTER TABLE daily_nutrition_summary_table ADD COLUMN updated_at INTEGER NOT NULL DEFAULT $now"
+                )
+                db.execSQL(
+                    "ALTER TABLE user_profile ADD COLUMN updated_at INTEGER NOT NULL DEFAULT $now"
+                )
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -55,6 +86,9 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
+                    // Register the migration so existing data is preserved
+                    .addMigrations(MIGRATION_9_10)
+                    // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

@@ -66,5 +66,8 @@ data class MealLogItemEntity(
     @ColumnInfo(name = "vitamin_a") val vitaminA: Float = 0f,
     @ColumnInfo(name = "vitamin_c") val vitaminC: Float = 0f,
     @ColumnInfo(name = "calcium") val calcium: Float = 0f,
-    @ColumnInfo(name = "iron") val iron: Float = 0f
+    @ColumnInfo(name = "iron") val iron: Float = 0f,
+
+    // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )

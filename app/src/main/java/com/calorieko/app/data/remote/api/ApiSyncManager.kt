@@ -1,5 +1,7 @@
 package com.calorieko.app.data.remote.api
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import com.calorieko.app.data.local.ActivityLogDao
 import com.calorieko.app.data.local.DailyNutritionSummaryDao
@@ -11,18 +13,30 @@ import kotlinx.coroutines.tasks.await
  * Result of a sync-to-backend operation.
  */
 sealed class ApiSyncResult {
-    data class Success(val message: String, val lastSyncTimestamp: Long?) : ApiSyncResult()
+    data class Success(
+        val message: String,
+        val lastSyncTimestamp: Long?,
+        val conflicts: List<SyncConflict>? = null
+    ) : ApiSyncResult()
+
     data class Error(val message: String) : ApiSyncResult()
 }
 
 /**
- * Orchestrates the full data sync from local Room database to the Laravel backend.
+ * Orchestrates **delta** data sync from local Room database to the Laravel backend.
  *
- * Flow:
- * 1. Read all user data from Room DAOs
- * 2. Map Room entities → [SyncFullPayload] DTOs
- * 3. POST to `/api/sync/full` via Retrofit
- * 4. Return typed [ApiSyncResult]
+ * ── Delta Sync Strategy ──
+ * Instead of transmitting the entire Room database on every sync, this manager:
+ * 1. Retrieves `lastSuccessfulSyncTimestamp` from SharedPreferences (default: 0).
+ * 2. Queries each DAO for records where `updated_at > lastSuccessfulSyncTimestamp`.
+ * 3. Maps only the modified Room entities → [SyncFullPayload] DTOs (with `updatedAt`).
+ * 4. POSTs the delta payload to `/api/sync/full` via Retrofit.
+ * 5. On success, persists the new `lastSuccessfulSyncTimestamp` to SharedPreferences.
+ *
+ * ── Conflict Resolution ──
+ * The payload includes `updated_at` on every entity. The Laravel backend implements
+ * "Last Write Wins" — if the server record is newer, the mobile update is rejected
+ * for that entity. The response includes a `conflicts` list detailing rejections.
  *
  * This class does NOT handle network checks — the caller is responsible
  * for verifying connectivity before invoking [syncToBackend].
@@ -32,33 +46,63 @@ class ApiSyncManager(
     private val userDao: UserDao,
     private val activityLogDao: ActivityLogDao,
     private val mealLogDao: MealLogDao,
-    private val dailyNutritionSummaryDao: DailyNutritionSummaryDao
+    private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
+    private val context: Context
 ) {
     companion object {
         private const val TAG = "ApiSyncManager"
+        private const val PREFS_NAME = "calorieko_sync_prefs"
+        private const val KEY_LAST_SYNC_TIMESTAMP = "last_successful_sync_timestamp"
+    }
+
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     /**
-     * Compiles all local data for the given user and pushes it to the backend.
+     * Returns the epoch-millis timestamp of the last successful sync.
+     * Returns 0 on first run, which causes ALL records to be included (initial full sync).
+     */
+    private fun getLastSuccessfulSyncTimestamp(): Long {
+        return prefs.getLong(KEY_LAST_SYNC_TIMESTAMP, 0L)
+    }
+
+    /**
+     * Persists the timestamp of a successful sync so subsequent syncs
+     * only transmit records modified after this point.
+     */
+    private fun setLastSuccessfulSyncTimestamp(timestamp: Long) {
+        prefs.edit().putLong(KEY_LAST_SYNC_TIMESTAMP, timestamp).apply()
+    }
+
+    /**
+     * Compiles only **modified** local data for the given user and pushes it to the backend.
+     *
+     * On first sync (lastSuccessfulSyncTimestamp == 0), this effectively becomes a full sync
+     * since every record's `updated_at` is greater than 0.
      *
      * Must be called from a coroutine on [kotlinx.coroutines.Dispatchers.IO].
      */
     suspend fun syncToBackend(uid: String): ApiSyncResult {
         return try {
-            Log.d(TAG, "Starting full sync to backend for UID: $uid")
+            val lastSync = getLastSuccessfulSyncTimestamp()
+            Log.d(TAG, "Starting DELTA sync for UID: $uid (lastSync=$lastSync)")
 
-            // ── 1. Fetch local data from Room ──
+            // ── 1. Fetch ONLY modified data from Room (delta queries) ──
             val profile = userDao.getUser(uid)
-            val activityLogs = activityLogDao.getAllLogsForUser(uid)
-            val mealLogsWithItems = mealLogDao.getAllMealLogsWithItems(uid)
-            val nutritionSummaries = dailyNutritionSummaryDao.getAllSummariesForUser(uid)
+            val activityLogs = activityLogDao.getLogsModifiedSince(uid, lastSync)
+            val mealLogsWithItems = mealLogDao.getMealLogsWithItemsModifiedSince(uid, lastSync)
+            val nutritionSummaries = dailyNutritionSummaryDao.getSummariesModifiedSince(uid, lastSync)
 
-            Log.d(TAG, "Local data: profile=${profile != null}, " +
+            Log.d(TAG, "Delta payload: profile=${profile != null}, " +
                     "activities=${activityLogs.size}, meals=${mealLogsWithItems.size}, " +
                     "summaries=${nutritionSummaries.size}")
 
-            // ── 2. Build the sync payload ──
-            val syncProfile = profile?.let {
+            // ── 2. Build the delta sync payload (with updatedAt on every entity) ──
+
+            // Profile is always sent if it exists and was modified since last sync.
+            // If profile.updatedAt <= lastSync, we still send it as null (unchanged).
+            val syncProfile = profile?.takeIf { it.updatedAt > lastSync }?.let {
                 SyncProfile(
                     name = it.name,
                     email = it.email,
@@ -69,7 +113,8 @@ class ApiSyncManager(
                     activityLevel = it.activityLevel,
                     goal = it.goal,
                     streak = it.streak,
-                    level = it.level
+                    level = it.level,
+                    updatedAt = it.updatedAt
                 )
             }
 
@@ -79,6 +124,7 @@ class ApiSyncManager(
                     mealType = mealWithItems.mealLog.mealType,
                     timestamp = mealWithItems.mealLog.timestamp,
                     notes = mealWithItems.mealLog.notes,
+                    updatedAt = mealWithItems.mealLog.updatedAt,
                     items = mealWithItems.items.map { item ->
                         SyncMealItem(
                             foodId = item.foodId,
@@ -100,7 +146,8 @@ class ApiSyncManager(
                             vitaminA = item.vitaminA,
                             vitaminC = item.vitaminC,
                             calcium = item.calcium,
-                            iron = item.iron
+                            iron = item.iron,
+                            updatedAt = item.updatedAt
                         )
                     }
                 )
@@ -124,8 +171,10 @@ class ApiSyncManager(
                     movingTimeSeconds = log.movingTimeSeconds,
                     mapType = log.mapType,
                     notes = log.notes,
-                    activityTag = log.activityTag
+                    activityTag = log.activityTag,
+                    updatedAt = log.updatedAt
                 )
+
             }
 
             val syncSummaries = nutritionSummaries.map { summary ->
@@ -152,13 +201,28 @@ class ApiSyncManager(
                     breakfastCalories = summary.breakfastCalories,
                     lunchCalories = summary.lunchCalories,
                     dinnerCalories = summary.dinnerCalories,
-                    snacksCalories = summary.snacksCalories
+                    snacksCalories = summary.snacksCalories,
+                    updatedAt = summary.updatedAt
+                )
+            }
+
+            // Check if there's actually anything to sync
+            val hasData = syncProfile != null ||
+                    syncMeals.isNotEmpty() ||
+                    syncActivities.isNotEmpty() ||
+                    syncSummaries.isNotEmpty()
+
+            if (!hasData) {
+                Log.d(TAG, "No modified data since last sync — nothing to transmit.")
+                return ApiSyncResult.Success(
+                    message = "Already up to date — no changes to sync.",
+                    lastSyncTimestamp = lastSync
                 )
             }
 
             val payload = SyncFullPayload(
                 uid = uid,
-                lastSyncTimestamp = System.currentTimeMillis() / 1000,
+                lastSyncTimestamp = lastSync,
                 profile = syncProfile,
                 meals = syncMeals,
                 activities = syncActivities,
@@ -168,21 +232,29 @@ class ApiSyncManager(
             // ── 3. Authenticate and Send to backend ──
             val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                 ?: throw Exception("User not logged into Firebase")
-            
+
             // Suspend naturally instead of blocking in an OkHttp interceptor
             val token = user.getIdToken(true).await().token
                 ?: throw Exception("Failed to retrieve Firebase ID token")
 
-            Log.d(TAG, "Sending payload to /api/sync/full...")
+            Log.d(TAG, "Sending DELTA payload to /api/sync/full...")
             val response = apiService.syncFull("Bearer $token", payload)
 
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body?.success == true) {
-                    Log.d(TAG, "═══ Sync to backend SUCCEEDED: ${body.message} ═══")
+                    // ── 4. Persist the new sync timestamp ──
+                    val serverTimestamp = body.lastSuccessfulSync ?: System.currentTimeMillis()
+                    setLastSuccessfulSyncTimestamp(serverTimestamp)
+
+                    val conflictCount = body.conflicts?.size ?: 0
+                    Log.d(TAG, "═══ Delta sync SUCCEEDED: ${body.message} " +
+                            "(conflicts=$conflictCount) ═══")
+
                     ApiSyncResult.Success(
                         message = body.message,
-                        lastSyncTimestamp = body.lastSuccessfulSync
+                        lastSyncTimestamp = serverTimestamp,
+                        conflicts = body.conflicts
                     )
                 } else {
                     val errorMsg = body?.message ?: "Unknown server error"
@@ -199,5 +271,14 @@ class ApiSyncManager(
             Log.e(TAG, "Sync to backend failed", e)
             ApiSyncResult.Error(e.message ?: "Unknown error")
         }
+    }
+
+    /**
+     * Resets the last sync timestamp, forcing the next sync to transmit ALL records.
+     * Use this after a data wipe or account reset.
+     */
+    fun resetSyncTimestamp() {
+        prefs.edit().remove(KEY_LAST_SYNC_TIMESTAMP).apply()
+        Log.d(TAG, "Sync timestamp reset — next sync will be a full sync.")
     }
 }

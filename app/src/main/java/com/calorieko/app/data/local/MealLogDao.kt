@@ -50,4 +50,11 @@ interface MealLogDao {
     @Transaction
     @Query("SELECT * FROM meal_log_table WHERE uid = :uid ORDER BY timestamp ASC")
     suspend fun getAllMealLogsWithItems(uid: String): List<MealLogWithItems>
+
+    // ═══ DELTA SYNC QUERIES ═══
+
+    /** Fetch only meal logs (with items) modified after the given timestamp (for delta sync payloads). */
+    @Transaction
+    @Query("SELECT * FROM meal_log_table WHERE uid = :uid AND updated_at > :sinceTimestamp ORDER BY timestamp ASC")
+    suspend fun getMealLogsWithItemsModifiedSince(uid: String, sinceTimestamp: Long): List<MealLogWithItems>
 }

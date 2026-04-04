@@ -1,5 +1,6 @@
 package com.calorieko.app.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -16,5 +17,8 @@ data class UserProfile(
     val goal: String,
     val streak: Int = 0,  // Added for real-time tracking
     val level: Int = 1,   // Added for real-time tracking
-    val photoUrl: String = "" // Profile photo URL from backend
+    val photoUrl: String = "", // Profile photo URL from backend
+
+    // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )

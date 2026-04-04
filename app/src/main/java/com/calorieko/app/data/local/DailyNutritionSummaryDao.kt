@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 
 @Dao
@@ -37,4 +36,10 @@ interface DailyNutritionSummaryDao {
     /** Fetch all nutrition summaries for a user (for cloud sync). */
     @Query("SELECT * FROM daily_nutrition_summary_table WHERE uid = :uid ORDER BY date_epoch_day ASC")
     suspend fun getAllSummariesForUser(uid: String): List<DailyNutritionSummaryEntity>
+
+    // ═══ DELTA SYNC QUERIES ═══
+
+    /** Fetch only summaries modified after the given timestamp (for delta sync payloads). */
+    @Query("SELECT * FROM daily_nutrition_summary_table WHERE uid = :uid AND updated_at > :sinceTimestamp ORDER BY date_epoch_day ASC")
+    suspend fun getSummariesModifiedSince(uid: String, sinceTimestamp: Long): List<DailyNutritionSummaryEntity>
 }

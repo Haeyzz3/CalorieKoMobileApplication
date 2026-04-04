@@ -89,7 +89,8 @@ class UserRepository(
                 sex = sex,
                 activityLevel = activityLevel,
                 goal = goal,
-                photoUrl = finalPhotoUrl
+                photoUrl = finalPhotoUrl,
+                updatedAt = System.currentTimeMillis() // Refresh for delta sync
             )
         } else {
             UserProfile(

@@ -48,5 +48,8 @@ data class DailyNutritionSummaryEntity(
     @ColumnInfo(name = "breakfast_calories") val breakfastCalories: Float = 0f,
     @ColumnInfo(name = "lunch_calories") val lunchCalories: Float = 0f,
     @ColumnInfo(name = "dinner_calories") val dinnerCalories: Float = 0f,
-    @ColumnInfo(name = "snacks_calories") val snacksCalories: Float = 0f
+    @ColumnInfo(name = "snacks_calories") val snacksCalories: Float = 0f,
+
+    // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )

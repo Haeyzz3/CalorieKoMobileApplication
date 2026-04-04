@@ -24,5 +24,8 @@ data class MealLogEntity(
     @ColumnInfo(name = "timestamp") val timestamp: Long,
 
     /** Optional user notes */
-    @ColumnInfo(name = "notes") val notes: String? = null
+    @ColumnInfo(name = "notes") val notes: String? = null,
+
+    // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )

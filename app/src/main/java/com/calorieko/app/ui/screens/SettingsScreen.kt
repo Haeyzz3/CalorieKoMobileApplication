@@ -1,4 +1,4 @@
-﻿package com.calorieko.app.ui.screens
+package com.calorieko.app.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -129,6 +129,9 @@ fun SettingsScreen(
             when (event) {
                 is SettingsViewModel.Event.SyncSuccess -> {
                     Toast.makeText(context, "All data synced to cloud \u2713", Toast.LENGTH_SHORT).show()
+                }
+                is SettingsViewModel.Event.SyncPartial -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
                 }
                 is SettingsViewModel.Event.SyncError -> {
                     Toast.makeText(context, "Sync failed: ${event.message}", Toast.LENGTH_SHORT).show()

@@ -33,4 +33,10 @@ interface ActivityLogDao {
     /** Fetch all activity logs for a user (for cloud sync). */
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid ORDER BY timestamp ASC")
     suspend fun getAllLogsForUser(uid: String): List<ActivityLogEntity>
+
+    // ═══ DELTA SYNC QUERIES ═══
+
+    /** Fetch only activity logs modified after the given timestamp (for delta sync payloads). */
+    @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND updated_at > :sinceTimestamp ORDER BY timestamp ASC")
+    suspend fun getLogsModifiedSince(uid: String, sinceTimestamp: Long): List<ActivityLogEntity>
 }

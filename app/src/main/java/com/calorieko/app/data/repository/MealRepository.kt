@@ -79,6 +79,7 @@ class MealRepository(
         val updated = (existing ?: DailyNutritionSummaryEntity(uid = uid, dateEpochDay = today)).let { s ->
             s.copy(
                 id = s.id,
+                updatedAt = System.currentTimeMillis(), // Refresh for delta sync
                 totalCalories = s.totalCalories + mealCalories,
                 totalProtein = s.totalProtein + dishes.sumOf { it.protein.toDouble() }.toFloat(),
                 totalCarbs = s.totalCarbs + dishes.sumOf { it.carbs.toDouble() }.toFloat(),

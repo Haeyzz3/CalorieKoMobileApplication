@@ -32,7 +32,8 @@ data class SyncProfile(
     @SerializedName("activityLevel") val activityLevel: String,
     @SerializedName("goal") val goal: String,
     @SerializedName("streak") val streak: Int,
-    @SerializedName("level") val level: Int
+    @SerializedName("level") val level: Int,
+    @SerializedName("updated_at") val updatedAt: Long
 )
 
 // ── Meal Log (parent + items) ──
@@ -42,6 +43,7 @@ data class SyncMeal(
     @SerializedName("meal_type") val mealType: String,
     @SerializedName("timestamp") val timestamp: Long,
     @SerializedName("notes") val notes: String?,
+    @SerializedName("updated_at") val updatedAt: Long,
     @SerializedName("items") val items: List<SyncMealItem>
 )
 
@@ -65,7 +67,8 @@ data class SyncMealItem(
     @SerializedName("vitamin_a") val vitaminA: Float,
     @SerializedName("vitamin_c") val vitaminC: Float,
     @SerializedName("calcium") val calcium: Float,
-    @SerializedName("iron") val iron: Float
+    @SerializedName("iron") val iron: Float,
+    @SerializedName("updated_at") val updatedAt: Long
 )
 
 // ── Activity Log ──
@@ -87,7 +90,8 @@ data class SyncActivity(
     @SerializedName("movingTimeSeconds") val movingTimeSeconds: Long?,
     @SerializedName("mapType") val mapType: String?,
     @SerializedName("notes") val notes: String?,
-    @SerializedName("activityTag") val activityTag: String?
+    @SerializedName("activityTag") val activityTag: String?,
+    @SerializedName("updated_at") val updatedAt: Long
 )
 
 // ── Daily Nutrition Summary ──
@@ -115,7 +119,8 @@ data class SyncNutritionSummary(
     @SerializedName("breakfast_calories") val breakfastCalories: Float,
     @SerializedName("lunch_calories") val lunchCalories: Float,
     @SerializedName("dinner_calories") val dinnerCalories: Float,
-    @SerializedName("snacks_calories") val snacksCalories: Float
+    @SerializedName("snacks_calories") val snacksCalories: Float,
+    @SerializedName("updated_at") val updatedAt: Long
 )
 
 // ── Server Response ──
@@ -124,5 +129,16 @@ data class SyncFullResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("message") val message: String,
     @SerializedName("last_successful_sync") val lastSuccessfulSync: Long?,
-    @SerializedName("error") val error: String?
+    @SerializedName("error") val error: String?,
+    @SerializedName("conflicts") val conflicts: List<SyncConflict>? = null
+)
+
+/**
+ * Represents a single entity that was rejected by the server
+ * because the server's record was newer (admin override).
+ */
+data class SyncConflict(
+    @SerializedName("entity_type") val entityType: String,
+    @SerializedName("entity_id") val entityId: String,
+    @SerializedName("reason") val reason: String
 )

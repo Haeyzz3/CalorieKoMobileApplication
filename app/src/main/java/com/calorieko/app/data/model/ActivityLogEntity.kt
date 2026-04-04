@@ -1,5 +1,6 @@
 package com.calorieko.app.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -29,5 +30,8 @@ data class ActivityLogEntity(
     val mapType: String? = null,
     val photoUri: String? = null,
     val notes: String? = null,
-    val activityTag: String? = null
+    val activityTag: String? = null,
+
+    // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )
