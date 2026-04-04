@@ -45,16 +45,14 @@ import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.remote.CloudRestoreManager
 import com.calorieko.app.data.remote.FirestoreSyncRepository
-import com.calorieko.app.data.remote.RestoreResult
 import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoTheme
+import com.calorieko.app.viewmodel.RestoreViewModel
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import androidx.compose.material3.TextButton
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,8 +101,21 @@ fun AppNavigation() {
         )
     }
 
-    // Restore-in-progress state for the syncing overlay
-    var restoreInProgress by remember { mutableStateOf(false) }
+    val restoreViewModel: RestoreViewModel = viewModel(
+        factory = RestoreViewModel.provideFactory(cloudRestoreManager)
+    )
+    val restoreState by restoreViewModel.state.collectAsState()
+
+    LaunchedEffect(restoreState) {
+        when (restoreState) {
+            is RestoreViewModel.RestoreState.Success,
+            is RestoreViewModel.RestoreState.NotNeeded,
+            is RestoreViewModel.RestoreState.NoCloudData -> {
+                navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
+            }
+            else -> {}
+        }
+    }
 
 
     // Use mutableStateOf() instead of mutableIntStateOf/mutableDoubleStateOf for universal compatibility
@@ -145,23 +156,7 @@ fun AppNavigation() {
                 onAlreadyLoggedIn = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
-                        restoreInProgress = true
-                        scope.launch(Dispatchers.IO) {
-                            val result = cloudRestoreManager.restoreIfNeeded(uid)
-                            withContext(Dispatchers.Main) {
-                                restoreInProgress = false
-                                if (result is RestoreResult.Failed) {
-                                    Toast.makeText(
-                                        context,
-                                        "Cloud restore failed: ${result.error}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                                navController.navigate("dashboard") {
-                                    popUpTo("splash") { inclusive = true }
-                                }
-                            }
-                        }
+                        restoreViewModel.restore(uid)
                     } else {
                         navController.navigate("dashboard") {
                             popUpTo("splash") { inclusive = true }
@@ -197,23 +192,7 @@ fun AppNavigation() {
                 onLoginSuccess = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
-                        restoreInProgress = true
-                        scope.launch(Dispatchers.IO) {
-                            val result = cloudRestoreManager.restoreIfNeeded(uid)
-                            withContext(Dispatchers.Main) {
-                                restoreInProgress = false
-                                if (result is RestoreResult.Failed) {
-                                    Toast.makeText(
-                                        context,
-                                        "Cloud restore failed: ${result.error}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                                navController.navigate("dashboard") {
-                                    popUpTo(0) { inclusive = true }
-                                }
-                            }
-                        }
+                        restoreViewModel.restore(uid)
                     } else {
                         navController.navigate("dashboard") {
                             popUpTo(0) { inclusive = true }
@@ -656,7 +635,7 @@ fun AppNavigation() {
 
     // ═══ Syncing Overlay ═══
     AnimatedVisibility(
-        visible = restoreInProgress,
+        visible = restoreState is RestoreViewModel.RestoreState.Restoring || restoreState is RestoreViewModel.RestoreState.Failed,
         enter = fadeIn(),
         exit = fadeOut()
     ) {
@@ -692,28 +671,68 @@ fun AppNavigation() {
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Text(
-                    text = "Syncing your data...",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                if (restoreState is RestoreViewModel.RestoreState.Failed) {
+                    val errorMsg = (restoreState as RestoreViewModel.RestoreState.Failed).error
+                    Text(
+                        text = "Restore failed",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "Restoring from cloud",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
+                    Text(
+                        text = errorMsg,
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                CircularProgressIndicator(
-                    color = Color.White,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(36.dp)
-                )
+                    androidx.compose.material3.Button(
+                        onClick = { restoreViewModel.retry() },
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = CalorieKoGreen
+                        )
+                    ) {
+                        Text("Retry")
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextButton(
+                        onClick = {
+                            navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
+                        }
+                    ) {
+                        Text("Skip for now", color = Color.White)
+                    }
+                } else {
+                    Text(
+                        text = "Syncing your data...",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Restoring from cloud",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
             }
         }
     }
