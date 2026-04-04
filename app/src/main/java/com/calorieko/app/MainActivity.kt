@@ -1,7 +1,6 @@
 package com.calorieko.app
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -41,7 +40,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
-import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.remote.CloudRestoreManager
 import com.calorieko.app.data.remote.FirestoreSyncRepository
@@ -53,6 +51,7 @@ import com.calorieko.app.ui.theme.CalorieKoTheme
 import com.calorieko.app.viewmodel.RestoreViewModel
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material3.TextButton
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
