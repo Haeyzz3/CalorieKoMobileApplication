@@ -80,4 +80,11 @@ interface PantryDao {
      */
     @Query("SELECT ingredient_name FROM DISH_INGREDIENTS_TABLE WHERE dish_label = :dishLabel")
     suspend fun getIngredientsForDish(dishLabel: String): List<String>
+
+    /**
+     * Returns the total row count of the dish ingredients table.
+     * Used by FoodDatabaseCallback.onOpen() to check if seeding is needed.
+     */
+    @Query("SELECT COUNT(*) FROM DISH_INGREDIENTS_TABLE")
+    suspend fun getDishIngredientCount(): Int
 }

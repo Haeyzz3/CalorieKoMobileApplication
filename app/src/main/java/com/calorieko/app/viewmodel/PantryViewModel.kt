@@ -40,13 +40,13 @@ data class DishResult(
 )
 
 class PantryViewModel(
+    private val auth: FirebaseAuth,
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
     private val foodDao: FoodDao,
     private val firestoreSyncRepo: FirestoreSyncRepository
 ) : ViewModel() {
 
-    private val auth = FirebaseAuth.getInstance()
     private val uid: String get() = auth.currentUser?.uid ?: ""
 
     // --- Cosine Similarity threshold for "Almost Ready" ---
@@ -55,6 +55,7 @@ class PantryViewModel(
         const val ALMOST_READY_THRESHOLD = 0.6f
 
         fun provideFactory(
+            auth: FirebaseAuth,
             pantryDao: PantryDao,
             mealPlanDao: MealPlanDao,
             foodDao: FoodDao,
@@ -63,7 +64,7 @@ class PantryViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(pantryDao, mealPlanDao, foodDao, firestoreSyncRepo) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, foodDao, firestoreSyncRepo) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

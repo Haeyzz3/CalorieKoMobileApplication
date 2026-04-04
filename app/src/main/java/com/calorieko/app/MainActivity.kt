@@ -549,6 +549,7 @@ fun AppNavigation() {
         composable("pantry") {
             val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.PantryViewModel.provideFactory(
+                    auth = auth,
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
                     foodDao = db.foodDao(),
