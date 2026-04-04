@@ -20,6 +20,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
  * ViewModel for SettingsScreen.
@@ -63,6 +67,15 @@ class SettingsViewModel(
 
     private val _isWipingData = MutableStateFlow(false)
     val isWipingData: StateFlow<Boolean> = _isWipingData.asStateFlow()
+
+    // ── Last Synced Timestamp ──
+
+    private val syncPrefs = appContext.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
+
+    private val _lastSyncedAt = MutableStateFlow(
+        formatSyncTimestamp(syncPrefs.getLong(KEY_LAST_SYNC, 0L))
+    )
+    val lastSyncedAt: StateFlow<String> = _lastSyncedAt.asStateFlow()
 
     // ── Lazy API Sync Manager ──
 
@@ -145,6 +158,13 @@ class SettingsViewModel(
 
                 _isSyncing.value = false
 
+                // ── Persist last-sync timestamp if at least one backend succeeded ──
+                if (firestoreSuccess || apiResult is ApiSyncResult.Success) {
+                    val now = System.currentTimeMillis()
+                    syncPrefs.edit().putLong(KEY_LAST_SYNC, now).apply()
+                    _lastSyncedAt.value = formatSyncTimestamp(now)
+                }
+
                 // ── Report outcome ──
                 when {
                     firestoreSuccess && apiResult is ApiSyncResult.Success -> {
@@ -200,6 +220,9 @@ class SettingsViewModel(
                     db.clearAllTables()
                     // 3. Reset delta sync timestamp (critical!)
                     apiSyncManager.resetSyncTimestamp()
+                    // 4. Clear last-sync display timestamp
+                    syncPrefs.edit().remove(KEY_LAST_SYNC).apply()
+                    _lastSyncedAt.value = formatSyncTimestamp(0L)
                 }
                 _isWipingData.value = false
                 _events.send(Event.WipeSuccess)
@@ -226,6 +249,48 @@ class SettingsViewModel(
     }
 
     companion object {
+        private const val KEY_LAST_SYNC = "last_successful_sync_ms"
+
+        /**
+         * Formats a sync timestamp into a human-readable relative string.
+         * - 0L → "Never synced"
+         * - <1 min ago → "Just now"
+         * - <60 min → "X min ago"
+         * - Today → "Today, h:mm a"
+         * - Yesterday → "Yesterday, h:mm a"
+         * - Older → "MMM d, h:mm a"
+         */
+        fun formatSyncTimestamp(timestampMs: Long): String {
+            if (timestampMs == 0L) return "Never synced"
+
+            val now = System.currentTimeMillis()
+            val diffMs = now - timestampMs
+            val diffMin = diffMs / 60_000
+
+            return when {
+                diffMin < 1 -> "Just now"
+                diffMin < 60 -> "$diffMin min ago"
+                else -> {
+                    val syncCal = Calendar.getInstance().apply { timeInMillis = timestampMs }
+                    val nowCal = Calendar.getInstance()
+                    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+                    val dateTimeFormat = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+
+                    when {
+                        syncCal.get(Calendar.YEAR) == nowCal.get(Calendar.YEAR) &&
+                                syncCal.get(Calendar.DAY_OF_YEAR) == nowCal.get(Calendar.DAY_OF_YEAR) ->
+                            "Today, ${timeFormat.format(Date(timestampMs))}"
+
+                        syncCal.get(Calendar.YEAR) == nowCal.get(Calendar.YEAR) &&
+                                syncCal.get(Calendar.DAY_OF_YEAR) == nowCal.get(Calendar.DAY_OF_YEAR) - 1 ->
+                            "Yesterday, ${timeFormat.format(Date(timestampMs))}"
+
+                        else -> dateTimeFormat.format(Date(timestampMs))
+                    }
+                }
+            }
+        }
+
         fun provideFactory(
             auth: FirebaseAuth,
             db: AppDatabase,

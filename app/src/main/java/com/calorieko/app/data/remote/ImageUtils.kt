@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import java.io.ByteArrayOutputStream
@@ -17,6 +18,23 @@ import java.io.ByteArrayOutputStream
 object ImageUtils {
     private const val TAG = "ImageUtils"
     const val BASE64_PREFIX = "base64:"
+
+    /**
+     * In-memory LRU cache for decoded [ImageBitmap] instances.
+     *
+     * Prevents redundant Base64 decode + bitmap allocation when the user
+     * navigates between screens that display the same image (e.g.,
+     * ProfileScreen → DashboardScreen → back to ProfileScreen).
+     *
+     * Max size: 4 MB.  Typical profile photo (300×300 ARGB_8888) ≈ 360 KB;
+     * typical workout photo (800×800) ≈ 2.5 MB.  4 MB comfortably holds both.
+     */
+    private val bitmapCache = object : LruCache<String, ImageBitmap>(4 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int {
+            // Approximate memory: width × height × 4 bytes (ARGB_8888)
+            return value.width * value.height * 4
+        }
+    }
 
     /**
      * Maximum raw byte size before Base64 encoding.
@@ -112,17 +130,28 @@ object ImageUtils {
     }
 
     /**
-     * Decodes a "base64:..." prefixed string back into a Jetpack Compose ImageBitmap.
+     * Decodes a "base64:..." prefixed string back into a Jetpack Compose [ImageBitmap].
+     *
+     * Results are cached in an LRU memory cache keyed by the string's
+     * [hashCode], so repeated calls with the same input skip decoding.
      */
     fun decodeBase64ToBitmap(base64Str: String): ImageBitmap? {
+        if (!base64Str.startsWith(BASE64_PREFIX)) return null
+
+        val cacheKey = base64Str.hashCode().toString()
+
+        // Fast path: return cached bitmap if available
+        bitmapCache.get(cacheKey)?.let { return it }
+
         return try {
-            if (!base64Str.startsWith(BASE64_PREFIX)) return null
-            
             val cleanBase64 = base64Str.removePrefix(BASE64_PREFIX)
             val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
             val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-            
-            bitmap?.asImageBitmap()
+
+            bitmap?.asImageBitmap()?.also { imageBitmap ->
+                bitmapCache.put(cacheKey, imageBitmap)
+                Log.d(TAG, "Cached decoded bitmap (${imageBitmap.width}x${imageBitmap.height})")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to decode Base64 image", e)
             null

@@ -124,6 +124,7 @@ fun SettingsScreen(
     // Collect ViewModel State
     val isSyncing by viewModel.isSyncing.collectAsState()
     val isWipingData by viewModel.isWipingData.collectAsState()
+    val lastSyncedAt by viewModel.lastSyncedAt.collectAsState()
 
     // State for the notification banner system
     var showNotificationBanner by remember { mutableStateOf(false) }
@@ -268,7 +269,7 @@ fun SettingsScreen(
                         SettingsRow(
                             icon = Icons.Default.Sync,
                             title = if (isSyncing) "Syncing..." else "Sync Data",
-                            subtitle = "Manually backup to cloud",
+                            subtitle = if (isSyncing) "Backing up to cloud..." else "Last synced: $lastSyncedAt",
                             iconColor = CalorieKoGreen,
                             onClick = {
                                 viewModel.syncAllData()
