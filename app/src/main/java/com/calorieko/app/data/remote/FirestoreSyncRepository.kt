@@ -117,6 +117,53 @@ class FirestoreSyncRepository {
         }
     }
 
+    /**
+     * Batch-syncs a list of activity logs using [WriteBatch].
+     * Used by the full-sync path in SettingsViewModel.
+     *
+     * Respects the Firestore 500-operation-per-batch limit via [chunked].
+     * The single-record [syncActivityLog] is still used for real-time
+     * write-through sync from repositories.
+     */
+    suspend fun syncActivityLogsBatch(uid: String, logs: List<ActivityLogEntity>) {
+        if (logs.isEmpty()) return
+        try {
+            val userRef = db.collection(USERS_COLLECTION).document(uid)
+            logs.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (log in chunk) {
+                    val docRef = userRef.collection("activityLogs").document(log.id.toString())
+                    val data = hashMapOf<String, Any?>(
+                        "type" to log.type,
+                        "name" to log.name,
+                        "timeString" to log.timeString,
+                        "weightOrDuration" to log.weightOrDuration,
+                        "calories" to log.calories,
+                        "protein" to log.protein,
+                        "carbs" to log.carbs,
+                        "fats" to log.fats,
+                        "sodium" to log.sodium,
+                        "timestamp" to log.timestamp,
+                        "distanceKm" to log.distanceKm,
+                        "pace" to log.pace,
+                        "movingTimeSeconds" to log.movingTimeSeconds,
+                        "mapType" to log.mapType,
+                        "notes" to log.notes,
+                        "activityTag" to log.activityTag,
+                        "photoUri" to log.photoUri,
+                        "encodedPath" to log.encodedPath,
+                        "updatedAt" to log.updatedAt
+                    )
+                    batch.set(docRef, data)
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "${logs.size} activity logs batch-synced for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-sync activity logs", e)
+        }
+    }
+
     // ════════════════════════════════════════════════════════════
     //  MEAL LOGS
     // ════════════════════════════════════════════════════════════
@@ -261,6 +308,54 @@ class FirestoreSyncRepository {
         }
     }
 
+    /**
+     * Batch-syncs a list of daily nutrition summaries using [WriteBatch].
+     * Used by the full-sync path in SettingsViewModel.
+     */
+    suspend fun syncDailyNutritionSummariesBatch(uid: String, summaries: List<DailyNutritionSummaryEntity>) {
+        if (summaries.isEmpty()) return
+        try {
+            val userRef = db.collection(USERS_COLLECTION).document(uid)
+            summaries.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (summary in chunk) {
+                    val docRef = userRef.collection("dailyNutritionSummaries")
+                        .document(summary.dateEpochDay.toString())
+                    val data = hashMapOf<String, Any?>(
+                        "dateEpochDay" to summary.dateEpochDay,
+                        "totalCalories" to summary.totalCalories,
+                        "totalProtein" to summary.totalProtein,
+                        "totalCarbs" to summary.totalCarbs,
+                        "totalFiber" to summary.totalFiber,
+                        "totalSugar" to summary.totalSugar,
+                        "totalFat" to summary.totalFat,
+                        "totalSaturatedFat" to summary.totalSaturatedFat,
+                        "totalPolyunsaturatedFat" to summary.totalPolyunsaturatedFat,
+                        "totalMonounsaturatedFat" to summary.totalMonounsaturatedFat,
+                        "totalTransFat" to summary.totalTransFat,
+                        "totalCholesterol" to summary.totalCholesterol,
+                        "totalSodium" to summary.totalSodium,
+                        "totalPotassium" to summary.totalPotassium,
+                        "totalVitaminA" to summary.totalVitaminA,
+                        "totalVitaminC" to summary.totalVitaminC,
+                        "totalCalcium" to summary.totalCalcium,
+                        "totalIron" to summary.totalIron,
+                        "breakfastCalories" to summary.breakfastCalories,
+                        "lunchCalories" to summary.lunchCalories,
+                        "dinnerCalories" to summary.dinnerCalories,
+                        "snacksCalories" to summary.snacksCalories,
+                        "updatedAt" to summary.updatedAt
+                    )
+                    batch.set(docRef, data)
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "${summaries.size} nutrition summaries batch-synced for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-sync nutrition summaries", e)
+        }
+    }
+
     // ════════════════════════════════════════════════════════════
     //  PANTRY ITEMS
     // ════════════════════════════════════════════════════════════
@@ -280,6 +375,29 @@ class FirestoreSyncRepository {
             Log.d(TAG, "Pantry item '$ingredientName' synced for $uid")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync pantry item '$ingredientName'", e)
+        }
+    }
+
+    /**
+     * Batch-syncs a list of pantry item names using [WriteBatch].
+     * Used by the full-sync path in SettingsViewModel.
+     */
+    suspend fun syncPantryItemsBatch(uid: String, itemNames: List<String>) {
+        if (itemNames.isEmpty()) return
+        try {
+            val userRef = db.collection(USERS_COLLECTION).document(uid)
+            val now = System.currentTimeMillis()
+            itemNames.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (name in chunk) {
+                    val docRef = userRef.collection("pantryItems").document(name)
+                    batch.set(docRef, hashMapOf("addedAt" to now))
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "${itemNames.size} pantry items batch-synced for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-sync pantry items", e)
         }
     }
 
@@ -325,6 +443,34 @@ class FirestoreSyncRepository {
             Log.d(TAG, "Planned meal '$docId' synced for $uid")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync planned meal", e)
+        }
+    }
+
+    /**
+     * Batch-syncs a list of planned meals using [WriteBatch].
+     * Used by the full-sync path in SettingsViewModel.
+     */
+    suspend fun syncPlannedMealsBatch(uid: String, meals: List<PlannedMealEntity>) {
+        if (meals.isEmpty()) return
+        try {
+            val userRef = db.collection(USERS_COLLECTION).document(uid)
+            meals.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (meal in chunk) {
+                    val docId = "${meal.dayIndex}_${meal.weekStartDate}"
+                    val docRef = userRef.collection("plannedMeals").document(docId)
+                    val data = hashMapOf<String, Any?>(
+                        "dayIndex" to meal.dayIndex,
+                        "dishLabel" to meal.dishLabel,
+                        "weekStartDate" to meal.weekStartDate
+                    )
+                    batch.set(docRef, data)
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "${meals.size} planned meals batch-synced for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-sync planned meals", e)
         }
     }
 

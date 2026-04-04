@@ -103,30 +103,32 @@ class SettingsViewModel(
                     // 1. FIRESTORE SYNC (Full — Client State Layer)
                     // ══════════════════════════════════════════════════
                     try {
-                        // 1a. Profile
+                        // 1a. Profile (single doc — no batching needed)
                         db.userDao().getUser(uid)?.let { profile ->
                             firestoreSyncRepo.syncProfile(uid, profile)
                         }
-                        // 1b. Activity Logs
-                        db.activityLogDao().getAllLogsForUser(uid).forEach { log ->
-                            firestoreSyncRepo.syncActivityLog(uid, log)
-                        }
-                        // 1c. Meal Logs + Items
+
+                        // 1b. Activity Logs (batched)
+                        val activityLogs = db.activityLogDao().getAllLogsForUser(uid)
+                        firestoreSyncRepo.syncActivityLogsBatch(uid, activityLogs)
+
+                        // 1c. Meal Logs + Items (each already uses WriteBatch internally)
                         db.mealLogDao().getAllMealLogsWithItems(uid).forEach { mlwi ->
                             firestoreSyncRepo.syncMealLog(uid, mlwi.mealLog, mlwi.items)
                         }
-                        // 1d. Nutrition Summaries
-                        db.dailyNutritionSummaryDao().getAllSummariesForUser(uid).forEach { summary ->
-                            firestoreSyncRepo.syncDailyNutritionSummary(uid, summary)
-                        }
-                        // 1e. Pantry Items
-                        db.pantryDao().getAllItemsList().forEach { itemName ->
-                            firestoreSyncRepo.syncPantryItem(uid, itemName)
-                        }
-                        // 1f. Planned Meals
-                        db.mealPlanDao().getAllPlannedMeals().forEach { meal ->
-                            firestoreSyncRepo.syncPlannedMeal(uid, meal)
-                        }
+
+                        // 1d. Nutrition Summaries (batched)
+                        val summaries = db.dailyNutritionSummaryDao().getAllSummariesForUser(uid)
+                        firestoreSyncRepo.syncDailyNutritionSummariesBatch(uid, summaries)
+
+                        // 1e. Pantry Items (batched)
+                        val pantryItems = db.pantryDao().getAllItemsList()
+                        firestoreSyncRepo.syncPantryItemsBatch(uid, pantryItems)
+
+                        // 1f. Planned Meals (batched)
+                        val plannedMeals = db.mealPlanDao().getAllPlannedMeals()
+                        firestoreSyncRepo.syncPlannedMealsBatch(uid, plannedMeals)
+
                         firestoreSuccess = true
                     } catch (e: Exception) {
                         e.printStackTrace()
