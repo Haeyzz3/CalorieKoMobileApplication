@@ -207,26 +207,119 @@ class ApiSyncManager(
             }
 
             // Check if there's actually anything to sync
-            val hasData = syncProfile != null ||
+            var hasData = syncProfile != null ||
                     syncMeals.isNotEmpty() ||
                     syncActivities.isNotEmpty() ||
                     syncSummaries.isNotEmpty()
 
+            // ── FULL SYNC FALLBACK ──
+            // If delta is empty but user explicitly tapped "Sync Data",
+            // re-query ALL records and send a full payload. This handles:
+            //   - Server database was reset/wiped
+            //   - Previous sync silently failed on the server
+            //   - Delta timestamp drifted ahead of actual data
+            var finalProfile = syncProfile
+            var finalMeals = syncMeals
+            var finalActivities = syncActivities
+            var finalSummaries = syncSummaries
+
             if (!hasData) {
-                Log.d(TAG, "No modified data since last sync — nothing to transmit.")
-                return ApiSyncResult.Success(
-                    message = "Already up to date — no changes to sync.",
-                    lastSyncTimestamp = lastSync
-                )
+                Log.d(TAG, "Delta is empty — falling back to FULL sync of all records.")
+
+                finalProfile = profile?.let {
+                    SyncProfile(
+                        name = it.name, email = it.email, age = it.age,
+                        weight = it.weight, height = it.height, sex = it.sex,
+                        activityLevel = it.activityLevel, goal = it.goal,
+                        streak = it.streak, level = it.level, updatedAt = it.updatedAt
+                    )
+                }
+
+                val allMeals = mealLogDao.getAllMealLogsWithItems(uid)
+                finalMeals = allMeals.map { mealWithItems ->
+                    SyncMeal(
+                        uid = uid,
+                        mealType = mealWithItems.mealLog.mealType,
+                        timestamp = mealWithItems.mealLog.timestamp,
+                        notes = mealWithItems.mealLog.notes,
+                        updatedAt = mealWithItems.mealLog.updatedAt,
+                        items = mealWithItems.items.map { item ->
+                            SyncMealItem(
+                                foodId = item.foodId, dishName = item.dishName,
+                                weightGrams = item.weightGrams, calories = item.calories,
+                                protein = item.protein, carbs = item.carbs, fat = item.fat,
+                                fiber = item.fiber, sugar = item.sugar,
+                                saturatedFat = item.saturatedFat,
+                                polyunsaturatedFat = item.polyunsaturatedFat,
+                                monounsaturatedFat = item.monounsaturatedFat,
+                                transFat = item.transFat, cholesterol = item.cholesterol,
+                                sodium = item.sodium, potassium = item.potassium,
+                                vitaminA = item.vitaminA, vitaminC = item.vitaminC,
+                                calcium = item.calcium, iron = item.iron,
+                                updatedAt = item.updatedAt
+                            )
+                        }
+                    )
+                }
+
+                val allActivities = activityLogDao.getAllLogsForUser(uid)
+                finalActivities = allActivities.map { log ->
+                    SyncActivity(
+                        uid = uid, type = log.type, name = log.name,
+                        timeString = log.timeString, weightOrDuration = log.weightOrDuration,
+                        calories = log.calories, protein = log.protein,
+                        carbs = log.carbs, fats = log.fats, sodium = log.sodium,
+                        timestamp = log.timestamp, distanceKm = log.distanceKm,
+                        pace = log.pace, movingTimeSeconds = log.movingTimeSeconds,
+                        mapType = log.mapType, notes = log.notes,
+                        activityTag = log.activityTag, updatedAt = log.updatedAt
+                    )
+                }
+
+                val allSummaries = dailyNutritionSummaryDao.getAllSummariesForUser(uid)
+                finalSummaries = allSummaries.map { summary ->
+                    SyncNutritionSummary(
+                        uid = uid, dateEpochDay = summary.dateEpochDay,
+                        totalCalories = summary.totalCalories, totalProtein = summary.totalProtein,
+                        totalCarbs = summary.totalCarbs, totalFiber = summary.totalFiber,
+                        totalSugar = summary.totalSugar, totalFat = summary.totalFat,
+                        totalSaturatedFat = summary.totalSaturatedFat,
+                        totalPolyunsaturatedFat = summary.totalPolyunsaturatedFat,
+                        totalMonounsaturatedFat = summary.totalMonounsaturatedFat,
+                        totalTransFat = summary.totalTransFat,
+                        totalCholesterol = summary.totalCholesterol,
+                        totalSodium = summary.totalSodium, totalPotassium = summary.totalPotassium,
+                        totalVitaminA = summary.totalVitaminA, totalVitaminC = summary.totalVitaminC,
+                        totalCalcium = summary.totalCalcium, totalIron = summary.totalIron,
+                        breakfastCalories = summary.breakfastCalories,
+                        lunchCalories = summary.lunchCalories,
+                        dinnerCalories = summary.dinnerCalories,
+                        snacksCalories = summary.snacksCalories,
+                        updatedAt = summary.updatedAt
+                    )
+                }
+
+                hasData = finalProfile != null ||
+                        finalMeals.isNotEmpty() ||
+                        finalActivities.isNotEmpty() ||
+                        finalSummaries.isNotEmpty()
+
+                if (!hasData) {
+                    Log.d(TAG, "No data at all in local database — nothing to transmit.")
+                    return ApiSyncResult.Success(
+                        message = "No local data to sync.",
+                        lastSyncTimestamp = lastSync
+                    )
+                }
             }
 
             val payload = SyncFullPayload(
                 uid = uid,
                 lastSyncTimestamp = lastSync,
-                profile = syncProfile,
-                meals = syncMeals,
-                activities = syncActivities,
-                nutritionSummaries = syncSummaries
+                profile = finalProfile,
+                meals = finalMeals,
+                activities = finalActivities,
+                nutritionSummaries = finalSummaries
             )
 
             // ── 3. Authenticate and Send to backend ──
