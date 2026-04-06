@@ -226,12 +226,14 @@ class ApiSyncManager(
             if (!hasData) {
                 Log.d(TAG, "Delta is empty — falling back to FULL sync of all records.")
 
+                val fallbackTimestamp = System.currentTimeMillis()
+
                 finalProfile = profile?.let {
                     SyncProfile(
                         name = it.name, email = it.email, age = it.age,
                         weight = it.weight, height = it.height, sex = it.sex,
                         activityLevel = it.activityLevel, goal = it.goal,
-                        streak = it.streak, level = it.level, updatedAt = it.updatedAt
+                        streak = it.streak, level = it.level, updatedAt = fallbackTimestamp
                     )
                 }
 
@@ -242,7 +244,7 @@ class ApiSyncManager(
                         mealType = mealWithItems.mealLog.mealType,
                         timestamp = mealWithItems.mealLog.timestamp,
                         notes = mealWithItems.mealLog.notes,
-                        updatedAt = mealWithItems.mealLog.updatedAt,
+                        updatedAt = fallbackTimestamp,
                         items = mealWithItems.items.map { item ->
                             SyncMealItem(
                                 foodId = item.foodId, dishName = item.dishName,
@@ -256,7 +258,7 @@ class ApiSyncManager(
                                 sodium = item.sodium, potassium = item.potassium,
                                 vitaminA = item.vitaminA, vitaminC = item.vitaminC,
                                 calcium = item.calcium, iron = item.iron,
-                                updatedAt = item.updatedAt
+                                updatedAt = fallbackTimestamp
                             )
                         }
                     )
@@ -272,7 +274,7 @@ class ApiSyncManager(
                         timestamp = log.timestamp, distanceKm = log.distanceKm,
                         pace = log.pace, movingTimeSeconds = log.movingTimeSeconds,
                         mapType = log.mapType, notes = log.notes,
-                        activityTag = log.activityTag, updatedAt = log.updatedAt
+                        activityTag = log.activityTag, updatedAt = fallbackTimestamp
                     )
                 }
 
@@ -295,7 +297,7 @@ class ApiSyncManager(
                         lunchCalories = summary.lunchCalories,
                         dinnerCalories = summary.dinnerCalories,
                         snacksCalories = summary.snacksCalories,
-                        updatedAt = summary.updatedAt
+                        updatedAt = fallbackTimestamp
                     )
                 }
 
