@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogWithItems
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MealLogDao {
@@ -17,7 +18,7 @@ interface MealLogDao {
     @Query("DELETE FROM meal_log_table WHERE meal_log_id = :mealLogId")
     suspend fun deleteMealLog(mealLogId: Long)
 
-    /** Fetch all meal logs for a user within a timestamp range, newest first. */
+    /** Fetch all meal logs for a user within a timestamp range, newest first (one-shot). */
     @Query(
         """
         SELECT * FROM meal_log_table
@@ -32,7 +33,7 @@ interface MealLogDao {
     @Query("SELECT * FROM meal_log_table WHERE meal_log_id = :mealLogId")
     suspend fun getMealLogWithItems(mealLogId: Long): MealLogWithItems?
 
-    /** Fetch all meal logs with items for a user on a given day. */
+    /** Fetch all meal logs with items for a user on a given day (one-shot). */
     @Transaction
     @Query(
         """
@@ -42,6 +43,17 @@ interface MealLogDao {
         """
     )
     suspend fun getMealLogsWithItemsByDate(uid: String, startTimestamp: Long, endTimestamp: Long): List<MealLogWithItems>
+
+    /** Observe all meal logs with items for a user on a given day (reactive Flow). */
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM meal_log_table
+        WHERE uid = :uid AND timestamp >= :startTimestamp AND timestamp < :endTimestamp
+        ORDER BY timestamp DESC
+        """
+    )
+    fun observeMealLogsWithItemsByDate(uid: String, startTimestamp: Long, endTimestamp: Long): Flow<List<MealLogWithItems>>
 
     @Query("SELECT COUNT(*) FROM meal_log_table WHERE uid = :uid")
     suspend fun getTotalMealsCount(uid: String): Int

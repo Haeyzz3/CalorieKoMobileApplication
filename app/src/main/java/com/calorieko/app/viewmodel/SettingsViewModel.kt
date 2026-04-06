@@ -33,12 +33,13 @@ import java.util.Locale
  * design choice — SettingsViewModel acts as a system-level orchestrator.
  *
  * ── Sync Architecture ──
- * Firestore  →  Client-state layer (offline-first, real-time cross-device)
- * Laravel    →  System of Record (admin dashboard, analytics, archiving)
+ * Firestore  →  Handled automatically by repositories (MealRepository, ActivityRepository)
+ *               on every Room write. No user action needed.
+ * Laravel    →  System of Record (admin dashboard, analytics, archiving).
+ *               The "Sync Data" button in Settings ONLY triggers Laravel sync.
  *
- * Both backends are synced in parallel. The Laravel sync uses delta payloads
- * (only records modified since `lastSuccessfulSyncTimestamp`) with Last Write Wins
- * conflict resolution.
+ * The Laravel sync uses delta payloads (only records modified since
+ * `lastSuccessfulSyncTimestamp`) with Last Write Wins conflict resolution.
  */
 class SettingsViewModel(
     private val auth: FirebaseAuth,
@@ -94,11 +95,14 @@ class SettingsViewModel(
     // ── Public Actions ──
 
     /**
-     * Syncs all local data to BOTH backends:
+     * Syncs local data to the **Laravel API only** (System of Record).
      *
-     * 1. **Firestore** (full sync) — Iterates over all entity types for real-time cloud state.
-     * 2. **Laravel API** (delta sync) — Transmits only records modified since last successful sync,
-     *    with `updated_at` timestamps for Last Write Wins conflict resolution.
+     * Firestore sync is handled automatically by MealRepository and
+     * ActivityRepository on every Room write — it does NOT need to be
+     * triggered manually from Settings.
+     *
+     * Uses delta payloads: only records modified since last successful sync,
+     * with `updated_at` timestamps for Last Write Wins conflict resolution.
      */
     fun syncAllData() {
         val uid = auth.currentUser?.uid ?: return
@@ -107,49 +111,12 @@ class SettingsViewModel(
         _isSyncing.value = true
 
         viewModelScope.launch {
-            var firestoreSuccess = false
-            var apiResult: ApiSyncResult? = null
-
             try {
+                var apiResult: ApiSyncResult? = null
+
                 withContext(Dispatchers.IO) {
                     // ══════════════════════════════════════════════════
-                    // 1. FIRESTORE SYNC (Full — Client State Layer)
-                    // ══════════════════════════════════════════════════
-                    try {
-                        // 1a. Profile (single doc — no batching needed)
-                        db.userDao().getUser(uid)?.let { profile ->
-                            firestoreSyncRepo.syncProfile(uid, profile)
-                        }
-
-                        // 1b. Activity Logs (batched)
-                        val activityLogs = db.activityLogDao().getAllLogsForUser(uid)
-                        firestoreSyncRepo.syncActivityLogsBatch(uid, activityLogs)
-
-                        // 1c. Meal Logs + Items (each already uses WriteBatch internally)
-                        db.mealLogDao().getAllMealLogsWithItems(uid).forEach { mlwi ->
-                            firestoreSyncRepo.syncMealLog(uid, mlwi.mealLog, mlwi.items)
-                        }
-
-                        // 1d. Nutrition Summaries (batched)
-                        val summaries = db.dailyNutritionSummaryDao().getAllSummariesForUser(uid)
-                        firestoreSyncRepo.syncDailyNutritionSummariesBatch(uid, summaries)
-
-                        // 1e. Pantry Items (batched)
-                        val pantryItems = db.pantryDao().getAllItemsList()
-                        firestoreSyncRepo.syncPantryItemsBatch(uid, pantryItems)
-
-                        // 1f. Planned Meals (batched)
-                        val plannedMeals = db.mealPlanDao().getAllPlannedMeals()
-                        firestoreSyncRepo.syncPlannedMealsBatch(uid, plannedMeals)
-
-                        firestoreSuccess = true
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        // Firestore failure doesn't block Laravel sync
-                    }
-
-                    // ══════════════════════════════════════════════════
-                    // 2. LARAVEL API SYNC (Delta — System of Record)
+                    // LARAVEL API SYNC (Delta — System of Record)
                     // ══════════════════════════════════════════════════
                     if (NetworkUtils.isOnline(appContext)) {
                         apiResult = apiSyncManager.syncToBackend(uid)
@@ -158,17 +125,17 @@ class SettingsViewModel(
 
                 _isSyncing.value = false
 
-                // ── Persist last-sync timestamp if at least one backend succeeded ──
-                if (firestoreSuccess || apiResult is ApiSyncResult.Success) {
+                // ── Persist last-sync timestamp on success ──
+                if (apiResult is ApiSyncResult.Success) {
                     val now = System.currentTimeMillis()
                     syncPrefs.edit().putLong(KEY_LAST_SYNC, now).apply()
                     _lastSyncedAt.value = formatSyncTimestamp(now)
                 }
 
                 // ── Report outcome ──
-                when {
-                    firestoreSuccess && apiResult is ApiSyncResult.Success -> {
-                        val conflicts = apiResult.conflicts
+                when (apiResult) {
+                    is ApiSyncResult.Success -> {
+                        val conflicts = (apiResult as ApiSyncResult.Success).conflicts
                         if (!conflicts.isNullOrEmpty()) {
                             _events.send(Event.SyncPartial(
                                 "Synced successfully with ${conflicts.size} server-override conflict(s)."
@@ -177,19 +144,13 @@ class SettingsViewModel(
                             _events.send(Event.SyncSuccess)
                         }
                     }
-                    firestoreSuccess && apiResult is ApiSyncResult.Error -> {
-                        _events.send(Event.SyncPartial(
-                            "Cloud sync OK, but Laravel sync failed: ${apiResult.message}"
+                    is ApiSyncResult.Error -> {
+                        _events.send(Event.SyncError(
+                            "Laravel sync failed: ${(apiResult as ApiSyncResult.Error).message}"
                         ))
                     }
-                    firestoreSuccess && apiResult == null -> {
-                        _events.send(Event.SyncPartial("Cloud sync OK. No internet for Laravel sync."))
-                    }
-                    !firestoreSuccess && apiResult is ApiSyncResult.Success -> {
-                        _events.send(Event.SyncPartial("Laravel sync OK, but Firestore sync failed."))
-                    }
-                    else -> {
-                        _events.send(Event.SyncError("Sync failed for both backends."))
+                    null -> {
+                        _events.send(Event.SyncError("No internet connection. Please try again later."))
                     }
                 }
             } catch (e: Exception) {

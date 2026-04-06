@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DailyNutritionSummaryDao {
@@ -13,7 +14,7 @@ interface DailyNutritionSummaryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSummary(summary: DailyNutritionSummaryEntity): Long
 
-    /** Fetch the summary for a specific user and date. */
+    /** Fetch the summary for a specific user and date (one-shot). */
     @Query(
         """
         SELECT * FROM daily_nutrition_summary_table
@@ -22,6 +23,16 @@ interface DailyNutritionSummaryDao {
         """
     )
     suspend fun getSummaryForDate(uid: String, dateEpochDay: Long): DailyNutritionSummaryEntity?
+
+    /** Observe the summary for a specific user and date (reactive Flow). */
+    @Query(
+        """
+        SELECT * FROM daily_nutrition_summary_table
+        WHERE uid = :uid AND date_epoch_day = :dateEpochDay
+        LIMIT 1
+        """
+    )
+    fun observeSummaryForDate(uid: String, dateEpochDay: Long): Flow<DailyNutritionSummaryEntity?>
 
     /** Fetch summaries for a date range (inclusive), for weekly views. */
     @Query(

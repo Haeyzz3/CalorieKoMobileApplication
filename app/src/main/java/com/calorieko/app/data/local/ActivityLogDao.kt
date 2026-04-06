@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import com.calorieko.app.data.model.ActivityLogEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ActivityLogDao {
@@ -17,9 +18,13 @@ interface ActivityLogDao {
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND timestamp >= :startTime AND timestamp < :endTime ORDER BY timestamp ASC")
     suspend fun getLogsForRange(uid: String, startTime: Long, endTime: Long): List<ActivityLogEntity>
 
-    /** Fetch only workout entries for a user from a given start-of-day timestamp. */
+    /** Fetch only workout entries for a user from a given start-of-day timestamp (one-shot). */
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND type = 'workout' AND timestamp >= :startOfDay ORDER BY timestamp DESC")
     suspend fun getWorkoutsForToday(uid: String, startOfDay: Long): List<ActivityLogEntity>
+
+    /** Observe workout entries for a user from a given start-of-day timestamp (reactive Flow). */
+    @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND type = 'workout' AND timestamp >= :startOfDay ORDER BY timestamp DESC")
+    fun observeWorkoutsForToday(uid: String, startOfDay: Long): Flow<List<ActivityLogEntity>>
 
     @Query("SELECT * FROM activity_log_table WHERE id = :id")
     suspend fun getLogById(id: Int): ActivityLogEntity?

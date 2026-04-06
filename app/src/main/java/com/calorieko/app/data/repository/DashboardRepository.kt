@@ -8,6 +8,7 @@ import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.model.UserProfile
+import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -16,11 +17,11 @@ import java.util.Calendar
  * DashboardScreen and NutritionDetailsScreen.
  *
  * This repository does NOT perform writes — write operations
- * are handled by MealRepository (meals) and will later be
- * handled by ActivityRepository (workouts).
+ * are handled by MealRepository (meals) and ActivityRepository (workouts).
  *
- * All methods are suspend functions and should be called
- * from Dispatchers.IO by the ViewModel.
+ * Provides both:
+ * - **Suspend functions** for one-shot reads (used by NutritionDetailsScreen, etc.)
+ * - **Flow functions** for reactive observation (used by DashboardViewModel)
  */
 class DashboardRepository(
     private val userDao: UserDao,
@@ -44,10 +45,16 @@ class DashboardRepository(
 
     // ── Daily Nutrition Summaries ──
 
-    /** Fetch today's nutrition summary. */
+    /** Fetch today's nutrition summary (one-shot). */
     suspend fun getTodayNutritionSummary(uid: String): DailyNutritionSummaryEntity? {
         val todayEpochDay = LocalDate.now().toEpochDay()
         return dailyNutritionSummaryDao.getSummaryForDate(uid, todayEpochDay)
+    }
+
+    /** Observe today's nutrition summary (reactive Flow — emits on every Room change). */
+    fun observeTodayNutritionSummary(uid: String): Flow<DailyNutritionSummaryEntity?> {
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        return dailyNutritionSummaryDao.observeSummaryForDate(uid, todayEpochDay)
     }
 
     /** Fetch the nutrition summary for a specific date (epoch day). */
@@ -66,16 +73,28 @@ class DashboardRepository(
 
     // ── Today's Activity Logs (for Dashboard Feed) ──
 
-    /** Fetch today's meal logs with their child items. */
+    /** Fetch today's meal logs with their child items (one-shot). */
     suspend fun getTodayMealLogs(uid: String): List<MealLogWithItems> {
         val (startOfDay, endOfDay) = getTodayTimestampRange()
         return mealLogDao.getMealLogsWithItemsByDate(uid, startOfDay, endOfDay)
     }
 
-    /** Fetch today's workout logs. */
+    /** Observe today's meal logs with their child items (reactive Flow). */
+    fun observeTodayMealLogs(uid: String): Flow<List<MealLogWithItems>> {
+        val (startOfDay, endOfDay) = getTodayTimestampRange()
+        return mealLogDao.observeMealLogsWithItemsByDate(uid, startOfDay, endOfDay)
+    }
+
+    /** Fetch today's workout logs (one-shot). */
     suspend fun getTodayWorkoutLogs(uid: String): List<ActivityLogEntity> {
         val (startOfDay, _) = getTodayTimestampRange()
         return activityLogDao.getWorkoutsForToday(uid, startOfDay)
+    }
+
+    /** Observe today's workout logs (reactive Flow). */
+    fun observeTodayWorkoutLogs(uid: String): Flow<List<ActivityLogEntity>> {
+        val (startOfDay, _) = getTodayTimestampRange()
+        return activityLogDao.observeWorkoutsForToday(uid, startOfDay)
     }
 
     // ── Helpers ──

@@ -13,18 +13,37 @@ import com.calorieko.app.data.repository.NutritionalTarget
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * DashboardViewModel — fully reactive via Room Flow observation.
+ *
+ * ── How it works ──
+ * Instead of one-shot `suspend` fetches that require manual `refreshData()` calls,
+ * all dashboard data (nutrition summary, meal logs, workout logs) is observed via
+ * Room `Flow<T>` queries. Room automatically re-emits whenever the underlying tables
+ * change, so the UI updates instantly when a meal or workout is logged — no navigation
+ * callback or manual refresh needed.
+ *
+ * User profile & targets are still loaded once (they rarely change mid-session).
+ */
 class DashboardViewModel(
     private val auth: FirebaseAuth,
     private val dashboardRepository: DashboardRepository
 ) : ViewModel() {
+
+    private val uid: String? = auth.currentUser?.uid
 
     // ── User Info ──
 
@@ -56,46 +75,57 @@ class DashboardViewModel(
     private val _targetFats = MutableStateFlow(65)
     val targetFats: StateFlow<Int> = _targetFats.asStateFlow()
 
-    // ── Data State ──
+    // ── Reactive Data State (Flow-based — auto-updates on Room changes) ──
 
-    private val _nutritionSummary = MutableStateFlow<DailyNutritionSummaryEntity?>(null)
-    val nutritionSummary: StateFlow<DailyNutritionSummaryEntity?> = _nutritionSummary.asStateFlow()
+    /** Today's nutrition summary, observed reactively from Room. */
+    val nutritionSummary: StateFlow<DailyNutritionSummaryEntity?> =
+        if (uid != null) {
+            dashboardRepository.observeTodayNutritionSummary(uid)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        } else {
+            MutableStateFlow(null)
+        }
 
-    private val _todayMealLogs = MutableStateFlow<List<MealLogWithItems>>(emptyList())
-    val todayMealLogs: StateFlow<List<MealLogWithItems>> = _todayMealLogs.asStateFlow()
+    /** Today's meal logs with items, observed reactively from Room. */
+    val todayMealLogs: StateFlow<List<MealLogWithItems>> =
+        if (uid != null) {
+            dashboardRepository.observeTodayMealLogs(uid)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        } else {
+            MutableStateFlow(emptyList())
+        }
 
-    private val _todayWorkoutLogs = MutableStateFlow<List<ActivityLogEntity>>(emptyList())
-    val todayWorkoutLogs: StateFlow<List<ActivityLogEntity>> = _todayWorkoutLogs.asStateFlow()
+    /** Today's workout logs, observed reactively from Room. */
+    val todayWorkoutLogs: StateFlow<List<ActivityLogEntity>> =
+        if (uid != null) {
+            dashboardRepository.observeTodayWorkoutLogs(uid)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        } else {
+            MutableStateFlow(emptyList())
+        }
 
-    // ── Computed Activity Feed ──
+    // ── Computed Activity Feed (derived from the reactive meal + workout Flows) ──
 
-    private val _activityFeed = MutableStateFlow<List<ActivityLogEntry>>(emptyList())
-    val activityFeed: StateFlow<List<ActivityLogEntry>> = _activityFeed.asStateFlow()
-
-    // ── Derived Values ──
-
-    val currentCalories: Int get() = _nutritionSummary.value?.totalCalories?.toInt() ?: 0
-    val caloriesBurned: Int get() = _todayWorkoutLogs.value.sumOf { it.calories }
-    val currentSodium: Int get() = _nutritionSummary.value?.totalSodium?.toInt() ?: 0
-    val currentProtein: Int get() = _nutritionSummary.value?.totalProtein?.toInt() ?: 0
-    val currentCarbs: Int get() = _nutritionSummary.value?.totalCarbs?.toInt() ?: 0
-    val currentFats: Int get() = _nutritionSummary.value?.totalFat?.toInt() ?: 0
+    val activityFeed: StateFlow<List<ActivityLogEntry>> =
+        combine(todayMealLogs, todayWorkoutLogs) { meals, workouts ->
+            buildActivityFeed(meals, workouts)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        loadDashboardData()
+        loadUserProfileAndTargets()
     }
 
     /**
-     * Loads all dashboard data: user profile, targets, nutrition summary,
-     * meal logs, workout logs, and builds the unified activity feed.
+     * Loads user profile and computes nutritional targets.
+     * This is a one-shot load — profile data rarely changes mid-session.
+     * The reactive Flows handle all dashboard data (nutrition, meals, workouts).
      */
-    fun loadDashboardData() {
-        val uid = auth.currentUser?.uid ?: return
+    private fun loadUserProfileAndTargets() {
+        val currentUid = uid ?: return
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // A. Fetch user profile for target calculations
-                val profile = dashboardRepository.getUserProfile(uid)
+                val profile = dashboardRepository.getUserProfile(currentUid)
                 if (profile != null) {
                     val targets = dashboardRepository.getTargetsForUser(profile)
                     _targetCalories.value = targets.targetCalories
@@ -106,37 +136,14 @@ class DashboardViewModel(
                     _targetBurned.value = 500
                     _localPhotoUrl.value = profile.photoUrl
 
-                    // Use the profile name if Firebase displayName is missing
                     val fbName = auth.currentUser?.displayName
                         ?.split(" ")?.firstOrNull()
                     _userName.value = fbName
                         ?: profile.name.split(" ").firstOrNull()
                         ?: "User"
                 }
-
-                // B. Fetch today's nutrition summary
-                _nutritionSummary.value = dashboardRepository.getTodayNutritionSummary(uid)
-
-                // C. Fetch today's meal logs (for the activity feed)
-                val mealLogs = dashboardRepository.getTodayMealLogs(uid)
-                _todayMealLogs.value = mealLogs
-
-                // D. Fetch today's workout logs
-                val workoutLogs = dashboardRepository.getTodayWorkoutLogs(uid)
-                _todayWorkoutLogs.value = workoutLogs
-
-                // E. Build the unified activity feed
-                _activityFeed.value = buildActivityFeed(mealLogs, workoutLogs)
             }
         }
-    }
-
-    /**
-     * Reloads all data. Call this when returning from logMeal/logWorkout
-     * to pick up newly persisted entries.
-     */
-    fun refreshData() {
-        loadDashboardData()
     }
 
     // ── Private Helpers ──
