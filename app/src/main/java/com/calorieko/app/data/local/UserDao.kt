@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.calorieko.app.data.model.UserProfile
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
@@ -17,4 +18,8 @@ interface UserDao {
 
     @Query("SELECT * FROM user_profile WHERE uid = :uid LIMIT 1")
     suspend fun getUser(uid: String): UserProfile?
+
+    /** Observe user profile reactively (emits on every Room change). */
+    @Query("SELECT * FROM user_profile WHERE uid = :uid LIMIT 1")
+    fun observeUser(uid: String): Flow<UserProfile?>
 }

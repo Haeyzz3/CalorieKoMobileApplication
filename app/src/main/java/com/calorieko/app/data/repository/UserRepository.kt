@@ -10,6 +10,7 @@ import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.api.AutoSyncManager
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Read-write repository for user profile operations.
@@ -29,9 +30,14 @@ class UserRepository(
 
     // ── Profile Read ──
 
-    /** Fetch the user profile from Room. */
+    /** Fetch the user profile from Room (one-shot). */
     suspend fun getUserProfile(uid: String): UserProfile? {
         return userDao.getUser(uid)
+    }
+
+    /** Observe user profile reactively (Flow — emits on every Room change). */
+    fun observeUserProfile(uid: String): Flow<UserProfile?> {
+        return userDao.observeUser(uid)
     }
 
     // ── Profile Write ──

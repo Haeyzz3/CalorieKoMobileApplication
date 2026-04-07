@@ -11,14 +11,27 @@ import com.calorieko.app.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * ProfileViewModel — reactive via Room Flow observation for the user profile.
+ *
+ * ── How it works ──
+ * `userProfile` is observed via Room `Flow<T>`, which automatically re-emits
+ * whenever the `user_profile` table changes. This means any saves from
+ * EditProfileScreen instantly reflect here — no manual refresh needed.
+ *
+ * Badge stats are still loaded once (one-shot) since they aggregate across
+ * multiple DAOs and don't change while viewing the profile.
+ */
 class ProfileViewModel(
     private val auth: FirebaseAuth,
     private val userRepository: UserRepository,
@@ -26,12 +39,19 @@ class ProfileViewModel(
     private val activityLogDao: ActivityLogDao
 ) : ViewModel() {
 
-    // ── User Profile ──
+    private val uid: String? = auth.currentUser?.uid
 
-    private val _userProfile = MutableStateFlow<UserProfile?>(null)
-    val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
+    // ── User Profile (reactive — auto-updates on Room changes) ──
 
-    // ── Badge Stats ──
+    val userProfile: StateFlow<UserProfile?> =
+        if (uid != null) {
+            userRepository.observeUserProfile(uid)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        } else {
+            MutableStateFlow(null)
+        }
+
+    // ── Badge Stats (one-shot — loaded once per screen visit) ──
 
     private val _badgeStats = MutableStateFlow(BadgeStats())
     val badgeStats: StateFlow<BadgeStats> = _badgeStats.asStateFlow()
@@ -55,31 +75,21 @@ class ProfileViewModel(
             sdf.format(Date(it))
         } ?: "January 2025"
 
-        loadProfileData()
+        loadBadgeStats()
     }
 
     /**
-     * Loads user profile and badge stats from Room.
+     * Loads badge stats from Room (one-shot).
+     * Profile data is handled reactively via the Flow above.
      */
-    fun loadProfileData() {
-        val uid = auth.currentUser?.uid ?: return
+    private fun loadBadgeStats() {
+        val currentUid = uid ?: return
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // A. Fetch user profile
-                _userProfile.value = userRepository.getUserProfile(uid)
-
-                // B. Fetch badge stats
-                _badgeStats.value = userRepository.getBadgeStats(uid, mealLogDao, activityLogDao)
+                _badgeStats.value = userRepository.getBadgeStats(currentUid, mealLogDao, activityLogDao)
             }
         }
-    }
-
-    /**
-     * Reloads profile data. Call when returning from EditProfileScreen.
-     */
-    fun refreshProfile() {
-        loadProfileData()
     }
 
     companion object {
