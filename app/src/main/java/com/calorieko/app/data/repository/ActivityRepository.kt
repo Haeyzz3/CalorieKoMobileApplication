@@ -5,41 +5,54 @@ import android.net.Uri
 import com.calorieko.app.data.local.ActivityLogDao
 import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.api.AutoSyncManager
 
 /**
  * Repository for workout CRUD operations.
  *
- * Encapsulates:
- * - Room read/write for ActivityLogEntity
- * - Firestore sync on writes
- * - Auto-sync to Laravel backend via WorkManager
- * - Photo compression for workout images
- * - User weight/name lookups needed by workout screens
+ * ── Offline-First Design ──
+ * The local Room database is the **single source of truth**.
+ * On save, data is written to Room instantly with `sync_status = 0` (PENDING).
+ * The UI receives success immediately — no network call blocks the save.
+ *
+ * Background synchronization:
+ * After the Room insert, [AutoSyncManager.triggerSync] enqueues a WorkManager
+ * job with a `NetworkType.CONNECTED` constraint. The [SyncWorker] will:
+ * 1. Query all un-synced records from Room (sync_status = 0)
+ * 2. Push them to Firestore + Laravel backend
+ * 3. Mark them as synced (sync_status = 1) on success
+ *
+ * This ensures the app works fully offline and syncs when connectivity returns.
  */
 class ActivityRepository(
     private val activityLogDao: ActivityLogDao,
     private val userDao: UserDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) {
 
-    // ── Workout Write ──
+    // ── Workout Write (Offline-First) ──
 
     /**
-     * Inserts a workout log into Room, syncs to Firestore, and
-     * triggers auto-sync to the Laravel backend.
-     * Returns the Room-generated row ID.
+     * Inserts a workout log into Room **only** (instant, no network).
+     *
+     * The record is saved with `sync_status = 0` (PENDING), meaning it will
+     * be picked up by the background [SyncWorker] when network is available.
+     *
+     * After the local insert, triggers [AutoSyncManager] to schedule a
+     * background sync with `NetworkType.CONNECTED` constraint.
+     *
+     * @return The Room-generated row ID.
      */
     suspend fun insertWorkoutLog(uid: String, log: ActivityLogEntity): Long {
+        // 1. Insert to Room instantly (sync_status defaults to 0 = PENDING)
         val newId = activityLogDao.insertLog(log)
+
+        // 2. Schedule background sync (fires when network available)
         if (uid.isNotEmpty()) {
-            firestoreSyncRepo.syncActivityLog(uid, log.copy(id = newId.toInt()))
-            // Trigger auto-sync to Laravel backend (background, debounced)
             AutoSyncManager.triggerSync(appContext, uid)
         }
+
         return newId
     }
 

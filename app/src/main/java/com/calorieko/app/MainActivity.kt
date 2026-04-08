@@ -424,7 +424,6 @@ fun AppNavigation() {
             val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                 activityLogDao = db.activityLogDao(),
                 userDao = db.userDao(),
-                firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
             val progressViewModel: com.calorieko.app.viewmodel.ProgressViewModel = viewModel(
@@ -583,7 +582,6 @@ fun AppNavigation() {
             val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                 activityLogDao = db.activityLogDao(),
                 userDao = db.userDao(),
-                firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
             val logWorkoutViewModel: com.calorieko.app.viewmodel.LogWorkoutViewModel = viewModel(
@@ -610,7 +608,6 @@ fun AppNavigation() {
                 val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                     activityLogDao = db.activityLogDao(),
                     userDao = db.userDao(),
-                    firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
                 val activityDetailsViewModel: com.calorieko.app.viewmodel.ActivityDetailsViewModel = viewModel(

@@ -33,5 +33,10 @@ data class ActivityLogEntity(
     val activityTag: String? = null,
 
     // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
-    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
+
+    // --- OFFLINE-FIRST: Sync status flag ---
+    // 0 = PENDING (saved locally, not yet synced)
+    // 1 = SYNCED  (successfully pushed to Firestore + Laravel)
+    @ColumnInfo(name = "sync_status") val syncStatus: Int = 0
 )

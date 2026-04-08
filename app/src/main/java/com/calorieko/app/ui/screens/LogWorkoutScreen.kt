@@ -462,6 +462,22 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
         }
     }
 
+    // ── Proactive Offline Map Caching ──
+    // When we get the first GPS fix, cache the surrounding area so the map
+    // works offline for the remainder of the workout session.
+    var hasTriggeredOfflineCache by remember { mutableStateOf(false) }
+    LaunchedEffect(currentPoint) {
+        if (currentPoint != null && !hasTriggeredOfflineCache) {
+            hasTriggeredOfflineCache = true
+            com.calorieko.app.util.OfflineMapManager.downloadRegion(
+                context = context,
+                centerLat = currentPoint!!.latitude(),
+                centerLng = currentPoint!!.longitude(),
+                radiusKm = 5.0
+            )
+        }
+    }
+
     LaunchedEffect(isTracking, isPaused) {
         if (isTracking && !isPaused) {
             while (true) {
@@ -576,21 +592,38 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                 var polylineAnnotationManager by remember { mutableStateOf<com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager?>(null) }
                 var currentPolyline by remember { mutableStateOf<com.mapbox.maps.plugin.annotation.generated.PolylineAnnotation?>(null) }
 
+                var lastAppliedMapType by remember { mutableStateOf(mapType) }
+
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         com.mapbox.maps.MapView(ctx).apply {
-                            mapboxMap.loadStyle(
-                                when (mapType) {
-                                    "Standard" -> Style.MAPBOX_STREETS
-                                    "Terrain" -> Style.OUTDOORS
-                                    else -> Style.DARK
-                                }
-                            )
-                            polylineAnnotationManager = annotations.createPolylineAnnotationManager()
+                            val style = when (mapType) {
+                                "Standard" -> Style.MAPBOX_STREETS
+                                "Terrain" -> Style.OUTDOORS
+                                else -> Style.DARK
+                            }
+                            mapboxMap.loadStyle(style) {
+                                polylineAnnotationManager = annotations.createPolylineAnnotationManager()
+                            }
                         }
                     },
                     update = { mapView ->
+                        // Only reload style when mapType actually changes
+                        if (mapType != lastAppliedMapType) {
+                            lastAppliedMapType = mapType
+                            val style = when (mapType) {
+                                "Standard" -> Style.MAPBOX_STREETS
+                                "Terrain" -> Style.OUTDOORS
+                                else -> Style.DARK
+                            }
+                            mapView.mapboxMap.loadStyle(style) {
+                                polylineAnnotationManager = mapView.annotations.createPolylineAnnotationManager()
+                                // Re-draw the polyline after style switch
+                                currentPolyline = null
+                            }
+                        }
+
                         lastLocation?.let { loc ->
                             mapView.mapboxMap.setCamera(
                                 CameraOptions.Builder()
@@ -612,14 +645,6 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                                 polylineAnnotationManager?.update(currentPolyline!!)
                             }
                         }
-
-                        mapView.mapboxMap.loadStyle(
-                            when (mapType) {
-                                "Standard" -> Style.MAPBOX_STREETS
-                                "Terrain" -> Style.OUTDOORS
-                                else -> Style.DARK
-                            }
-                        )
                     }
                 )
 
@@ -885,7 +910,13 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
-            mapViewRef.value?.mapboxMap?.loadStyle(style)
+            mapViewRef.value?.let { mapView ->
+                mapView.mapboxMap.loadStyle(style) {
+                    // Style load destroys all annotation managers — recreate them
+                    polylineManager = mapView.annotations.createPolylineAnnotationManager()
+                    circleManager = mapView.annotations.createCircleAnnotationManager()
+                }
+            }
         }
 
         Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E))) {
@@ -893,10 +924,12 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     com.mapbox.maps.MapView(ctx).apply {
-                        mapboxMap.loadStyle(Style.DARK)
+                        mapboxMap.loadStyle(Style.DARK) {
+                            // Create annotation managers AFTER the style is ready
+                            polylineManager = annotations.createPolylineAnnotationManager()
+                            circleManager = annotations.createCircleAnnotationManager()
+                        }
                         mapboxMap.setCamera(CameraOptions.Builder().zoom(16.0).pitch(0.0).build())
-                        polylineManager = annotations.createPolylineAnnotationManager()
-                        circleManager = annotations.createCircleAnnotationManager()
                         scalebar.enabled = false
                         this.gestures.addOnMoveListener(object : OnMoveListener {
                             override fun onMoveBegin(detector: MoveGestureDetector) { followUser = false }

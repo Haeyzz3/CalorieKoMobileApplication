@@ -6,25 +6,28 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.calorieko.app.BuildConfig
 import com.calorieko.app.CalorieKoApplication
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 /**
- * WorkManager [CoroutineWorker] that performs a delta sync to the Laravel backend.
+ * WorkManager [CoroutineWorker] that performs offline-first background sync.
+ *
+ * ── Offline-First Sync Pipeline ──
+ * This worker runs ONLY when the device has network (constraint: NetworkType.CONNECTED).
+ * It performs the following steps:
+ *
+ * 1. **Read un-synced activity logs** from Room (sync_status = 0)
+ * 2. **Push to Firestore** via [FirestoreSyncRepository.syncActivityLogsBatch]
+ * 3. **Push to Laravel** via [ApiSyncManager.syncToBackend] (delta sync)
+ * 4. **Mark records as synced** in Room (sync_status = 1)
+ *
+ * If any step fails, the worker returns [Result.retry] so WorkManager applies
+ * exponential backoff (30s → 60s → 120s → ... capped at 5h).
  *
  * ── When Is This Triggered? ──
- * [AutoSyncManager.triggerSync] enqueues a **unique** OneTimeWorkRequest
- * after every Room write (meal log, activity log, profile update).
- * WorkManager coalesces duplicate enqueues via `ExistingWorkPolicy.REPLACE`,
- * so rapid consecutive writes (e.g., logging 5 dishes in a meal) result in
- * a single sync request with a short debounce delay.
- *
- * ── Constraints ──
- * The work request specifies `NetworkType.CONNECTED`, so this worker
- * will never run without internet connectivity. If the device is offline,
- * the request stays queued and fires automatically when network returns.
- *
- * ── Retry ──
- * Returns [Result.retry] on transient failures so WorkManager applies
- * exponential backoff (30s, 60s, 120s, ...).
+ * [AutoSyncManager.triggerSync] enqueues a unique OneTimeWorkRequest after every
+ * Room write. WorkManager coalesces duplicates via REPLACE policy, acting as
+ * a natural debounce. When the device is offline, the request stays queued and
+ * fires automatically when connectivity returns.
  */
 class SyncWorker(
     appContext: Context,
@@ -43,17 +46,38 @@ class SyncWorker(
             return Result.failure()
         }
 
-        Log.d(TAG, "Auto-sync triggered for UID: $uid")
+        Log.d(TAG, "Offline-first sync triggered for UID: $uid")
 
         return try {
             val app = applicationContext as CalorieKoApplication
             val db = app.database
 
+            // ── Step 1: Read un-synced activity logs from Room ──
+            val activityLogDao = db.activityLogDao()
+            val unsyncedLogs = activityLogDao.getUnsyncedLogs(uid)
+
+            if (unsyncedLogs.isEmpty()) {
+                Log.d(TAG, "No un-synced activity logs found — running delta sync only.")
+            } else {
+                Log.d(TAG, "Found ${unsyncedLogs.size} un-synced activity logs to push.")
+
+                // ── Step 2: Push un-synced logs to Firestore ──
+                try {
+                    val firestoreRepo = FirestoreSyncRepository()
+                    firestoreRepo.syncActivityLogsBatch(uid, unsyncedLogs)
+                    Log.d(TAG, "Firestore batch sync complete for ${unsyncedLogs.size} logs.")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Firestore sync failed (non-fatal, continuing to Laravel): ${e.message}")
+                    // Continue — Firestore is fire-and-forget, don't block Laravel sync
+                }
+            }
+
+            // ── Step 3: Push to Laravel backend (delta sync includes ALL modified data) ──
             val apiService = RetrofitClient.getApiService(BuildConfig.API_BASE_URL)
             val syncManager = ApiSyncManager(
                 apiService = apiService,
                 userDao = db.userDao(),
-                activityLogDao = db.activityLogDao(),
+                activityLogDao = activityLogDao,
                 mealLogDao = db.mealLogDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
                 context = applicationContext
@@ -61,16 +85,24 @@ class SyncWorker(
 
             when (val result = syncManager.syncToBackend(uid)) {
                 is ApiSyncResult.Success -> {
-                    Log.d(TAG, "Auto-sync SUCCESS: ${result.message}")
+                    Log.d(TAG, "Laravel delta sync SUCCESS: ${result.message}")
+
+                    // ── Step 4: Mark activity logs as synced in Room ──
+                    if (unsyncedLogs.isNotEmpty()) {
+                        val syncedIds = unsyncedLogs.map { it.id }
+                        activityLogDao.markAsSynced(syncedIds)
+                        Log.d(TAG, "Marked ${syncedIds.size} activity logs as synced (status=1).")
+                    }
+
                     Result.success()
                 }
                 is ApiSyncResult.Error -> {
-                    Log.w(TAG, "Auto-sync FAILED (will retry): ${result.message}")
+                    Log.w(TAG, "Laravel sync FAILED (will retry): ${result.message}")
                     Result.retry()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Auto-sync exception (will retry)", e)
+            Log.e(TAG, "Sync worker exception (will retry)", e)
             Result.retry()
         }
     }

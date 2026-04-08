@@ -44,4 +44,14 @@ interface ActivityLogDao {
     /** Fetch only activity logs modified after the given timestamp (for delta sync payloads). */
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND updated_at > :sinceTimestamp ORDER BY timestamp ASC")
     suspend fun getLogsModifiedSince(uid: String, sinceTimestamp: Long): List<ActivityLogEntity>
+
+    // ═══ OFFLINE-FIRST SYNC QUERIES ═══
+
+    /** Fetch all activity logs that have NOT been synced yet (sync_status = 0). */
+    @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND sync_status = 0 ORDER BY timestamp ASC")
+    suspend fun getUnsyncedLogs(uid: String): List<ActivityLogEntity>
+
+    /** Mark a batch of activity log IDs as synced (sync_status = 1). */
+    @Query("UPDATE activity_log_table SET sync_status = 1 WHERE id IN (:ids)")
+    suspend fun markAsSynced(ids: List<Int>)
 }

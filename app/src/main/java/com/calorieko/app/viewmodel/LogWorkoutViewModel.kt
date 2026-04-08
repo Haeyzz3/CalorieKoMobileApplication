@@ -22,13 +22,16 @@ import java.util.Locale
 /**
  * ViewModel for LogWorkoutScreen.
  *
- * Manages:
- * - User weight (loaded from Room for MET calorie calculations)
- * - Save operation (photo compression → Room insert → Firestore sync)
+ * ── Offline-First Save Flow ──
+ * 1. Compress photo (if present) on IO dispatcher
+ * 2. Build the [ActivityLogEntity] with `sync_status = 0` (PENDING)
+ * 3. Insert to Room via [ActivityRepository] — **instant**, no network call
+ * 4. Emit [Event.SaveSuccess] immediately so the UI navigates back
+ * 5. [AutoSyncManager] schedules a background WorkManager job to push
+ *    the un-synced record to Firestore + Laravel when network is available
  *
- * GPS tracking state (timer, location callbacks, path points, distance, pace)
- * STAYS as local composable state inside GPSTrackerContent, since it is
- * inherently lifecycle-bound to location callbacks and LaunchedEffect timers.
+ * This ensures saving never fails due to connectivity and the user
+ * always sees success feedback within milliseconds.
  */
 class LogWorkoutViewModel(
     private val auth: FirebaseAuth,
@@ -70,13 +73,19 @@ class LogWorkoutViewModel(
         }
     }
 
-    // ── Save Workout ──
+    // ── Save Workout (Offline-First) ──
 
     /**
-     * Saves a workout log: compresses photo (if present), builds the entity,
-     * inserts to Room, syncs to Firestore, and emits [Event.SaveSuccess].
+     * Saves a workout log **locally** to Room and emits [Event.SaveSuccess].
      *
-     * @param context Needed for ContentResolver to read photo URIs.
+     * The entire save path is local-only:
+     * 1. Photo compression runs on [Dispatchers.IO]
+     * 2. Room insert is instantaneous (no network call)
+     * 3. Success is emitted to the UI immediately
+     * 4. Background sync is scheduled automatically by the repository
+     *
+     * This function will only fail on a local I/O error (extremely rare),
+     * never on a network timeout or Firestore/API failure.
      */
     fun saveWorkout(
         context: Context,
@@ -105,7 +114,7 @@ class LogWorkoutViewModel(
                         photoUri
                     }
 
-                    // 2. Build entity
+                    // 2. Build entity (sync_status = 0 by default = PENDING)
                     val currentTimeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
                     val log = ActivityLogEntity(
                         uid = uid,
@@ -123,9 +132,12 @@ class LogWorkoutViewModel(
                         photoUri = finalPhotoUri,
                         notes = note,
                         activityTag = tag
+                        // syncStatus defaults to 0 (PENDING) — will be synced in background
                     )
 
-                    // 3. Insert to Room + Firestore sync
+                    // 3. Insert to Room ONLY — no Firestore, no API, no network
+                    //    AutoSyncManager is triggered inside the repository to schedule
+                    //    a background sync when connectivity is available.
                     activityRepository.insertWorkoutLog(uid, log)
                 }
                 _isSaving.value = false
