@@ -1,7 +1,10 @@
 package com.calorieko.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +37,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -1145,12 +1150,20 @@ fun MealPlanCalendarSection(
 @Composable
 fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedMeals: List<PlannedMealEntity>, onClose: () -> Unit, onAddToPlan: () -> Unit) {
     val isReady = recipe.missingCoreIngredients.isEmpty()
-    val caloriePercent = (recipe.calories / 2000f)
-    val sodiumPercent = (recipe.sodium / 2300f)
+
+    // Use user's actual targets from ViewModel
+    val userCalorieTarget by viewModel.userCalorieTarget.collectAsState()
+    val userSodiumLimit by viewModel.userSodiumLimit.collectAsState()
+
+    val caloriePercent = if (userCalorieTarget > 0) (recipe.calories / userCalorieTarget.toFloat()) else 0f
+    val sodiumPercent = if (userSodiumLimit > 0) (recipe.sodium / userSodiumLimit.toFloat()) else 0f
     val sodiumColor = if (recipe.sodium <= 500) Color(0xFF16A34A) else if (recipe.sodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
 
     // Combine all missing for convenience
     val allMissing = recipe.missingCoreIngredients + recipe.missingOptionalIngredients
+
+    // Full nutrient toggle state
+    var showFullNutrients by remember { mutableStateOf(false) }
 
     // Add-to-plan dialog state
     val showPlanDialog = remember { mutableStateOf(false) }
@@ -1215,12 +1228,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         // Nutrition Cards
         if (recipe.calories > 0) {
             Text("Nutrition Overview", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Text("Values per 100 grams", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 NutritionCard(
                     value = "${recipe.calories}",
                     unit = "kcal",
-                    subtext = "${(caloriePercent * 100).toInt()}% of daily",
+                    subtext = "${(caloriePercent * 100).toInt()}% of daily target",
                     progress = caloriePercent,
                     color = CalorieKoGreen,
                     bgColor = Color(0xFFECFDF5),
@@ -1228,7 +1242,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 )
                 NutritionCard(
                     value = "${recipe.sodium}",
-                    unit = "mg",
+                    unit = "Sodium (mg)",
                     subtext = "${(sodiumPercent * 100).toInt()}% of limit",
                     progress = sodiumPercent,
                     color = sodiumColor,
@@ -1246,6 +1260,94 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 MacroRow("Protein", "${recipe.protein}g", Color(0xFF3B82F6), "P")
                 MacroRow("Carbohydrates", "${recipe.carbs}g", Color(0xFFEAB308), "C")
                 MacroRow("Fats", "${recipe.fats}g", Color(0xFFA855F7), "F")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // View Full Nutrients Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showFullNutrients = !showFullNutrients },
+                color = Color(0xFFF9FAFB),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        if (showFullNutrients) "Hide Full Nutrients" else "View Full Nutrients (17)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF374151),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        if (showFullNutrients) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Color(0xFF6B7280),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Full Nutrients Expandable Section
+            AnimatedVisibility(
+                visible = showFullNutrients,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // Energy
+                        NutrientCategoryHeader("⚡ Energy")
+                        NutrientDetailRow("Calories", "${recipe.calories} kcal")
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Macronutrients
+                        NutrientCategoryHeader("🥩 Macronutrients")
+                        NutrientDetailRow("Protein", "${recipe.protein} g")
+                        NutrientDetailRow("Carbohydrates", "${recipe.carbs} g")
+                        NutrientDetailRow("Total Fat", "${recipe.fats} g")
+                        NutrientDetailRow("Dietary Fiber", "${formatNutrientValue(recipe.fiber)} g")
+                        NutrientDetailRow("Sugar", "${formatNutrientValue(recipe.sugar)} g")
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Fat Breakdown
+                        NutrientCategoryHeader("🧈 Fat Breakdown")
+                        NutrientDetailRow("Saturated Fat", "${formatNutrientValue(recipe.saturatedFat)} g")
+                        NutrientDetailRow("Polyunsaturated Fat", "${formatNutrientValue(recipe.polyunsaturatedFat)} g")
+                        NutrientDetailRow("Monounsaturated Fat", "${formatNutrientValue(recipe.monounsaturatedFat)} g")
+                        NutrientDetailRow("Trans Fat", "${formatNutrientValue(recipe.transFat)} g")
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Minerals
+                        NutrientCategoryHeader("⛏️ Minerals")
+                        NutrientDetailRow("Cholesterol", "${formatNutrientValue(recipe.cholesterol)} mg")
+                        NutrientDetailRow("Sodium", "${recipe.sodium} mg")
+                        NutrientDetailRow("Potassium", "${formatNutrientValue(recipe.potassium)} mg")
+                        NutrientDetailRow("Calcium", "${formatNutrientValue(recipe.calcium)} mg")
+                        NutrientDetailRow("Iron", "${formatNutrientValue(recipe.iron)} mg")
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Vitamins
+                        NutrientCategoryHeader("💊 Vitamins")
+                        NutrientDetailRow("Vitamin A", "${formatNutrientValue(recipe.vitaminA)} µg")
+                        NutrientDetailRow("Vitamin C", "${formatNutrientValue(recipe.vitaminC)} mg")
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1472,5 +1574,43 @@ fun MacroRow(name: String, value: String, color: Color, label: String) {
             Text(name, fontSize = 14.sp, color = Color(0xFF374151))
         }
         Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+    }
+}
+
+// --- Full Nutrient Detail Components ---
+
+@Composable
+fun NutrientCategoryHeader(title: String) {
+    Text(
+        text = title,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color(0xFF374151),
+        modifier = Modifier.padding(vertical = 4.dp)
+    )
+}
+
+@Composable
+fun NutrientDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 13.sp, color = Color(0xFF6B7280))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+    }
+}
+
+/**
+ * Formats a float nutrient value to one decimal place, removing trailing ".0" for whole numbers.
+ */
+fun formatNutrientValue(value: Float): String {
+    return if (value == value.toInt().toFloat()) {
+        value.toInt().toString()
+    } else {
+        String.format("%.1f", value)
     }
 }

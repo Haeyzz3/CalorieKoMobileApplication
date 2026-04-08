@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.FoodDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
+import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,11 +35,27 @@ data class DishResult(
     val missingOptionalIngredients: List<String>,
     val coreMatchedCount: Int = 0,
     val coreTotalCount: Int = 0,
+    // Core energy
     val calories: Int = 0,
-    val sodium: Int = 0,
+    // Macros
     val protein: Int = 0,
     val carbs: Int = 0,
-    val fats: Int = 0
+    val fats: Int = 0,
+    val fiber: Float = 0f,
+    val sugar: Float = 0f,
+    // Fat breakdown
+    val saturatedFat: Float = 0f,
+    val polyunsaturatedFat: Float = 0f,
+    val monounsaturatedFat: Float = 0f,
+    val transFat: Float = 0f,
+    val cholesterol: Float = 0f,
+    // Minerals & vitamins
+    val sodium: Int = 0,
+    val potassium: Float = 0f,
+    val vitaminA: Float = 0f,
+    val vitaminC: Float = 0f,
+    val calcium: Float = 0f,
+    val iron: Float = 0f
 )
 
 class PantryViewModel(
@@ -45,7 +63,9 @@ class PantryViewModel(
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
     private val foodDao: FoodDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val userDao: UserDao,
+    private val nutritionalValuesRepo: NutritionalValuesRepository
 ) : ViewModel() {
 
     private val uid: String get() = auth.currentUser?.uid ?: ""
@@ -57,12 +77,14 @@ class PantryViewModel(
             pantryDao: PantryDao,
             mealPlanDao: MealPlanDao,
             foodDao: FoodDao,
-            firestoreSyncRepo: FirestoreSyncRepository
+            firestoreSyncRepo: FirestoreSyncRepository,
+            userDao: UserDao,
+            nutritionalValuesRepo: NutritionalValuesRepository
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, foodDao, firestoreSyncRepo) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, foodDao, firestoreSyncRepo, userDao, nutritionalValuesRepo) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -108,8 +130,31 @@ class PantryViewModel(
     private val _dishNutritionCache = mutableMapOf<String, DishNutritionInfo>()
 
     private data class DishNutritionInfo(
-        val calories: Int, val sodium: Int, val protein: Int, val carbs: Int, val fats: Int
+        val calories: Int,
+        val protein: Int,
+        val carbs: Int,
+        val fats: Int,
+        val fiber: Float,
+        val sugar: Float,
+        val saturatedFat: Float,
+        val polyunsaturatedFat: Float,
+        val monounsaturatedFat: Float,
+        val transFat: Float,
+        val cholesterol: Float,
+        val sodium: Int,
+        val potassium: Float,
+        val vitaminA: Float,
+        val vitaminC: Float,
+        val calcium: Float,
+        val iron: Float
     )
+
+    // --- User's actual daily calorie target and sodium limit ---
+    private val _userCalorieTarget = MutableStateFlow(2000)
+    val userCalorieTarget: StateFlow<Int> = _userCalorieTarget.asStateFlow()
+
+    private val _userSodiumLimit = MutableStateFlow(2000)
+    val userSodiumLimit: StateFlow<Int> = _userSodiumLimit.asStateFlow()
 
     // --- Pantry items grouped by category for UI ---
     private val _pantryItemsByCategory = MutableStateFlow<Map<String, List<String>>>(emptyMap())
@@ -119,6 +164,11 @@ class PantryViewModel(
         // Load all unique ingredients for autocomplete
         viewModelScope.launch(Dispatchers.IO) {
             _allIngredients.value = pantryDao.getAllUniqueIngredients()
+        }
+
+        // Load user's actual nutritional targets
+        viewModelScope.launch(Dispatchers.IO) {
+            loadUserNutritionalTargets()
         }
 
         // React to pantry changes → recompute recipe matches + category grouping
@@ -139,6 +189,21 @@ class PantryViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Loads the user's actual calorie target and sodium limit from their profile
+     * via the Mifflin-St Jeor calculation in NutritionalValuesRepository.
+     */
+    private suspend fun loadUserNutritionalTargets() {
+        val currentUid = uid
+        if (currentUid.isEmpty()) return
+
+        val profile = userDao.getUserProfile(currentUid) ?: return
+        val targets = nutritionalValuesRepo.getTargetsForUser(profile)
+
+        _userCalorieTarget.value = targets.targetCalories
+        _userSodiumLimit.value = targets.targetSodium
     }
 
     // ============================================================
@@ -226,10 +291,22 @@ class PantryViewModel(
                 coreMatchedCount = info.core_matched,
                 coreTotalCount = info.core_total,
                 calories = nutrition.calories,
-                sodium = nutrition.sodium,
                 protein = nutrition.protein,
                 carbs = nutrition.carbs,
-                fats = nutrition.fats
+                fats = nutrition.fats,
+                fiber = nutrition.fiber,
+                sugar = nutrition.sugar,
+                saturatedFat = nutrition.saturatedFat,
+                polyunsaturatedFat = nutrition.polyunsaturatedFat,
+                monounsaturatedFat = nutrition.monounsaturatedFat,
+                transFat = nutrition.transFat,
+                cholesterol = nutrition.cholesterol,
+                sodium = nutrition.sodium,
+                potassium = nutrition.potassium,
+                vitaminA = nutrition.vitaminA,
+                vitaminC = nutrition.vitaminC,
+                calcium = nutrition.calcium,
+                iron = nutrition.iron
             )
 
             if (info.core_matched >= info.core_total) {
@@ -358,14 +435,26 @@ class PantryViewModel(
         val info = if (foodItem != null) {
             DishNutritionInfo(
                 calories = foodItem.caloriesPer100g.toInt(),
-                sodium = foodItem.sodiumPer100g.toInt(),
                 protein = foodItem.proteinPer100g.toInt(),
                 carbs = foodItem.carbsPer100g.toInt(),
-                fats = foodItem.fatPer100g.toInt()
+                fats = foodItem.fatPer100g.toInt(),
+                fiber = foodItem.fiberPer100g,
+                sugar = foodItem.sugarPer100g,
+                saturatedFat = foodItem.saturatedFatPer100g,
+                polyunsaturatedFat = foodItem.polyunsaturatedFatPer100g,
+                monounsaturatedFat = foodItem.monounsaturatedFatPer100g,
+                transFat = foodItem.transFatPer100g,
+                cholesterol = foodItem.cholesterolPer100g,
+                sodium = foodItem.sodiumPer100g.toInt(),
+                potassium = foodItem.potassiumPer100g,
+                vitaminA = foodItem.vitaminAPer100g,
+                vitaminC = foodItem.vitaminCPer100g,
+                calcium = foodItem.calciumPer100g,
+                iron = foodItem.ironPer100g
             )
         } else {
             // Dish exists in ingredients table but not in food table — no nutrition data available
-            DishNutritionInfo(0, 0, 0, 0, 0)
+            DishNutritionInfo(0, 0, 0, 0, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0f, 0f, 0f, 0f, 0f)
         }
 
         _dishNutritionCache[dishLabel] = info

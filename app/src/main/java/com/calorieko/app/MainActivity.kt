@@ -537,7 +537,9 @@ fun AppNavigation() {
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
                     foodDao = db.foodDao(),
-                    firestoreSyncRepo = firestoreSyncRepo
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    userDao = db.userDao(),
+                    nutritionalValuesRepo = nutritionalRepo
                 )
             )
             PantryScreen(
