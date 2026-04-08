@@ -23,16 +23,16 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 /**
- * Result of the Cosine Similarity recipe matching engine.
+ * Result of the core-aware recipe matching engine.
  */
 data class DishResult(
     val dishLabel: String,
-    val dishName: String,           // Human-readable, derived from dishLabel
+    val dishName: String,
     val ingredients: List<String>,
-    val missingIngredients: List<String>,
-    val similarityScore: Float,     // 0.0 to 1.0 (ingredient ratio: matched/total)
-    val matchedCount: Int = 0,      // How many recipe ingredients the user has
-    val totalCount: Int = 0,        // Total ingredients for this recipe
+    val missingCoreIngredients: List<String>,
+    val missingOptionalIngredients: List<String>,
+    val coreMatchedCount: Int = 0,
+    val coreTotalCount: Int = 0,
     val calories: Int = 0,
     val sodium: Int = 0,
     val protein: Int = 0,
@@ -50,11 +50,8 @@ class PantryViewModel(
 
     private val uid: String get() = auth.currentUser?.uid ?: ""
 
-    // --- Cosine Similarity threshold for "Almost Ready" ---
+    // --- Factory ---
     companion object {
-        /** Minimum cosine similarity score for a dish to appear in "Almost Ready" */
-        const val ALMOST_READY_THRESHOLD = 0.6f
-
         fun provideFactory(
             auth: FirebaseAuth,
             pantryDao: PantryDao,
@@ -114,17 +111,22 @@ class PantryViewModel(
         val calories: Int, val sodium: Int, val protein: Int, val carbs: Int, val fats: Int
     )
 
+    // --- Pantry items grouped by category for UI ---
+    private val _pantryItemsByCategory = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    val pantryItemsByCategory: StateFlow<Map<String, List<String>>> = _pantryItemsByCategory.asStateFlow()
+
     init {
         // Load all unique ingredients for autocomplete
         viewModelScope.launch(Dispatchers.IO) {
             _allIngredients.value = pantryDao.getAllUniqueIngredients()
         }
 
-        // React to pantry changes → recompute recipe matches
+        // React to pantry changes → recompute recipe matches + category grouping
         viewModelScope.launch {
             pantryItems.collect { items ->
                 withContext(Dispatchers.IO) {
                     recomputeRecipeMatches(items)
+                    recomputePantryCategories(items)
                 }
             }
         }
@@ -177,21 +179,18 @@ class PantryViewModel(
     }
 
     // ============================================================
-    // Cosine Similarity Engine
+    // Core-Aware Recipe Matching Engine
     // ============================================================
 
     /**
-     * Recomputes recipe matches using an ingredient-ratio metric whenever the pantry changes.
+     * Recomputes recipe matches using a core-ingredient-based algorithm.
      *
-     * Formula: score = matched_count / total_ingredients
+     * Classification:
+     * - "Ready to Cook" = all core ingredients present (optional may be missing)
+     * - "Almost Ready" = at least 1 core ingredient present, but not all
+     * - Hidden = 0 core ingredients present (filtered out by SQL HAVING clause)
      *
-     * This replaces the previous cosine-similarity formula which was pantry-size
-     * dependent and caused partial matches to "disappear" when unrelated
-     * ingredients were added. The new ratio is stable: adding unrelated
-     * ingredients to the pantry never changes a recipe's score.
-     *
-     * - Score = 1.0 → "Ready to Cook"
-     * - Score >= ALMOST_READY_THRESHOLD (and < 1.0) → "Almost Ready"
+     * Sorting: by core_matched / core_total ratio (descending)
      */
     private suspend fun recomputeRecipeMatches(pantryItems: List<String>) {
         if (pantryItems.isEmpty()) {
@@ -206,43 +205,66 @@ class PantryViewModel(
         val almostReady = mutableListOf<DishResult>()
 
         for (info in matchInfoList) {
-            // Ingredient ratio: how many of this recipe's ingredients does the user have?
-            val score = info.matched_count.toFloat() / info.total_ingredients.toFloat()
+            val allIngredients = pantryDao.getIngredientsForDish(info.dish_label)
+            val missingWithType = if (info.core_matched < info.core_total || info.matched_count < info.total_ingredients) {
+                pantryDao.getMissingIngredients(info.dish_label, pantryItems)
+            } else {
+                emptyList()
+            }
 
-            if (score >= ALMOST_READY_THRESHOLD) {
-                val allIngredients = pantryDao.getIngredientsForDish(info.dish_label)
-                val missing = if (score < 1.0f) {
-                    pantryDao.getMissingIngredients(info.dish_label, pantryItems)
-                } else {
-                    emptyList()
-                }
-                val nutrition = getDishNutrition(info.dish_label)
+            val missingCore = missingWithType.filter { it.ingredient_type == "core" }.map { it.ingredient_name }
+            val missingOptional = missingWithType.filter { it.ingredient_type == "optional" }.map { it.ingredient_name }
 
-                val result = DishResult(
-                    dishLabel = info.dish_label,
-                    dishName = formatDishName(info.dish_label),
-                    ingredients = allIngredients,
-                    missingIngredients = missing,
-                    similarityScore = score,
-                    matchedCount = info.matched_count,
-                    totalCount = info.total_ingredients,
-                    calories = nutrition.calories,
-                    sodium = nutrition.sodium,
-                    protein = nutrition.protein,
-                    carbs = nutrition.carbs,
-                    fats = nutrition.fats
-                )
+            val nutrition = getDishNutrition(info.dish_label)
 
-                if (score >= 1.0f) {
-                    ready.add(result)
-                } else {
-                    almostReady.add(result)
-                }
+            val result = DishResult(
+                dishLabel = info.dish_label,
+                dishName = formatDishName(info.dish_label),
+                ingredients = allIngredients,
+                missingCoreIngredients = missingCore,
+                missingOptionalIngredients = missingOptional,
+                coreMatchedCount = info.core_matched,
+                coreTotalCount = info.core_total,
+                calories = nutrition.calories,
+                sodium = nutrition.sodium,
+                protein = nutrition.protein,
+                carbs = nutrition.carbs,
+                fats = nutrition.fats
+            )
+
+            if (info.core_matched >= info.core_total) {
+                // All core ingredients present → Ready to Cook
+                ready.add(result)
+            } else {
+                // Some core ingredients present → Almost Ready
+                almostReady.add(result)
             }
         }
 
-        _readyToCookDishes.value = ready.sortedByDescending { it.similarityScore }
-        _almostReadyDishes.value = almostReady.sortedByDescending { it.similarityScore }
+        // Sort by core completion ratio (descending)
+        val coreRatio: (DishResult) -> Float = { it.coreMatchedCount.toFloat() / it.coreTotalCount.toFloat() }
+        _readyToCookDishes.value = ready.sortedByDescending(coreRatio)
+        _almostReadyDishes.value = almostReady.sortedByDescending(coreRatio)
+    }
+
+    /**
+     * Groups pantry items by their ingredient category from the dish_ingredients table.
+     * Items not found in the table are placed in "pantry_staple" by default.
+     */
+    private suspend fun recomputePantryCategories(items: List<String>) {
+        if (items.isEmpty()) {
+            _pantryItemsByCategory.value = emptyMap()
+            return
+        }
+
+        val categoryMappings = pantryDao.getCategoriesForIngredients(items)
+        val categoryMap = categoryMappings.associate { it.ingredient_name to it.ingredient_category }
+
+        val grouped = items.groupBy { ingredient ->
+            categoryMap[ingredient] ?: "pantry_staple"
+        }
+
+        _pantryItemsByCategory.value = grouped
     }
 
     // ============================================================

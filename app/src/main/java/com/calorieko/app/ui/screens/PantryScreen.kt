@@ -101,6 +101,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     val plannedMeals by viewModel.plannedMeals.collectAsState()
     val weeklyCalories by viewModel.weeklyCalories.collectAsState()
     val avgDailySodium by viewModel.avgDailySodium.collectAsState()
+    val pantryByCategory by viewModel.pantryItemsByCategory.collectAsState()
 
     // Bottom Sheet State for Recipe Details
     val selectedRecipe = remember { mutableStateOf<DishResult?>(null) }
@@ -245,7 +246,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Pantry Chips
+                     // Pantry Chips — Grouped by Category
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -270,32 +271,54 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                                     modifier = Modifier.fillMaxWidth().padding(16.dp)
                                 )
                             } else {
-                                SimpleFlowRow(
-                                    horizontalGap = 8.dp,
-                                    verticalGap = 8.dp
-                                ) {
-                                    pantryIngredients.forEach { ingredient ->
-                                        Surface(
-                                            color = Color(0xFFF3F4F6),
-                                            shape = RoundedCornerShape(50),
-                                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                                val categoryOrder = listOf(
+                                    "protein" to Pair("\uD83E\uDD69 Protein", Color(0xFFFEE2E2)),
+                                    "produce" to Pair("\uD83E\uDD6C Produce", Color(0xFFDCFCE7)),
+                                    "seasoning" to Pair("\uD83E\uDDC2 Seasonings & Sauces", Color(0xFFFEF9C3)),
+                                    "pantry_staple" to Pair("\uD83C\uDFE1 Pantry Staples", Color(0xFFDBEAFE))
+                                )
+
+                                categoryOrder.forEach { (categoryKey, labelAndColor) ->
+                                    val (label, chipBgColor) = labelAndColor
+                                    val items = pantryByCategory[categoryKey] ?: emptyList()
+                                    if (items.isNotEmpty()) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(bottom = 8.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(viewModel.formatIngredientName(ingredient), fontSize = 13.sp, color = Color(0xFF374151))
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Icon(
-                                                    Icons.Default.Close,
-                                                    null,
-                                                    tint = Color(0xFF9CA3AF),
-                                                    modifier = Modifier.size(14.dp).clickable {
-                                                        viewModel.removeIngredient(ingredient)
+                                            Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("(${items.size})", fontSize = 11.sp, color = Color.Gray)
+                                        }
+                                        SimpleFlowRow(
+                                            horizontalGap = 8.dp,
+                                            verticalGap = 8.dp
+                                        ) {
+                                            items.forEach { ingredient ->
+                                                Surface(
+                                                    color = chipBgColor,
+                                                    shape = RoundedCornerShape(50),
+                                                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(viewModel.formatIngredientName(ingredient), fontSize = 13.sp, color = Color(0xFF374151))
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Icon(
+                                                            Icons.Default.Close,
+                                                            null,
+                                                            tint = Color(0xFF9CA3AF),
+                                                            modifier = Modifier.size(14.dp).clickable {
+                                                                viewModel.removeIngredient(ingredient)
+                                                            }
+                                                        )
                                                     }
-                                                )
+                                                }
                                             }
                                         }
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 }
                             }
@@ -382,7 +405,7 @@ fun RecipeRow(title: String, recipes: List<DishResult>, color: Color, onClick: (
 
 @Composable
 fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) {
-    val isReady = recipe.missingIngredients.isEmpty()
+    val isReady = recipe.missingCoreIngredients.isEmpty()
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -434,22 +457,33 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
                 Text("${recipe.sodium}mg Na", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
 
-            // Ingredient match info
+            // Core ingredient match info
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "${recipe.matchedCount}/${recipe.totalCount} Ingredients",
+                "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
                 fontSize = 11.sp,
                 color = if (isReady) CalorieKoGreen else CalorieKoOrange,
                 fontWeight = FontWeight.Medium
             )
 
-            if (recipe.missingIngredients.isNotEmpty()) {
+            if (recipe.missingCoreIngredients.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Need: ${recipe.missingIngredients.joinToString(", ") { it.replace("_", " ") }}",
+                    "Need: ${recipe.missingCoreIngredients.joinToString(", ") { it.replace("_", " ") }}",
                     fontSize = 12.sp,
                     color = CalorieKoOrange,
                     fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (recipe.missingOptionalIngredients.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    "Optional: ${recipe.missingOptionalIngredients.joinToString(", ") { it.replace("_", " ") }}",
+                    fontSize = 10.sp,
+                    color = Color(0xFF9CA3AF),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -658,10 +692,10 @@ fun MealPlanCalendarSection(
                                 },
                                 label = { Text("${getDishEmoji(recipe.dishLabel)} ${recipe.dishName}") },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = if (recipe.missingIngredients.isEmpty()) Color(0xFFECFDF5) else Color(0xFFFFEDD5),
+                                    containerColor = if (recipe.missingCoreIngredients.isEmpty()) Color(0xFFECFDF5) else Color(0xFFFFEDD5),
                                     labelColor = Color(0xFF1F2937)
                                 ),
-                                border = BorderStroke(1.dp, if (recipe.missingIngredients.isEmpty()) CalorieKoGreen else CalorieKoOrange)
+                                border = BorderStroke(1.dp, if (recipe.missingCoreIngredients.isEmpty()) CalorieKoGreen else CalorieKoOrange)
                             )
                         }
                     }
@@ -749,10 +783,13 @@ fun MealPlanCalendarSection(
 // --- Recipe Detail Content (BottomSheet) ---
 @Composable
 fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose: () -> Unit, onAddToPlan: () -> Unit) {
-    val isReady = recipe.missingIngredients.isEmpty()
+    val isReady = recipe.missingCoreIngredients.isEmpty()
     val caloriePercent = (recipe.calories / 2000f)
     val sodiumPercent = (recipe.sodium / 2300f)
     val sodiumColor = if (recipe.sodium <= 500) Color(0xFF16A34A) else if (recipe.sodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
+
+    // Combine all missing for convenience
+    val allMissing = recipe.missingCoreIngredients + recipe.missingOptionalIngredients
 
     // Add-to-plan dialog state
     val showPlanDialog = remember { mutableStateOf(false) }
@@ -788,9 +825,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
                 Column {
                     Text(recipe.dishName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Ingredient match info
+                    // Core ingredient match info
                     Text(
-                        "${recipe.matchedCount}/${recipe.totalCount} Ingredients",
+                        "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
                         fontSize = 12.sp,
                         color = if (isReady) CalorieKoGreen else CalorieKoOrange,
                         fontWeight = FontWeight.Bold
@@ -802,7 +839,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
                         }
                     } else {
                         Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
-                            Text("Missing Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Missing Core Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -858,24 +895,52 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
         Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             recipe.ingredients.forEach { ingredient ->
-                val isMissing = recipe.missingIngredients.contains(ingredient)
+                val isMissingCore = recipe.missingCoreIngredients.contains(ingredient)
+                val isMissingOptional = recipe.missingOptionalIngredients.contains(ingredient)
+                val isMissing = isMissingCore || isMissingOptional
+                val bgColor = when {
+                    isMissingCore -> Color(0xFFFFF7ED)
+                    isMissingOptional -> Color(0xFFFEFCE8)
+                    else -> Color(0xFFF9FAFB)
+                }
+                val borderColor = when {
+                    isMissingCore -> Color(0xFFFFEDD5)
+                    isMissingOptional -> Color(0xFFFEF9C3)
+                    else -> Color.Transparent
+                }
+                val iconColor = when {
+                    isMissingCore -> CalorieKoOrange
+                    isMissingOptional -> Color(0xFFCA8A04)
+                    else -> CalorieKoGreen
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (isMissing) Color(0xFFFFF7ED) else Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-                        .border(1.dp, if (isMissing) Color(0xFFFFEDD5) else Color.Transparent, RoundedCornerShape(8.dp))
+                        .background(bgColor, RoundedCornerShape(8.dp))
+                        .border(1.dp, borderColor, RoundedCornerShape(8.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(20.dp).background(if (isMissing) CalorieKoOrange else CalorieKoGreen, CircleShape), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(20.dp).background(iconColor, CircleShape), contentAlignment = Alignment.Center) {
                         Icon(if (isMissing) Icons.Rounded.Warning else Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         viewModel.formatIngredientName(ingredient),
-                        color = if (isMissing) CalorieKoOrange else Color(0xFF374151),
-                        fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal
+                        color = if (isMissingCore) CalorieKoOrange else if (isMissingOptional) Color(0xFFCA8A04) else Color(0xFF374151),
+                        fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal,
+                        modifier = Modifier.weight(1f)
                     )
+                    // Core / Optional badge
+                    if (isMissingCore) {
+                        Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(4.dp)) {
+                            Text("Core", fontSize = 9.sp, color = CalorieKoOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        }
+                    } else if (isMissingOptional) {
+                        Surface(color = Color(0xFFFEF9C3), shape = RoundedCornerShape(4.dp)) {
+                            Text("Optional", fontSize = 9.sp, color = Color(0xFFCA8A04), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        }
+                    }
                 }
             }
         }

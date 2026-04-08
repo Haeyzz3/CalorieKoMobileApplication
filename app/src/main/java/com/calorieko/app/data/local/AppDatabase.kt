@@ -30,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -119,6 +119,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 12 → 13: Drops and recreates DISH_INGREDIENTS_TABLE with
+         * two new columns: `ingredient_type` and `ingredient_category`.
+         *
+         * We drop-and-recreate instead of ALTER TABLE because every existing
+         * row needs the classification data from the updated CSV.
+         * FoodDatabaseCallback.onOpen() detects count == 0 and re-seeds
+         * automatically from dish_ingredients.csv.
+         */
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS DISH_INGREDIENTS_TABLE")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS DISH_INGREDIENTS_TABLE (
+                        dish_label TEXT NOT NULL,
+                        ingredient_name TEXT NOT NULL,
+                        ingredient_type TEXT NOT NULL DEFAULT 'core',
+                        ingredient_category TEXT NOT NULL DEFAULT 'pantry_staple',
+                        PRIMARY KEY(dish_label, ingredient_name)
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -129,7 +153,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

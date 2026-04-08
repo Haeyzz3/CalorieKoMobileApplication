@@ -9,5 +9,7 @@ import androidx.room.Entity
 )
 data class DishIngredient(
     @ColumnInfo(name = "dish_label") val dishLabel: String,
-    @ColumnInfo(name = "ingredient_name") val ingredientName: String
+    @ColumnInfo(name = "ingredient_name") val ingredientName: String,
+    @ColumnInfo(name = "ingredient_type") val ingredientType: String = "core",           // "core" or "optional"
+    @ColumnInfo(name = "ingredient_category") val ingredientCategory: String = "pantry_staple"  // "protein", "produce", "seasoning", "pantry_staple"
 )
