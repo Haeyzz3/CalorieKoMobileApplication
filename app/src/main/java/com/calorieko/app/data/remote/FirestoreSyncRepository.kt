@@ -28,7 +28,7 @@ import kotlinx.coroutines.tasks.await
  * users/{uid}/mealLogs/{mealLogId}/items/{itemId}  → individual dishes
  * users/{uid}/dailyNutritionSummaries/{dateEpochDay} → daily aggregate
  * users/{uid}/pantryItems/{ingredientName}           → pantry entry
- * users/{uid}/plannedMeals/{dayIndex_weekStartDate}  → meal plan entry
+ * users/{uid}/plannedMeals/{dayIndex_weekStartDate_mealSlot}  → meal plan entry
  * ```
  */
 class FirestoreSyncRepository {
@@ -424,15 +424,16 @@ class FirestoreSyncRepository {
 
     /**
      * Syncs a planned meal to Firestore.
-     * Document ID is a composite key: `{dayIndex}_{weekStartDate}`.
+     * Document ID is a composite key: `{dayIndex}_{weekStartDate}_{mealSlot}`.
      */
     suspend fun syncPlannedMeal(uid: String, meal: PlannedMealEntity) {
         try {
-            val docId = "${meal.dayIndex}_${meal.weekStartDate}"
+            val docId = "${meal.dayIndex}_${meal.weekStartDate}_${meal.mealSlot}"
             val data = hashMapOf<String, Any?>(
                 "dayIndex" to meal.dayIndex,
                 "dishLabel" to meal.dishLabel,
-                "weekStartDate" to meal.weekStartDate
+                "weekStartDate" to meal.weekStartDate,
+                "mealSlot" to meal.mealSlot
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -457,12 +458,13 @@ class FirestoreSyncRepository {
             meals.chunked(500).forEach { chunk ->
                 val batch = db.batch()
                 for (meal in chunk) {
-                    val docId = "${meal.dayIndex}_${meal.weekStartDate}"
+                    val docId = "${meal.dayIndex}_${meal.weekStartDate}_${meal.mealSlot}"
                     val docRef = userRef.collection("plannedMeals").document(docId)
                     val data = hashMapOf<String, Any?>(
                         "dayIndex" to meal.dayIndex,
                         "dishLabel" to meal.dishLabel,
-                        "weekStartDate" to meal.weekStartDate
+                        "weekStartDate" to meal.weekStartDate,
+                        "mealSlot" to meal.mealSlot
                     )
                     batch.set(docRef, data)
                 }
@@ -477,9 +479,9 @@ class FirestoreSyncRepository {
     /**
      * Deletes a single planned meal document from Firestore.
      */
-    suspend fun deletePlannedMeal(uid: String, dayIndex: Int, weekStartDate: String) {
+    suspend fun deletePlannedMeal(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
         try {
-            val docId = "${dayIndex}_${weekStartDate}"
+            val docId = "${dayIndex}_${weekStartDate}_${mealSlot}"
             db.collection(USERS_COLLECTION)
                 .document(uid)
                 .collection("plannedMeals")
@@ -823,7 +825,8 @@ class FirestoreSyncRepository {
                     PlannedMealEntity(
                         dayIndex = (doc.getLong("dayIndex") ?: return@mapNotNull null).toInt(),
                         dishLabel = doc.getString("dishLabel") ?: return@mapNotNull null,
-                        weekStartDate = doc.getString("weekStartDate") ?: return@mapNotNull null
+                        weekStartDate = doc.getString("weekStartDate") ?: return@mapNotNull null,
+                        mealSlot = doc.getString("mealSlot") ?: "Lunch"
                     )
                 } catch (e: Exception) {
                     Log.w(TAG, "Skipping malformed planned meal ${doc.id}", e)

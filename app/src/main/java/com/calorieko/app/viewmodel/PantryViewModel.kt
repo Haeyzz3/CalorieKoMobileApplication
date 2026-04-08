@@ -21,7 +21,6 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
-import kotlin.math.sqrt
 
 /**
  * Result of the Cosine Similarity recipe matching engine.
@@ -31,7 +30,9 @@ data class DishResult(
     val dishName: String,           // Human-readable, derived from dishLabel
     val ingredients: List<String>,
     val missingIngredients: List<String>,
-    val similarityScore: Float,     // 0.0 to 1.0
+    val similarityScore: Float,     // 0.0 to 1.0 (ingredient ratio: matched/total)
+    val matchedCount: Int = 0,      // How many recipe ingredients the user has
+    val totalCount: Int = 0,        // Total ingredients for this recipe
     val calories: Int = 0,
     val sodium: Int = 0,
     val protein: Int = 0,
@@ -180,9 +181,14 @@ class PantryViewModel(
     // ============================================================
 
     /**
-     * Recomputes recipe matches using Cosine Similarity whenever the pantry changes.
+     * Recomputes recipe matches using an ingredient-ratio metric whenever the pantry changes.
      *
-     * Formula: cosine_sim = matched_count / (√pantry_size × √total_ingredients)
+     * Formula: score = matched_count / total_ingredients
+     *
+     * This replaces the previous cosine-similarity formula which was pantry-size
+     * dependent and caused partial matches to "disappear" when unrelated
+     * ingredients were added. The new ratio is stable: adding unrelated
+     * ingredients to the pantry never changes a recipe's score.
      *
      * - Score = 1.0 → "Ready to Cook"
      * - Score >= ALMOST_READY_THRESHOLD (and < 1.0) → "Almost Ready"
@@ -195,14 +201,13 @@ class PantryViewModel(
         }
 
         val matchInfoList = pantryDao.getDishMatchCounts(pantryItems)
-        val pantrySize = pantryItems.size
 
         val ready = mutableListOf<DishResult>()
         val almostReady = mutableListOf<DishResult>()
 
         for (info in matchInfoList) {
-            val score = info.matched_count.toFloat() /
-                    (sqrt(pantrySize.toFloat()) * sqrt(info.total_ingredients.toFloat()))
+            // Ingredient ratio: how many of this recipe's ingredients does the user have?
+            val score = info.matched_count.toFloat() / info.total_ingredients.toFloat()
 
             if (score >= ALMOST_READY_THRESHOLD) {
                 val allIngredients = pantryDao.getIngredientsForDish(info.dish_label)
@@ -219,6 +224,8 @@ class PantryViewModel(
                     ingredients = allIngredients,
                     missingIngredients = missing,
                     similarityScore = score,
+                    matchedCount = info.matched_count,
+                    totalCount = info.total_ingredients,
                     calories = nutrition.calories,
                     sodium = nutrition.sodium,
                     protein = nutrition.protein,
@@ -242,22 +249,23 @@ class PantryViewModel(
     // Meal Plan Actions
     // ============================================================
 
-    fun addMealToPlan(dayIndex: Int, dishLabel: String) {
+    fun addMealToPlan(dayIndex: Int, dishLabel: String, mealSlot: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val meal = PlannedMealEntity(
                 dayIndex = dayIndex,
                 dishLabel = dishLabel,
-                weekStartDate = _currentWeekStart.value
+                weekStartDate = _currentWeekStart.value,
+                mealSlot = mealSlot
             )
             mealPlanDao.insertMeal(meal)
             if (uid.isNotEmpty()) firestoreSyncRepo.syncPlannedMeal(uid, meal)
         }
     }
 
-    fun removeMealFromPlan(dayIndex: Int) {
+    fun removeMealFromPlan(dayIndex: Int, mealSlot: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.removeMeal(dayIndex, _currentWeekStart.value)
-            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value)
+            mealPlanDao.removeMeal(dayIndex, _currentWeekStart.value, mealSlot)
+            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot)
         }
     }
 

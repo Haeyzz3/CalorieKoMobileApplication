@@ -434,10 +434,10 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
                 Text("${recipe.sodium}mg Na", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
 
-            // Similarity score badge
+            // Ingredient match info
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "${(recipe.similarityScore * 100).toInt()}% match",
+                "${recipe.matchedCount}/${recipe.totalCount} Ingredients",
                 fontSize = 11.sp,
                 color = if (isReady) CalorieKoGreen else CalorieKoOrange,
                 fontWeight = FontWeight.Medium
@@ -490,8 +490,18 @@ fun MealPlanCalendarSection(
 ) {
     val showAddDialog = remember { mutableStateOf(false) }
     val recipeToAdd = remember { mutableStateOf<DishResult?>(null) }
+    val selectedDayIndex = remember { mutableStateOf(-1) }
+    val showSlotPicker = remember { mutableStateOf(false) }
 
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+    val slotEmojis = mapOf("Breakfast" to "☀️", "Lunch" to "🌤️", "Dinner" to "🌙", "Snack" to "🍿")
+    val slotColors = mapOf(
+        "Breakfast" to Color(0xFFFFF7ED),
+        "Lunch" to Color(0xFFECFDF5),
+        "Dinner" to Color(0xFFEDE9FE),
+        "Snack" to Color(0xFFFEF9C3)
+    )
 
     // Sodium warning threshold (mg)
     val sodiumWarning = avgDailySodium > 2000
@@ -535,7 +545,7 @@ fun MealPlanCalendarSection(
             }
         }
 
-        // Calendar Grid
+        // Calendar Grid — multi-meal per day
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             shape = RoundedCornerShape(16.dp),
@@ -544,6 +554,13 @@ fun MealPlanCalendarSection(
             Column {
                 // Days Header
                 Row(modifier = Modifier.fillMaxWidth().border(0.5.dp, Color(0xFFF3F4F6))) {
+                    // Empty corner cell for slot labels
+                    Box(
+                        modifier = Modifier.width(56.dp).padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("", fontSize = 10.sp)
+                    }
                     days.forEach { day ->
                         Text(
                             text = day,
@@ -555,46 +572,68 @@ fun MealPlanCalendarSection(
                         )
                     }
                 }
-                // Grid Body
-                Row(modifier = Modifier.fillMaxWidth().height(120.dp)) {
-                    days.indices.forEach { index ->
-                        val meal = plannedMeals.find { it.dayIndex == index }
+                // Slot rows
+                mealSlots.forEach { slot ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().border(0.5.dp, Color(0xFFF3F4F6)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Slot label column
                         Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .border(0.5.dp, Color(0xFFF3F4F6))
-                                .clickable {
-                                    if (meal != null) {
-                                        viewModel.removeMealFromPlan(index)
-                                    }
-                                }
-                                .padding(2.dp),
-                            contentAlignment = Alignment.TopCenter
+                            modifier = Modifier.width(56.dp).padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (meal != null) {
-                                Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = Color(0xFFECFDF5)
-                                    ),
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    Column(modifier = Modifier.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(getDishEmoji(meal.dishLabel), fontSize = 16.sp)
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            viewModel.formatIngredientName(meal.dishLabel),
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = 10.sp,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
-                                        )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(slotEmojis[slot] ?: "", fontSize = 12.sp)
+                                Text(
+                                    slot.take(3),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+                        // Day cells
+                        days.indices.forEach { dayIdx ->
+                            val meal = plannedMeals.find { it.dayIndex == dayIdx && it.mealSlot == slot }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp)
+                                    .border(0.5.dp, Color(0xFFF3F4F6))
+                                    .clickable {
+                                        if (meal != null) {
+                                            viewModel.removeMealFromPlan(dayIdx, slot)
+                                        }
+                                    }
+                                    .padding(1.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (meal != null) {
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = slotColors[slot] ?: Color(0xFFECFDF5)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(2.dp).fillMaxSize(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(getDishEmoji(meal.dishLabel), fontSize = 14.sp)
+                                            Text(
+                                                viewModel.formatIngredientName(meal.dishLabel),
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 9.sp,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
                                     }
                                 }
-                            } else {
-                                Text("${index + 1}", fontSize = 10.sp, color = Color.LightGray, modifier = Modifier.padding(top = 8.dp))
                             }
                         }
                     }
@@ -631,7 +670,7 @@ fun MealPlanCalendarSection(
         }
     }
 
-    // Add Meal Dialog
+    // Step 1: Pick a day
     if (showAddDialog.value && recipeToAdd.value != null) {
         AlertDialog(
             onDismissRequest = { showAddDialog.value = false },
@@ -647,8 +686,9 @@ fun MealPlanCalendarSection(
                                     .size(32.dp)
                                     .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
                                     .clickable {
-                                        viewModel.addMealToPlan(index, recipeToAdd.value!!.dishLabel)
+                                        selectedDayIndex.value = index
                                         showAddDialog.value = false
+                                        showSlotPicker.value = true
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -660,6 +700,48 @@ fun MealPlanCalendarSection(
             },
             confirmButton = {},
             dismissButton = { TextButton(onClick = { showAddDialog.value = false }) { Text("Cancel") } }
+        )
+    }
+
+    // Step 2: Pick a meal slot
+    if (showSlotPicker.value && recipeToAdd.value != null) {
+        AlertDialog(
+            onDismissRequest = { showSlotPicker.value = false },
+            title = { Text("Choose Meal Slot") },
+            text = {
+                Column {
+                    Text("Add ${recipeToAdd.value?.dishName} on ${days[selectedDayIndex.value]} as:")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    mealSlots.forEach { slot ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    viewModel.addMealToPlan(
+                                        selectedDayIndex.value,
+                                        recipeToAdd.value!!.dishLabel,
+                                        slot
+                                    )
+                                    showSlotPicker.value = false
+                                },
+                            color = slotColors[slot] ?: Color(0xFFF3F4F6),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(slotEmojis[slot] ?: "", fontSize = 18.sp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(slot, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showSlotPicker.value = false }) { Text("Cancel") } }
         )
     }
 }
@@ -674,7 +756,17 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
 
     // Add-to-plan dialog state
     val showPlanDialog = remember { mutableStateOf(false) }
+    val selectedDayForPlan = remember { mutableStateOf(-1) }
+    val showSlotPickerForPlan = remember { mutableStateOf(false) }
     val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+    val slotEmojis = mapOf("Breakfast" to "☀️", "Lunch" to "🌤️", "Dinner" to "🌙", "Snack" to "🍿")
+    val slotColors = mapOf(
+        "Breakfast" to Color(0xFFFFF7ED),
+        "Lunch" to Color(0xFFECFDF5),
+        "Dinner" to Color(0xFFEDE9FE),
+        "Snack" to Color(0xFFFEF9C3)
+    )
 
     Column(
         modifier = Modifier
@@ -696,9 +788,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
                 Column {
                     Text(recipe.dishName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Cosine similarity score
+                    // Ingredient match info
                     Text(
-                        "${(recipe.similarityScore * 100).toInt()}% match",
+                        "${recipe.matchedCount}/${recipe.totalCount} Ingredients",
                         fontSize = 12.sp,
                         color = if (isReady) CalorieKoGreen else CalorieKoOrange,
                         fontWeight = FontWeight.Bold
@@ -800,7 +892,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
         }
     }
 
-    // Add to Plan Dialog from Detail Sheet
+    // Step 1: Add to Plan — Pick a day (from Detail Sheet)
     if (showPlanDialog.value) {
         AlertDialog(
             onDismissRequest = { showPlanDialog.value = false },
@@ -816,9 +908,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
                                     .size(32.dp)
                                     .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
                                     .clickable {
-                                        viewModel.addMealToPlan(index, recipe.dishLabel)
+                                        selectedDayForPlan.value = index
                                         showPlanDialog.value = false
-                                        onAddToPlan()
+                                        showSlotPickerForPlan.value = true
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -830,6 +922,49 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, onClose:
             },
             confirmButton = {},
             dismissButton = { TextButton(onClick = { showPlanDialog.value = false }) { Text("Cancel") } }
+        )
+    }
+
+    // Step 2: Pick a meal slot (from Detail Sheet)
+    if (showSlotPickerForPlan.value) {
+        AlertDialog(
+            onDismissRequest = { showSlotPickerForPlan.value = false },
+            title = { Text("Choose Meal Slot") },
+            text = {
+                Column {
+                    Text("Add ${recipe.dishName} on ${days[selectedDayForPlan.value]} as:")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    mealSlots.forEach { slot ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    viewModel.addMealToPlan(
+                                        selectedDayForPlan.value,
+                                        recipe.dishLabel,
+                                        slot
+                                    )
+                                    showSlotPickerForPlan.value = false
+                                    onAddToPlan()
+                                },
+                            color = slotColors[slot] ?: Color(0xFFF3F4F6),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(slotEmojis[slot] ?: "", fontSize = 18.sp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(slot, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showSlotPickerForPlan.value = false }) { Text("Cancel") } }
         )
     }
 }

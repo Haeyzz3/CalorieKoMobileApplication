@@ -13,8 +13,8 @@ interface MealPlanDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMeal(meal: PlannedMealEntity)
 
-    @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE day_index = :dayIndex AND week_start_date = :weekStartDate")
-    suspend fun removeMeal(dayIndex: Int, weekStartDate: String)
+    @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot")
+    suspend fun removeMeal(dayIndex: Int, weekStartDate: String, mealSlot: String)
 
     @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE week_start_date = :weekStartDate ORDER BY day_index ASC")
     fun getMealsForWeek(weekStartDate: String): Flow<List<PlannedMealEntity>>

@@ -30,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -91,6 +91,34 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 11 → 12: Adds `meal_slot` column to PLANNED_MEALS_TABLE
+         * and expands the composite PK to (day_index, week_start_date, meal_slot).
+         *
+         * SQLite does not support ALTER TABLE ADD PRIMARY KEY, so we recreate
+         * the table. Existing meals default to "Lunch".
+         */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS PLANNED_MEALS_TABLE_new (
+                        day_index INTEGER NOT NULL,
+                        dish_label TEXT NOT NULL,
+                        week_start_date TEXT NOT NULL,
+                        meal_slot TEXT NOT NULL DEFAULT 'Lunch',
+                        PRIMARY KEY(day_index, week_start_date, meal_slot)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO PLANNED_MEALS_TABLE_new (day_index, dish_label, week_start_date, meal_slot)
+                    SELECT day_index, dish_label, week_start_date, 'Lunch'
+                    FROM PLANNED_MEALS_TABLE
+                """.trimIndent())
+                db.execSQL("DROP TABLE PLANNED_MEALS_TABLE")
+                db.execSQL("ALTER TABLE PLANNED_MEALS_TABLE_new RENAME TO PLANNED_MEALS_TABLE")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -101,7 +129,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
