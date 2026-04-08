@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -452,6 +453,7 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .width(220.dp)
+            .height(200.dp)
             .clickable { onClick(recipe) }
             .border(2.dp, color.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
     ) {
@@ -1230,7 +1232,10 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             Text("Nutrition Overview", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Text("Values per 100 grams", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 NutritionCard(
                     value = "${recipe.calories}",
                     unit = "kcal",
@@ -1238,16 +1243,16 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     progress = caloriePercent,
                     color = CalorieKoGreen,
                     bgColor = Color(0xFFECFDF5),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 )
                 NutritionCard(
                     value = "${recipe.sodium}",
-                    unit = "Sodium (mg)",
+                    unit = "Sod. (mg)",
                     subtext = "${(sodiumPercent * 100).toInt()}% of limit",
                     progress = sodiumPercent,
                     color = sodiumColor,
                     bgColor = if (recipe.sodium <= 500) Color(0xFFECFDF5) else if (recipe.sodium <= 800) Color(0xFFFEF9C3) else Color(0xFFFFF7ED),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
 
@@ -1548,16 +1553,21 @@ fun NutritionCard(value: String, unit: String, subtext: String, progress: Float,
     val animatedProgress = animateFloatAsState(targetValue = progress, animationSpec = tween(1000), label = "bar")
 
     Card(colors = CardDefaults.cardColors(containerColor = bgColor), shape = RoundedCornerShape(16.dp), modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp).fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = color)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(unit, fontSize = 14.sp, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 4.dp))
             }
-            Text(subtext, fontSize = 11.sp, color = Color(0xFF4B5563))
-            Spacer(modifier = Modifier.height(12.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color.White, CircleShape)) {
-                Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(animatedProgress.value.coerceIn(0f, 1f)).background(color, CircleShape))
+            Column {
+                Text(subtext, fontSize = 11.sp, color = Color(0xFF4B5563))
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color.White, CircleShape)) {
+                    Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(animatedProgress.value.coerceIn(0f, 1f)).background(color, CircleShape))
+                }
             }
         }
     }
