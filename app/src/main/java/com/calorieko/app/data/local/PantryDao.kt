@@ -47,6 +47,10 @@ interface PantryDao {
     @Query("DELETE FROM PANTRY_TABLE WHERE ingredient_name = :name")
     suspend fun deleteItem(name: String)
 
+    /** Removes all items from the pantry inventory. */
+    @Query("DELETE FROM PANTRY_TABLE")
+    suspend fun clearAllItems()
+
     @Query("SELECT ingredient_name FROM PANTRY_TABLE ORDER BY ingredient_name ASC")
     fun getAllItems(): Flow<List<String>>
 

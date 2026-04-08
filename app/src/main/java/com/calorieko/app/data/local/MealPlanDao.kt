@@ -27,6 +27,10 @@ interface MealPlanDao {
     @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE week_start_date = :weekStartDate")
     suspend fun clearWeek(weekStartDate: String)
 
+    /** Removes all meals for a specific day within a week. */
+    @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE day_index = :dayIndex AND week_start_date = :weekStartDate")
+    suspend fun clearDay(dayIndex: Int, weekStartDate: String)
+
     /** One-shot fetch of all planned meals (for cloud sync). */
     @Query("SELECT * FROM PLANNED_MEALS_TABLE ORDER BY week_start_date ASC, day_index ASC")
     suspend fun getAllPlannedMeals(): List<PlannedMealEntity>

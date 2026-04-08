@@ -298,6 +298,27 @@ class PantryViewModel(
         }
     }
 
+    fun clearMealDay(dayIndex: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            mealPlanDao.clearDay(dayIndex, _currentWeekStart.value)
+            if (uid.isNotEmpty()) firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, _currentWeekStart.value)
+        }
+    }
+
+    fun clearMealWeek() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val week = _currentWeekStart.value
+            mealPlanDao.clearWeek(week)
+            if (uid.isNotEmpty()) firestoreSyncRepo.clearWeekPlannedMeals(uid, week)
+        }
+    }
+
+    fun clearAllPantryItems() {
+        viewModelScope.launch(Dispatchers.IO) {
+            pantryDao.clearAllItems()
+        }
+    }
+
     // ============================================================
     // Weekly Stats
     // ============================================================

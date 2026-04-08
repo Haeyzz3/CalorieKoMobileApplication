@@ -548,6 +548,32 @@ class FirestoreSyncRepository {
         }
     }
 
+    /**
+     * Batch-deletes all planned meals for a specific day within a week from Firestore.
+     */
+    suspend fun clearDayPlannedMeals(uid: String, dayIndex: Int, weekStartDate: String) {
+        try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("plannedMeals")
+                .whereEqualTo("dayIndex", dayIndex)
+                .whereEqualTo("weekStartDate", weekStartDate)
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) return
+
+            val batch = db.batch()
+            for (doc in snapshot.documents) {
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+            Log.d(TAG, "Cleared ${snapshot.size()} planned meals for day $dayIndex in week $weekStartDate")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear day planned meals", e)
+        }
+    }
+
     // ════════════════════════════════════════════════════════════
     //  WIPE ALL USER DATA
     // ════════════════════════════════════════════════════════════
