@@ -424,11 +424,11 @@ class FirestoreSyncRepository {
 
     /**
      * Syncs a planned meal to Firestore.
-     * Document ID is a composite key: `{dayIndex}_{weekStartDate}_{mealSlot}`.
+     * Document ID is a composite key: `{dayIndex}_{weekStartDate}_{mealSlot}_{dishLabel}`.
      */
     suspend fun syncPlannedMeal(uid: String, meal: PlannedMealEntity) {
         try {
-            val docId = "${meal.dayIndex}_${meal.weekStartDate}_${meal.mealSlot}"
+            val docId = "${meal.dayIndex}_${meal.weekStartDate}_${meal.mealSlot}_${meal.dishLabel}"
             val data = hashMapOf<String, Any?>(
                 "dayIndex" to meal.dayIndex,
                 "dishLabel" to meal.dishLabel,
@@ -458,7 +458,7 @@ class FirestoreSyncRepository {
             meals.chunked(500).forEach { chunk ->
                 val batch = db.batch()
                 for (meal in chunk) {
-                    val docId = "${meal.dayIndex}_${meal.weekStartDate}_${meal.mealSlot}"
+                    val docId = "${meal.dayIndex}_${meal.weekStartDate}_${meal.mealSlot}_${meal.dishLabel}"
                     val docRef = userRef.collection("plannedMeals").document(docId)
                     val data = hashMapOf<String, Any?>(
                         "dayIndex" to meal.dayIndex,
@@ -477,11 +477,11 @@ class FirestoreSyncRepository {
     }
 
     /**
-     * Deletes a single planned meal document from Firestore.
+     * Deletes a single planned meal document (one dish) from Firestore.
      */
-    suspend fun deletePlannedMeal(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
+    suspend fun deletePlannedMeal(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String) {
         try {
-            val docId = "${dayIndex}_${weekStartDate}_${mealSlot}"
+            val docId = "${dayIndex}_${weekStartDate}_${mealSlot}_${dishLabel}"
             db.collection(USERS_COLLECTION)
                 .document(uid)
                 .collection("plannedMeals")
@@ -491,6 +491,34 @@ class FirestoreSyncRepository {
             Log.d(TAG, "Planned meal '$docId' deleted from Firestore for $uid")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete planned meal", e)
+        }
+    }
+
+    /**
+     * Deletes all planned meals for a specific slot (clears entire meal).
+     * Queries by dayIndex + weekStartDate + mealSlot, then batch-deletes.
+     */
+    suspend fun deletePlannedMealSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
+        try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("plannedMeals")
+                .whereEqualTo("dayIndex", dayIndex)
+                .whereEqualTo("weekStartDate", weekStartDate)
+                .whereEqualTo("mealSlot", mealSlot)
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) return
+
+            val batch = db.batch()
+            for (doc in snapshot.documents) {
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+            Log.d(TAG, "Cleared ${snapshot.size()} dishes from $mealSlot on day $dayIndex")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear meal slot from Firestore", e)
         }
     }
 

@@ -284,10 +284,17 @@ class PantryViewModel(
         }
     }
 
-    fun removeMealFromPlan(dayIndex: Int, mealSlot: String) {
+    fun removeDishFromSlot(dayIndex: Int, mealSlot: String, dishLabel: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.removeMeal(dayIndex, _currentWeekStart.value, mealSlot)
-            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot)
+            mealPlanDao.removeDish(dayIndex, _currentWeekStart.value, mealSlot, dishLabel)
+            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot, dishLabel)
+        }
+    }
+
+    fun clearMealSlot(dayIndex: Int, mealSlot: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            mealPlanDao.clearSlot(dayIndex, _currentWeekStart.value, mealSlot)
+            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, _currentWeekStart.value, mealSlot)
         }
     }
 

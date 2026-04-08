@@ -30,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -143,6 +143,36 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 13 → 14: Expands PLANNED_MEALS_TABLE composite PK
+         * from (day_index, week_start_date, meal_slot) to
+         * (day_index, week_start_date, meal_slot, dish_label).
+         *
+         * This enables multiple dishes per meal slot per day.
+         * SQLite requires table recreation to change primary keys.
+         * Existing data is preserved as-is (each old row becomes one dish in its slot).
+         */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS PLANNED_MEALS_TABLE_new (
+                        day_index INTEGER NOT NULL,
+                        dish_label TEXT NOT NULL,
+                        week_start_date TEXT NOT NULL,
+                        meal_slot TEXT NOT NULL DEFAULT 'Lunch',
+                        PRIMARY KEY(day_index, week_start_date, meal_slot, dish_label)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO PLANNED_MEALS_TABLE_new (day_index, dish_label, week_start_date, meal_slot)
+                    SELECT day_index, dish_label, week_start_date, meal_slot
+                    FROM PLANNED_MEALS_TABLE
+                """.trimIndent())
+                db.execSQL("DROP TABLE PLANNED_MEALS_TABLE")
+                db.execSQL("ALTER TABLE PLANNED_MEALS_TABLE_new RENAME TO PLANNED_MEALS_TABLE")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -153,7 +183,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
