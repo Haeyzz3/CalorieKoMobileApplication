@@ -106,9 +106,9 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     }
 
     val weightData = remember(userWeight) {
-        // Simulated trend from user's profile weight
+        // Use the actual current user weight (no simulated mock data)
         dayLabels.mapIndexed { index, label ->
-            DayWeightData(label, userWeight + (6 - index) * 0.2)
+            DayWeightData(label, userWeight)
         }
     }
 

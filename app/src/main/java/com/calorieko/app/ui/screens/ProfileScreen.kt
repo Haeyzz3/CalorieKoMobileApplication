@@ -420,8 +420,8 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats) {
     // Real Dynamic Badges based on Database Fetches
     val badges = remember(currentStreak, stats) {
         listOf(
-            // Sodium Defender (Tied to streak logic for now as a placeholder for health consistency)
-            Badge(1, "Consistent Logger", "3 Day Streak", Icons.Default.WaterDrop, Color(0xFFDBEAFE), Color(0xFF2563EB), currentStreak >= 3, currentStreak.coerceAtMost(3), 3),
+            // Consistent Logger: 3 Day Streak (Real Data)
+            Badge(1, "Consistent Logger", "3 Day Streak", Icons.Default.CalendarToday, Color(0xFFDBEAFE), Color(0xFF2563EB), currentStreak >= 3, currentStreak.coerceAtMost(3), 3),
 
             // Scale Pro: 10 Meals Logged (Real Data)
             Badge(2, "Scale Pro", "10 Meals Logged", Icons.Default.MonitorWeight, Color(0xFFDCFCE7), Color(0xFF16A34A), stats.totalMeals >= 10, stats.totalMeals.coerceAtMost(10), 10),
