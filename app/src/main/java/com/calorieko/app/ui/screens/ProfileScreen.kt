@@ -72,12 +72,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.calorieko.app.data.model.BadgeStats
+import com.calorieko.app.data.model.LeveledBadge
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.viewmodel.ProfileViewModel
 import java.util.Locale
+import kotlin.math.roundToInt
 
 // --- Data Models ---
 data class UserData(
@@ -105,6 +107,39 @@ data class Badge(
     val progress: Int,
     val max: Int
 )
+
+// Helper: convert cm to imperial string e.g. 162 cm → "5'4""
+fun cmToImperial(cm: Double): String {
+    val totalInches = cm / 2.54
+    val feet = (totalInches / 12).toInt()
+    val inches = (totalInches % 12).roundToInt()
+    return "$feet'$inches\""
+}
+
+// Helper: build a LeveledBadge from raw count + tier multiplier
+fun buildLeveledBadge(
+    id: Int, name: String, baseDesc: String,
+    icon: ImageVector, colorBg: Color, colorIcon: Color,
+    rawCount: Int,
+    baseThresholds: List<Int>, // e.g. [5, 10, 15]
+    tier: Int = 1
+): LeveledBadge {
+    // Scale thresholds by tier: tier 2 = 2x, tier 3 = 3x, etc.
+    val thresholds = baseThresholds.map { it * tier }
+    val maxLevel = thresholds.size
+    var earnedLevel = 0
+    for ((idx, thresh) in thresholds.withIndex()) {
+        if (rawCount >= thresh) earnedLevel = idx + 1
+    }
+    val nextThreshold = if (earnedLevel < maxLevel) thresholds[earnedLevel] else thresholds.last()
+    val progressToNext = if (earnedLevel < maxLevel) rawCount - (if (earnedLevel > 0) thresholds[earnedLevel - 1] else 0) else nextThreshold
+    return LeveledBadge(
+        id = id, name = name, baseDescription = baseDesc,
+        currentLevel = earnedLevel, currentProgress = progressToNext.coerceAtLeast(0),
+        nextLevelThreshold = (nextThreshold - (if (earnedLevel > 0) thresholds[earnedLevel - 1] else 0)).coerceAtLeast(1),
+        maxLevel = maxLevel, levelThresholds = thresholds
+    )
+}
 
 @Composable
 fun ProfileScreen(
@@ -166,8 +201,9 @@ fun ProfileScreen(
                 BaselineMetricsGrid(userData)
                 HealthGoalsSection(userData.goal, onEditProfile = onEditProfile)
 
-                // Pass BOTH the streak and the real database stats to the Milestones section
-                MilestonesSection(userData.streak, badgeStats)
+                // Pass streak, real badge stats, and milestonesTier for progressive leveling
+                val tier = userProfile?.milestonesTier ?: 1
+                MilestonesSection(userData.streak, badgeStats, tier)
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -309,7 +345,15 @@ fun BaselineMetricsGrid(user: UserData) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             MetricCard("Current Weight", "${user.weight}", "kilograms", Icons.Default.MonitorWeight, CalorieKoGreen, Color(0xFFECFDF5), Modifier.weight(1f))
-            MetricCard("Height", "${user.height}", "centimeters", Icons.Default.Straighten, Color(0xFF2563EB), Color(0xFFEFF6FF), Modifier.weight(1f))
+            MetricCard(
+                title = "Height",
+                value = "${user.height.roundToInt()} cm",
+                unit = cmToImperial(user.height),
+                icon = Icons.Default.Straighten,
+                iconColor = Color(0xFF2563EB),
+                bgColor = Color(0xFFEFF6FF),
+                modifier = Modifier.weight(1f)
+            )
         }
         Spacer(modifier = Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -412,31 +456,76 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
     }
 }
 
-// --- 4. Milestones Section ---
+// --- 4. Milestones Section (Leveled, Progressive) ---
 @Composable
-fun MilestonesSection(currentStreak: Int, stats: BadgeStats) {
+fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int = 1) {
     var selectedBadge by remember { mutableStateOf<Badge?>(null) }
 
-    // Real Dynamic Badges based on Database Fetches
-    val badges = remember(currentStreak, stats) {
+    // Build LeveledBadges — thresholds scale by milestonesTier
+    val leveledBadges = remember(currentStreak, stats, milestonesTier) {
         listOf(
-            // Consistent Logger: 3 Day Streak (Real Data)
-            Badge(1, "Consistent Logger", "3 Day Streak", Icons.Default.CalendarToday, Color(0xFFDBEAFE), Color(0xFF2563EB), currentStreak >= 3, currentStreak.coerceAtMost(3), 3),
+            buildLeveledBadge(1, "Consistent Logger", "Day Streak",
+                Icons.Default.CalendarToday, Color(0xFFDBEAFE), Color(0xFF2563EB),
+                currentStreak, listOf(3, 7, 30), milestonesTier),
 
-            // Scale Pro: 10 Meals Logged (Real Data)
-            Badge(2, "Scale Pro", "10 Meals Logged", Icons.Default.MonitorWeight, Color(0xFFDCFCE7), Color(0xFF16A34A), stats.totalMeals >= 10, stats.totalMeals.coerceAtMost(10), 10),
+            buildLeveledBadge(2, "Scale Pro", "Meals Logged",
+                Icons.Default.MonitorWeight, Color(0xFFDCFCE7), Color(0xFF16A34A),
+                stats.totalMeals, listOf(10, 25, 50), milestonesTier),
 
-            // Streak Master: 7 Day Streak (Real Data)
-            Badge(3, "Streak Master", "7 Day Streak", Icons.Default.LocalFireDepartment, Color(0xFFFFEDD5), Color(0xFFEA580C), currentStreak >= 7, currentStreak.coerceAtMost(7), 7),
+            buildLeveledBadge(3, "Workout Warrior", "Workouts Logged",
+                Icons.Default.Bolt, Color(0xFFFEF3C7), Color(0xFFD97706),
+                stats.totalWorkouts, listOf(5, 10, 15), milestonesTier),
 
-            // Photo Logger: 15 Photos Taken (Real Data)
-            Badge(4, "Photo Logger", "15 Photos Taken", Icons.Default.CameraAlt, Color(0xFFF3E8FF), Color(0xFF9333EA), stats.totalPhotos >= 15, stats.totalPhotos.coerceAtMost(15), 15),
+            buildLeveledBadge(4, "Photo Logger", "Photos Snapped",
+                Icons.Default.CameraAlt, Color(0xFFF3E8FF), Color(0xFF9333EA),
+                stats.totalPhotos, listOf(15, 30, 60), milestonesTier),
 
-            // Workout Warrior: 5 Workouts Logged (Real Data)
-            Badge(5, "Workout Warrior", "5 Workouts Logged", Icons.Default.Bolt, Color(0xFFFEF3C7), Color(0xFFD97706), stats.totalWorkouts >= 5, stats.totalWorkouts.coerceAtMost(5), 5),
+            buildLeveledBadge(5, "Streak Master", "Day Streak",
+                Icons.Default.LocalFireDepartment, Color(0xFFFFEDD5), Color(0xFFEA580C),
+                currentStreak, listOf(7, 14, 30), milestonesTier),
 
-            // Health Champion: 30 Day Streak (Real Data)
-            Badge(6, "Health Champion", "30 Day Streak", Icons.Default.MilitaryTech, Color(0xFFFCE7F3), Color(0xFFDB2777), currentStreak >= 30, currentStreak.coerceAtMost(30), 30)
+            buildLeveledBadge(6, "Health Champion", "Day Grand Streak",
+                Icons.Default.MilitaryTech, Color(0xFFFCE7F3), Color(0xFFDB2777),
+                currentStreak, listOf(30, 60, 90), milestonesTier)
+        )
+    }
+
+    // Check if all badges are maxed → user should level up
+    val allMaxed = leveledBadges.all { it.isMaxed }
+    val earnedCount = leveledBadges.count { it.currentLevel > 0 }
+
+    // Convert to old Badge format for existing dialogs (backward-compat shim)
+    val badges = leveledBadges.map { lb ->
+        Badge(
+            id = lb.id, name = lb.name,
+            description = "Lv ${lb.currentLevel} — ${lb.levelLabel}",
+            icon = lb.id.let {
+                when (it) {
+                    1 -> Icons.Default.CalendarToday
+                    2 -> Icons.Default.MonitorWeight
+                    3 -> Icons.Default.Bolt
+                    4 -> Icons.Default.CameraAlt
+                    5 -> Icons.Default.LocalFireDepartment
+                    else -> Icons.Default.MilitaryTech
+                }
+            },
+            colorBg = lb.id.let {
+                when (it) {
+                    1 -> Color(0xFFDBEAFE); 2 -> Color(0xFFDCFCE7)
+                    3 -> Color(0xFFFEF3C7); 4 -> Color(0xFFF3E8FF)
+                    5 -> Color(0xFFFFEDD5); else -> Color(0xFFFCE7F3)
+                }
+            },
+            colorIcon = lb.id.let {
+                when (it) {
+                    1 -> Color(0xFF2563EB); 2 -> Color(0xFF16A34A)
+                    3 -> Color(0xFFD97706); 4 -> Color(0xFF9333EA)
+                    5 -> Color(0xFFEA580C); else -> Color(0xFFDB2777)
+                }
+            },
+            earned = lb.currentLevel > 0,
+            progress = lb.currentProgress,
+            max = lb.nextLevelThreshold
         )
     }
 
@@ -454,14 +543,45 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.EmojiEvents, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("${earned.size}/${badges.size}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563))
+                Text("$earnedCount/${badges.size}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563))
+            }
+        }
+
+        // Level-up banner when all badges are maxed
+        if (allMaxed) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFFFF7ED),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(Icons.Default.EmojiEvents, null, tint = Color(0xFFD97706), modifier = Modifier.size(28.dp))
+                    Column {
+                        Text("🎉 All badges maxed!", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                        Text("Tier $milestonesTier complete — keep logging to reach Tier ${milestonesTier + 1}!",
+                            fontSize = 12.sp, color = Color(0xFFB45309))
+                    }
+                }
             }
         }
 
         if (earned.isNotEmpty()) {
             Text("Earned Badges", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                earned.forEach { badge -> EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge }) }
+                earned.take(3).forEach { badge -> EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge }) }
+            }
+            if (earned.size > 3) {
+                Spacer(Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    earned.drop(3).forEach { badge -> EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge }) }
+                    if (earned.size % 3 != 0) { // fill empty slots
+                        repeat(3 - (earned.size % 3)) { Spacer(modifier = Modifier.weight(1f)) }
+                    }
+                }
             }
         }
 
@@ -483,7 +603,7 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats) {
                 Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("Keep Going! ", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Keep Going!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("You're making great progress! Complete more activities to unlock new badges and climb the leaderboard.", fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f), lineHeight = 20.sp)
                 }
@@ -520,10 +640,12 @@ fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier, onClick: () -> 
 
 @Composable
 fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
+    // Correctly bind progress: currentValue / threshold → fills as logs are added
+    val progressTarget = badge.progress.toFloat() / badge.max.toFloat().coerceAtLeast(1f)
     val animatedProgress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(badge.progress, badge.max) {
         animatedProgress.animateTo(
-            targetValue = badge.progress.toFloat() / badge.max.toFloat(),
+            targetValue = progressTarget.coerceIn(0f, 1f),
             animationSpec = tween(durationMillis = 1000, delayMillis = 200, easing = LinearOutSlowInEasing)
         )
     }
@@ -538,24 +660,43 @@ fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(badge.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-                Text(badge.description, fontSize = 12.sp, color = Color(0xFF6B7280))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(badge.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+                    // Show level chip
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(50),
+                        color = badge.colorBg
+                    ) {
+                        Text(
+                            badge.description,
+                            fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            color = badge.colorIcon,
+                            modifier = androidx.compose.ui.Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                // Outer Gray Track
+                // Outer Gray Track — progress fills green as count increases
                 Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)).background(Color(0xFFE5E7EB))) {
-                    // FIX: Only draw the green fill if progress is strictly greater than 0
                     if (animatedProgress.value > 0f) {
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .fillMaxWidth(animatedProgress.value)
-                                .background(Brush.horizontalGradient(listOf(Color(0xFF4CAF50), Color(0xFF45A049))))
+                                .background(Brush.horizontalGradient(listOf(badge.colorIcon, badge.colorIcon.copy(alpha = 0.7f))))
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("${badge.progress}/${badge.max} completed", fontSize = 11.sp, color = Color(0xFF4B5563))
+                Text(
+                    "${badge.progress}/${badge.max} to next level  (${(progressTarget * 100).toInt()}%)",
+                    fontSize = 11.sp, color = Color(0xFF4B5563)
+                )
             }
         }
     }

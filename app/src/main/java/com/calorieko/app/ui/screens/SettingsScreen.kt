@@ -399,8 +399,8 @@ fun SettingsScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Logout", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
-            text = { Text("Are you sure you want to log out of your account?", color = Color(0xFF4B5563)) },
+            title = { Text("Log Out", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
+            text = { Text("Are you sure you want to log out?", color = Color(0xFF4B5563)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -408,7 +408,7 @@ fun SettingsScreen(
                         viewModel.logout()
                     }
                 ) {
-                    Text("Logout", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Text("Log Out", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

@@ -23,14 +23,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocalDining
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.NordicWalking
+import androidx.compose.material.icons.filled.Pool
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.SportsBasketball
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Hiking
+import androidx.compose.material.icons.filled.Rowing
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -287,6 +298,28 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
 
 // --- REVISED COMPONENTS ---
 
+/**
+ * Maps an activity name to an appropriate Material icon.
+ * Epic 6: Dynamic activity icons based on workout type.
+ */
+fun getActivityIcon(activityName: String): androidx.compose.ui.graphics.vector.ImageVector {
+    val lower = activityName.lowercase()
+    return when {
+        "running" in lower || "jog" in lower -> Icons.AutoMirrored.Filled.DirectionsRun
+        "biking" in lower || "cycling" in lower || "bike" in lower -> Icons.Default.DirectionsBike
+        "swim" in lower -> Icons.Default.Pool
+        "yoga" in lower || "stretch" in lower -> Icons.Default.SelfImprovement
+        "basket" in lower -> Icons.Default.SportsBasketball
+        "soccer" in lower || "football" in lower -> Icons.Default.SportsSoccer
+        "garden" in lower || "plant" in lower -> Icons.Default.NordicWalking
+        "sweep" in lower || "clean" in lower || "mop" in lower -> Icons.Default.Home
+        "hike" in lower || "trail" in lower || "walk" in lower -> Icons.Default.Hiking
+        "row" in lower || "kayak" in lower -> Icons.Default.Rowing
+        "weight" in lower || "lift" in lower || "gym" in lower -> Icons.Default.FitnessCenter
+        else -> Icons.Default.LocalFireDepartment
+    }
+}
+
 @Composable
 fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
     Row(
@@ -417,7 +450,8 @@ fun ActivityItemRevised(activity: ActivityLogEntry, onClick: (() -> Unit)? = nul
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = if (isMeal) Icons.Default.LocalDining else Icons.Default.LocalFireDepartment,
+                    imageVector = if (isMeal) Icons.Default.LocalDining
+                                  else getActivityIcon(activity.name),
                     contentDescription = null,
                     tint = if (isMeal) Color(0xFF16A34A) else Color(0xFFEA580C),
                     modifier = Modifier.size(20.dp)

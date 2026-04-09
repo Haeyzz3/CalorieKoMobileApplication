@@ -408,7 +408,8 @@ fun AppNavigation() {
             val nutritionDetailsViewModel: com.calorieko.app.viewmodel.NutritionDetailsViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.NutritionDetailsViewModel.provideFactory(
                     auth = auth,
-                    dashboardRepository = dashboardRepo
+                    dashboardRepository = dashboardRepo,
+                    activityLogDao = db.activityLogDao()
                 )
             )
             NutritionDetailsScreen(

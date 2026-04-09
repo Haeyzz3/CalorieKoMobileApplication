@@ -3,6 +3,8 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.calorieko.app.data.local.ActivityLogDao
+import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.repository.DashboardRepository
 import com.calorieko.app.data.repository.NutritionalTarget
@@ -15,10 +17,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.ZoneId
 
 class NutritionDetailsViewModel(
     private val auth: FirebaseAuth,
-    private val dashboardRepository: DashboardRepository
+    private val dashboardRepository: DashboardRepository,
+    private val activityLogDao: ActivityLogDao
 ) : ViewModel() {
 
     // ── Targets ──
@@ -35,6 +39,11 @@ class NutritionDetailsViewModel(
 
     private val _weekSummaries = MutableStateFlow<List<DailyNutritionSummaryEntity>>(emptyList())
     val weekSummaries: StateFlow<List<DailyNutritionSummaryEntity>> = _weekSummaries.asStateFlow()
+
+    // ── Activity Log (for History Tab) ──
+
+    private val _activityLogs = MutableStateFlow<List<ActivityLogEntity>>(emptyList())
+    val activityLogs: StateFlow<List<ActivityLogEntity>> = _activityLogs.asStateFlow()
 
     // ── Date Navigation State ──
 
@@ -54,6 +63,7 @@ class NutritionDetailsViewModel(
         loadTargets()
         loadDaySummary()
         loadWeekSummaries()
+        loadActivityLogs()
     }
 
     // ── Public Actions ──
@@ -61,16 +71,19 @@ class NutritionDetailsViewModel(
     fun setDayOffset(offset: Int) {
         _dayOffset.value = offset
         loadDaySummary()
+        loadActivityLogs()
     }
 
     fun incrementDayOffset() {
         _dayOffset.value++
         loadDaySummary()
+        loadActivityLogs()
     }
 
     fun decrementDayOffset() {
         _dayOffset.value--
         loadDaySummary()
+        loadActivityLogs()
     }
 
     fun setWeekOffset(offset: Int) {
@@ -141,15 +154,28 @@ class NutritionDetailsViewModel(
         }
     }
 
+    private fun loadActivityLogs() {
+        if (uid.isEmpty()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val selectedDate = LocalDate.now().plusDays(_dayOffset.value.toLong())
+                val startOfDay = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val endOfDay = startOfDay + 24 * 60 * 60 * 1000L
+                _activityLogs.value = activityLogDao.getLogsForRange(uid, startOfDay, endOfDay)
+            }
+        }
+    }
+
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
-            dashboardRepository: DashboardRepository
+            dashboardRepository: DashboardRepository,
+            activityLogDao: ActivityLogDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(NutritionDetailsViewModel::class.java)) {
-                    return NutritionDetailsViewModel(auth, dashboardRepository) as T
+                    return NutritionDetailsViewModel(auth, dashboardRepository, activityLogDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

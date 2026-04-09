@@ -15,9 +15,11 @@ data class UserProfile(
     val sex: String = "",
     val activityLevel: String = "", // "not_very_active", "lightly_active", "active", "very_active"
     val goal: String,
-    val streak: Int = 0,  // Added for real-time tracking
-    val level: Int = 1,   // Added for real-time tracking
-    val photoUrl: String = "", // Profile photo URL from backend
+    val streak: Int = 0,         // Current streak counter
+    val level: Int = 1,          // Global user level (increments when milestones tier is maxed)
+    val globalXp: Int = 0,       // Accumulated XP from all badge unlocks
+    val milestonesTier: Int = 1, // Current difficulty tier for badges (scales thresholds)
+    val photoUrl: String = "",   // Profile photo URL from backend
 
     // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()

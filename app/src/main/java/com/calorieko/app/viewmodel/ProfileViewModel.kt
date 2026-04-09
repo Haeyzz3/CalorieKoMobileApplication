@@ -70,7 +70,7 @@ class ProfileViewModel(
         // Compute Firebase-derived values immediately
         _displayName.value = auth.currentUser?.displayName ?: "User"
 
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        val sdf = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
         _memberSince.value = auth.currentUser?.metadata?.creationTimestamp?.let {
             sdf.format(Date(it))
         } ?: "January 2025"

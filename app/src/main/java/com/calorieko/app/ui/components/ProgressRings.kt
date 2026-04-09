@@ -80,38 +80,45 @@ fun ProgressRings(
                     sodiumTarget = sodiumTarget
                 )
 
-                // Center Text: Structured to fit within the expanded inner radius
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Center Text: Constrained to fit strictly within the innermost ring
+                // The inner ring radius = size/2 - outerStroke - gap - middleStroke - gap - innerStroke/2
+                // At size=290dp with these strokes, usable inner diameter ≈ 160dp
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .size(150.dp) // Hard-cap to inner ring clear area
+                        .padding(4.dp)
+                ) {
                     // Primary Metric: Consumed (Green)
                     Text(
                         text = "$caloriesCurrent",
-                        fontSize = 38.sp,
+                        fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2E7D32)
                     )
                     Text(
                         text = "/ $caloriesTarget kcal in",
-                        fontSize = 13.sp,
+                        fontSize = 11.sp,
                         color = Color.Gray
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Secondary Metrics Side-by-Side (Red & Orange)
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "$caloriesBurned",
-                                fontSize = 38.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFD32F2F)
                             )
                             Text(
                                 text = "/ $caloriesBurnedTarget out",
-                                fontSize = 11.sp,
+                                fontSize = 9.sp,
                                 color = Color.Gray
                             )
                         }
@@ -119,13 +126,13 @@ fun ProgressRings(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "$sodiumCurrent",
-                                fontSize = 38.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFEAB308)
                             )
                             Text(
-                                text = "/ $sodiumTarget mg Na",
-                                fontSize = 11.sp,
+                                text = "/ $sodiumTarget Na",
+                                fontSize = 9.sp,
                                 color = Color.Gray
                             )
                         }

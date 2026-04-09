@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.repository.AuthRepository
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +45,13 @@ class ForgotPasswordViewModel(
 
     fun resetPassword(email: String) {
         if (email.isBlank()) {
-            _errorMessage.value = "Please enter your email address"
+            _errorMessage.value = "Please enter your email address."
+            return
+        }
+
+        // Basic client-side email format check before hitting Firebase
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+            _errorMessage.value = "Please enter a valid email address format."
             return
         }
 
@@ -51,16 +60,52 @@ class ForgotPasswordViewModel(
         _successMessage.value = null
 
         viewModelScope.launch {
-            val result = authRepository.sendPasswordResetEmail(email)
-            _isLoading.value = false
-            when (result) {
-                is AuthRepository.ResetResult.Success -> {
-                    _successMessage.value = result.message
+            try {
+                val result = authRepository.sendPasswordResetEmail(email.trim())
+                _isLoading.value = false
+                when (result) {
+                    is AuthRepository.ResetResult.Success -> {
+                        // Clear the email field hint — always show spam reminder
+                        _successMessage.value =
+                            "Reset link sent! Please check your inbox and spam folder."
+                    }
+                    is AuthRepository.ResetResult.Error -> {
+                        // Parse Firebase error codes into user-friendly messages
+                        _errorMessage.value = mapFirebaseResetError(result.message)
+                    }
                 }
-                is AuthRepository.ResetResult.Error -> {
-                    _errorMessage.value = result.message
-                }
+            } catch (e: FirebaseAuthInvalidUserException) {
+                _isLoading.value = false
+                // Firebase throws this when the email is not registered
+                _errorMessage.value = "No account found with that email address."
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                _isLoading.value = false
+                _errorMessage.value = "The email address format is invalid. Please check and try again."
+            } catch (e: FirebaseNetworkException) {
+                _isLoading.value = false
+                _errorMessage.value = "No internet connection. Please check your network and try again."
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _errorMessage.value = mapFirebaseResetError(e.message ?: "An unexpected error occurred.")
             }
+        }
+    }
+
+    /**
+     * Maps raw Firebase error messages / codes to readable strings.
+     */
+    private fun mapFirebaseResetError(rawMessage: String): String {
+        return when {
+            "user-not-found" in rawMessage || "no user record" in rawMessage.lowercase() ->
+                "No account found with that email address. Please check the email and try again."
+            "invalid-email" in rawMessage ->
+                "The email address format is invalid. Please enter a valid email."
+            "too-many-requests" in rawMessage ->
+                "Too many reset attempts. Please wait a few minutes before trying again."
+            "network" in rawMessage.lowercase() ->
+                "Network error. Please check your internet connection."
+            else -> rawMessage.replaceFirst("ERROR_", "").replace("_", " ")
+                .replaceFirstChar { it.uppercase() }
         }
     }
 
