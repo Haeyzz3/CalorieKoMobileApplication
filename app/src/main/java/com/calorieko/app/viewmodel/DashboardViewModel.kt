@@ -133,7 +133,28 @@ class DashboardViewModel(
                     _targetCarbs.value = targets.targetCarbs
                     _targetFats.value = targets.targetFats
                     _targetSodium.value = targets.targetSodium
-                    _targetBurned.value = 500
+
+                    // Dynamic burn target: Active calories = TDEE - BMR
+                    // For weight loss, add a 300 kcal deficit modifier.
+                    val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
+                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
+                    } else {
+                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
+                    }
+                    val activityMultiplier = when (profile.activityLevel.lowercase().trim()) {
+                        "not_very_active" -> 1.2
+                        "lightly_active" -> 1.375
+                        "active" -> 1.55
+                        "very_active" -> 1.725
+                        else -> 1.2
+                    }
+                    val tdee = bmr * activityMultiplier
+                    val baseBurn = (tdee - bmr).toInt().coerceAtLeast(150) // floor at 150 kcal
+
+                    val goalLower = profile.goal.lowercase().trim()
+                    val isWeightLoss = "lose" in goalLower || "weight_loss" in goalLower || "weight control" in goalLower
+                    _targetBurned.value = if (isWeightLoss) baseBurn + 300 else baseBurn
+
                     _localPhotoUrl.value = profile.photoUrl
 
                     val fbName = auth.currentUser?.displayName

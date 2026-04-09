@@ -20,6 +20,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
         // Mapbox Maven repository (requires secret download token)
         maven {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")

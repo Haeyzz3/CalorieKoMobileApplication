@@ -42,6 +42,10 @@ import androidx.compose.material.icons.filled.SportsBasketball
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Hiking
 import androidx.compose.material.icons.filled.Rowing
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.LocalLaundryService
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -301,21 +305,51 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
 /**
  * Maps an activity name to an appropriate Material icon.
  * Epic 6: Dynamic activity icons based on workout type.
+ * Task 3: Expanded to support localized Filipino lifestyle activities.
  */
 fun getActivityIcon(activityName: String): androidx.compose.ui.graphics.vector.ImageVector {
     val lower = activityName.lowercase()
     return when {
-        "running" in lower || "jog" in lower -> Icons.AutoMirrored.Filled.DirectionsRun
-        "biking" in lower || "cycling" in lower || "bike" in lower -> Icons.Default.DirectionsBike
-        "swim" in lower -> Icons.Default.Pool
-        "yoga" in lower || "stretch" in lower -> Icons.Default.SelfImprovement
+        // Cardio / Running
+        "running" in lower || "jog" in lower || "takbo" in lower -> Icons.AutoMirrored.Filled.DirectionsRun
+        // Cycling
+        "biking" in lower || "cycling" in lower || "bike" in lower || "bisikleta" in lower -> Icons.Default.DirectionsBike
+        // Swimming
+        "swim" in lower || "langoy" in lower -> Icons.Default.Pool
+        // Yoga / Stretching
+        "yoga" in lower || "stretch" in lower || "meditation" in lower -> Icons.Default.SelfImprovement
+        // Basketball
         "basket" in lower -> Icons.Default.SportsBasketball
+        // Soccer / Football
         "soccer" in lower || "football" in lower -> Icons.Default.SportsSoccer
-        "garden" in lower || "plant" in lower -> Icons.Default.NordicWalking
-        "sweep" in lower || "clean" in lower || "mop" in lower -> Icons.Default.Home
-        "hike" in lower || "trail" in lower || "walk" in lower -> Icons.Default.Hiking
+        // Hiking / Walking
+        "hike" in lower || "trail" in lower || "walk" in lower || "lakad" in lower -> Icons.Default.Hiking
+        // Rowing
         "row" in lower || "kayak" in lower -> Icons.Default.Rowing
-        "weight" in lower || "lift" in lower || "gym" in lower -> Icons.Default.FitnessCenter
+        // Gym / Weightlifting
+        "weight" in lower || "lift" in lower || "gym" in lower || "press" in lower -> Icons.Default.FitnessCenter
+        // --- Filipino Localized Activities ---
+        // Laundry / Hand-washing clothes
+        "laba" in lower || "washing" in lower || "laundry" in lower -> Icons.Default.LocalLaundryService
+        // Mopping / Scrubbing (Paglalampaso)
+        "lampaso" in lower || "scrub" in lower || "mop" in lower -> Icons.Default.CleaningServices
+        // Sweeping / Cleaning
+        "sweep" in lower || "clean" in lower || "walis" in lower -> Icons.Default.CleaningServices
+        // Fetching water (Pagiigib)
+        "igib" in lower || "fetch" in lower -> Icons.Default.WaterDrop
+        // Dancing (Sayaw)
+        "sayaw" in lower || "danc" in lower || "zumba" in lower -> Icons.Default.MusicNote
+        // Gardening / Planting
+        "garden" in lower || "plant" in lower || "tanim" in lower -> Icons.Default.NordicWalking
+        // Cooking
+        "cook" in lower || "luto" in lower -> Icons.Default.LocalFireDepartment
+        // Home chores generic fallback
+        "chore" in lower || "gawain" in lower -> Icons.Default.Home
+        // Boxing / Martial Arts
+        "box" in lower || "martial" in lower -> Icons.Default.FitnessCenter
+        // Jump rope / Skipping
+        "jump" in lower || "skip" in lower || "talon" in lower -> Icons.AutoMirrored.Filled.DirectionsRun
+        // Default
         else -> Icons.Default.LocalFireDepartment
     }
 }

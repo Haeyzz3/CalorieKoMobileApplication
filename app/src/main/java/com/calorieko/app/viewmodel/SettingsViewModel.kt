@@ -56,6 +56,8 @@ class SettingsViewModel(
         data class SyncPartial(val message: String) : Event()
         data object WipeSuccess : Event()
         data object LogoutReady : Event()
+        data class PasswordResetSent(val email: String) : Event()
+        data class PasswordResetError(val message: String) : Event()
     }
 
     private val _events = Channel<Event>(Channel.BUFFERED)
@@ -194,6 +196,35 @@ class SettingsViewModel(
                 _events.send(Event.WipeSuccess)
             }
         }
+    }
+
+    /**
+     * Sends a password reset email to the currently logged-in user's email.
+     * This allows them to update their security credentials via Firebase's
+     * built-in password reset flow.
+     */
+    fun sendPasswordResetEmail() {
+        val email = auth.currentUser?.email
+        if (email.isNullOrBlank()) {
+            viewModelScope.launch {
+                _events.send(Event.PasswordResetError("No email address found for this account."))
+            }
+            return
+        }
+
+        auth.sendPasswordResetEmail(email)
+            .addOnSuccessListener {
+                viewModelScope.launch {
+                    _events.send(Event.PasswordResetSent(email))
+                }
+            }
+            .addOnFailureListener { e ->
+                viewModelScope.launch {
+                    _events.send(Event.PasswordResetError(
+                        e.localizedMessage ?: "Failed to send password reset email."
+                    ))
+                }
+            }
     }
 
     /**

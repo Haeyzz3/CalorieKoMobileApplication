@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -56,6 +57,11 @@ class ProfileViewModel(
     private val _badgeStats = MutableStateFlow(BadgeStats())
     val badgeStats: StateFlow<BadgeStats> = _badgeStats.asStateFlow()
 
+    // ── Computed Streak (dynamic — walks backwards through logged days) ──
+
+    private val _computedStreak = MutableStateFlow(0)
+    val computedStreak: StateFlow<Int> = _computedStreak.asStateFlow()
+
     // ── Firebase-derived Display Info ──
 
     private val _displayName = MutableStateFlow("User")
@@ -76,6 +82,7 @@ class ProfileViewModel(
         } ?: "January 2025"
 
         loadBadgeStats()
+        loadComputedStreak()
     }
 
     /**
@@ -88,6 +95,51 @@ class ProfileViewModel(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 _badgeStats.value = userRepository.getBadgeStats(currentUid, mealLogDao, activityLogDao)
+            }
+        }
+    }
+
+    /**
+     * Computes the user's current streak by walking backwards from today.
+     *
+     * Inclusive model:
+     * - If the user logged any activity or meal TODAY → streak starts at 1.
+     * - Then checks yesterday, the day before, etc., incrementing while there
+     *   is at least one log per day.
+     *
+     * This fixes the 0-day bug where the static `UserProfile.streak` field
+     * was never being incremented by any logic.
+     */
+    private fun loadComputedStreak() {
+        val currentUid = uid ?: return
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                var streak = 0
+                val cal = Calendar.getInstance()
+
+                // Walk backwards up to 365 days max
+                for (i in 0..365) {
+                    val dayStart = cal.clone() as Calendar
+                    dayStart.set(Calendar.HOUR_OF_DAY, 0)
+                    dayStart.set(Calendar.MINUTE, 0)
+                    dayStart.set(Calendar.SECOND, 0)
+                    dayStart.set(Calendar.MILLISECOND, 0)
+                    val startMs = dayStart.timeInMillis
+                    val endMs = startMs + 86_400_000L
+
+                    val hasActivity = activityLogDao.getLogsForRange(currentUid, startMs, endMs).isNotEmpty()
+                    val hasMeal = mealLogDao.getMealLogsByDate(currentUid, startMs, endMs).isNotEmpty()
+
+                    if (hasActivity || hasMeal) {
+                        streak++
+                        cal.add(Calendar.DAY_OF_YEAR, -1) // check the previous day
+                    } else {
+                        break // gap found, streak ends
+                    }
+                }
+
+                _computedStreak.value = streak
             }
         }
     }

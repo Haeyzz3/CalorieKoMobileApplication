@@ -120,10 +120,29 @@ fun EditProfileScreen(
     // ── Local UI State (photo picker) ──
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
+    val uCropLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK && result.data != null) {
+            val resultUri = com.yalantis.ucrop.UCrop.getOutput(result.data!!)
+            if (resultUri != null) {
+                selectedImageUri = resultUri
+            }
+        }
+    }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        selectedImageUri = uri
+        if (uri != null) {
+            // Enforce 1:1 Aspect Ratio Cropping with uCrop
+            val destinationUri = Uri.fromFile(java.io.File(context.cacheDir, "cropped_profile_${System.currentTimeMillis()}.jpg"))
+            val ucropIntent = com.yalantis.ucrop.UCrop.of(uri, destinationUri)
+                .withAspectRatio(1f, 1f) // 1:1 square crop
+                .withMaxResultSize(500, 500)
+                .getIntent(context)
+            uCropLauncher.launch(ucropIntent)
+        }
     }
 
     // ── Handle one-shot events ──

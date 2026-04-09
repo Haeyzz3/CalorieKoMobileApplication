@@ -155,6 +155,7 @@ fun ProfileScreen(
     val badgeStats by viewModel.badgeStats.collectAsState()
     val displayName by viewModel.displayName.collectAsState()
     val memberSince by viewModel.memberSince.collectAsState()
+    val computedStreak by viewModel.computedStreak.collectAsState()
     val profileImageUrl = viewModel.firebasePhotoUrl
 
     // ── Build local UI model from ViewModel data ──
@@ -163,7 +164,7 @@ fun ProfileScreen(
         UserData(
             name = p.name,
             memberSince = memberSince,
-            streak = p.streak,
+            streak = computedStreak, // Use dynamic streak, not static field
             level = p.level,
             age = p.age,
             height = p.height,

@@ -186,6 +186,20 @@ fun SettingsScreen(
                 is SettingsViewModel.Event.LogoutReady -> {
                     onLogout()
                 }
+                is SettingsViewModel.Event.PasswordResetSent -> {
+                    showBanner(
+                        NotificationType.SUCCESS,
+                        "Password Reset",
+                        "A link to reset your password was sent to ${event.email}"
+                    )
+                }
+                is SettingsViewModel.Event.PasswordResetError -> {
+                    showBanner(
+                        NotificationType.ERROR,
+                        "Reset Failed",
+                        event.message
+                    )
+                }
             }
         }
     }
@@ -254,7 +268,7 @@ fun SettingsScreen(
                     Column {
                         SettingsRow(icon = Icons.Default.Person, title = "Edit Profile", subtitle = "Update your height, weight, and goals", iconColor = Color(0xFF3B82F6), onClick = { onNavigate("editProfile") })
                         SettingsDivider()
-                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { showBanner(NotificationType.INFO, "Coming Soon", "Password settings will be available in a future update.") })
+                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { viewModel.sendPasswordResetEmail() })
                     }
                 }
 
@@ -314,7 +328,7 @@ fun SettingsScreen(
                 Text("About", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
-                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { showBanner(NotificationType.INFO, "Privacy Notice", "Privacy policy details coming soon.") })
+                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { showBanner(NotificationType.INFO, "Privacy Policy", "By using CalorieKo, you agree to our Terms of Service and data collection for fitness tracking.") })
                     }
                 }
 

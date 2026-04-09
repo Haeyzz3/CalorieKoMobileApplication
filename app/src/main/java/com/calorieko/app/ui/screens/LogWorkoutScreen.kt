@@ -114,8 +114,10 @@ import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotation
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotation
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
@@ -907,12 +909,16 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
         val mapViewRef = remember { mutableStateOf<com.mapbox.maps.MapView?>(null) }
         var polylineManager by remember { mutableStateOf<PolylineAnnotationManager?>(null) }
         var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
+        val activePolylines = remember { mutableListOf<PolylineAnnotation>() }
+        val activeCircles = remember { mutableListOf<CircleAnnotation>() }
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
             mapViewRef.value?.let { mapView ->
                 mapView.mapboxMap.loadStyle(style) {
-                    // Style load destroys all annotation managers — recreate them
+                    mapView.annotations.cleanup()
+                    activePolylines.clear()
+                    activeCircles.clear()
                     polylineManager = mapView.annotations.createPolylineAnnotationManager()
                     circleManager = mapView.annotations.createCircleAnnotationManager()
                 }
@@ -925,7 +931,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                 factory = { ctx ->
                     com.mapbox.maps.MapView(ctx).apply {
                         mapboxMap.loadStyle(Style.DARK) {
-                            // Create annotation managers AFTER the style is ready
+                            annotations.cleanup()
+                            activePolylines.clear()
+                            activeCircles.clear()
                             polylineManager = annotations.createPolylineAnnotationManager()
                             circleManager = annotations.createCircleAnnotationManager()
                         }
@@ -950,19 +958,35 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         mapView.camera.easeTo(cameraBuilder.build(), MapAnimationOptions.Builder().duration(800L).build())
                     }
 
-                    polylineManager?.deleteAll()
-                    circleManager?.deleteAll()
-
-                    if (pathPoints.isNotEmpty()) {
-                        polylineManager?.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00BFFF").withLineWidth(16.0).withLineOpacity(0.2))
-                        polylineManager?.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00BFFF").withLineWidth(10.0).withLineOpacity(0.4))
-                        polylineManager?.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00DFFF").withLineWidth(5.0))
+                    // Update Mapbox UI without creating thousands of duplicate markers:
+                    // If managers exist, update existing annotations. If they don't yet exist in the lists, create them.
+                    
+                    if (pathPoints.isNotEmpty() && polylineManager != null) {
+                        if (activePolylines.isEmpty()) {
+                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00BFFF").withLineWidth(16.0).withLineOpacity(0.2)))
+                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00BFFF").withLineWidth(10.0).withLineOpacity(0.4)))
+                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00DFFF").withLineWidth(5.0)))
+                        } else {
+                            activePolylines.forEach { 
+                                it.points = pathPoints
+                                polylineManager!!.update(it)
+                            }
+                        }
                     }
 
                     currentPoint?.let { point ->
-                        circleManager?.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(16.0).withCircleColor("#00BFFF").withCircleOpacity(0.15))
-                        circleManager?.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(11.0).withCircleColor("#00BFFF").withCircleOpacity(0.3))
-                        circleManager?.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(7.0).withCircleColor("#00DFFF").withCircleStrokeWidth(2.5).withCircleStrokeColor("#FFFFFF"))
+                        if (circleManager != null) {
+                            if (activeCircles.isEmpty()) {
+                                activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(16.0).withCircleColor("#00BFFF").withCircleOpacity(0.15)))
+                                activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(11.0).withCircleColor("#00BFFF").withCircleOpacity(0.3)))
+                                activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(7.0).withCircleColor("#00DFFF").withCircleStrokeWidth(2.5).withCircleStrokeColor("#FFFFFF")))
+                            } else {
+                                activeCircles.forEach {
+                                    it.point = point
+                                    circleManager!!.update(it)
+                                }
+                            }
+                        }
                     }
                 }
             )

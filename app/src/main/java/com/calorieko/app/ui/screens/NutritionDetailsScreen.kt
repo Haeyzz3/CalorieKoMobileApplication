@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pool
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,16 +117,19 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                 .background(IceGray)
                 .padding(paddingValues)
         ) {
-            // Tabs
-            SecondaryTabRow(
+            // Tabs — use ScrollableTabRow so 4 tabs don't overlap on small screens
+            ScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
                 contentColor = CalorieKoGreen,
-                indicator = {
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
-                        color = CalorieKoGreen
-                    )
+                edgePadding = 0.dp,
+                indicator = { tabPositions ->
+                    if (selectedTabIndex < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            color = CalorieKoGreen
+                        )
+                    }
                 }
             ) {
                 tabs.forEachIndexed { index, title ->

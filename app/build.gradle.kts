@@ -103,6 +103,9 @@ dependencies {
     //URI COMPOSE IMAGE
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // uCrop (for 1:1 profile image cropping)
+    implementation("com.github.yalantis:ucrop:2.2.8")
+
     // Room (KSP)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
