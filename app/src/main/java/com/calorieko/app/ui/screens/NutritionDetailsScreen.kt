@@ -131,16 +131,19 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                 .background(IceGray)
                 .padding(paddingValues)
         ) {
-            // Tabs
-            SecondaryTabRow(
+            // Tabs — use ScrollableTabRow so 4 tabs don't overlap on small screens
+            ScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
                 contentColor = CalorieKoGreen,
-                indicator = {
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
-                        color = CalorieKoGreen
-                    )
+                edgePadding = 0.dp,
+                indicator = { tabPositions ->
+                    if (selectedTabIndex < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            color = CalorieKoGreen
+                        )
+                    }
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
@@ -152,7 +155,9 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                                 text = title.uppercase(),
                                 fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
                                 color = if (selectedTabIndex == index) CalorieKoGreen else SubtleText,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     )
