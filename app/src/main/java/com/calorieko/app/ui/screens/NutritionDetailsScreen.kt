@@ -1,6 +1,10 @@
 package com.calorieko.app.ui.screens
 
 import android.app.DatePickerDialog
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,22 +28,31 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.calorieko.app.data.model.ActivityLogEntity
-import com.calorieko.app.ui.theme.*
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.ui.theme.*
 import com.calorieko.app.viewmodel.NutritionDetailsViewModel
 import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +68,7 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
     val daySummary by viewModel.daySummary.collectAsState()
     val weekSummaries by viewModel.weekSummaries.collectAsState()
     val activityLogs by viewModel.activityLogs.collectAsState()
+    val weeklyActivityLogs by viewModel.weeklyActivityLogs.collectAsState()
 
     // ── Local UI State ──
     var showViewDropdown by remember { mutableStateOf(false) }
@@ -117,19 +131,16 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                 .background(IceGray)
                 .padding(paddingValues)
         ) {
-            // Tabs — use ScrollableTabRow so 4 tabs don't overlap on small screens
-            ScrollableTabRow(
+            // Tabs
+            SecondaryTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
                 contentColor = CalorieKoGreen,
-                edgePadding = 0.dp,
-                indicator = { tabPositions ->
-                    if (selectedTabIndex < tabPositions.size) {
-                        TabRowDefaults.SecondaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                            color = CalorieKoGreen
-                        )
-                    }
+                indicator = {
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
+                        color = CalorieKoGreen
+                    )
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
@@ -265,11 +276,21 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                     weekDaySummaries = weekDaySummaries,
                     weekDayLabels = weekDayLabels
                 )
-                3 -> ActivityHistoryTabContent(
-                    activityLogs = activityLogs,
-                    viewMode = viewMode,
-                    dateText = dateText
-                )
+                3 -> {
+                    if (viewMode == "week") {
+                        ActivityHistoryWeeklyChart(
+                             weeklyLogs = weeklyActivityLogs,
+                             weekOffset = weekOffset,
+                             dateText = dateText
+                        )
+                    } else {
+                        ActivityHistoryTabContent(
+                            activityLogs = activityLogs,
+                            viewMode = viewMode,
+                            dateText = dateText
+                        )
+                    }
+                }
             }
         }
     }
@@ -498,6 +519,184 @@ fun ActivityHistoryTabContent(
                             color = Color(0xFF15803D)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Weekly Chart Component
+// ────────────────────────────────────────────────────────────────────
+@Composable
+fun ActivityHistoryWeeklyChart(
+    weeklyLogs: List<ActivityLogEntity>,
+    weekOffset: Int,
+    dateText: String
+) {
+    val today = LocalDate.now()
+    val weekStart = today.plusWeeks(weekOffset.toLong()).with(DayOfWeek.MONDAY)
+    
+    val chartData = remember(weeklyLogs, weekOffset) {
+        val days = (0L..6L).map { i ->
+            val d = weekStart.plusDays(i)
+            val label = d.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH))
+            val startMs = d.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endMs = startMs + 24 * 60 * 60 * 1000L
+            val burned = weeklyLogs.filter { it.timestamp in startMs until endMs }.sumOf { it.calories }
+            Pair(label, burned)
+        }
+        days
+    }
+    
+    val totalCalories = chartData.sumOf { it.second }
+    val maxBurned = (chartData.maxOfOrNull { it.second } ?: 1000).coerceAtLeast(100)
+    val yMax = ((maxBurned / 200) + 1) * 200
+
+    val animProgress = remember { Animatable(0f) }
+    LaunchedEffect(weeklyLogs) {
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Date header
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Workouts — $dateText",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
+            )
+        }
+
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Weekly Activity",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1F2937)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Calories Burned by Workout",
+                    fontSize = 12.sp,
+                    color = Color(0xFF9CA3AF)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // === BAR CHART ===
+                val density = LocalDensity.current
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                ) {
+                    val chartW = size.width
+                    val chartH = size.height
+                    val leftPad = with(density) { 36.dp.toPx() }
+                    val bottomPad = with(density) { 24.dp.toPx() }
+                    val drawW = chartW - leftPad
+                    val drawH = chartH - bottomPad
+                    val progress = animProgress.value
+
+                    val labelPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.parseColor("#9CA3AF")
+                        textSize = with(density) { 11.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.CENTER
+                        isAntiAlias = true
+                    }
+                    val yLabelPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.parseColor("#9CA3AF")
+                        textSize = with(density) { 10.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.RIGHT
+                        isAntiAlias = true
+                    }
+
+                    // Dashed grid lines
+                    val ySteps = 4
+                    for (i in 0..ySteps) {
+                        val value = (yMax.toFloat() / ySteps) * i
+                        val y = drawH - (drawH * (value / yMax.toFloat()))
+                        drawLine(
+                            color = Color(0xFFF0F0F0),
+                            start = Offset(leftPad, y),
+                            end = Offset(chartW, y),
+                            strokeWidth = 1f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+                        )
+                        drawContext.canvas.nativeCanvas.drawText(
+                            value.roundToInt().toString(),
+                            leftPad - with(density) { 8.dp.toPx() },
+                            y + with(density) { 4.dp.toPx() },
+                            yLabelPaint
+                        )
+                    }
+
+                    // Bars
+                    val barGroupW = drawW / chartData.size
+                    val barW = barGroupW * 0.4f
+                    val cornerR = with(density) { 4.dp.toPx() }
+
+                    chartData.forEachIndexed { index, data ->
+                        val cx = leftPad + barGroupW * (index + 0.5f)
+                        val burnedH = (data.second.toFloat() / yMax) * drawH * progress
+
+                        // Burned bar (orange)
+                        if (burnedH > 0) {
+                            drawRoundRect(
+                                color = Color(0xFFFF9800),
+                                topLeft = Offset(cx - barW / 2, drawH - burnedH),
+                                size = Size(barW, burnedH),
+                                cornerRadius = CornerRadius(cornerR, cornerR)
+                            )
+                        }
+
+                        // X-axis day label
+                        drawContext.canvas.nativeCanvas.drawText(
+                            data.first,
+                            cx,
+                            chartH - with(density) { 4.dp.toPx() },
+                            labelPaint
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color(0xFFF3F4F6))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.size(10.dp).background(Color(0xFFFF9800), CircleShape))
+                        Text("Total Weekly Burn", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+                    }
+                    Text(
+                        "$totalCalories kcal",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF9800)
+                    )
                 }
             }
         }

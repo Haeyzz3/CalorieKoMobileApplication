@@ -45,6 +45,11 @@ class NutritionDetailsViewModel(
     private val _activityLogs = MutableStateFlow<List<ActivityLogEntity>>(emptyList())
     val activityLogs: StateFlow<List<ActivityLogEntity>> = _activityLogs.asStateFlow()
 
+    // ── Weekly Activity Logs (for Activities chart in week view) ──
+
+    private val _weeklyActivityLogs = MutableStateFlow<List<ActivityLogEntity>>(emptyList())
+    val weeklyActivityLogs: StateFlow<List<ActivityLogEntity>> = _weeklyActivityLogs.asStateFlow()
+
     // ── Date Navigation State ──
 
     private val _dayOffset = MutableStateFlow(0)
@@ -64,6 +69,7 @@ class NutritionDetailsViewModel(
         loadDaySummary()
         loadWeekSummaries()
         loadActivityLogs()
+        loadWeeklyActivityLogs()
     }
 
     // ── Public Actions ──
@@ -89,16 +95,19 @@ class NutritionDetailsViewModel(
     fun setWeekOffset(offset: Int) {
         _weekOffset.value = offset
         loadWeekSummaries()
+        loadWeeklyActivityLogs()
     }
 
     fun incrementWeekOffset() {
         _weekOffset.value++
         loadWeekSummaries()
+        loadWeeklyActivityLogs()
     }
 
     fun decrementWeekOffset() {
         _weekOffset.value--
         loadWeekSummaries()
+        loadWeeklyActivityLogs()
     }
 
     fun setViewMode(mode: String) {
@@ -162,6 +171,20 @@ class NutritionDetailsViewModel(
                 val startOfDay = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 val endOfDay = startOfDay + 24 * 60 * 60 * 1000L
                 _activityLogs.value = activityLogDao.getLogsForRange(uid, startOfDay, endOfDay)
+            }
+        }
+    }
+
+    private fun loadWeeklyActivityLogs() {
+        if (uid.isEmpty()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val today = LocalDate.now()
+                val weekStart = today.plusWeeks(_weekOffset.value.toLong()).with(DayOfWeek.MONDAY)
+                val weekEnd = weekStart.plusDays(6)
+                val startMs = weekStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val endMs = weekEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                _weeklyActivityLogs.value = activityLogDao.getLogsForRange(uid, startMs, endMs)
             }
         }
     }

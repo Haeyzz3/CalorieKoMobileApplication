@@ -120,6 +120,7 @@ fun SettingsScreen(
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
+    var showPasswordResetDialog by remember { mutableStateOf(false) }
 
     // Collect ViewModel State
     val isSyncing by viewModel.isSyncing.collectAsState()
@@ -268,7 +269,7 @@ fun SettingsScreen(
                     Column {
                         SettingsRow(icon = Icons.Default.Person, title = "Edit Profile", subtitle = "Update your height, weight, and goals", iconColor = Color(0xFF3B82F6), onClick = { onNavigate("editProfile") })
                         SettingsDivider()
-                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { viewModel.sendPasswordResetEmail() })
+                        SettingsRow(icon = Icons.Default.Lock, title = "Change Password", subtitle = "Update your security credentials", iconColor = Color(0xFF8B5CF6), onClick = { showPasswordResetDialog = true })
                     }
                 }
 
@@ -601,6 +602,42 @@ fun SettingsScreen(
                 dismissOnBackPress = calibrationStep != CalibrationStep.CALIBRATING,
                 dismissOnClickOutside = calibrationStep != CalibrationStep.CALIBRATING
             )
+        )
+    }
+
+    // --- PASSWORD RESET CONFIRMATION DIALOG ---
+    if (showPasswordResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showPasswordResetDialog = false },
+            title = {
+                Text(
+                    "Change Password",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+            },
+            text = {
+                Text(
+                    "For your security, we will send a password reset link to your registered email. Do you want to proceed?",
+                    color = Color(0xFF4B5563)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPasswordResetDialog = false
+                        viewModel.sendPasswordResetEmail()
+                    }
+                ) {
+                    Text("Proceed", color = Color(0xFF8B5CF6), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPasswordResetDialog = false }) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            },
+            containerColor = Color.White
         )
     }
 }
