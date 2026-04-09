@@ -54,7 +54,7 @@ object FoodCsvParser {
 
     /**
      * Parses dish_ingredients.csv.
-     * Expected format: ml_label,ingredient_name (with a header row).
+     * Expected format: ml_label,ingredient_name,ingredient_type,ingredient_category (with a header row).
      */
     fun parseDishIngredients(inputStream: InputStream): List<DishIngredient> {
         val ingredients = mutableListOf<DishIngredient>()
@@ -72,7 +72,17 @@ object FoodCsvParser {
                 if (trimmedLine.isEmpty()) return@forEach
 
                 val tokens = trimmedLine.split(",")
-                if (tokens.size >= 2) {
+                if (tokens.size >= 4) {
+                    ingredients.add(
+                        DishIngredient(
+                            dishLabel = tokens[0].trim(),
+                            ingredientName = tokens[1].trim(),
+                            ingredientType = tokens[2].trim(),
+                            ingredientCategory = tokens[3].trim()
+                        )
+                    )
+                } else if (tokens.size >= 2) {
+                    // Fallback for legacy 2-column format
                     ingredients.add(
                         DishIngredient(
                             dishLabel = tokens[0].trim(),
