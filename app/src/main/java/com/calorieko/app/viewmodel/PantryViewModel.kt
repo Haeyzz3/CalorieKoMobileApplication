@@ -25,12 +25,25 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 /**
+ * Rich ingredient info for display in the Recipe Detail bottom sheet.
+ */
+data class IngredientInfo(
+    val name: String,
+    val type: String,           // "core" or "optional"
+    val category: String,       // "protein", "produce", "seasoning", "pantry_staple"
+    val portionQuantity: String, // e.g. "5 cups", "" if not specified
+    val preparationMethod: String, // e.g. "sliced", "" if not specified
+    val step: Int                // 1-based step number
+)
+
+/**
  * Result of the core-aware recipe matching engine.
  */
 data class DishResult(
     val dishLabel: String,
     val dishName: String,
     val ingredients: List<String>,
+    val ingredientDetails: List<IngredientInfo> = emptyList(),
     val missingCoreIngredients: List<String>,
     val missingOptionalIngredients: List<String>,
     val coreMatchedCount: Int = 0,
@@ -271,6 +284,7 @@ class PantryViewModel(
 
         for (info in matchInfoList) {
             val allIngredients = pantryDao.getIngredientsForDish(info.dish_label)
+            val details = pantryDao.getIngredientDetailsForDish(info.dish_label)
             val missingWithType = if (info.core_matched < info.core_total || info.matched_count < info.total_ingredients) {
                 pantryDao.getMissingIngredients(info.dish_label, pantryItems)
             } else {
@@ -282,10 +296,22 @@ class PantryViewModel(
 
             val nutrition = getDishNutrition(info.dish_label)
 
+            val ingredientInfoList = details.map { detail ->
+                IngredientInfo(
+                    name = detail.ingredient_name,
+                    type = detail.ingredient_type,
+                    category = detail.ingredient_category,
+                    portionQuantity = detail.portion_quantity,
+                    preparationMethod = detail.preparation_method,
+                    step = detail.step
+                )
+            }
+
             val result = DishResult(
                 dishLabel = info.dish_label,
                 dishName = formatDishName(info.dish_label),
                 ingredients = allIngredients,
+                ingredientDetails = ingredientInfoList,
                 missingCoreIngredients = missingCore,
                 missingOptionalIngredients = missingOptional,
                 coreMatchedCount = info.core_matched,

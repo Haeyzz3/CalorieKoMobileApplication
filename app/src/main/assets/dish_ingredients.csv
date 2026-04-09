@@ -1,154 +1,158 @@
-ml_label,ingredient_name,ingredient_type,ingredient_category
-tokneneng_salad,egg,core,protein
-tokneneng_salad,cornstarch,core,pantry_staple
-tokneneng_salad,all_purpose_flour,core,pantry_staple
-tokneneng_salad,salt,optional,seasoning
-tokneneng_salad,black_pepper,optional,seasoning
-tokneneng_salad,food_coloring_orange,core,pantry_staple
-tokneneng_salad,cooking_oil,optional,pantry_staple
-tokneneng_salad,onion,optional,produce
-tokneneng_salad,garlic,optional,produce
-tokneneng_salad,vinegar,optional,seasoning
-tokneneng_salad,sugar,optional,seasoning
-tokneneng_salad,cucumber,core,produce
-tokneneng_salad,lato_seaweed,core,produce
-tokneneng_salad,water,optional,pantry_staple
-kinilaw_tuna,tuna_fish,core,protein
-kinilaw_tuna,vinegar,optional,seasoning
-kinilaw_tuna,guso_seaweed,core,produce
-kinilaw_tuna,onion,optional,produce
-kinilaw_tuna,tomato,optional,produce
-kinilaw_tuna,ginger,optional,produce
-kinilaw_tuna,calamansi,optional,produce
-kinilaw_tuna,salt,optional,seasoning
-kinilaw_tuna,black_pepper,optional,seasoning
-kinilaw_tuna,water,optional,pantry_staple
-tinapa_ginisa,cooking_oil,optional,pantry_staple
-tinapa_ginisa,onion,optional,produce
-tinapa_ginisa,garlic,optional,produce
-tinapa_ginisa,tinapa_fish,core,protein
-tinapa_ginisa,talong,core,produce
-tinapa_ginisa,okra,core,produce
-tinapa_ginisa,kalabasa,core,produce
-tinapa_ginisa,sitaw,core,produce
-tinapa_ginisa,water,optional,pantry_staple
-tinapa_ginisa,black_pepper,optional,seasoning
-egg_ampalaya,cooking_oil,optional,pantry_staple
-egg_ampalaya,onion,optional,produce
-egg_ampalaya,garlic,optional,produce
-egg_ampalaya,tomato,optional,produce
-egg_ampalaya,ampalaya,core,produce
-egg_ampalaya,malunggay_leaves,optional,produce
-egg_ampalaya,salt,optional,seasoning
-egg_ampalaya,black_pepper,optional,seasoning
-egg_ampalaya,egg,core,protein
-sinigang_pork,cooking_oil,optional,pantry_staple
-sinigang_pork,onion,optional,produce
-sinigang_pork,tomato,optional,produce
-sinigang_pork,pork_liempo,core,protein
-sinigang_pork,water,optional,pantry_staple
-sinigang_pork,gabi,optional,produce
-sinigang_pork,sitaw,optional,produce
-sinigang_pork,sinigang_mix,core,seasoning
-sinigang_pork,patis,optional,seasoning
-sinigang_pork,salt,optional,seasoning
-sinigang_pork,kangkong_leaves,optional,produce
-menudo,cooking_oil,optional,pantry_staple
-menudo,garlic,optional,produce
-menudo,onion,optional,produce
-menudo,pork_liempo,core,protein
-menudo,salt,optional,seasoning
-menudo,black_pepper,optional,seasoning
-menudo,water,optional,pantry_staple
-menudo,tomato_sauce,core,pantry_staple
-menudo,potato,core,produce
-menudo,bell_pepper,core,produce
-menudo,sugar,optional,seasoning
-menudo,green_peas,core,produce
-menudo,raisins,optional,pantry_staple
-udong,cooking_oil,optional,pantry_staple
-udong,garlic,optional,produce
-udong,onion,optional,produce
-udong,upo,optional,produce
-udong,water,optional,pantry_staple
-udong,salt,optional,seasoning
-udong,black_pepper,optional,seasoning
-udong,odong_noodles,core,pantry_staple
-udong,sardines_tomato_sauce_canned,core,protein
-udong,kamote_tops,optional,produce
-pesang_bangus,cooking_oil,optional,pantry_staple
-pesang_bangus,ginger,optional,produce
-pesang_bangus,garlic,optional,produce
-pesang_bangus,onion,optional,produce
-pesang_bangus,water,optional,pantry_staple
-pesang_bangus,salt,optional,seasoning
-pesang_bangus,sayote,core,produce
-pesang_bangus,bangus_fish,core,protein
-pesang_bangus,pechay,core,produce
-galunggong_grilled,galunggong_fish,core,protein
-galunggong_grilled,salt,optional,seasoning
-tilapya_fried,tilapya_fish,core,protein
-tilapya_fried,salt,optional,seasoning
-tilapya_fried,cooking_oil,optional,pantry_staple
-pinakbet,cooking_oil,optional,pantry_staple
-pinakbet,garlic,optional,produce
-pinakbet,onion,optional,produce
-pinakbet,tomato,optional,produce
-pinakbet,alamang_bagoong,core,seasoning
-pinakbet,kalabasa,core,produce
-pinakbet,water,optional,pantry_staple
-pinakbet,okra,core,produce
-pinakbet,sitaw,core,produce
-pinakbet,talong,core,produce
-chopseuy,cooking_oil,optional,pantry_staple
-chopseuy,garlic,optional,produce
-chopseuy,onion,optional,produce
-chopseuy,chicken_breast,core,protein
-chopseuy,soy_sauce,optional,seasoning
-chopseuy,salt,optional,seasoning
-chopseuy,black_pepper,optional,seasoning
-chopseuy,sugar,optional,seasoning
-chopseuy,cauliflower,core,produce
-chopseuy,carrot,core,produce
-chopseuy,baguio_beans,core,produce
-chopseuy,bell_pepper,optional,produce
-chopseuy,water,optional,pantry_staple
-chicken_tinola,cooking_oil,optional,pantry_staple
-chicken_tinola,ginger,optional,produce
-chicken_tinola,onion,optional,produce
-chicken_tinola,garlic,optional,produce
-chicken_tinola,chicken_breast,core,protein
-chicken_tinola,salt,optional,seasoning
-chicken_tinola,papaya_green,core,produce
-chicken_tinola,water,optional,pantry_staple
-chicken_tinola,malunggay_leaves,core,produce
-sinuglaw_pork,pork_tenderloin,core,protein
-sinuglaw_pork,cooking_oil,optional,pantry_staple
-sinuglaw_pork,calamansi,core,produce
-sinuglaw_pork,garlic,core,produce
-sinuglaw_pork,thyme,optional,seasoning
-sinuglaw_pork,salt,optional,seasoning
-sinuglaw_pork,black_pepper,optional,seasoning
-sinuglaw_pork,mango_unripe,optional,produce
-sinuglaw_pork,cucumber,core,produce
-sinuglaw_pork,pansit-pansitan,optional,produce
-sinuglaw_pork,onion,core,produce
-sinuglaw_pork,radish,core,produce
-milkfish_fried,milkfish,core,protein
-milkfish_fried,cooking_oil,optional,pantry_staple
-milkfish_fried,salt,optional,seasoning
-mackerel_fried,mackerel_fish,core,protein
-mackerel_fried,cooking_oil,optional,pantry_staple
-mackerel_fried,salt,optional,seasoning
-rice_well_milled,rice_bigas,core,pantry_staple
-rice_well_milled,water,optional,pantry_staple
-egg_sunny,egg,core,protein
-egg_sunny,cooking_oil,optional,pantry_staple
-egg_fried,egg,core,protein
-egg_fried,cooking_oil,optional,pantry_staple
-egg_boiled,egg,core,protein
-egg_boiled,water,optional,pantry_staple
-chicken_wings,store_bought_lechon_manok_wing,core,protein
-chicken_thigh,store_bought_lechon_manok_thigh,core,protein
-chicken_drumstick,store_bought_lechon_manok_drumstick,core,protein
-chicken_breast,store_bought_lechon_manok_breast,core,protein
+ml_label,ingredient_name,ingredient_type,ingredient_category,portion_quantity,preparation_method,step
+tokneneng_salad,chicken_egg,core,protein,5 pcs,boiled & peeled,1
+tokneneng_salad,cornstarch,core,pantry_staple,2 tbsps,,1
+tokneneng_salad,cornstarch,core,pantry_staple,1/3 cup,,2
+tokneneng_salad,all_purpose_flour,core,pantry_staple,2 tbsps,,1
+tokneneng_salad,salt_iodized,optional,seasoning,1/2 tsp,,1
+tokneneng_salad,salt_iodized,optional,seasoning,1 tsp,,2
+tokneneng_salad,black_pepper,optional,seasoning,1/8 tsp,ground,1
+tokneneng_salad,food_coloring_orange,core,pantry_staple,1/4 tsp,powder,1
+tokneneng_salad,chicken_egg,core,protein,1 pc,beaten,2
+tokneneng_salad,cooking_oil,optional,pantry_staple,2 1/2 cups,,1
+tokneneng_salad,onion_red,optional,produce,1/4 cup,chopped,1
+tokneneng_salad,garlic,optional,produce,1 tbsp,chopped,1
+tokneneng_salad,vinegar_cane,optional,seasoning,1/2 cup,,1
+tokneneng_salad,sugar_brown,optional,seasoning,1 tsp,,1
+tokneneng_salad,black_pepper,optional,seasoning,1/8 tsp,crushed,2
+tokneneng_salad,cucumber,core,produce,3/4 cup,quarter cut,1
+tokneneng_salad,lato_seaweed,core,produce,1 1/2 cups,cleaned & sliced,1
+tokneneng_salad,water,optional,pantry_staple,2 tbsps,,1
+kinilaw_tuna,tuna_fish,core,protein,1 1/2 cups,cubed,1
+kinilaw_tuna,vinegar_white,optional,seasoning,3/4 cup,,1
+kinilaw_tuna,vinegar_white,optional,seasoning,1/4 cup,,2
+kinilaw_tuna,guso_seaweed,core,produce,6 cups,fresh & trimmed,1
+kinilaw_tuna,onion_red,optional,produce,1/3 cup,sliced,1
+kinilaw_tuna,tomato,optional,produce,1/2 cup,chopped,1
+kinilaw_tuna,ginger,optional,produce,1/3 cup,chopped,1
+kinilaw_tuna,calamansi_juice,optional,seasoning,1/4 cup,freshly squeezed,1
+kinilaw_tuna,salt_iodized,optional,seasoning,3/4 tsp,,1
+kinilaw_tuna,black_pepper,optional,seasoning,1/2 tsp,ground,1
+kinilaw_tuna,water,optional,pantry_staple,2 cups,,1
+tinapa_ginisa,cooking_oil,optional,pantry_staple,2 tbsps,,1
+tinapa_ginisa,onion_bombay,optional,produce,1 tbsp,chopped,1
+tinapa_ginisa,garlic,optional,produce,1 tbsp,chopped,1
+tinapa_ginisa,tinapa_fish,core,protein,2 1/2 cups,smoked & flaked,1
+tinapa_ginisa,mixed_vegetables,core,produce,5 cups,talong & okra & kalabasa & sitaw,1
+tinapa_ginisa,water,optional,pantry_staple,2 cups,,1
+tinapa_ginisa,black_pepper,optional,seasoning,1/8 tsp,ground,1
+egg_ampalaya,cooking_oil,optional,pantry_staple,2 tbsps,,1
+egg_ampalaya,onion_bombay,optional,produce,1 tbsp,chopped,1
+egg_ampalaya,garlic,optional,produce,1 tbsp,chopped,1
+egg_ampalaya,tomato,optional,produce,1/2 cup,chopped,1
+egg_ampalaya,ampalaya,core,produce,4 cups,sliced,1
+egg_ampalaya,malunggay_leaves,optional,produce,1 cup,,1
+egg_ampalaya,salt_iodized,optional,seasoning,1 tsp,,1
+egg_ampalaya,black_pepper,optional,seasoning,1/8 tsp,ground,1
+egg_ampalaya,chicken_egg,core,protein,10 pcs,beaten,1
+sinigang_pork,cooking_oil,optional,pantry_staple,1/2 cup,,1
+sinigang_pork,onion_white,optional,produce,1/4 cup,sliced,1
+sinigang_pork,tomato_red,optional,produce,2 1/2 cups,sliced,1
+sinigang_pork,pork_liempo,core,protein,4 cups,lean & sliced,1
+sinigang_pork,water,optional,pantry_staple,6 cups,,1
+sinigang_pork,gabi,optional,produce,2 cups,cubed,1
+sinigang_pork,sitaw,optional,produce,3 cups,sliced,1
+sinigang_pork,sinigang_mix,core,seasoning,1 pack,44 gram,1
+sinigang_pork,patis,optional,seasoning,2 tbsps,,1
+sinigang_pork,salt_iodized,optional,seasoning,1 tbsp,,1
+sinigang_pork,kangkong_leaves,optional,produce,17 1/2 cups,stem & sliced,1
+menudo,cooking_oil,optional,pantry_staple,1/3 cup,,1
+menudo,garlic,optional,produce,2 tbsps,chopped,1
+menudo,onion_white,optional,produce,1/4 cup,chopped,1
+menudo,pork_liempo,core,protein,4 cups,lean & ground,1
+menudo,salt_iodized,optional,seasoning,1 tbsp,,1
+menudo,black_pepper,optional,seasoning,1/8 tsp,ground,1
+menudo,water,optional,pantry_staple,1 cup,,1
+menudo,tomato_sauce,core,pantry_staple,2 packs,,1
+menudo,potato,core,produce,3 1/2 cups,cubed,1
+menudo,bell_pepper_red,core,produce,1/3 cup,strips,1
+menudo,sugar_white,optional,seasoning,2 tbsps,,1
+menudo,green_peas,core,produce,2 1/2 cups,frozen,1
+menudo,raisins,optional,pantry_staple,1 pack,50 gram,1
+udong,cooking_oil,optional,pantry_staple,1/3 cup,,1
+udong,garlic,optional,produce,2 tbsps,chopped,1
+udong,onion_bombay,optional,produce,1/4 cup,chopped,1
+udong,upo,optional,produce,3 cups,sliced,1
+udong,water,optional,pantry_staple,1 1/4 cups,,1
+udong,salt_iodized,optional,seasoning,1 tsp,,1
+udong,black_pepper,optional,seasoning,1/4 tsp,ground,1
+udong,odong_noodles,core,pantry_staple,8 packs,10 gram per pack,1
+udong,sardines_tomato_sauce_canned,core,protein,6 cans,155 gram per can,1
+udong,kamote_tops_green,optional,produce,6 cups,,1
+pesang_bangus,cooking_oil,optional,pantry_staple,1/8 cup,,1
+pesang_bangus,ginger,optional,produce,1/8 cup,strips,1
+pesang_bangus,garlic,optional,produce,1 1/2 tbsps,crushed & chopped,1
+pesang_bangus,onion_bombay,optional,produce,1/8 cup,chopped,1
+pesang_bangus,water,optional,pantry_staple,3 cups,,1
+pesang_bangus,salt_iodized,optional,seasoning,1/2 tsp,refined,1
+pesang_bangus,sayote,core,produce,2 1/4 cups,sliced,1
+pesang_bangus,bangus_fish,core,protein,3/4 kilo or 5 pcs small sized,boneless & sliced,1
+pesang_bangus,pechay,core,produce,5 1/2 cups,sliced,1
+galunggong_grilled,galunggong_fish,core,protein,10 pcs,whole,1
+galunggong_grilled,salt_iodized,optional,seasoning,1 tsp,,1
+tilapya_fried,tilapya_fish,core,protein,1 kilo or 5 pcs small size,whole,1
+tilapya_fried,salt_iodized,optional,seasoning,1/4 tbsp,refined,1
+tilapya_fried,cooking_oil,optional,pantry_staple,1 cup,,1
+pinakbet,cooking_oil,optional,pantry_staple,3 tbsps,,1
+pinakbet,garlic,optional,produce,3 tbsps,crushed & chopped,1
+pinakbet,onion_bombay,optional,produce,3 tbsps,chopped,1
+pinakbet,tomato,optional,produce,1/2 cup + 1/8 cup,chopped,1
+pinakbet,alamang_bagoong,core,seasoning,1/8 cup,,1
+pinakbet,squash,core,produce,2 1/2 cups,cubed,1
+pinakbet,water,optional,pantry_staple,1 cup,,1
+pinakbet,okra,core,produce,1 1/2 cups,sliced,1
+pinakbet,sitaw,core,produce,2 cups,"cut into 1""",1
+pinakbet,eggplant,core,produce,2 cups,sliced,1
+chopseuy,cooking_oil,optional,pantry_staple,3 tbsps,,1
+chopseuy,garlic,optional,produce,3 tbsps,crushed & chopped,1
+chopseuy,onion_bombay,optional,produce,3 tbsps,chopped,1
+chopseuy,chicken_breast,core,protein,3 cups,fillet & strips,1
+chopseuy,soy_sauce,optional,seasoning,1/3 cup,,1
+chopseuy,salt_iodized,optional,seasoning,1 tsp,,1
+chopseuy,black_pepper,optional,seasoning,1/4 tsp,ground,1
+chopseuy,sugar_white,optional,seasoning,2 tbsps,,1
+chopseuy,cauliflower,core,produce,3 cups,sliced,1
+chopseuy,carrot,core,produce,2 cups,sliced,1
+chopseuy,baguio_beans,core,produce,2 cups,sliced,1
+chopseuy,bell_pepper_red,optional,produce,1/2 cup,strips,1
+chopseuy,water,optional,pantry_staple,1/2 cup,,1
+chicken_tinola,cooking_oil,optional,pantry_staple,3 tbsps,,1
+chicken_tinola,ginger,optional,produce,1/4 cup,crushed,1
+chicken_tinola,onion_bombay,optional,produce,3 tbsps,chopped,1
+chicken_tinola,garlic,optional,produce,3 tbsps,crushed & chopped,1
+chicken_tinola,chicken_breast,core,protein,3 cups,fillet & sliced,1
+chicken_tinola,salt_iodized,optional,seasoning,2 tsps,,1
+chicken_tinola,papaya_green,core,produce,3 1/4 cups,unripe & sliced,1
+chicken_tinola,water,optional,pantry_staple,5 cups,,1
+chicken_tinola,malunggay_leaves,core,produce,3 cups,,1
+sinuglaw_pork,pork_tenderloin,core,protein,5 slices,90 gram per slice,1
+sinuglaw_pork,cooking_oil,optional,pantry_staple,1 tbsps,,1
+sinuglaw_pork,calamansi_juice,core,seasoning,2 tbsps,,1
+sinuglaw_pork,garlic,core,produce,1 tbsps,grated,1
+sinuglaw_pork,thyme,optional,seasoning,1 tsp,,1
+sinuglaw_pork,salt_iodized,optional,seasoning,1/2 tsp,,1
+sinuglaw_pork,black_pepper,optional,seasoning,1/4 tsp,ground,1
+sinuglaw_pork,mango_unripe,optional,produce,1 3/4 cups,unripe & strips,1
+sinuglaw_pork,cucumber,core,produce,1 1/3 cups,sliced into thin quarters,1
+sinuglaw_pork,calamansi_juice,core,seasoning,2 tbsps,freshly squeezed,2
+sinuglaw_pork,salt_iodized,optional,seasoning,1/2 tsp,,2
+sinuglaw_pork,pansit-pansitan,optional,produce,1/2 cup,blanched,1
+sinuglaw_pork,onion_red,core,produce,2 tbsps,sliced into thin quarters,1
+sinuglaw_pork,radish,core,produce,3/4 cup,sliced into thin quarters,1
+milkfish_fried,milkfish,core,protein,,,1
+milkfish_fried,cooking_oil,optional,pantry_staple,,,1
+milkfish_fried,salt_iodized,optional,seasoning,,,1
+mackerel_fried,mackerel_fish,core,protein,,,1
+mackerel_fried,cooking_oil,optional,pantry_staple,,,1
+mackerel_fried,salt_iodized,optional,seasoning,,,1
+rice_well_milled,rice_bigas,core,pantry_staple,,,1
+rice_well_milled,water,optional,pantry_staple,,,1
+egg_sunny,chicken_egg,core,protein,,,1
+egg_sunny,cooking_oil,optional,pantry_staple,,,1
+egg_fried,chicken_egg,core,protein,,,1
+egg_fried,cooking_oil,optional,pantry_staple,,,1
+egg_boiled,chicken_egg,core,protein,,,1
+egg_boiled,water,optional,pantry_staple,,,1
+chicken_wings,store_bought_lechon_manok_wing,core,protein,,,1
+chicken_thigh,store_bought_lechon_manok_thigh,core,protein,,,1
+chicken_drumstick,store_bought_lechon_manok_drumstick,core,protein,,,1
+chicken_breast,store_bought_lechon_manok_breast,core,protein,,,1

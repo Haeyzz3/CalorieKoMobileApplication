@@ -17,7 +17,7 @@ import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 14 to 15 — adds globalXp and milestonesTier for gamification
+// INCREMENT version from 15 to 16 — adds portion/preparation/step to dish ingredients
 @Database(
     entities = [
         FoodItem::class,
@@ -30,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -186,6 +186,33 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 15 → 16: Drops and recreates DISH_INGREDIENTS_TABLE with
+         * three new columns: `portion_quantity`, `preparation_method`, and `step`.
+         * The PK is expanded to (dish_label, ingredient_name, step) to allow
+         * the same ingredient to appear multiple times in a single dish.
+         *
+         * FoodDatabaseCallback.onOpen() detects count == 0 and re-seeds
+         * automatically from the updated dish_ingredients.csv.
+         */
+        val MIGRATION_15_16 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS DISH_INGREDIENTS_TABLE")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS DISH_INGREDIENTS_TABLE (
+                        dish_label TEXT NOT NULL,
+                        ingredient_name TEXT NOT NULL,
+                        ingredient_type TEXT NOT NULL DEFAULT 'core',
+                        ingredient_category TEXT NOT NULL DEFAULT 'pantry_staple',
+                        portion_quantity TEXT NOT NULL DEFAULT '',
+                        preparation_method TEXT NOT NULL DEFAULT '',
+                        step INTEGER NOT NULL DEFAULT 1,
+                        PRIMARY KEY(dish_label, ingredient_name, step)
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -196,7 +223,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

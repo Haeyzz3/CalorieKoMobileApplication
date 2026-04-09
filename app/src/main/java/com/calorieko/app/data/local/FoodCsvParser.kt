@@ -54,7 +54,8 @@ object FoodCsvParser {
 
     /**
      * Parses dish_ingredients.csv.
-     * Expected format: ml_label,ingredient_name,ingredient_type,ingredient_category (with a header row).
+     * Expected format: ml_label,ingredient_name,ingredient_type,ingredient_category,portion_quantity,preparation_method,step
+     * (with a header row).
      */
     fun parseDishIngredients(inputStream: InputStream): List<DishIngredient> {
         val ingredients = mutableListOf<DishIngredient>()
@@ -71,18 +72,34 @@ object FoodCsvParser {
                 val trimmedLine = line.trim()
                 if (trimmedLine.isEmpty()) return@forEach
 
-                val tokens = trimmedLine.split(",")
-                if (tokens.size >= 4) {
+                val tokens = parseCsvLine(trimmedLine)
+                if (tokens.size >= 7) {
                     ingredients.add(
                         DishIngredient(
                             dishLabel = tokens[0].trim(),
                             ingredientName = tokens[1].trim(),
                             ingredientType = tokens[2].trim(),
-                            ingredientCategory = tokens[3].trim()
+                            ingredientCategory = tokens[3].trim(),
+                            portionQuantity = tokens[4].trim(),
+                            preparationMethod = tokens[5].trim(),
+                            step = tokens[6].trim().toIntOrNull() ?: 1
+                        )
+                    )
+                } else if (tokens.size >= 4) {
+                    // Fallback for rows with 4-6 columns (missing portion/prep/step)
+                    ingredients.add(
+                        DishIngredient(
+                            dishLabel = tokens[0].trim(),
+                            ingredientName = tokens[1].trim(),
+                            ingredientType = tokens[2].trim(),
+                            ingredientCategory = tokens[3].trim(),
+                            portionQuantity = tokens.getOrNull(4)?.trim() ?: "",
+                            preparationMethod = tokens.getOrNull(5)?.trim() ?: "",
+                            step = tokens.getOrNull(6)?.trim()?.toIntOrNull() ?: 1
                         )
                     )
                 } else if (tokens.size >= 2) {
-                    // Fallback for legacy 2-column format
+                    // Legacy 2-column fallback
                     ingredients.add(
                         DishIngredient(
                             dishLabel = tokens[0].trim(),
@@ -93,5 +110,45 @@ object FoodCsvParser {
             }
         }
         return ingredients
+    }
+
+    /**
+     * Parses a single CSV line with minimal quote-awareness.
+     * Handles fields wrapped in double-quotes (e.g., `"cut into 1"""`),
+     * where `""` inside quotes represents a literal double-quote character.
+     */
+    private fun parseCsvLine(line: String): List<String> {
+        val fields = mutableListOf<String>()
+        val current = StringBuilder()
+        var inQuotes = false
+        var i = 0
+
+        while (i < line.length) {
+            val c = line[i]
+            when {
+                c == '"' && !inQuotes -> {
+                    inQuotes = true
+                }
+                c == '"' && inQuotes -> {
+                    // Check for escaped quote ("")
+                    if (i + 1 < line.length && line[i + 1] == '"') {
+                        current.append('"')
+                        i++ // skip the second quote
+                    } else {
+                        inQuotes = false
+                    }
+                }
+                c == ',' && !inQuotes -> {
+                    fields.add(current.toString())
+                    current.clear()
+                }
+                else -> {
+                    current.append(c)
+                }
+            }
+            i++
+        }
+        fields.add(current.toString())
+        return fields
     }
 }

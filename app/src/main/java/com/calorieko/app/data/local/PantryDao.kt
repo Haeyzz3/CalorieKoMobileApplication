@@ -36,6 +36,19 @@ data class IngredientWithCategory(
     val ingredient_category: String
 )
 
+/**
+ * Rich ingredient detail including portion/preparation info.
+ * Used by the Recipe Detail bottom sheet to display per-ingredient details.
+ */
+data class IngredientDetail(
+    val ingredient_name: String,
+    val ingredient_type: String,
+    val ingredient_category: String,
+    val portion_quantity: String,
+    val preparation_method: String,
+    val step: Int
+)
+
 @Dao
 interface PantryDao {
 
@@ -74,38 +87,37 @@ interface PantryDao {
      * Returns the total/core ingredient counts and matched counts for every dish.
      * A dish is included if it has at least 1 core ingredient matched.
      *
-     * - total_ingredients: all ingredients for the dish
-     * - matched_count: how many of the dish's ingredients are in the user's pantry
-     * - core_total: how many core ingredients the dish has
-     * - core_matched: how many core ingredients match the user's pantry
+     * Uses DISTINCT ingredient_name to avoid double-counting ingredients that
+     * appear in multiple steps of the same dish.
      */
     @Query("""
         SELECT 
-            d.dish_label,
-            COUNT(*) AS total_ingredients,
-            SUM(CASE WHEN d.ingredient_name IN (:pantryItems) THEN 1 ELSE 0 END) AS matched_count,
-            SUM(CASE WHEN d.ingredient_type = 'core' THEN 1 ELSE 0 END) AS core_total,
-            SUM(CASE WHEN d.ingredient_type = 'core' AND d.ingredient_name IN (:pantryItems) THEN 1 ELSE 0 END) AS core_matched
-        FROM DISH_INGREDIENTS_TABLE d
-        GROUP BY d.dish_label
+            dish_label,
+            COUNT(DISTINCT ingredient_name) AS total_ingredients,
+            COUNT(DISTINCT CASE WHEN ingredient_name IN (:pantryItems) THEN ingredient_name END) AS matched_count,
+            COUNT(DISTINCT CASE WHEN ingredient_type = 'core' THEN ingredient_name END) AS core_total,
+            COUNT(DISTINCT CASE WHEN ingredient_type = 'core' AND ingredient_name IN (:pantryItems) THEN ingredient_name END) AS core_matched
+        FROM DISH_INGREDIENTS_TABLE
+        GROUP BY dish_label
         HAVING core_matched > 0
     """)
     suspend fun getDishMatchCounts(pantryItems: List<String>): List<DishMatchInfo>
 
     /**
      * Returns the ingredient names and types for a dish that are NOT in the user's pantry.
+     * Uses DISTINCT to avoid listing the same ingredient multiple times for multi-step recipes.
      */
     @Query("""
-        SELECT ingredient_name, ingredient_type 
+        SELECT DISTINCT ingredient_name, ingredient_type 
         FROM DISH_INGREDIENTS_TABLE 
         WHERE dish_label = :dishLabel AND ingredient_name NOT IN (:pantryItems)
     """)
     suspend fun getMissingIngredients(dishLabel: String, pantryItems: List<String>): List<IngredientWithType>
 
     /**
-     * Returns all ingredient names for a given dish.
+     * Returns all distinct ingredient names for a given dish.
      */
-    @Query("SELECT ingredient_name FROM DISH_INGREDIENTS_TABLE WHERE dish_label = :dishLabel")
+    @Query("SELECT DISTINCT ingredient_name FROM DISH_INGREDIENTS_TABLE WHERE dish_label = :dishLabel")
     suspend fun getIngredientsForDish(dishLabel: String): List<String>
 
     /**
@@ -132,4 +144,17 @@ interface PantryDao {
      */
     @Query("SELECT COUNT(*) FROM DISH_INGREDIENTS_TABLE")
     suspend fun getDishIngredientCount(): Int
+
+    /**
+     * Returns full ingredient details for a dish, including portion, preparation, and step.
+     * Ordered by step so multi-step ingredients appear in recipe order.
+     * Used by the Recipe Detail bottom sheet.
+     */
+    @Query("""
+        SELECT ingredient_name, ingredient_type, ingredient_category, portion_quantity, preparation_method, step
+        FROM DISH_INGREDIENTS_TABLE
+        WHERE dish_label = :dishLabel
+        ORDER BY step ASC
+    """)
+    suspend fun getIngredientDetailsForDish(dishLabel: String): List<IngredientDetail>
 }

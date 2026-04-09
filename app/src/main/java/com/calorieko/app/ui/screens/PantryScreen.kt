@@ -84,14 +84,15 @@ import com.calorieko.app.ui.components.SimpleFlowRow
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.viewmodel.DishResult
+import com.calorieko.app.viewmodel.IngredientInfo
 import com.calorieko.app.viewmodel.PantryViewModel
 import kotlinx.coroutines.launch
 
 // --- Common Ingredients for Quick-Add ---
 val COMMON_INGREDIENTS = listOf(
-    "egg", "garlic", "onion", "salt", "cooking_oil", "black_pepper",
-    "vinegar", "tomato", "pork_liempo", "chicken_breast", "water", "sugar",
-    "soy_sauce", "ginger", "calamansi"
+    "chicken_egg", "garlic", "onion_bombay", "salt_iodized", "cooking_oil", "black_pepper",
+    "vinegar_cane", "tomato", "pork_liempo", "chicken_breast", "water", "sugar_white",
+    "soy_sauce", "ginger", "calamansi_juice"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -1362,9 +1363,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
         Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            recipe.ingredients.forEach { ingredient ->
-                val isMissingCore = recipe.missingCoreIngredients.contains(ingredient)
-                val isMissingOptional = recipe.missingOptionalIngredients.contains(ingredient)
+            recipe.ingredientDetails.forEach { detail ->
+                val isMissingCore = recipe.missingCoreIngredients.contains(detail.name)
+                val isMissingOptional = recipe.missingOptionalIngredients.contains(detail.name)
                 val isMissing = isMissingCore || isMissingOptional
                 val bgColor = when {
                     isMissingCore -> Color(0xFFFFF7ED)
@@ -1393,12 +1394,29 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         Icon(if (isMissing) Icons.Rounded.Warning else Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        viewModel.formatIngredientName(ingredient),
-                        color = if (isMissingCore) CalorieKoOrange else if (isMissingOptional) Color(0xFFCA8A04) else Color(0xFF374151),
-                        fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        // Ingredient name with optional preparation method
+                        val displayName = viewModel.formatIngredientName(detail.name)
+                        val nameWithPrep = if (detail.preparationMethod.isNotBlank()) {
+                            "$displayName, ${detail.preparationMethod}"
+                        } else {
+                            displayName
+                        }
+                        Text(
+                            nameWithPrep,
+                            fontSize = 14.sp,
+                            color = if (isMissingCore) CalorieKoOrange else if (isMissingOptional) Color(0xFFCA8A04) else Color(0xFF374151),
+                            fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal
+                        )
+                        // Portion quantity
+                        if (detail.portionQuantity.isNotBlank()) {
+                            Text(
+                                detail.portionQuantity,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
                     // Core / Optional badge
                     if (isMissingCore) {
                         Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(4.dp)) {
