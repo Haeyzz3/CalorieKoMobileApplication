@@ -556,6 +556,22 @@ fun AppNavigation() {
             )
         }
 
+        // --- Explore Dishes Screen ---
+        composable("explore") {
+            val exploreViewModel: com.calorieko.app.viewmodel.ExploreViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ExploreViewModel.provideFactory(
+                    auth = auth,
+                    foodDao = db.foodDao(),
+                    pantryDao = db.pantryDao(),
+                    firestoreSyncRepo = firestoreSyncRepo
+                )
+            )
+            ExploreScreen(
+                viewModel = exploreViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         // --- Log Meal Screen ---
         composable("logMeal") {
             val mealRepo = com.calorieko.app.data.repository.MealRepository(

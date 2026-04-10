@@ -1,25 +1,25 @@
-ml_label,name_en,name_ph,category,calories_kcal,protein_g,carbs_g,fat_g,fiber_g,sugar_g,saturated_fat_g,polyunsaturated_fat_g,monounsaturated_fat_g,trans_fat_g,cholesterol_mg,sodium_mg,potassium_mg,vitamin_a_mcg,vitamin_c_mg,calcium_mg,iron_mg
-tokneneng_salad,Tokneneng with Salad,Tokneneng na may Ensalada,Street Food,196.8,6.8,15.8,11.8,1.2,1.1,3.1,2.8,4.6,0,172,488,145,224,2.8,96,8.7
-kinilaw_tuna,Kinilaw na Tuna,Kinilaw na Tuna,Fish,76.5,9.95,6.4,1.25,0.3,1.1,0.2,0.4,0.3,0,14.5,192.5,244,80.5,4.2,183.75,0.78
-tinapa_ginisa,Ginisang Tinapa,Ginisang Tinapa,Fish,151,6.97,22.1,3.87,2.4,3.1,0.85,1.15,1.6,0,28.5,345,215,108,11,64.67,1.2
-egg_ampalaya,Ampalaya with Egg,Ginisang Ampalaya na may Itlog,Vegetable Dish,264.2,9.26,35.74,9.37,2.1,1.8,2.6,1.4,3.8,0,195,245,285,206.3,23.7,78.9,2.58
-sinigang_pork,Pork Sinigang,Sinigang na Baboy,Soup,159.51,4.85,3.59,14.02,1.05,0.44,4.76,2.1,6.46,0,20.45,467.43,191.41,43.82,7.6,24.25,1.08
-menudo,Menudo,Menudo,Main Dish,450.4,14,22.8,33.6,3.2,8.4,10.2,4.1,15.8,0,48,465,412,128,16.8,49.6,2.4
-udong,Udong,Udong,Noodles,256.06,8.36,31.94,10.55,2.12,1.85,2.4,3.2,4.15,0,24.2,485,315,40.61,4.85,123.94,0.97
-pesang_bangus,Pesang Bangus,Pesang Bangus,Soup,72.88,6.98,1.73,4.24,0.64,0.45,1.12,0.88,1.95,0,22.71,165.42,218.3,75.59,9.83,42.71,1.02
-galunggong_grilled,Grilled Galunggong,Inihaw na Galunggong,Fish,155.56,31.67,0,3.22,0,0,0.82,0.94,1.1,0,72.22,485,420,97.78,0,95.56,1.78
-tilapya_fried,Fried Tilapia,Pritong Tilapya,Fish,137.8,16.6,0,7.9,0,0,1.4,2.1,3.8,0,43,215,282,61.5,0,68.1,0.7
-pinakbet,Pinakbet,Pinakbet,Vegetable Dish,92,2.4,8.3,5.5,2.1,3.2,0.8,1.4,3.1,0,12,415,285,90.3,18.9,94.3,1
-chopseuy,Chopsuey,Chopsuey,Vegetable Dish,146.8,12.9,9.4,6.4,1.8,2.6,0.9,1.7,3.2,0,34,585,292,432,25.2,60,1.8
-chicken_tinola,Chicken Tinola,Tinolang Manok,Soup,73.7,7.4,2.4,3.8,0.8,0.5,0.9,1.1,1.5,0,18.1,455,188,47.1,12.1,34.5,0.6
-sinuglaw_pork,Sinuglaw Pork,Sinuglaw na Baboy,Main Dish,142.22,7.95,5.63,9.78,0.89,2.07,3.85,1.04,4.35,0,29.14,163.46,190.12,141.73,23.16,40.74,1.66
-milkfish_fried,Fried Milkfish,Pritong Bangus,Fish,188,23.6,0,10.4,0,0,3.5,2.2,4,0,67,106,374,85,0,116,1
-mackerel_fried,Fried Mackerel,Pritong Alumahan,Fish,221,21.6,0,14.9,0,0,4.24,3.66,4.97,0,121.6,117,401,70,0,202,2.1
-rice_well_milled,Well-Milled Rice,Bigas na Puti,Rice,129,2.1,29.7,0.2,0.4,0.1,0.05,0.05,0.06,0,0,3,35,0,0,11,0.6
-egg_sunny,Sunny Side Up Egg,Itlog na Sunny Side Up,Egg,192,11.56,0.9,15.81,0,0.19,3.85,4.2,6.14,0,383,228,123,168,0,45,1.57
-egg_fried,Fried Egg,Pritong Itlog,Egg,192,11.56,0.9,15.81,0,0.19,3.85,4.2,6.14,0,383,228,123,168,0,45,1.57
-egg_boiled,Boiled Egg,Nilagang Itlog,Egg,155,12.6,1.12,10.6,0,1.12,3.27,1.41,4.08,0,373,124,126,149,0,50,1.19
-chicken_wings,Lechon Manok - Wings,Lechon Manok - Pakpak,Main Dish,257,23.4,0.6,18,0,0.6,4.63,2.18,7.33,0.16,129,579,285,26,0,33,0.93
-chicken_thigh,Lechon Manok - Thigh,Lechon Manok - Hita,Main Dish,226,22.5,0.12,15.1,0,0.12,3.93,2.04,6.45,0.07,127,335,255,20,0,16,0.95
-chicken_drumstick,Lechon Manok - Drumstick,Lechon Manok - Binti,Main Dish,206,25.6,0.12,11.5,0,0.12,2.86,1.52,4.75,0.07,149,392,279,17,0,22,1.02
-chicken_breast,Lechon Manok - Breast,Lechon Manok - Dibdib,Main Dish,175,26.4,0.09,7.67,0,0.09,1.96,0.94,3.13,0.05,90,329,276,11,0,16,0.51
+ml_label,name_en,name_ph,category,calories_kcal,protein_g,carbs_g,fat_g,fiber_g,sugar_g,saturated_fat_g,polyunsaturated_fat_g,monounsaturated_fat_g,trans_fat_g,cholesterol_mg,sodium_mg,potassium_mg,vitamin_a_mcg,vitamin_c_mg,calcium_mg,iron_mg,data_source
+tokneneng_salad,Tokneneng with Salad,Tokneneng na may Ensalada,Street Food,196.8,6.8,15.8,11.8,1.2,1.1,3.1,2.8,4.6,0,172,488,145,224,2.8,96,8.7,DOST_FNRI_MENU_GUIDE
+kinilaw_tuna,Kinilaw na Tuna,Kinilaw na Tuna,Fish,76.5,9.95,6.4,1.25,0.3,1.1,0.2,0.4,0.3,0,14.5,192.5,244,80.5,4.2,183.75,0.78,DOST_FNRI_MENU_GUIDE
+tinapa_ginisa,Ginisang Tinapa,Ginisang Tinapa,Fish,151,6.97,22.1,3.87,2.4,3.1,0.85,1.15,1.6,0,28.5,345,215,108,11,64.67,1.2,DOST_FNRI_MENU_GUIDE
+egg_ampalaya,Ampalaya with Egg,Ginisang Ampalaya na may Itlog,Vegetable Dish,264.2,9.26,35.74,9.37,2.1,1.8,2.6,1.4,3.8,0,195,245,285,206.3,23.7,78.9,2.58,DOST_FNRI_MENU_GUIDE
+sinigang_pork,Pork Sinigang,Sinigang na Baboy,Soup,159.51,4.85,3.59,14.02,1.05,0.44,4.76,2.1,6.46,0,20.45,467.43,191.41,43.82,7.6,24.25,1.08,DOST_FNRI_MENU_GUIDE
+menudo,Menudo,Menudo,Main Dish,450.4,14,22.8,33.6,3.2,8.4,10.2,4.1,15.8,0,48,465,412,128,16.8,49.6,2.4,DOST_FNRI_MENU_GUIDE
+udong,Udong,Udong,Noodles,256.06,8.36,31.94,10.55,2.12,1.85,2.4,3.2,4.15,0,24.2,485,315,40.61,4.85,123.94,0.97,DOST_FNRI_MENU_GUIDE
+pesang_bangus,Pesang Bangus,Pesang Bangus,Soup,72.88,6.98,1.73,4.24,0.64,0.45,1.12,0.88,1.95,0,22.71,165.42,218.3,75.59,9.83,42.71,1.02,DOST_FNRI_MENU_GUIDE
+galunggong_grilled,Grilled Galunggong,Inihaw na Galunggong,Fish,155.56,31.67,0,3.22,0,0,0.82,0.94,1.1,0,72.22,485,420,97.78,0,95.56,1.78,DOST_FNRI_MENU_GUIDE
+tilapya_fried,Fried Tilapia,Pritong Tilapya,Fish,137.8,16.6,0,7.9,0,0,1.4,2.1,3.8,0,43,215,282,61.5,0,68.1,0.7,DOST_FNRI_MENU_GUIDE
+pinakbet,Pinakbet,Pinakbet,Vegetable Dish,92,2.4,8.3,5.5,2.1,3.2,0.8,1.4,3.1,0,12,415,285,90.3,18.9,94.3,1,DOST_FNRI_MENU_GUIDE
+chopseuy,Chopsuey,Chopsuey,Vegetable Dish,146.8,12.9,9.4,6.4,1.8,2.6,0.9,1.7,3.2,0,34,585,292,432,25.2,60,1.8,DOST_FNRI_MENU_GUIDE
+chicken_tinola,Chicken Tinola,Tinolang Manok,Soup,73.7,7.4,2.4,3.8,0.8,0.5,0.9,1.1,1.5,0,18.1,455,188,47.1,12.1,34.5,0.6,DOST_FNRI_MENU_GUIDE
+sinuglaw_pork,Sinuglaw Pork,Sinuglaw na Baboy,Main Dish,142.22,7.95,5.63,9.78,0.89,2.07,3.85,1.04,4.35,0,29.14,163.46,190.12,141.73,23.16,40.74,1.66,DOST_FNRI_MENU_GUIDE
+milkfish_fried,Fried Milkfish,Pritong Bangus,Fish,188,23.6,0,10.4,0,0,3.5,2.2,4,0,67,106,374,85,0,116,1,DOST_FNRI_FCT
+mackerel_fried,Fried Mackerel,Pritong Alumahan,Fish,221,21.6,0,14.9,0,0,4.24,3.66,4.97,0,121.6,117,401,70,0,202,2.1,DOST_FNRI_FCT
+rice_well_milled,Well-Milled Rice,Bigas na Puti,Rice,129,2.1,29.7,0.2,0.4,0.1,0.05,0.05,0.06,0,0,3,35,0,0,11,0.6,DOST_FNRI_FCT
+egg_sunny,Sunny Side Up Egg,Itlog na Sunny Side Up,Egg,192,11.56,0.9,15.81,0,0.19,3.85,4.2,6.14,0,383,228,123,168,0,45,1.57,USDA_FNDDS
+egg_fried,Fried Egg,Pritong Itlog,Egg,192,11.56,0.9,15.81,0,0.19,3.85,4.2,6.14,0,383,228,123,168,0,45,1.57,USDA_FNDDS
+egg_boiled,Boiled Egg,Nilagang Itlog,Egg,155,12.6,1.12,10.6,0,1.12,3.27,1.41,4.08,0,373,124,126,149,0,50,1.19,USDA_FNDDS
+chicken_wings,Lechon Manok - Wings,Lechon Manok - Pakpak,Main Dish,257,23.4,0.6,18,0,0.6,4.63,2.18,7.33,0.16,129,579,285,26,0,33,0.93,USDA_FNDDS
+chicken_thigh,Lechon Manok - Thigh,Lechon Manok - Hita,Main Dish,226,22.5,0.12,15.1,0,0.12,3.93,2.04,6.45,0.07,127,335,255,20,0,16,0.95,USDA_FNDDS
+chicken_drumstick,Lechon Manok - Drumstick,Lechon Manok - Binti,Main Dish,206,25.6,0.12,11.5,0,0.12,2.86,1.52,4.75,0.07,149,392,279,17,0,22,1.02,USDA_FNDDS
+chicken_breast,Lechon Manok - Breast,Lechon Manok - Dibdib,Main Dish,175,26.4,0.09,7.67,0,0.09,1.96,0.94,3.13,0.05,90,329,276,11,0,16,0.51,USDA_FNDDS

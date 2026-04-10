@@ -17,7 +17,7 @@ import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 15 to 16 — adds portion/preparation/step to dish ingredients
+// INCREMENT version from 16 to 17 — adds data_source to FOOD_TABLE
 @Database(
     entities = [
         FoodItem::class,
@@ -30,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -195,8 +195,64 @@ abstract class AppDatabase : RoomDatabase() {
          * FoodDatabaseCallback.onOpen() detects count == 0 and re-seeds
          * automatically from the updated dish_ingredients.csv.
          */
-        val MIGRATION_15_16 = object : Migration(14, 15) {
+        val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS DISH_INGREDIENTS_TABLE")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS DISH_INGREDIENTS_TABLE (
+                        dish_label TEXT NOT NULL,
+                        ingredient_name TEXT NOT NULL,
+                        ingredient_type TEXT NOT NULL DEFAULT 'core',
+                        ingredient_category TEXT NOT NULL DEFAULT 'pantry_staple',
+                        portion_quantity TEXT NOT NULL DEFAULT '',
+                        preparation_method TEXT NOT NULL DEFAULT '',
+                        step INTEGER NOT NULL DEFAULT 1,
+                        PRIMARY KEY(dish_label, ingredient_name, step)
+                    )
+                """.trimIndent())
+            }
+        }
+
+        /**
+         * Migration 16 → 17: Adds `data_source` column to FOOD_TABLE for
+         * nutritional data source attribution (DOST FNRI / USDA).
+         *
+         * Drops and recreates both FOOD_TABLE and DISH_INGREDIENTS_TABLE so
+         * that FoodDatabaseCallback.onOpen() re-seeds from the updated CSVs.
+         */
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Drop both tables so the callback re-seeds with fresh CSV data
+                db.execSQL("DROP TABLE IF EXISTS FOOD_TABLE")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS FOOD_TABLE (
+                        food_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name_en TEXT NOT NULL,
+                        name_ph TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        ml_label TEXT NOT NULL,
+                        calories_per_100g REAL NOT NULL DEFAULT 0,
+                        protein_per_100g REAL NOT NULL DEFAULT 0,
+                        carbs_per_100g REAL NOT NULL DEFAULT 0,
+                        fiber_per_100g REAL NOT NULL DEFAULT 0,
+                        sugar_per_100g REAL NOT NULL DEFAULT 0,
+                        fat_per_100g REAL NOT NULL DEFAULT 0,
+                        saturated_fat_per_100g REAL NOT NULL DEFAULT 0,
+                        polyunsaturated_fat_per_100g REAL NOT NULL DEFAULT 0,
+                        monounsaturated_fat_per_100g REAL NOT NULL DEFAULT 0,
+                        trans_fat_per_100g REAL NOT NULL DEFAULT 0,
+                        cholesterol_per_100g REAL NOT NULL DEFAULT 0,
+                        sodium_per_100g REAL NOT NULL DEFAULT 0,
+                        potassium_per_100g REAL NOT NULL DEFAULT 0,
+                        vitamin_a_per_100g REAL NOT NULL DEFAULT 0,
+                        vitamin_c_per_100g REAL NOT NULL DEFAULT 0,
+                        calcium_per_100g REAL NOT NULL DEFAULT 0,
+                        iron_per_100g REAL NOT NULL DEFAULT 0,
+                        data_source TEXT NOT NULL DEFAULT 'DOST_FNRI_MENU_GUIDE'
+                    )
+                """.trimIndent())
+
+                // Also reset dish ingredients so both tables re-seed together
                 db.execSQL("DROP TABLE IF EXISTS DISH_INGREDIENTS_TABLE")
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS DISH_INGREDIENTS_TABLE (
@@ -223,7 +279,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

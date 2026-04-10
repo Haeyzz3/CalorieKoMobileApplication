@@ -33,6 +33,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -346,6 +347,54 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Explore All Dishes CTA
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .clickable { onNavigate("explore") }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(Color(0xFFDBEAFE), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🍽️", fontSize = 24.sp)
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Explore All Dishes",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E40AF)
+                            )
+                            Text(
+                                "Browse 24 supported dishes, view ingredients & sources",
+                                fontSize = 12.sp,
+                                color = Color(0xFF3B82F6),
+                                lineHeight = 16.sp
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Explore",
+                            tint = Color(0xFF3B82F6),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -1427,6 +1476,68 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             Text("Optional", fontSize = 9.sp, color = Color(0xFFCA8A04), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Source Attribution Card
+        val sourceLabel = when (recipe.dataSource) {
+            "DOST_FNRI_MENU_GUIDE" -> "DOST-FNRI Menu Guide"
+            "DOST_FNRI_FCT" -> "DOST-FNRI FCT"
+            "USDA_FNDDS" -> "USDA FNDDS"
+            else -> recipe.dataSource
+        }
+        val sourceBadge = when (recipe.dataSource) {
+            "DOST_FNRI_MENU_GUIDE" -> "FNRI"
+            "DOST_FNRI_FCT" -> "FCT"
+            "USDA_FNDDS" -> "USDA"
+            else -> recipe.dataSource
+        }
+        val (sourceTextColor, sourceBgColor) = when (recipe.dataSource) {
+            "DOST_FNRI_MENU_GUIDE" -> Pair(Color(0xFF1565C0), Color(0xFFE3F2FD))
+            "DOST_FNRI_FCT" -> Pair(Color(0xFF6A1B9A), Color(0xFFF3E5F5))
+            "USDA_FNDDS" -> Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
+            else -> Pair(Color(0xFF374151), Color(0xFFF3F4F6))
+        }
+
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = sourceBgColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(color = sourceTextColor.copy(alpha = 0.15f), shape = CircleShape) {
+                    Text("📊", modifier = Modifier.padding(8.dp), fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        "Nutritional data sourced from",
+                        fontSize = 11.sp,
+                        color = sourceTextColor.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        sourceLabel,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = sourceTextColor
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Surface(color = sourceTextColor.copy(alpha = 0.12f), shape = RoundedCornerShape(4.dp)) {
+                    Text(
+                        sourceBadge,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = sourceTextColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
                 }
             }
         }

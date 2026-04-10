@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
@@ -272,6 +273,48 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         onLogMeal = { onNavigate("logMeal") },
                         onLogWorkout = { onNavigate("logWorkout") }
                     )
+
+                    // Explore Dishes CTA
+                    Surface(
+                        onClick = { onNavigate("explore") },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF0F9FF),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(0xFFDBEAFE), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🍽️", fontSize = 20.sp)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Explore Dishes",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E40AF)
+                                )
+                                Text(
+                                    "Browse all supported dishes & data sources",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF3B82F6)
+                                )
+                            }
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Explore",
+                                tint = Color(0xFF3B82F6),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
 
                     DailyActivityFeedRevised(
                         activities = activityLog,

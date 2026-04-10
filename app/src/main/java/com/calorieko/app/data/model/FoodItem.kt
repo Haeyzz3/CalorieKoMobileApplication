@@ -38,5 +38,8 @@ data class FoodItem(
     @ColumnInfo(name = "vitamin_a_per_100g") val vitaminAPer100g: Float = 0f, // in µg
     @ColumnInfo(name = "vitamin_c_per_100g") val vitaminCPer100g: Float = 0f, // in mg
     @ColumnInfo(name = "calcium_per_100g") val calciumPer100g: Float = 0f, // in mg
-    @ColumnInfo(name = "iron_per_100g") val ironPer100g: Float = 0f // in mg
+    @ColumnInfo(name = "iron_per_100g") val ironPer100g: Float = 0f, // in mg
+
+    // Source Attribution
+    @ColumnInfo(name = "data_source") val dataSource: String = "DOST_FNRI_MENU_GUIDE"
 )

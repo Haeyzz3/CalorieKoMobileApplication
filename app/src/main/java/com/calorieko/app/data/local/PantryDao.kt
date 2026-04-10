@@ -76,6 +76,10 @@ interface PantryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllDishIngredients(items: List<DishIngredient>)
 
+    /** Clears all rows from DISH_INGREDIENTS_TABLE. Used before re-seeding from CSV. */
+    @Query("DELETE FROM DISH_INGREDIENTS_TABLE")
+    suspend fun deleteAllDishIngredients()
+
     // --- Autocomplete ---
 
     @Query("SELECT DISTINCT ingredient_name FROM DISH_INGREDIENTS_TABLE ORDER BY ingredient_name ASC")
