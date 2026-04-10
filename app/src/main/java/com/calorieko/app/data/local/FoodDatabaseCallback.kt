@@ -13,19 +13,16 @@ class FoodDatabaseCallback(
     private val databaseProvider: () -> AppDatabase // Allows safe access to the database instance
 ) : RoomDatabase.Callback() {
 
-    override fun onCreate(db: SupportSQLiteDatabase) {
-        super.onCreate(db)
-        databaseProvider().let { database ->
-            scope.launch(Dispatchers.IO) {
-                populateDatabase(context, database.foodDao(), database.pantryDao())
-            }
-        }
-    }
+    // NOTE: We intentionally do NOT override onCreate() for seeding.
+    // Room always calls onOpen() after onCreate(), so the onOpen() empty-check
+    // handles fresh installs, migrations, and normal opens — all from one path.
+    // Having both onCreate and onOpen seed caused a race condition where two
+    // async coroutines would interleave, doubling the dish count.
 
     /**
      * Runs on every database open. Checks if the dish ingredients table or
-     * food table is empty (e.g. after a schema migration that drops and
-     * recreates them). If either is empty, seeds both from the CSV assets.
+     * food table is empty (e.g. fresh install or schema migration that drops
+     * and recreates them). If either is empty, seeds both from the CSV assets.
      */
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
@@ -42,6 +39,14 @@ class FoodDatabaseCallback(
 }
 
 suspend fun populateDatabase(context: Context, foodDao: FoodDao, pantryDao: PantryDao) {
+    // Clear existing rows first to prevent duplicates.
+    // This is necessary because FoodItem uses autoGenerate = true for food_id,
+    // so OnConflictStrategy.REPLACE never triggers (each insert gets a new ID).
+    // Without this, a race between onCreate() and onOpen() callbacks can
+    // cause the CSV data to be inserted twice, doubling the dish count.
+    foodDao.deleteAllFoods()
+    pantryDao.deleteAllDishIngredients()
+
     // Seed the food table
     context.assets.open("dish_labels_and_values.csv").use { inputStream ->
         val dishes = FoodCsvParser.parse(inputStream)
