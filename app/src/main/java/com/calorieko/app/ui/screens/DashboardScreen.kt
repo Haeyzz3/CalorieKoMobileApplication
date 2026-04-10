@@ -423,7 +423,7 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Log Meal", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                Text("AI + Scale", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                Text("Track Nutrition", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
             }
         }
 
