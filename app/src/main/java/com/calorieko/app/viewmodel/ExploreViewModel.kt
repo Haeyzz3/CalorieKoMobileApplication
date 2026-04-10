@@ -9,9 +9,12 @@ import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -32,7 +35,8 @@ data class ExploreDish(
     val fats: Int,
     val sodium: Int,
     val dataSource: String,
-    val ingredientCount: Int = 0
+    val ingredientCount: Int = 0,
+    val ingredientNames: List<String> = emptyList()
 )
 
 /**
@@ -89,11 +93,12 @@ class ExploreViewModel(
                 dish.mlLabel != "negative"
             }
             .filter { dish ->
-                // Search filter
+                // Search filter — matches dish name, Filipino name, label, AND ingredient names
                 if (query.isBlank()) true
                 else dish.nameEn.contains(query, ignoreCase = true) ||
                      dish.namePh.contains(query, ignoreCase = true) ||
-                     dish.mlLabel.contains(query, ignoreCase = true)
+                     dish.mlLabel.contains(query, ignoreCase = true) ||
+                     dish.ingredientNames.any { it.contains(query, ignoreCase = true) }
             }
             .filter { dish ->
                 // Source filter
@@ -113,6 +118,10 @@ class ExploreViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // --- Snackbar events (one-shot) ---
+    private val _snackbarEvent = MutableSharedFlow<String>()
+    val snackbarEvent: SharedFlow<String> = _snackbarEvent.asSharedFlow()
+
     init {
         loadAllDishes()
     }
@@ -123,7 +132,7 @@ class ExploreViewModel(
 
             val foods = foodDao.getAllFoods()
             val dishes = foods.map { food ->
-                val ingredientCount = pantryDao.getIngredientsForDish(food.mlLabel).size
+                val ingredients = pantryDao.getIngredientsForDish(food.mlLabel)
                 ExploreDish(
                     mlLabel = food.mlLabel,
                     nameEn = food.nameEn,
@@ -135,7 +144,8 @@ class ExploreViewModel(
                     fats = food.fatPer100g.toInt(),
                     sodium = food.sodiumPer100g.toInt(),
                     dataSource = food.dataSource,
-                    ingredientCount = ingredientCount
+                    ingredientCount = ingredients.size,
+                    ingredientNames = ingredients
                 )
             }
 
@@ -167,12 +177,24 @@ class ExploreViewModel(
                 .map { it.ingredient_name.trim().lowercase() }
                 .distinct()
 
+            // Check which ingredients are actually new (not already in pantry)
+            val currentPantry = pantryItems.value.map { it.lowercase() }.toSet()
+            val newIngredients = coreIngredients.filter { it !in currentPantry }
+
             for (ingredient in coreIngredients) {
                 pantryDao.insertItem(PantryItem(ingredientName = ingredient))
             }
             if (uid.isNotEmpty() && coreIngredients.isNotEmpty()) {
                 firestoreSyncRepo.syncPantryItemsBatch(uid, coreIngredients)
             }
+
+            // Emit snackbar feedback
+            val message = if (newIngredients.isEmpty()) {
+                "All ${coreIngredients.size} core ingredients already in Pantry"
+            } else {
+                "✓ ${newIngredients.size} ingredient${if (newIngredients.size > 1) "s" else ""} added to Pantry"
+            }
+            _snackbarEvent.emit(message)
         }
     }
 
@@ -233,7 +255,7 @@ class ExploreViewModel(
     }
 
     /**
-     * Returns the URL for a data source key.
+     * Returns the URL for a data source key (general database URL).
      */
     fun getSourceUrl(source: String): String {
         return when (source) {
@@ -243,4 +265,44 @@ class ExploreViewModel(
             else -> ""
         }
     }
+
+    /**
+     * Returns the proof document info for a specific dish.
+     * - USDA dishes: direct browser URL to the nutrient detail page
+     * - FNRI/FCT dishes: asset path to the extracted PDF
+     */
+    fun getDishProofDocument(mlLabel: String, dataSource: String): DishProofDocument {
+        // USDA dishes have direct browser URLs
+        val usdaUrls = mapOf(
+            "egg_sunny" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
+            "egg_boiled" to "https://fdc.nal.usda.gov/food-details/173424/nutrients",
+            "egg_fried" to "https://fdc.nal.usda.gov/food-details/2707200/nutrients",
+            "chicken_drumstick" to "https://fdc.nal.usda.gov/food-details/171126/nutrients",
+            "chicken_thigh" to "https://fdc.nal.usda.gov/food-details/171127/nutrients",
+            "chicken_wings" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
+            "chicken_breast" to "https://fdc.nal.usda.gov/food-details/171125/nutrients"
+        )
+
+        return when (dataSource) {
+            "USDA_FNDDS" -> {
+                val url = usdaUrls[mlLabel] ?: ""
+                if (url.isNotEmpty()) DishProofDocument(ProofType.URL, url)
+                else DishProofDocument(ProofType.NONE, "")
+            }
+            "DOST_FNRI_MENU_GUIDE", "DOST_FNRI_FCT" -> {
+                DishProofDocument(ProofType.PDF_ASSET, "sources/$mlLabel.pdf")
+            }
+            else -> DishProofDocument(ProofType.NONE, "")
+        }
+    }
 }
+
+/**
+ * Represents proof document info for a dish.
+ */
+data class DishProofDocument(
+    val type: ProofType,
+    val path: String // URL for browser, or asset path for PDF
+)
+
+enum class ProofType { URL, PDF_ASSET, NONE }

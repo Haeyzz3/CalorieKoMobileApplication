@@ -3,6 +3,8 @@ package com.calorieko.app.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +43,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -71,9 +75,15 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.viewmodel.ExploreDish
 import com.calorieko.app.viewmodel.ExploreViewModel
 import com.calorieko.app.viewmodel.IngredientInfo
+import com.calorieko.app.viewmodel.ProofType
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 // --- Category display metadata ---
 private val CATEGORY_ORDER = listOf(
@@ -97,7 +107,7 @@ private val SOURCE_BADGE_COLORS = mapOf(
     "USDA_FNDDS" to Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun ExploreScreen(
     viewModel: ExploreViewModel,
@@ -115,6 +125,16 @@ fun ExploreScreen(
     val selectedDish = remember { mutableStateOf<ExploreDish?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+
+    // Snackbar state
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Collect snackbar events from ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.snackbarEvent.collect { message ->
+            snackbarHostState.showSnackbar(message = message)
+        }
+    }
 
     // Compute total dish count
     val totalDishCount = filteredDishes.values.sumOf { it.size }
@@ -140,6 +160,7 @@ fun ExploreScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color(0xFFF8F9FA)
     ) { paddingValues ->
 
@@ -168,7 +189,7 @@ fun ExploreScreen(
                             TextField(
                                 value = searchQuery,
                                 onValueChange = { viewModel.updateSearchQuery(it) },
-                                placeholder = { Text("Search dishes...", color = Color.Gray, fontSize = 14.sp) },
+                                placeholder = { Text("Search dishes or ingredients...", color = Color.Gray, fontSize = 14.sp) },
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
@@ -390,7 +411,21 @@ private fun SourceFilterChip(
     )
 }
 
+// --- Dietary Badge Helper ---
+private data class DietaryBadge(val label: String, val textColor: Color, val bgColor: Color)
+
+private fun getDietaryBadges(dish: ExploreDish): List<DietaryBadge> {
+    val badges = mutableListOf<DietaryBadge>()
+    // Thresholds are per 100g, tuned for Filipino dishes
+    if (dish.protein >= 15) badges.add(DietaryBadge("High Protein", Color(0xFF1D4ED8), Color(0xFFDBEAFE)))
+    if (dish.calories <= 120) badges.add(DietaryBadge("Low Cal", Color(0xFF16A34A), Color(0xFFDCFCE7)))
+    if (dish.sodium <= 200) badges.add(DietaryBadge("Low Sodium", Color(0xFF0891B2), Color(0xFFCFFAFE)))
+    if (dish.fats <= 3) badges.add(DietaryBadge("Low Fat", Color(0xFF7C3AED), Color(0xFFEDE9FE)))
+    return badges.take(2) // Max 2 badges to avoid clutter on small cards
+}
+
 // --- Explore Dish Card ---
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ExploreDishCard(
     dish: ExploreDish,
@@ -399,6 +434,7 @@ private fun ExploreDishCard(
 ) {
     val (sourceTextColor, sourceBgColor) = SOURCE_BADGE_COLORS[dish.dataSource]
         ?: Pair(Color(0xFF374151), Color(0xFFF3F4F6))
+    val dietaryBadges = remember(dish) { getDietaryBadges(dish) }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -406,7 +442,6 @@ private fun ExploreDishCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .width(200.dp)
-            .height(195.dp)
             .clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -460,11 +495,37 @@ private fun ExploreDishCard(
                 fontStyle = FontStyle.Italic
             )
 
+            // Dietary Quick Badges
+            if (dietaryBadges.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    dietaryBadges.forEach { badge ->
+                        Surface(
+                            color = badge.bgColor,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                badge.label,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = badge.textColor,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Bottom: Calories + Ingredient count
             Row(
-                verticalAlignment = Alignment.CenterVertically ,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -601,43 +662,112 @@ private fun ExploreDishDetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Data Source Attribution Card
+        // Data Source Attribution Card (Interactive)
+        val context = LocalContext.current
+        val proofDoc = remember(dish.mlLabel, dish.dataSource) {
+            viewModel.getDishProofDocument(dish.mlLabel, dish.dataSource)
+        }
+
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = sourceBgColor),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.VerifiedUser,
-                    null,
-                    tint = sourceTextColor,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        "📊 Nutritional data sourced from",
-                        fontSize = 11.sp,
-                        color = sourceTextColor.copy(alpha = 0.7f)
+            Column(modifier = Modifier.padding(14.dp)) {
+                // Source info header
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.VerifiedUser,
+                        null,
+                        tint = sourceTextColor,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Text(
-                        viewModel.getSourceDisplayLabel(dish.dataSource),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = sourceTextColor
-                    )
-                    Text(
-                        viewModel.getSourceUrl(dish.dataSource),
-                        fontSize = 10.sp,
-                        color = sourceTextColor.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Nutritional data sourced from",
+                            fontSize = 11.sp,
+                            color = sourceTextColor.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            viewModel.getSourceDisplayLabel(dish.dataSource),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = sourceTextColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Two-action row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Primary: View Source Document
+                    if (proofDoc.type != ProofType.NONE) {
+                        val proofLabel = when (proofDoc.type) {
+                            ProofType.URL -> "View on USDA"
+                            ProofType.PDF_ASSET -> "View Source PDF"
+                            else -> ""
+                        }
+                        Surface(
+                            onClick = {
+                                when (proofDoc.type) {
+                                    ProofType.URL -> {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(proofDoc.path))
+                                        context.startActivity(intent)
+                                    }
+                                    ProofType.PDF_ASSET -> {
+                                        openPdfFromAssets(context, proofDoc.path)
+                                    }
+                                    else -> {}
+                                }
+                            },
+                            color = sourceTextColor,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).height(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    proofLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Secondary: Visit Database
+                    Surface(
+                        onClick = {
+                            val url = viewModel.getSourceUrl(dish.dataSource)
+                            if (url.isNotEmpty()) {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                context.startActivity(intent)
+                            }
+                        },
+                        color = sourceTextColor.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .then(
+                                if (proofDoc.type != ProofType.NONE) Modifier.weight(1f)
+                                else Modifier.fillMaxWidth()
+                            )
+                            .height(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "Visit Database",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sourceTextColor
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -779,5 +909,44 @@ private fun NutrientQuickStat(label: String, value: String, unit: String, color:
             Text(unit, fontSize = 10.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(bottom = 2.dp))
         }
         Text(label, fontSize = 11.sp, color = Color(0xFF6B7280))
+    }
+}
+
+/**
+ * Copies a PDF from the app's assets to the cache directory
+ * and opens it with an external PDF viewer via FileProvider.
+ */
+private fun openPdfFromAssets(context: android.content.Context, assetPath: String) {
+    try {
+        // Extract filename from path (e.g., "sources/menudo.pdf" → "menudo.pdf")
+        val fileName = assetPath.substringAfterLast("/")
+
+        // Copy asset to cache directory
+        val cacheDir = File(context.cacheDir, "source_pdfs")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        val outFile = File(cacheDir, fileName)
+
+        context.assets.open(assetPath).use { input ->
+            outFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        // Create content URI via FileProvider
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            outFile
+        )
+
+        // Launch PDF viewer
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
