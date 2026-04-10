@@ -23,17 +23,17 @@ class FoodDatabaseCallback(
     }
 
     /**
-     * Runs on every database open. Checks if the dish ingredients table
-     * was created by a schema migration but never seeded (the onCreate
-     * callback only fires on first creation). If empty, seeds both the
-     * food table and dish ingredients table from the CSV asset files.
+     * Runs on every database open. Checks if the dish ingredients table or
+     * food table is empty (e.g. after a schema migration that drops and
+     * recreates them). If either is empty, seeds both from the CSV assets.
      */
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
         databaseProvider().let { database ->
             scope.launch(Dispatchers.IO) {
-                val count = database.pantryDao().getDishIngredientCount()
-                if (count == 0) {
+                val dishCount = database.pantryDao().getDishIngredientCount()
+                val foodCount = database.foodDao().getAllFoods().size
+                if (dishCount == 0 || foodCount == 0) {
                     populateDatabase(context, database.foodDao(), database.pantryDao())
                 }
             }

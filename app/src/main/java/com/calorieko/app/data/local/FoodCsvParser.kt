@@ -43,7 +43,8 @@ object FoodCsvParser {
                         vitaminAPer100g = tokens[17].trim().toFloatOrNull() ?: 0f,
                         vitaminCPer100g = tokens[18].trim().toFloatOrNull() ?: 0f,
                         calciumPer100g = tokens[19].trim().toFloatOrNull() ?: 0f,
-                        ironPer100g = tokens[20].trim().toFloatOrNull() ?: 0f
+                        ironPer100g = tokens[20].trim().toFloatOrNull() ?: 0f,
+                        dataSource = tokens.getOrNull(21)?.trim() ?: "DOST_FNRI_MENU_GUIDE"
                     )
                     dishes.add(item)
                 }

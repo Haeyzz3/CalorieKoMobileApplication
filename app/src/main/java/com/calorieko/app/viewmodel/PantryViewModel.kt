@@ -68,7 +68,9 @@ data class DishResult(
     val vitaminA: Float = 0f,
     val vitaminC: Float = 0f,
     val calcium: Float = 0f,
-    val iron: Float = 0f
+    val iron: Float = 0f,
+    // Source attribution
+    val dataSource: String = "DOST_FNRI_MENU_GUIDE"
 )
 
 class PantryViewModel(
@@ -159,7 +161,8 @@ class PantryViewModel(
         val vitaminA: Float,
         val vitaminC: Float,
         val calcium: Float,
-        val iron: Float
+        val iron: Float,
+        val dataSource: String = "DOST_FNRI_MENU_GUIDE"
     )
 
     // --- User's actual daily calorie target and sodium limit ---
@@ -332,7 +335,8 @@ class PantryViewModel(
                 vitaminA = nutrition.vitaminA,
                 vitaminC = nutrition.vitaminC,
                 calcium = nutrition.calcium,
-                iron = nutrition.iron
+                iron = nutrition.iron,
+                dataSource = nutrition.dataSource
             )
 
             if (info.core_matched >= info.core_total) {
@@ -476,7 +480,8 @@ class PantryViewModel(
                 vitaminA = foodItem.vitaminAPer100g,
                 vitaminC = foodItem.vitaminCPer100g,
                 calcium = foodItem.calciumPer100g,
-                iron = foodItem.ironPer100g
+                iron = foodItem.ironPer100g,
+                dataSource = foodItem.dataSource
             )
         } else {
             // Dish exists in ingredients table but not in food table — no nutrition data available
