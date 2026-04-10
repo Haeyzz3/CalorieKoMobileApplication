@@ -397,7 +397,7 @@ fun AppNavigation() {
         }
 
         // --- Nutrition Details Screen ---
-        composable("nutritionDetails") {
+        composable("diary") {
             val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
                 userDao = db.userDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
@@ -416,6 +416,9 @@ fun AppNavigation() {
                 viewModel = nutritionDetailsViewModel,
                 onBackClick = {
                     navController.popBackStack()
+                },
+                onNavigateToEdit = { activityId ->
+                    navController.navigate("logWorkout?activityId=$activityId")
                 }
             )
         }
@@ -597,7 +600,14 @@ fun AppNavigation() {
         }
 
         // --- NEW: Log Workout Screen ---
-        composable("logWorkout") {
+        composable(
+            route = "logWorkout?activityId={activityId}",
+            arguments = listOf(navArgument("activityId") { 
+                type = NavType.IntType 
+                defaultValue = -1 
+            })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getInt("activityId") ?: -1
             val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
                 activityLogDao = db.activityLogDao(),
                 userDao = db.userDao(),
@@ -611,6 +621,7 @@ fun AppNavigation() {
             )
             LogWorkoutScreen(
                 viewModel = logWorkoutViewModel,
+                activityIdToEdit = if (activityId != -1) activityId else null,
                 onBack = {
                     navController.popBackStack()
                 }

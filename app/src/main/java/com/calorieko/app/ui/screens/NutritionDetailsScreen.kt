@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pool
 import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -56,7 +58,7 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: () -> Unit) {
+fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: () -> Unit, onNavigateToEdit: (Int) -> Unit = {}) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Calories", "Nutrients", "Macros", "Activities")
 
@@ -112,7 +114,7 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nutrition", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
+                title = { Text("Diary", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -270,7 +272,8 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                     viewMode = viewMode,
                     daySummary = daySummary,
                     targets = targets,
-                    weekDaySummaries = weekDaySummaries
+                    weekDaySummaries = weekDaySummaries,
+                    weekDayLabels = weekDayLabels
                 )
                 2 -> MacrosTabContent(
                     viewMode = viewMode,
@@ -292,7 +295,9 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
                         ActivityHistoryTabContent(
                             activityLogs = activityLogs,
                             viewMode = viewMode,
-                            dateText = dateText
+                            dateText = dateText,
+                            onEdit = onNavigateToEdit,
+                            onDelete = { viewModel.deleteActivity(it) }
                         )
                     }
                 }
@@ -330,7 +335,9 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
 fun ActivityHistoryTabContent(
     activityLogs: List<ActivityLogEntity>,
     viewMode: String,
-    dateText: String
+    dateText: String,
+    onEdit: (Int) -> Unit = {},
+    onDelete: (Int) -> Unit = {}
 ) {
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
@@ -495,6 +502,23 @@ fun ActivityHistoryTabContent(
                                 color = Color(0xFFEA580C),
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
+                        }
+
+                        // Constraints: GPS workouts cannot be edited
+                        val isOutdoor = log.encodedPath != null || log.distanceKm != null
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (!isOutdoor) {
+                                IconButton(modifier = Modifier.size(32.dp), onClick = { onEdit(log.id) }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF6B7280), modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            IconButton(modifier = Modifier.size(32.dp), onClick = { onDelete(log.id) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }

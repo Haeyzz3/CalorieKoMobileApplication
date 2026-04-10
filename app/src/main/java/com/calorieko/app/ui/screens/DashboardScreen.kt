@@ -250,7 +250,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(
-                                onClick = { onNavigate("nutritionDetails") }
+                                onClick = { onNavigate("diary") }
                             )
                     ) {
                         ProgressRings(

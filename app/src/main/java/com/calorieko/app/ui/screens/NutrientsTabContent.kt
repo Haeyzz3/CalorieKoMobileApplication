@@ -29,7 +29,8 @@ fun NutrientsTabContent(
     viewMode: String,
     daySummary: DailyNutritionSummaryEntity?,
     targets: com.calorieko.app.data.repository.NutritionalTarget?,
-    weekDaySummaries: List<DailyNutritionSummaryEntity?>
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>
 ) {
     if (viewMode == "day") {
         NutrientsDayView(
@@ -39,7 +40,8 @@ fun NutrientsTabContent(
     } else {
         NutrientsWeekView(
             weekDaySummaries = weekDaySummaries,
-            targets = targets
+            targets = targets,
+            weekDayLabels = weekDayLabels
         )
     }
 }
@@ -85,7 +87,8 @@ private fun NutrientsDayView(
 @Composable
 private fun NutrientsWeekView(
     weekDaySummaries: List<DailyNutritionSummaryEntity?>,
-    targets: com.calorieko.app.data.repository.NutritionalTarget?
+    targets: com.calorieko.app.data.repository.NutritionalTarget?,
+    weekDayLabels: List<String>
 ) {
     // Compute daily averages across the 7-day week (divide by 7 always)
     fun avgOf(selector: (DailyNutritionSummaryEntity) -> Float): Float {
@@ -112,10 +115,73 @@ private fun NutrientsWeekView(
         NutrientRow("Iron",                avgOf { it.totalIron },               targets?.targetIron?.toFloat() ?: 18f,            "mg")
     )
 
-    NutrientTable(
-        valueColumnHeader = "Avg",
-        nutrients = nutrients
-    )
+    Column(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+        NutrientsWeeklyChart(weekDaySummaries, weekDayLabels)
+        NutrientTable(
+            valueColumnHeader = "Avg",
+            nutrients = nutrients
+        )
+    }
+}
+
+@Composable
+private fun NutrientsWeeklyChart(
+    summaries: List<DailyNutritionSummaryEntity?>,
+    labels: List<String>
+) {
+    // Find the max calories to scale the bars
+    val maxCals = summaries.maxOfOrNull { it?.totalCalories ?: 0f }?.coerceAtLeast(100f) ?: 100f
+    
+    Card(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp)
+    ) {
+        Column(
+            modifier = androidx.compose.ui.Modifier.padding(16.dp).fillMaxWidth()
+        ) {
+            androidx.compose.material3.Text(
+                "Weekly Calorie Intake",
+                fontSize = 15.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = com.calorieko.app.ui.theme.DarkText
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.height(16.dp))
+            androidx.compose.foundation.layout.Row(
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth().height(150.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly,
+                verticalAlignment = androidx.compose.ui.Alignment.Bottom
+            ) {
+                // Ignore the last label which is "Avg"
+                val chartLabels = labels.take(7)
+                chartLabels.forEachIndexed { i, label ->
+                    val cals = summaries.getOrNull(i)?.totalCalories ?: 0f
+                    val heightRatio = (cals / maxCals).coerceIn(0f, 1f)
+                    
+                    androidx.compose.foundation.layout.Column(
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Bottom,
+                        modifier = androidx.compose.ui.Modifier.weight(1f)
+                    ) {
+                        androidx.compose.foundation.layout.Box(
+                            modifier = androidx.compose.ui.Modifier
+                                .fillMaxWidth(0.6f)
+                                .fillMaxHeight(heightRatio)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                .background(com.calorieko.app.ui.theme.CalorieKoGreen)
+                        )
+                        androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
+                        androidx.compose.material3.Text(
+                            text = label, // Mon, Tue, etc.
+                            fontSize = 11.sp,
+                            color = com.calorieko.app.ui.theme.SubtleText
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 // =====================================================

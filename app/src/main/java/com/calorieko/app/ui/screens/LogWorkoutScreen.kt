@@ -180,6 +180,7 @@ fun getActivityIcon(activity: ActivityItem): ImageVector {
 @Composable
 fun LogWorkoutScreen(
     viewModel: LogWorkoutViewModel,
+    activityIdToEdit: Int? = null,
     onBack: () -> Unit
 ) {
     var mode by remember { mutableStateOf(WorkoutMode.SELECTION) }

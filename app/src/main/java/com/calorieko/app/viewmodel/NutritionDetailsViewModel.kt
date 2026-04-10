@@ -189,6 +189,19 @@ class NutritionDetailsViewModel(
         }
     }
 
+    fun deleteActivity(activityId: Int) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                // We're currently just deleting it locally. The ApiSyncManager
+                // handles pushing deletions or resyncing on load depending on architecture.
+                activityLogDao.deleteLogById(activityId)
+                // Reload activities to update UI immediately
+                loadActivityLogs()
+                loadWeeklyActivityLogs()
+            }
+        }
+    }
+
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,

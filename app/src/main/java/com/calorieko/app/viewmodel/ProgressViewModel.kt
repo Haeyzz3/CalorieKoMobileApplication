@@ -39,8 +39,11 @@ class ProgressViewModel(
     private val _userWeight = MutableStateFlow(74.0)
     val userWeight: StateFlow<Double> = _userWeight.asStateFlow()
 
-    private val _viewMode = MutableStateFlow("weekly")
+    private val _viewMode = MutableStateFlow("7_days")
     val viewMode: StateFlow<String> = _viewMode.asStateFlow()
+
+    private val _selectedMetric = MutableStateFlow("Calorie Balance")
+    val selectedMetric: StateFlow<String> = _selectedMetric.asStateFlow()
 
     private val _dataLoaded = MutableStateFlow(false)
     val dataLoaded: StateFlow<Boolean> = _dataLoaded.asStateFlow()
@@ -57,6 +60,10 @@ class ProgressViewModel(
             _viewMode.value = mode
             loadData()
         }
+    }
+
+    fun setMetric(metric: String) {
+        _selectedMetric.value = metric
     }
 
     /**
@@ -82,7 +89,12 @@ class ProgressViewModel(
                 calendar.set(Calendar.MILLISECOND, 0)
                 val endTime = calendar.timeInMillis + 24 * 60 * 60 * 1000L
 
-                val daysBack = if (_viewMode.value == "weekly") 7 else 30
+                val daysBack = when (_viewMode.value) {
+                    "7_days" -> 7
+                    "30_days" -> 30
+                    "90_days" -> 90
+                    else -> 7
+                }
                 calendar.add(Calendar.DAY_OF_YEAR, -(daysBack - 1))
                 val startTime = calendar.timeInMillis
 

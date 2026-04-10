@@ -61,6 +61,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     // ── Collect ViewModel State ──
     val weeklyLogs by viewModel.weeklyLogs.collectAsState()
     val userWeight by viewModel.userWeight.collectAsState()
+    val selectedMetric by viewModel.selectedMetric.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
     val dataLoaded by viewModel.dataLoaded.collectAsState()
 
@@ -174,69 +175,76 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
             })
         }
     ) { paddingValues ->
-        Column(
+        androidx.compose.foundation.lazy.LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF8F9FA))
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .padding(paddingValues),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             // ===== HEADER =====
-            ProgressHeaderSection(viewMode = viewMode, onViewModeChange = { viewModel.setViewMode(it) })
-
-            // ===== CHART SECTIONS =====
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Stagger entrance animations
-                AnimatedVisibility(
-                    visible = dataLoaded,
-                    enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
-                ) {
-                    CalorieBalanceCard(data = calorieData)
-                }
-
-                AnimatedVisibility(
-                    visible = dataLoaded,
-                    enter = fadeIn(tween(400, delayMillis = 100)) + slideInVertically(tween(400, delayMillis = 100)) { it / 4 }
-                ) {
-                    SodiumTrendCard(data = sodiumData, dailyLimit = 2300)
-                }
-
-                AnimatedVisibility(
-                    visible = dataLoaded,
-                    enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(tween(400, delayMillis = 200)) { it / 4 }
-                ) {
-                    WeightTrackingCard(data = weightData)
-                }
-
-                AnimatedVisibility(
-                    visible = dataLoaded,
-                    enter = fadeIn(tween(400, delayMillis = 300)) + slideInVertically(tween(400, delayMillis = 300)) { it / 4 }
-                ) {
-                    DietaryInsightsCard(foods = topFoods)
-                }
+            item {
+                ProgressHeaderSection(
+                    selectedMetric = selectedMetric,
+                    onMetricChange = { viewModel.setMetric(it) },
+                    dateRange = viewMode,
+                    onDateRangeChange = { viewModel.setViewMode(it) }
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // ===== CHART SECTION =====
+            item {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    AnimatedVisibility(
+                        visible = dataLoaded,
+                        enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
+                    ) {
+                        when (selectedMetric) {
+                            "Calorie Balance" -> CalorieBalanceCard(data = calorieData)
+                            "Sodium Trend" -> SodiumTrendCard(data = sodiumData, dailyLimit = 2300)
+                            "Weight & Body Metrics" -> WeightTrackingCard(data = weightData)
+                            "Dietary Insights" -> DietaryInsightsCard(foods = topFoods)
+                        }
+                    }
+                }
+            }
+            
+            // ===== RAW DATA TABLE (Implementation beneath chart) =====
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (dataLoaded) {
+                    when (selectedMetric) {
+                        "Calorie Balance" -> CalorieRawDataTable(calorieData)
+                        "Sodium Trend" -> SodiumRawDataTable(sodiumData)
+                        "Weight & Body Metrics" -> WeightRawDataTable(weightData)
+                        // Dietary insights table can be skipped since DietaryInsightsCard is basically a list itself, or we replicate it
+                    }
+                }
+            }
         }
     }
 }
 
 // ==================== HEADER with TOGGLE ====================
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProgressHeaderSection(viewMode: String, onViewModeChange: (String) -> Unit) {
+private fun ProgressHeaderSection(
+    selectedMetric: String,
+    onMetricChange: (String) -> Unit,
+    dateRange: String,
+    onDateRangeChange: (String) -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White,
         shadowElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 20.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
             Text(
                 text = "Your Progress",
@@ -244,36 +252,59 @@ private fun ProgressHeaderSection(viewMode: String, onViewModeChange: (String) -
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F2937)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Pill toggle — matches Figma: inline-flex bg-gray-100 rounded-full p-1
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFF3F4F6))
-                    .padding(4.dp)
-            ) {
-                listOf("weekly" to "Weekly", "monthly" to "Monthly").forEach { (key, label) ->
-                    val isSelected = viewMode == key
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .then(
-                                if (isSelected) Modifier.shadow(2.dp, RoundedCornerShape(50))
-                                else Modifier
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Metric Dropdown
+                var metricExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = metricExpanded,
+                    onExpandedChange = { metricExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = selectedMetric,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = metricExpanded) },
+                        modifier = Modifier.menuAnchor(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                    )
+                    ExposedDropdownMenu(expanded = metricExpanded, onDismissRequest = { metricExpanded = false }) {
+                        listOf("Calorie Balance", "Sodium Trend", "Weight & Body Metrics", "Dietary Insights").forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption, fontSize = 13.sp) },
+                                onClick = { onMetricChange(selectionOption); metricExpanded = false }
                             )
-                            .background(if (isSelected) Color.White else Color.Transparent)
-                            .clickable { onViewModeChange(key) }
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                            color = if (isSelected) Color(0xFF1F2937) else Color(0xFF9CA3AF)
-                        )
+                        }
+                    }
+                }
+                
+                // Date Range Dropdown
+                var rangeExpanded by remember { mutableStateOf(false) }
+                val displayRange = when(dateRange) { "30_days" -> "Last 30 Days" "90_days" -> "Last 90 Days" else -> "Last 7 Days" }
+                ExposedDropdownMenuBox(
+                    expanded = rangeExpanded,
+                    onExpandedChange = { rangeExpanded = it },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    OutlinedTextField(
+                        value = displayRange,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = rangeExpanded) },
+                        modifier = Modifier.menuAnchor(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
+                    )
+                    ExposedDropdownMenu(expanded = rangeExpanded, onDismissRequest = { rangeExpanded = false }) {
+                        listOf("7_days" to "Last 7 Days", "30_days" to "Last 30 Days", "90_days" to "Last 90 Days").forEach { (key, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label, fontSize = 13.sp) },
+                                onClick = { onDateRangeChange(key); rangeExpanded = false }
+                            )
+                        }
                     }
                 }
             }
@@ -1017,6 +1048,74 @@ private fun FoodInsightCard(food: TopFoodItem) {
                     fontSize = 12.sp,
                     color = Color(0xFFEA580C)
                 )
+            }
+        }
+    }
+}
+
+// ==================== RAW DATA TABLES ====================
+
+@Composable
+private fun CalorieRawDataTable(data: List<DayCalorieData>) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Raw Data", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+            Spacer(modifier = Modifier.height(8.dp))
+            data.forEach { day ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(day.dayLabel, fontSize = 14.sp, color = Color(0xFF4B5563))
+                    Text("Intake: ${day.intake} | Burned: ${day.burned}", fontSize = 14.sp, color = Color(0xFF1F2937))
+                }
+                HorizontalDivider(color = Color(0xFFE5E7EB))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SodiumRawDataTable(data: List<DaySodiumData>) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Raw Data", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+            Spacer(modifier = Modifier.height(8.dp))
+            data.forEach { day ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(day.dayLabel, fontSize = 14.sp, color = Color(0xFF4B5563))
+                    Text("${day.sodium} mg", fontSize = 14.sp, color = Color(0xFF1F2937))
+                }
+                HorizontalDivider(color = Color(0xFFE5E7EB))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeightRawDataTable(data: List<DayWeightData>) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Raw Data", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+            Spacer(modifier = Modifier.height(8.dp))
+            data.forEach { day ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(day.dayLabel, fontSize = 14.sp, color = Color(0xFF4B5563))
+                    Text("${day.weight} kg", fontSize = 14.sp, color = Color(0xFF1F2937))
+                }
+                HorizontalDivider(color = Color(0xFFE5E7EB))
             }
         }
     }
