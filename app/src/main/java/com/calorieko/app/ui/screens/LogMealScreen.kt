@@ -922,8 +922,8 @@ private fun ManualMealContent(
                 )
             }
 
-            // ── Floating logged dishes counter ──
-            if (loggedDishes.isNotEmpty()) {
+            // ── Floating logged dishes counter (only on dish selection, not weight input) ──
+            if (loggedDishes.isNotEmpty() && selectedDish == null) {
                 Surface(
                     color = CalorieKoGreen,
                     shape = RoundedCornerShape(50),
