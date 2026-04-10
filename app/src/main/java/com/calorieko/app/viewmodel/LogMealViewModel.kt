@@ -36,7 +36,7 @@ class LogMealViewModel(
 
     // ── UI States ──
 
-    private val _phase = MutableStateFlow(LogMealPhase.SCANNING)
+    private val _phase = MutableStateFlow(LogMealPhase.MODE_SELECTION)
     val phase: StateFlow<LogMealPhase> = _phase.asStateFlow()
 
     private val _weight = MutableStateFlow(0f)
