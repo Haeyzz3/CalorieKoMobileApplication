@@ -66,49 +66,88 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
 
     var activeTab by remember { mutableStateOf("progress") }
 
-    // Process chart data
-    val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-
-    val calorieData = remember(weeklyLogs) {
-        dayLabels.mapIndexed { index, label ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            cal.add(Calendar.DAY_OF_YEAR, index)
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            val dayStart = cal.timeInMillis
-            val dayEnd = dayStart + 24 * 60 * 60 * 1000L
-            val dayLogs = weeklyLogs.filter { it.timestamp in dayStart until dayEnd }
-            DayCalorieData(
-                label,
-                dayLogs.filter { it.type == "meal" }.sumOf { it.calories },
-                dayLogs.filter { it.type == "workout" }.sumOf { it.calories }
-            )
+    val calorieData = remember(weeklyLogs, viewMode) {
+        if (viewMode == "weekly") {
+            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").mapIndexed { index, label ->
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                cal.add(Calendar.DAY_OF_YEAR, index)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                val dayStart = cal.timeInMillis
+                val dayEnd = dayStart + 24 * 60 * 60 * 1000L
+                val dayLogs = weeklyLogs.filter { it.timestamp in dayStart until dayEnd }
+                DayCalorieData(
+                    label,
+                    dayLogs.filter { it.type == "meal" }.sumOf { it.calories },
+                    dayLogs.filter { it.type == "workout" }.sumOf { it.calories }
+                )
+            }
+        } else {
+            listOf("Wk 1", "Wk 2", "Wk 3", "This Wk").mapIndexed { index, label ->
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                val endOfToday = cal.timeInMillis
+                val weeksAgoStart = 4 - index
+                val weeksAgoEnd = 3 - index
+                val weekStart = endOfToday - (weeksAgoStart * 7L * 24 * 60 * 60 * 1000L)
+                val weekEnd = endOfToday - (weeksAgoEnd * 7L * 24 * 60 * 60 * 1000L)
+                
+                val weekLogs = weeklyLogs.filter { it.timestamp in weekStart until weekEnd }
+                DayCalorieData(
+                    label,
+                    weekLogs.filter { it.type == "meal" }.sumOf { it.calories } / 7,
+                    weekLogs.filter { it.type == "workout" }.sumOf { it.calories } / 7
+                )
+            }
         }
     }
 
-    val sodiumData = remember(weeklyLogs) {
-        dayLabels.mapIndexed { index, label ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            cal.add(Calendar.DAY_OF_YEAR, index)
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            val dayStart = cal.timeInMillis
-            val dayEnd = dayStart + 24 * 60 * 60 * 1000L
-            val dayLogs = weeklyLogs.filter { it.timestamp in dayStart until dayEnd }
-            DaySodiumData(label, dayLogs.filter { it.type == "meal" }.sumOf { it.sodium })
+    val sodiumData = remember(weeklyLogs, viewMode) {
+        if (viewMode == "weekly") {
+            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").mapIndexed { index, label ->
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                cal.add(Calendar.DAY_OF_YEAR, index)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                val dayStart = cal.timeInMillis
+                val dayEnd = dayStart + 24 * 60 * 60 * 1000L
+                val dayLogs = weeklyLogs.filter { it.timestamp in dayStart until dayEnd }
+                DaySodiumData(label, dayLogs.filter { it.type == "meal" }.sumOf { it.sodium })
+            }
+        } else {
+            listOf("Wk 1", "Wk 2", "Wk 3", "This Wk").mapIndexed { index, label ->
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                val endOfToday = cal.timeInMillis
+                val weeksAgoStart = 4 - index
+                val weeksAgoEnd = 3 - index
+                val weekStart = endOfToday - (weeksAgoStart * 7L * 24 * 60 * 60 * 1000L)
+                val weekEnd = endOfToday - (weeksAgoEnd * 7L * 24 * 60 * 60 * 1000L)
+                val weekLogs = weeklyLogs.filter { it.timestamp in weekStart until weekEnd }
+                DaySodiumData(label, weekLogs.filter { it.type == "meal" }.sumOf { it.sodium } / 7)
+            }
         }
     }
 
-    val weightData = remember(userWeight) {
-        // Use the actual current user weight (no simulated mock data)
-        dayLabels.mapIndexed { index, label ->
-            DayWeightData(label, userWeight)
+    val weightData = remember(userWeight, viewMode) {
+        if (viewMode == "weekly") {
+            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").mapIndexed { index, label ->
+                DayWeightData(label, userWeight)
+            }
+        } else {
+            listOf("Wk 1", "Wk 2", "Wk 3", "This Wk").mapIndexed { index, label ->
+                DayWeightData(label, userWeight)
+            }
         }
     }
 

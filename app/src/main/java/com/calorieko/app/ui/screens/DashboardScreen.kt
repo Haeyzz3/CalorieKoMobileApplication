@@ -311,7 +311,7 @@ fun getActivityIcon(activityName: String): androidx.compose.ui.graphics.vector.I
     val lower = activityName.lowercase()
     return when {
         // Cardio / Running
-        "running" in lower || "jog" in lower || "takbo" in lower -> Icons.AutoMirrored.Filled.DirectionsRun
+        "run" in lower || "running" in lower || "jog" in lower || "takbo" in lower -> Icons.AutoMirrored.Filled.DirectionsRun
         // Cycling
         "biking" in lower || "cycling" in lower || "bike" in lower || "bisikleta" in lower -> Icons.Default.DirectionsBike
         // Swimming

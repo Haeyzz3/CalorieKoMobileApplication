@@ -175,7 +175,15 @@ fun ProfileScreen(
             photoUrl = p.photoUrl
         )
     } else {
-        UserData(name = displayName, memberSince = memberSince)
+        UserData(
+            name = displayName, 
+            memberSince = memberSince,
+            weight = 0.0,
+            height = 0.0,
+            age = 0,
+            activityLevel = "",
+            goal = ""
+        )
     }
 
     Scaffold(
@@ -330,11 +338,17 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
 // --- 2. Baseline Metrics Grid ---
 @Composable
 fun BaselineMetricsGrid(user: UserData) {
-    val heightInMeters = user.height / 100
-    val bmi = user.weight / (heightInMeters * heightInMeters)
-    val bmiRounded = String.format(Locale.US, "%.1f", bmi)
+    val weightStr = if (user.weight <= 0.0) "--" else "${user.weight}"
+    val heightStr = if (user.height <= 0.0) "--" else "${user.height.roundToInt()} cm"
+    val ageStr = if (user.age <= 0) "--" else "${user.age}"
+    val heightUnit = if (user.height <= 0.0) "" else cmToImperial(user.height)
+
+    val heightInMeters = if (user.height > 0) user.height / 100 else 1.0
+    val bmi = if (user.height > 0 && user.weight > 0) user.weight / (heightInMeters * heightInMeters) else 0.0
+    val bmiRounded = if (bmi > 0) String.format(Locale.US, "%.1f", bmi) else "--"
 
     val bmiInfo = when {
+        bmi == 0.0 -> Pair("Needs Data", Color(0xFF9CA3AF))
         bmi < 18.5 -> Pair("Underweight", Color(0xFF2563EB))
         bmi < 25 -> Pair("Normal", Color(0xFF16A34A))
         bmi < 30 -> Pair("Overweight", Color(0xFFEA580C))
@@ -345,11 +359,11 @@ fun BaselineMetricsGrid(user: UserData) {
         Text("Baseline Metrics", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), modifier = Modifier.padding(bottom = 16.dp, start = 4.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            MetricCard("Current Weight", "${user.weight}", "kilograms", Icons.Default.MonitorWeight, CalorieKoGreen, Color(0xFFECFDF5), Modifier.weight(1f))
+            MetricCard("Current Weight", weightStr, "kilograms", Icons.Default.MonitorWeight, CalorieKoGreen, Color(0xFFECFDF5), Modifier.weight(1f))
             MetricCard(
                 title = "Height",
-                value = "${user.height.roundToInt()} cm",
-                unit = cmToImperial(user.height),
+                value = heightStr,
+                unit = heightUnit,
                 icon = Icons.Default.Straighten,
                 iconColor = Color(0xFF2563EB),
                 bgColor = Color(0xFFEFF6FF),
@@ -358,12 +372,13 @@ fun BaselineMetricsGrid(user: UserData) {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            MetricCard("Age", "${user.age}", "years old", Icons.Default.Cake, Color(0xFF9333EA), Color(0xFFFAF5FF), Modifier.weight(1f))
+            MetricCard("Age", ageStr, "years old", Icons.Default.Cake, Color(0xFF9333EA), Color(0xFFFAF5FF), Modifier.weight(1f))
             MetricCard("BMI", bmiRounded, bmiInfo.first, Icons.Default.MonitorHeart, Color(0xFFEA580C), Color(0xFFFFF7ED), Modifier.weight(1f), bmiInfo.second)
         }
         Spacer(modifier = Modifier.height(16.dp))
 
         val activityLabel = when (user.activityLevel) {
+            "" -> "--"
             "not_very_active" -> "Not Very Active"
             "lightly_active" -> "Lightly Active"
             "active" -> "Active"
@@ -411,12 +426,14 @@ fun MetricCard(
 @Composable
 fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
     val goalInfo = when (goalCode) {
+        "" -> Triple("Setup Required", Icons.Default.Person, Color.Gray)
         "gain_muscle" -> Triple("Gain Muscle", Icons.Default.FitnessCenter, Color(0xFFEF4444))
         "weight_loss" -> Triple("Weight Control", Icons.Default.MonitorWeight, Color(0xFF2563EB))
         else -> Triple("General Health & Wellness", Icons.Default.Favorite, Color(0xFF16A34A))
     }
 
     val description = when(goalCode) {
+        "" -> "Please edit your profile to establish your fitness baseline."
         "gain_muscle" -> "Building lean muscle through optimized protein intake and strength-focused nutrition."
         "weight_loss" -> "Achieving sustainable weight loss through calorie management and portion control."
         else -> "Building healthy eating habits and maintaining overall wellness."

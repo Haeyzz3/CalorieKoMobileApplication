@@ -117,6 +117,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     bleScaleManager: BleScaleManager? = null // Brought back to handle scale options
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
@@ -279,7 +280,12 @@ fun SettingsScreen(
                 Text("Preferences", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
-                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { showBanner(NotificationType.INFO, "Coming Soon", "Notification settings will be available in a future update.") })
+                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { 
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                            context.startActivity(intent)
+                        })
                         SettingsDivider()
                         SettingsRow(
                             icon = Icons.Default.Sync,
@@ -329,7 +335,10 @@ fun SettingsScreen(
                 Text("About", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
-                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { showBanner(NotificationType.INFO, "Privacy Policy", "By using CalorieKo, you agree to our Terms of Service and data collection for fitness tracking.") })
+                        SettingsRow(icon = Icons.Default.PrivacyTip, title = "Privacy Notice", subtitle = "Read our data policies and terms", iconColor = Color(0xFF6B7280), onClick = { 
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://calorieko.com/privacy"))
+                            context.startActivity(intent)
+                        })
                     }
                 }
 
