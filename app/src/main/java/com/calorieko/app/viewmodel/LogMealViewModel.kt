@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalTime
+import kotlin.math.abs
+
 
 /** One-shot navigation/UI events emitted by LogMealViewModel. */
 sealed interface LogMealEvent {
@@ -96,6 +98,9 @@ class LogMealViewModel(
     val mealType: StateFlow<String> = _mealType.asStateFlow()
 
     private var weightStabilizationJob: Job? = null
+    private var stabilizationTargetWeight = 0f
+    private val WEIGHT_TOLERANCE = 3.0f // Allow +/- 3 grams of noise
+
 
     // ── One-shot events ──
 
@@ -116,11 +121,19 @@ class LogMealViewModel(
 
     fun updateRealWeight(realWeight: Float) {
         _weight.value = realWeight
-        _weightStable.value = false
-        weightStabilizationJob?.cancel()
-        weightStabilizationJob = viewModelScope.launch {
-            delay(1000)
-            if (_weight.value == realWeight) {
+
+        // If the new weight jumps outside our tolerance band, reset the timer
+        if (abs(realWeight - stabilizationTargetWeight) > WEIGHT_TOLERANCE) {
+            _weightStable.value = false
+            stabilizationTargetWeight = realWeight // set the new target
+
+            weightStabilizationJob?.cancel()
+            weightStabilizationJob = viewModelScope.launch {
+                delay(1500) // 1.5 seconds of staying within the tolerance band
+
+                // Once stable, snap the display weight to the target
+                // to stop the UI from jittering while they wait to capture.
+                _weight.value = stabilizationTargetWeight
                 _weightStable.value = true
             }
         }
@@ -131,6 +144,7 @@ class LogMealViewModel(
         if (!connected) {
             _weight.value = 0f
             _weightStable.value = false
+            stabilizationTargetWeight = 0f
             weightStabilizationJob?.cancel()
         }
     }
