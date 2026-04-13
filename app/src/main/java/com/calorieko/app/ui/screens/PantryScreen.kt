@@ -87,7 +87,14 @@ import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.viewmodel.DishResult
 import com.calorieko.app.viewmodel.IngredientInfo
 import com.calorieko.app.viewmodel.PantryViewModel
+import com.calorieko.app.viewmodel.ProofType
+import com.calorieko.app.viewmodel.DishProofDocument
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
+import java.io.File
 
 // --- Common Ingredients for Quick-Add ---
 val COMMON_INGREDIENTS = listOf(
@@ -1482,17 +1489,12 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Source Attribution Card
+        // Source Attribution Card (Interactive)
+        val context = LocalContext.current
         val sourceLabel = when (recipe.dataSource) {
             "DOST_FNRI_MENU_GUIDE" -> "DOST-FNRI Menu Guide"
             "DOST_FNRI_FCT" -> "DOST-FNRI FCT"
             "USDA_FNDDS" -> "USDA FNDDS"
-            else -> recipe.dataSource
-        }
-        val sourceBadge = when (recipe.dataSource) {
-            "DOST_FNRI_MENU_GUIDE" -> "FNRI"
-            "DOST_FNRI_FCT" -> "FCT"
-            "USDA_FNDDS" -> "USDA"
             else -> recipe.dataSource
         }
         val (sourceTextColor, sourceBgColor) = when (recipe.dataSource) {
@@ -1501,6 +1503,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             "USDA_FNDDS" -> Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
             else -> Pair(Color(0xFF374151), Color(0xFFF3F4F6))
         }
+        val proofDoc = remember(recipe.dishLabel, recipe.dataSource) {
+            getDishProofDocument(recipe.dishLabel, recipe.dataSource)
+        }
 
         Card(
             shape = RoundedCornerShape(12.dp),
@@ -1508,36 +1513,95 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(color = sourceTextColor.copy(alpha = 0.15f), shape = CircleShape) {
-                    Text("📊", modifier = Modifier.padding(8.dp), fontSize = 14.sp)
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = sourceTextColor.copy(alpha = 0.15f), shape = CircleShape) {
+                        Text("📊", modifier = Modifier.padding(8.dp), fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Nutritional data sourced from",
+                            fontSize = 11.sp,
+                            color = sourceTextColor.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            sourceLabel,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = sourceTextColor
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        "Nutritional data sourced from",
-                        fontSize = 11.sp,
-                        color = sourceTextColor.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        sourceLabel,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = sourceTextColor
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Surface(color = sourceTextColor.copy(alpha = 0.12f), shape = RoundedCornerShape(4.dp)) {
-                    Text(
-                        sourceBadge,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = sourceTextColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Primary: View Source Document
+                    if (proofDoc.type != ProofType.NONE) {
+                        val proofLabel = when (proofDoc.type) {
+                            ProofType.URL -> "View on USDA"
+                            ProofType.PDF_ASSET -> "View Source PDF"
+                            else -> ""
+                        }
+                        Surface(
+                            onClick = {
+                                when (proofDoc.type) {
+                                    ProofType.URL -> {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(proofDoc.path))
+                                        context.startActivity(intent)
+                                    }
+                                    ProofType.PDF_ASSET -> {
+                                        openPdfFromAssets(context, proofDoc.path)
+                                    }
+                                    else -> {}
+                                }
+                            },
+                            color = sourceTextColor,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).height(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    proofLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Secondary: Visit Database
+                    Surface(
+                        onClick = {
+                            val url = getSourceDatabaseUrl(recipe.dataSource)
+                            if (url.isNotEmpty()) {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                context.startActivity(intent)
+                            }
+                        },
+                        color = sourceTextColor.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .then(
+                                if (proofDoc.type != ProofType.NONE) Modifier.weight(1f)
+                                else Modifier.fillMaxWidth()
+                            )
+                            .height(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "Visit Database",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sourceTextColor
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1751,5 +1815,80 @@ fun formatNutrientValue(value: Float): String {
         value.toInt().toString()
     } else {
         String.format("%.1f", value)
+    }
+}
+
+/**
+ * Returns a DishProofDocument for a given dish, matching the logic in ExploreViewModel.
+ * Used by RecipeDetailContent in PantryScreen.
+ */
+private fun getDishProofDocument(mlLabel: String, dataSource: String): DishProofDocument {
+    val usdaUrls = mapOf(
+        "egg_sunny" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
+        "egg_boiled" to "https://fdc.nal.usda.gov/food-details/173424/nutrients",
+        "egg_fried" to "https://fdc.nal.usda.gov/food-details/2707200/nutrients",
+        "chicken_drumstick" to "https://fdc.nal.usda.gov/food-details/171126/nutrients",
+        "chicken_thigh" to "https://fdc.nal.usda.gov/food-details/171127/nutrients",
+        "chicken_wings" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
+        "chicken_breast" to "https://fdc.nal.usda.gov/food-details/171125/nutrients"
+    )
+
+    return when (dataSource) {
+        "USDA_FNDDS" -> {
+            val url = usdaUrls[mlLabel] ?: ""
+            if (url.isNotEmpty()) DishProofDocument(ProofType.URL, url)
+            else DishProofDocument(ProofType.NONE, "")
+        }
+        "DOST_FNRI_MENU_GUIDE", "DOST_FNRI_FCT" -> {
+            DishProofDocument(ProofType.PDF_ASSET, "sources/$mlLabel.pdf")
+        }
+        else -> DishProofDocument(ProofType.NONE, "")
+    }
+}
+
+/**
+ * Returns the general database URL for a data source key.
+ */
+private fun getSourceDatabaseUrl(source: String): String {
+    return when (source) {
+        "DOST_FNRI_MENU_GUIDE" -> "https://www.fnri.dost.gov.ph/index.php/tools-and-standard/fnri-menu-guide-calendar"
+        "DOST_FNRI_FCT" -> "https://i.fnri.dost.gov.ph/login/fct"
+        "USDA_FNDDS" -> "https://fdc.nal.usda.gov/food-search?type=Survey%20(FNDDS)"
+        else -> ""
+    }
+}
+
+/**
+ * Copies a PDF from the app's assets to the cache directory
+ * and opens it with an external PDF viewer via FileProvider.
+ */
+private fun openPdfFromAssets(context: android.content.Context, assetPath: String) {
+    try {
+        val fileName = assetPath.substringAfterLast("/")
+
+        val cacheDir = File(context.cacheDir, "source_pdfs")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        val outFile = File(cacheDir, fileName)
+
+        context.assets.open(assetPath).use { input ->
+            outFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            outFile
+        )
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }

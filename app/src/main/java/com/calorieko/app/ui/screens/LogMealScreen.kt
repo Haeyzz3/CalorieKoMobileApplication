@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,20 +30,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,6 +59,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,9 +81,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -82,6 +95,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.calorieko.app.ble.BleScaleManager
+import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.LogMealPhase
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.ml.CalorieKoClassifier
@@ -92,14 +106,263 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.viewmodel.LogMealEvent
 import com.calorieko.app.viewmodel.LogMealViewModel
+import com.calorieko.app.viewmodel.ManualLogEvent
+import com.calorieko.app.viewmodel.ManualLogViewModel
 import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
-// Main Screen
+// Mode Selection Content
 // ───────────────────────────────────────────────────────────────
 
 @Composable
-fun LogMealScreen(
+private fun MealModeSelectionContent(
+    onSelectAI: () -> Unit,
+    onSelectManual: () -> Unit,
+    onBack: () -> Unit
+) {
+
+    Scaffold(
+        topBar = {
+            Surface(color = Color.White, shadowElevation = 1.dp) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Log Meal",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .padding(24.dp)
+        ) {
+            Text(
+                "How would you like to log your meal?",
+                color = Color(0xFF6B7280),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            // Card 1 — AI + Smart Scale
+            MealModeCard(
+                icon = Icons.Default.CameraAlt,
+                secondaryIcon = Icons.Default.MonitorWeight,
+                title = "AI + Smart Scale",
+                description = "Point your camera at the dish and let AI identify it. Weight is read automatically from your connected scale.",
+                tags = listOf("AI Recognition", "Auto-Weigh"),
+                accentColor = CalorieKoGreen,
+                accentBgColor = Color(0xFFDCFCE7),
+                onClick = onSelectAI
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Card 2 — Manual Entry
+            MealModeCard(
+                icon = Icons.Default.Edit,
+                secondaryIcon = null,
+                title = "Manual Entry",
+                description = "Search for a dish from the supported list and enter the weight yourself. Perfect when your scale is unavailable.",
+                tags = listOf("No Scale Needed", "Quick Log"),
+                accentColor = CalorieKoOrange,
+                accentBgColor = Color(0xFFFFF7ED),
+                onClick = onSelectManual
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Info tip
+            Surface(
+                color = Color(0xFFF0F9FF),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFDBEAFE))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        Icons.Default.Restaurant,
+                        null,
+                        tint = Color(0xFF2563EB),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "Full nutrition tracking",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E3A8A)
+                        )
+                        Text(
+                            "Both methods log all 17 nutrients and sync with your daily intake automatically.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF1E40AF),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MealModeCard(
+    icon: ImageVector,
+    secondaryIcon: ImageVector?,
+    title: String,
+    description: String,
+    tags: List<String>,
+    accentColor: Color,
+    accentBgColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(accentBgColor, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (secondaryIcon != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Icon(icon, null, tint = accentColor, modifier = Modifier.size(22.dp))
+                        Icon(secondaryIcon, null, tint = accentColor, modifier = Modifier.size(22.dp))
+                    }
+                } else {
+                    Icon(icon, null, tint = accentColor, modifier = Modifier.size(28.dp))
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    description,
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B7280),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    lineHeight = 18.sp
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    tags.forEach { tag ->
+                        Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(50)) {
+                            Text(
+                                tag,
+                                fontSize = 11.sp,
+                                color = Color(0xFF4B5563),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────
+// Entry Point — Routes between Mode Selection, AI, and Manual
+// ───────────────────────────────────────────────────────────────
+
+@Composable
+fun LogMealScreenWithManual(
+    viewModel: LogMealViewModel,
+    manualLogViewModel: ManualLogViewModel,
+    bleScaleManager: BleScaleManager,
+    onBack: () -> Unit,
+    onMealConfirmed: () -> Unit
+) {
+    val phase by viewModel.phase.collectAsState()
+    var isManualMode by remember { mutableStateOf(false) }
+
+    // Listen for AI flow one-shot events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                LogMealEvent.MealConfirmed -> onMealConfirmed()
+            }
+        }
+    }
+
+    // Listen for manual flow one-shot events
+    LaunchedEffect(Unit) {
+        manualLogViewModel.events.collect { event ->
+            when (event) {
+                ManualLogEvent.MealConfirmed -> onMealConfirmed()
+            }
+        }
+    }
+
+    if (isManualMode) {
+        ManualMealContent(
+            viewModel = manualLogViewModel,
+            onBack = { isManualMode = false },
+            onMealConfirmed = onMealConfirmed
+        )
+        return
+    }
+
+    when (phase) {
+        LogMealPhase.MODE_SELECTION -> {
+            MealModeSelectionContent(
+                onSelectAI = { viewModel.setPhase(LogMealPhase.SCANNING) },
+                onSelectManual = { isManualMode = true },
+                onBack = onBack
+            )
+        }
+        LogMealPhase.SCANNING, LogMealPhase.DISH_READY, LogMealPhase.MEAL_SUMMARY -> {
+            AiScaleMealContent(
+                viewModel = viewModel,
+                bleScaleManager = bleScaleManager,
+                onBack = { viewModel.setPhase(LogMealPhase.MODE_SELECTION) },
+                onMealConfirmed = onMealConfirmed
+            )
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────
+// AI + Scale Meal Content (extracted from original LogMealScreen)
+// ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun AiScaleMealContent(
     viewModel: LogMealViewModel,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
@@ -574,6 +837,636 @@ fun LogMealScreen(
 }
 
 // ───────────────────────────────────────────────────────────────
+// Manual Meal Content
+// ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun ManualMealContent(
+    viewModel: ManualLogViewModel,
+    onBack: () -> Unit,
+    onMealConfirmed: () -> Unit
+) {
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filteredDishes by viewModel.filteredDishes.collectAsState()
+    val selectedDish by viewModel.selectedDish.collectAsState()
+    val manualWeightText by viewModel.manualWeightText.collectAsState()
+    val loggedDishes by viewModel.loggedDishes.collectAsState()
+    val mealType by viewModel.mealType.collectAsState()
+    val showSummary by viewModel.showSummary.collectAsState()
+
+    // ── Meal Summary overlay ──
+    if (showSummary) {
+        ManualMealSummaryOverlay(
+            dishes = loggedDishes,
+            mealType = mealType,
+            onMealTypeChange = { viewModel.updateMealType(it) },
+            onRemoveDish = { viewModel.removeDish(it) },
+            onAddMore = { viewModel.setShowSummary(false) },
+            onConfirmMeal = { viewModel.confirmMeal() },
+            onCancel = onBack
+        )
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            Surface(color = Color.White, shadowElevation = 1.dp) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        if (selectedDish != null) {
+                            viewModel.clearSelectedDish()
+                        } else {
+                            onBack()
+                        }
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (selectedDish != null) "Enter Weight" else "Manual Entry",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            if (selectedDish == null) {
+                // ── Phase 1: Dish Selection ──
+                DishSelectionContent(
+                    searchQuery = searchQuery,
+                    filteredDishes = filteredDishes,
+                    onSearchChange = { viewModel.updateSearchQuery(it) },
+                    onSelectDish = { viewModel.selectDish(it) }
+                )
+            } else {
+                // ── Phase 2: Weight Input ──
+                WeightInputContent(
+                    dish = selectedDish!!,
+                    weightText = manualWeightText,
+                    onWeightChange = { viewModel.updateWeightText(it) },
+                    onChangeDish = { viewModel.clearSelectedDish() },
+                    onAddDish = { viewModel.addDish() }
+                )
+            }
+
+            // ── Floating logged dishes counter (only on dish selection, not weight input) ──
+            if (loggedDishes.isNotEmpty() && selectedDish == null) {
+                Surface(
+                    color = CalorieKoGreen,
+                    shape = RoundedCornerShape(50),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clickable { viewModel.setShowSummary(true) }
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Restaurant, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${loggedDishes.size} dish${if (loggedDishes.size > 1) "es" else ""} logged — Tap to review",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DishSelectionContent(
+    searchQuery: String,
+    filteredDishes: List<FoodItem>,
+    onSearchChange: (String) -> Unit,
+    onSelectDish: (FoodItem) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            placeholder = { Text("Search dishes (e.g. Adobo, Sinigang)") },
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = Color(0xFFE5E7EB),
+                focusedBorderColor = CalorieKoGreen
+            ),
+            singleLine = true
+        )
+
+        // Dish list
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(filteredDishes, key = { it.foodId }) { dish ->
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectDish(dish) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                dish.nameEn,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                color = Color(0xFF1F2937)
+                            )
+                            if (dish.namePh != dish.nameEn && dish.namePh.isNotBlank()) {
+                                Text(
+                                    dish.namePh,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(50)) {
+                                Text(
+                                    dish.category,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF4B5563),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "${dish.caloriesPer100g.fmt()}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CalorieKoGreen
+                            )
+                            Text(
+                                "kcal/100g",
+                                fontSize = 11.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Extra bottom padding for the floating pill
+            item { Spacer(Modifier.height(72.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun WeightInputContent(
+    dish: FoodItem,
+    weightText: String,
+    onWeightChange: (String) -> Unit,
+    onChangeDish: () -> Unit,
+    onAddDish: () -> Unit
+) {
+    val parsedWeight = weightText.toFloatOrNull() ?: 0f
+    val estimatedCalories = if (parsedWeight > 0f) dish.caloriesPer100g * parsedWeight / 100f else 0f
+    val isValid = parsedWeight > 0f
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
+        // Selected dish card
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            dish.nameEn,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937)
+                        )
+                        if (dish.namePh != dish.nameEn && dish.namePh.isNotBlank()) {
+                            Text(
+                                dish.namePh,
+                                fontSize = 13.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
+                        }
+                    }
+                    TextButton(onClick = onChangeDish) {
+                        Text("Change", color = CalorieKoOrange, maxLines = 1, softWrap = false)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(50)) {
+                        Text(
+                            dish.category,
+                            fontSize = 11.sp,
+                            color = Color(0xFF4B5563),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
+                        Text(
+                            "${dish.caloriesPer100g.fmt()} kcal/100g",
+                            fontSize = 11.sp,
+                            color = CalorieKoGreen,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Weight input
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    "Weight (grams)",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF374151)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = weightText,
+                    onValueChange = onWeightChange,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CalorieKoGreen,
+                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                    ),
+                    placeholder = { Text("e.g. 250") },
+                    leadingIcon = {
+                        Icon(Icons.Default.MonitorWeight, null, tint = Color.Gray)
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Live calorie estimate
+        if (isValid) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(CalorieKoGreen, Color(0xFF16A34A))
+                        ),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(24.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Restaurant, null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Estimated Calories",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "≈ ${estimatedCalories.toInt()}",
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        "kcal  •  ${parsedWeight.toInt()}g of ${dish.nameEn}",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Add Dish button
+        Button(
+            onClick = onAddDish,
+            enabled = isValid,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CalorieKoOrange,
+                disabledContainerColor = Color(0xFFD1D5DB)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Add Dish",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────
+// Manual Meal Summary Overlay
+// ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun ManualMealSummaryOverlay(
+    dishes: List<LoggedDish>,
+    mealType: String,
+    onMealTypeChange: (String) -> Unit,
+    onRemoveDish: (Int) -> Unit,
+    onAddMore: () -> Unit,
+    onConfirmMeal: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
+    val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
+    val totalCarbs = dishes.sumOf { it.carbs.toDouble() }.toFloat()
+    val totalFat = dishes.sumOf { it.fat.toDouble() }.toFloat()
+
+    // Track expanded state per dish (by index)
+    val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
+    var totalsExpanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // Header
+            Surface(
+                color = Color.White,
+                shadowElevation = 2.dp
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.Default.Close, null)
+                    }
+                    Text("Meal Summary", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    // Placeholder for symmetry
+                    Spacer(Modifier.size(48.dp))
+                }
+            }
+
+            // Meal type selector
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("Breakfast", "Lunch", "Dinner", "Snacks").forEach { type ->
+                    val selected = mealType == type
+                    Surface(
+                        onClick = { onMealTypeChange(type) },
+                        color = if (selected) CalorieKoGreen else Color.White,
+                        shape = RoundedCornerShape(50),
+                        shadowElevation = if (selected) 0.dp else 1.dp,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            type,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) Color.White else Color(0xFF6B7280),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 10.dp)
+                        )
+                    }
+                }
+            }
+
+            // Dish list
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                itemsIndexed(dishes) { index, dish ->
+                    val isExpanded = expandedDishes[index] == true
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        "${dish.weightGrams.roundToInt()}g  •  ${dish.calories.fmt()} kcal",
+                                        fontSize = 13.sp, color = Color(0xFF6B7280)
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "P: ${dish.protein.fmt()}g  C: ${dish.carbs.fmt()}g  F: ${dish.fat.fmt()}g",
+                                        fontSize = 12.sp, color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                                IconButton(onClick = { expandedDishes[index] = !isExpanded }) {
+                                    Icon(
+                                        if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                        tint = Color(0xFF9CA3AF),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(onClick = { onRemoveDish(index) }) {
+                                    Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                }
+                            }
+
+                            // Expandable full nutrition details
+                            if (isExpanded) {
+                                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                                ExpandableNutrientGrid(
+                                    fiber = dish.fiber,
+                                    sugar = dish.sugar,
+                                    saturatedFat = dish.saturatedFat,
+                                    polyunsaturatedFat = dish.polyunsaturatedFat,
+                                    monounsaturatedFat = dish.monounsaturatedFat,
+                                    transFat = dish.transFat,
+                                    cholesterol = dish.cholesterol,
+                                    sodium = dish.sodium,
+                                    potassium = dish.potassium,
+                                    vitaminA = dish.vitaminA,
+                                    vitaminC = dish.vitaminC,
+                                    calcium = dish.calcium,
+                                    iron = dish.iron
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Totals card
+                item {
+                    Spacer(Modifier.height(4.dp))
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = CalorieKoGreen.copy(alpha = 0.1f))
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text("Meal Totals", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
+                            Spacer(Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Calories", fontSize = 14.sp, color = Color(0xFF374151))
+                                Text("${totalCalories.fmt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                NutrientChip("Protein", "${totalProtein.fmt()}g")
+                                NutrientChip("Carbs", "${totalCarbs.fmt()}g")
+                                NutrientChip("Fat", "${totalFat.fmt()}g")
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // Expand/collapse toggle for full totals
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { totalsExpanded = !totalsExpanded }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    if (totalsExpanded) "Hide Full Breakdown" else "View Full Breakdown",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = CalorieKoGreen
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    if (totalsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = CalorieKoGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            if (totalsExpanded) {
+                                Spacer(Modifier.height(4.dp))
+                                HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
+                                ExpandableNutrientGrid(
+                                    fiber = dishes.sumOf { it.fiber.toDouble() }.toFloat(),
+                                    sugar = dishes.sumOf { it.sugar.toDouble() }.toFloat(),
+                                    saturatedFat = dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+                                    polyunsaturatedFat = dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
+                                    monounsaturatedFat = dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
+                                    transFat = dishes.sumOf { it.transFat.toDouble() }.toFloat(),
+                                    cholesterol = dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
+                                    sodium = dishes.sumOf { it.sodium.toDouble() }.toFloat(),
+                                    potassium = dishes.sumOf { it.potassium.toDouble() }.toFloat(),
+                                    vitaminA = dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
+                                    vitaminC = dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
+                                    calcium = dishes.sumOf { it.calcium.toDouble() }.toFloat(),
+                                    iron = dishes.sumOf { it.iron.toDouble() }.toFloat()
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bottom buttons
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Button(
+                        onClick = onConfirmMeal,
+                        enabled = dishes.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Confirm Meal", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = onAddMore,
+                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add More Dishes", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────
 // Candidate Selection Bottom Sheet
 // ───────────────────────────────────────────────────────────────
 
@@ -755,7 +1648,7 @@ private fun InfoRow(label: String, value: String) {
 }
 
 // ───────────────────────────────────────────────────────────────
-// Meal Summary Overlay
+// Meal Summary Overlay (AI flow — original)
 // ───────────────────────────────────────────────────────────────
 
 @Composable
@@ -1003,8 +1896,6 @@ private fun MealSummaryOverlay(
 
 // NutrientChip and ExpandableNutrientGrid are now imported from
 // com.calorieko.app.ui.components.NutrientComponents
-
-
 
 
 

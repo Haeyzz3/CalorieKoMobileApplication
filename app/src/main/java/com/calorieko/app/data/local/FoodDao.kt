@@ -23,6 +23,9 @@ interface FoodDao {
     @Query("SELECT * FROM FOOD_TABLE")
     suspend fun getAllFoods(): List<FoodItem>
 
+    @Query("SELECT * FROM FOOD_TABLE WHERE name_en LIKE '%' || :query || '%' OR name_ph LIKE '%' || :query || '%' ORDER BY name_en ASC")
+    suspend fun searchFoodsByName(query: String): List<FoodItem>
+
     /** Clears all rows from FOOD_TABLE. Used before re-seeding from CSV. */
     @Query("DELETE FROM FOOD_TABLE")
     suspend fun deleteAllFoods()

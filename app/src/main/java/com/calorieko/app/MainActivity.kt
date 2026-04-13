@@ -591,8 +591,16 @@ fun AppNavigation() {
                     mealRepository = mealRepo
                 )
             )
-            LogMealScreen(
+            val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
+                    foodDao = db.foodDao(),
+                    auth = auth,
+                    mealRepository = mealRepo
+                )
+            )
+            LogMealScreenWithManual(
                 viewModel = logMealViewModel,
+                manualLogViewModel = manualLogViewModel,
                 bleScaleManager = bleScaleManager,
                 onBack = { navController.popBackStack() },
                 onMealConfirmed = { navController.popBackStack() }
