@@ -603,7 +603,8 @@ fun AppNavigation() {
                 manualLogViewModel = manualLogViewModel,
                 bleScaleManager = bleScaleManager,
                 onBack = { navController.popBackStack() },
-                onMealConfirmed = { navController.popBackStack() }
+                onMealConfirmed = { navController.popBackStack() },
+                onNavigateToPairing = { navController.navigate("scalePairing/settings") }
             )
         }
 

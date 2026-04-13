@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.MonitorWeight
 import androidx.compose.material.icons.rounded.Refresh
@@ -195,17 +196,18 @@ fun ScalePairingScreen(
     )
 
     // ── UI ──
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFFF8F9FA), Color.White)
-                )
-            ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFFF8F9FA), Color.White)
+                    )
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
 
         // ── Central Animation Container ──
         Box(
@@ -493,6 +495,22 @@ fun ScalePairingScreen(
                     fontSize = 13.sp
                 )
             }
+            }
+        }
+
+        // ── Top Back Button ──
+        IconButton(
+            onClick = { onSkip() },
+            modifier = Modifier
+                .padding(top = 48.dp, start = 12.dp)
+                .align(Alignment.TopStart)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = "Back",
+                tint = Color(0xFF111827),
+                modifier = Modifier.size(28.dp)
+            )
         }
     }
 }

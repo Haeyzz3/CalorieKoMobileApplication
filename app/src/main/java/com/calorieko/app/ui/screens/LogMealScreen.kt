@@ -306,7 +306,8 @@ fun LogMealScreenWithManual(
     manualLogViewModel: ManualLogViewModel,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
-    onMealConfirmed: () -> Unit
+    onMealConfirmed: () -> Unit,
+    onNavigateToPairing: () -> Unit = {}
 ) {
     val phase by viewModel.phase.collectAsState()
     var isManualMode by remember { mutableStateOf(false) }
@@ -351,7 +352,8 @@ fun LogMealScreenWithManual(
                 viewModel = viewModel,
                 bleScaleManager = bleScaleManager,
                 onBack = { viewModel.setPhase(LogMealPhase.MODE_SELECTION) },
-                onMealConfirmed = onMealConfirmed
+                onMealConfirmed = onMealConfirmed,
+                onNavigateToPairing = onNavigateToPairing
             )
         }
     }
@@ -366,7 +368,8 @@ private fun AiScaleMealContent(
     viewModel: LogMealViewModel,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
-    onMealConfirmed: () -> Unit
+    onMealConfirmed: () -> Unit,
+    onNavigateToPairing: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val classifier = remember { CalorieKoClassifier(context) }
@@ -573,7 +576,8 @@ private fun AiScaleMealContent(
             Surface(
                 color = Color.White.copy(alpha = 0.95f),
                 shape = RoundedCornerShape(50),
-                shadowElevation = 8.dp
+                shadowElevation = 8.dp,
+                modifier = Modifier.clickable { onNavigateToPairing() }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
