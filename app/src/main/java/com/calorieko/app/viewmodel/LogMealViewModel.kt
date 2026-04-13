@@ -65,6 +65,9 @@ class LogMealViewModel(
 
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+    
+    private val _isScaleConnected = MutableStateFlow(false)
+    val isScaleConnected: StateFlow<Boolean> = _isScaleConnected.asStateFlow()
 
     private val _showCandidateSelection = MutableStateFlow(false)
     val showCandidateSelection: StateFlow<Boolean> = _showCandidateSelection.asStateFlow()
@@ -120,6 +123,15 @@ class LogMealViewModel(
             if (_weight.value == realWeight) {
                 _weightStable.value = true
             }
+        }
+    }
+
+    fun updateScaleConnectionStatus(connected: Boolean) {
+        _isScaleConnected.value = connected
+        if (!connected) {
+            _weight.value = 0f
+            _weightStable.value = false
+            weightStabilizationJob?.cancel()
         }
     }
 

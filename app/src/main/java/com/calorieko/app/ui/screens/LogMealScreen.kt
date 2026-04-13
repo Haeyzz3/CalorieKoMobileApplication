@@ -429,6 +429,12 @@ private fun AiScaleMealContent(
     val pendingCaloriesEst by viewModel.pendingCaloriesEst.collectAsState()
     val loggedDishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
+    val isScaleConnected by viewModel.isScaleConnected.collectAsState()
+
+    val connectionState by bleScaleManager.connectionState.collectAsState()
+    LaunchedEffect(connectionState) {
+        viewModel.updateScaleConnectionStatus(connectionState is com.calorieko.app.ble.BleConnectionState.Connected)
+    }
 
     val realWeight by bleScaleManager.liveWeight.collectAsState()
     LaunchedEffect(realWeight) {
@@ -575,17 +581,28 @@ private fun AiScaleMealContent(
                 ) {
                     Box(
                         modifier = Modifier.size(8.dp).background(
-                            if (weightStable && weight > 0) CalorieKoGreen else if (weight > 0) CalorieKoOrange else Color.Gray,
+                            if (!isScaleConnected) Color.Red
+                            else if (weightStable && weight > 0) CalorieKoGreen 
+                            else if (weight > 0) CalorieKoOrange 
+                            else Color.Gray,
                             CircleShape
                         )
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Weight: ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
-                    Text(
-                        "${weight.roundToInt()}g",
-                        fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                        color = if (weightStable) CalorieKoGreen else CalorieKoOrange
-                    )
+                    if (isScaleConnected) {
+                        Text("Weight: ", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+                        Text(
+                            "${weight.roundToInt()}g",
+                            fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                            color = if (weightStable) CalorieKoGreen else CalorieKoOrange
+                        )
+                    } else {
+                        Text(
+                            "Disconnected",
+                            fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                            color = Color.Red
+                        )
+                    }
                 }
             }
 

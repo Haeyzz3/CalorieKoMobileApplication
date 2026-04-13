@@ -197,6 +197,7 @@ class BleScaleManager(private val context: Context) {
                 Log.e(TAG, "Connection error (status=$status, newState=$newState). Closing GATT.")
                 gatt.close()
                 if (gatt == bluetoothGatt) bluetoothGatt = null
+                _liveWeight.value = 0f
                 _connectionState.value = BleConnectionState.Failed("Connection error (status $status)")
                 return
             }
@@ -211,6 +212,7 @@ class BleScaleManager(private val context: Context) {
                 Log.w(TAG, "Disconnected")
                 gatt.close()
                 bluetoothGatt = null
+                _liveWeight.value = 0f
                 if (_connectionState.value !is BleConnectionState.Idle) {
                     _connectionState.value = BleConnectionState.Failed("Disconnected")
                 }
@@ -381,6 +383,7 @@ class BleScaleManager(private val context: Context) {
      */
     private fun handleBluetoothDisabled() {
         reset()
+        _liveWeight.value = 0f
         _connectionState.value = BleConnectionState.Failed("Bluetooth is off")
     }
 
