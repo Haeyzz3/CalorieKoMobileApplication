@@ -623,11 +623,14 @@ private fun StyledDropdownButton(
 
 @Composable
 private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
-    val maxValue = (data.maxOfOrNull { maxOf(it.intake, it.burned) } ?: 2200).coerceAtLeast(100)
-    val averageTDEE = if (data.isNotEmpty()) {
-        data.sumOf { it.intake - it.burned } / data.size
-    } else 0
-    val yMax = ((maxValue / 550) + 1) * 550
+    // Root cause of Y-axis "1" bug: previously used coerceAtLeast(100) then integer-divided
+    // by 550 which could yield yMax = 1 when maxValue is very small.
+    // Fix: treat 0-data as a special case and use 2200 kcal (typical daily goal) as the
+    // visual baseline so the Y-axis always shows meaningful, readable labels.
+    val maxDataValue = data.maxOfOrNull { maxOf(it.intake, it.burned) } ?: 0
+    val averageTDEE = if (data.isNotEmpty()) data.sumOf { it.intake - it.burned } / data.size else 0
+    val allCalorieDataEmpty = maxDataValue == 0
+    val yMax = if (allCalorieDataEmpty) 2200 else ((maxDataValue / 550) + 1) * 550
 
     val subtitleText = when (viewMode) {
         "30_days" -> "Weekly Average Intake vs. Output"
@@ -664,6 +667,36 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
             Spacer(modifier = Modifier.height(2.dp))
             Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Show an empty-state overlay instead of a blank chart with 0-height bars
+            if (allCalorieDataEmpty) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📊", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "No meals or workouts logged yet",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Start logging to see your progress",
+                            fontSize = 12.sp,
+                            color = Color(0xFFCBD5E1),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
 
             val density = LocalDensity.current
             Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
@@ -717,7 +750,7 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
                     drawContext.canvas.nativeCanvas.drawText(
                         day.dayLabel, cx, chartH - with(density) { 4.dp.toPx() }, labelPaint)
                 }
-            }
+            } // end Canvas
 
             Spacer(modifier = Modifier.height(14.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
@@ -738,6 +771,8 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
                 Text("$averageTDEE kcal", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF0F172A))
             }
+
+            } // end else (!allCalorieDataEmpty)
         }
     }
 }
@@ -748,8 +783,10 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
 private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode: String) {
     val daysOverLimit = data.count { it.sodium > dailyLimit }
     val average = if (data.isNotEmpty()) data.sumOf { it.sodium } / data.size else 0
-    val maxSodium = (data.maxOfOrNull { it.sodium } ?: 3000).coerceAtLeast(dailyLimit + 500)
-    val yMax = ((maxSodium / 500) + 1) * 500
+    // Same safeguard fix as CalorieBalanceCard: use 3000 mg as visual baseline when no data.
+    val maxSodium = data.maxOfOrNull { it.sodium } ?: 0
+    val allSodiumDataEmpty = maxSodium == 0
+    val yMax = if (allSodiumDataEmpty) 3000 else ((maxSodium / 500) + 1) * 500
 
     val footerLabel = when (viewMode) {
         "30_days" -> "Weekly Avg Sodium"
@@ -1109,7 +1146,16 @@ private fun EntriesHistorySection(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        if (entries.isEmpty()) {
+        // Filter: only surface entries that have meaningful data for the active metric.
+        // Prevents days that only have a workout log (no meals) from showing "0 kcal"
+        // under Calorie Balance, and similarly for Sodium Trend.
+        val filteredEntries = when (selectedMetric) {
+            "Calorie Balance" -> entries.filter { it.intakeCalories > 0 || it.burnedCalories > 0 }
+            "Sodium Trend"    -> entries.filter { it.sodium > 0 }
+            else              -> entries
+        }
+
+        if (filteredEntries.isEmpty()) {
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1140,13 +1186,13 @@ private fun EntriesHistorySection(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                entries.forEachIndexed { index, entry ->
+                filteredEntries.forEachIndexed { index, entry ->
                     EntryRow(
                         entry = entry,
                         selectedMetric = selectedMetric,
                         userWeight = userWeight
                     )
-                    if (index < entries.size - 1) {
+                    if (index < filteredEntries.size - 1) {
                         HorizontalDivider(
                             color = Color(0xFFF1F5F9),
                             thickness = 1.dp,
@@ -1165,29 +1211,40 @@ private fun EntryRow(
     selectedMetric: String,
     userWeight: Double
 ) {
-    // Compute the display value + unit based on the active metric
+    // Compute the display value per metric.
+    // Rule: never show "0" for a day that has real logged activity.
+    //   • Calorie Balance: prioritise intake (meals). If only a workout was logged,
+    //     surface the burned calories as a negative "kcal out" value so the user
+    //     knows their effort is captured, not silently zeroed.
+    //   • Sodium: show mg; only called for days with sodium > 0 (filtered upstream).
+    //   • Weight: always the user's current stored weight.
     val (valueText, unitText, valueColor) = when (selectedMetric) {
-        "Calorie Balance" -> {
-            val net = (entry.intakeCalories - entry.burnedCalories).coerceAtLeast(0)
-            Triple(
-                "%,d".format(net),
-                "kcal",
-                if (entry.intakeCalories > 0) Color(0xFF0F172A) else Color(0xFF94A3B8)
+        "Calorie Balance" -> when {
+            entry.intakeCalories > 0 -> Triple(
+                "%,d".format(entry.intakeCalories),
+                "kcal in",
+                Color(0xFF16A34A)
             )
+            entry.burnedCalories > 0 -> Triple(
+                "\u2212%,d".format(entry.burnedCalories),  // − sign (not minus)
+                "kcal out",
+                Color(0xFFFF9800)
+            )
+            else -> Triple("\u2014", "", Color(0xFF94A3B8))  // em dash for truly empty
         }
-        "Sodium Trend" -> {
-            Triple(
-                "%,d".format(entry.sodium),
-                "mg",
-                if (entry.sodium > 2300) Color(0xFFDC2626) else Color(0xFF0F172A)
+        "Sodium Trend" -> when {
+            entry.sodium > 2300 -> Triple(
+                "%,d".format(entry.sodium), "mg", Color(0xFFDC2626)
             )
+            entry.sodium > 0 -> Triple(
+                "%,d".format(entry.sodium), "mg", Color(0xFF0F172A)
+            )
+            else -> Triple("\u2014", "", Color(0xFF94A3B8))
         }
         "Weight & Body Metrics" -> Triple(
-            String.format("%.1f", userWeight),
-            "kg",
-            Color(0xFF0F172A)
+            String.format("%.1f", userWeight), "kg", Color(0xFF0F172A)
         )
-        else -> Triple("—", "", Color(0xFF94A3B8))
+        else -> Triple("\u2014", "", Color(0xFF94A3B8))
     }
 
     Row(
