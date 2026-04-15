@@ -59,3 +59,21 @@ suspend fun populateDatabase(context: Context, foodDao: FoodDao, pantryDao: Pant
         pantryDao.insertAllDishIngredients(dishIngredients)
     }
 }
+
+/**
+ * Ensures that FOOD_TABLE and DISH_INGREDIENTS_TABLE are populated.
+ *
+ * This is a **defense-in-depth** measure that ViewModels can call before
+ * querying reference data. It covers edge cases where the async
+ * FoodDatabaseCallback.onOpen() re-seed hasn't completed yet (e.g., after
+ * wipeAllData() calls db.clearAllTables()).
+ *
+ * Safe to call multiple times — checks row counts before re-seeding.
+ */
+suspend fun ensureReferenceDataSeeded(context: Context, foodDao: FoodDao, pantryDao: PantryDao) {
+    val dishCount = pantryDao.getDishIngredientCount()
+    val foodCount = foodDao.getAllFoods().size
+    if (dishCount == 0 || foodCount == 0) {
+        populateDatabase(context, foodDao, pantryDao)
+    }
+}

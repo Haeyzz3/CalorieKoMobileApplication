@@ -57,4 +57,8 @@ interface ActivityLogDao {
     /** Mark a batch of activity log IDs as synced (sync_status = 1). */
     @Query("UPDATE activity_log_table SET sync_status = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<Int>)
+
+    /** Deletes all activity logs. Used during logout to clear user data only. */
+    @Query("DELETE FROM activity_log_table")
+    suspend fun deleteAll()
 }

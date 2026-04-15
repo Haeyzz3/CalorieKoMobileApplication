@@ -53,4 +53,8 @@ interface DailyNutritionSummaryDao {
     /** Fetch only summaries modified after the given timestamp (for delta sync payloads). */
     @Query("SELECT * FROM daily_nutrition_summary_table WHERE uid = :uid AND updated_at > :sinceTimestamp ORDER BY date_epoch_day ASC")
     suspend fun getSummariesModifiedSince(uid: String, sinceTimestamp: Long): List<DailyNutritionSummaryEntity>
+
+    /** Deletes all daily nutrition summaries. Used during logout to clear user data only. */
+    @Query("DELETE FROM daily_nutrition_summary_table")
+    suspend fun deleteAll()
 }

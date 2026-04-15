@@ -17,4 +17,8 @@ interface MealLogItemDao {
 
     @Query("DELETE FROM meal_log_item_table WHERE meal_log_id = :mealLogId")
     suspend fun deleteItemsForMealLog(mealLogId: Long)
+
+    /** Deletes all meal log items. Used during logout to clear user data only. */
+    @Query("DELETE FROM meal_log_item_table")
+    suspend fun deleteAll()
 }

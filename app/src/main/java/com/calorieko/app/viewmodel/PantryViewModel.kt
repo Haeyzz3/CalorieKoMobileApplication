@@ -1,11 +1,13 @@
 package com.calorieko.app.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.FoodDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.local.ensureReferenceDataSeeded
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
@@ -80,7 +82,8 @@ class PantryViewModel(
     private val foodDao: FoodDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val userDao: UserDao,
-    private val nutritionalValuesRepo: NutritionalValuesRepository
+    private val nutritionalValuesRepo: NutritionalValuesRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     private val uid: String get() = auth.currentUser?.uid ?: ""
@@ -94,12 +97,13 @@ class PantryViewModel(
             foodDao: FoodDao,
             firestoreSyncRepo: FirestoreSyncRepository,
             userDao: UserDao,
-            nutritionalValuesRepo: NutritionalValuesRepository
+            nutritionalValuesRepo: NutritionalValuesRepository,
+            appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, foodDao, firestoreSyncRepo, userDao, nutritionalValuesRepo) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, foodDao, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -177,6 +181,13 @@ class PantryViewModel(
     val pantryItemsByCategory: StateFlow<Map<String, List<String>>> = _pantryItemsByCategory.asStateFlow()
 
     init {
+        // Defense-in-depth: ensure reference data is seeded before any queries.
+        // Covers edge cases where db.clearAllTables() was called (e.g., wipeAllData)
+        // and the async FoodDatabaseCallback re-seed hasn't completed yet.
+        viewModelScope.launch(Dispatchers.IO) {
+            ensureReferenceDataSeeded(appContext, foodDao, pantryDao)
+        }
+
         // Load all unique ingredients for autocomplete
         viewModelScope.launch(Dispatchers.IO) {
             _allIngredients.value = pantryDao.getAllUniqueIngredients()

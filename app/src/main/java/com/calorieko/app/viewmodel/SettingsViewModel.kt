@@ -228,12 +228,30 @@ class SettingsViewModel(
     }
 
     /**
-     * Clears local Room data and signs out of Firebase.
+     * Clears local user data (preserving reference data) and signs out of Firebase.
+     *
+     * IMPORTANT: We selectively clear only user-data tables. We must NOT call
+     * db.clearAllTables() because that also destroys FOOD_TABLE and
+     * DISH_INGREDIENTS_TABLE — static CSV-seeded reference data that is
+     * expensive to re-seed and causes a race condition with ViewModel queries
+     * if cleared (the async FoodDatabaseCallback re-seed may not complete
+     * before ViewModels read the empty tables on re-login).
      */
     fun logout() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                try { db.clearAllTables() } catch (_: Exception) {}
+                try {
+                    // Selectively clear user data tables ONLY.
+                    // Preserve FOOD_TABLE and DISH_INGREDIENTS_TABLE
+                    // (static CSV reference data that is expensive to re-seed).
+                    db.userDao().deleteAll()
+                    db.activityLogDao().deleteAll()
+                    db.mealLogDao().deleteAll()
+                    db.mealLogItemDao().deleteAll()
+                    db.dailyNutritionSummaryDao().deleteAll()
+                    db.pantryDao().clearAllItems()
+                    db.mealPlanDao().deleteAll()
+                } catch (_: Exception) {}
             }
             auth.signOut()
             _events.send(Event.LogoutReady)

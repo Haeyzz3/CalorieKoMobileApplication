@@ -1,9 +1,11 @@
 package com.calorieko.app.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.FoodDao
 import com.calorieko.app.data.local.PantryDao
+import com.calorieko.app.data.local.ensureReferenceDataSeeded
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.remote.FirestoreSyncRepository
@@ -47,7 +49,8 @@ class ExploreViewModel(
     private val auth: FirebaseAuth,
     private val foodDao: FoodDao,
     private val pantryDao: PantryDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     private val uid: String get() = auth.currentUser?.uid ?: ""
@@ -58,12 +61,13 @@ class ExploreViewModel(
             auth: FirebaseAuth,
             foodDao: FoodDao,
             pantryDao: PantryDao,
-            firestoreSyncRepo: FirestoreSyncRepository
+            firestoreSyncRepo: FirestoreSyncRepository,
+            appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ExploreViewModel::class.java)) {
-                    return ExploreViewModel(auth, foodDao, pantryDao, firestoreSyncRepo) as T
+                    return ExploreViewModel(auth, foodDao, pantryDao, firestoreSyncRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -129,6 +133,11 @@ class ExploreViewModel(
     private fun loadAllDishes() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
+
+            // Defense-in-depth: ensure reference data is seeded before querying.
+            // Covers edge cases where db.clearAllTables() was called (e.g., wipeAllData)
+            // and the async FoodDatabaseCallback re-seed hasn't completed yet.
+            ensureReferenceDataSeeded(appContext, foodDao, pantryDao)
 
             val foods = foodDao.getAllFoods()
             val dishes = foods.map { food ->

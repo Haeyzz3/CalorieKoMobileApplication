@@ -22,4 +22,8 @@ interface UserDao {
     /** Observe user profile reactively (emits on every Room change). */
     @Query("SELECT * FROM user_profile WHERE uid = :uid LIMIT 1")
     fun observeUser(uid: String): Flow<UserProfile?>
+
+    /** Deletes all user profiles. Used during logout to clear user data only. */
+    @Query("DELETE FROM user_profile")
+    suspend fun deleteAll()
 }

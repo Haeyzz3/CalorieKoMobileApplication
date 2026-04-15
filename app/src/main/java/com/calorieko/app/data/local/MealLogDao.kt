@@ -69,4 +69,8 @@ interface MealLogDao {
     @Transaction
     @Query("SELECT * FROM meal_log_table WHERE uid = :uid AND updated_at > :sinceTimestamp ORDER BY timestamp ASC")
     suspend fun getMealLogsWithItemsModifiedSince(uid: String, sinceTimestamp: Long): List<MealLogWithItems>
+
+    /** Deletes all meal logs. Used during logout to clear user data only. */
+    @Query("DELETE FROM meal_log_table")
+    suspend fun deleteAll()
 }

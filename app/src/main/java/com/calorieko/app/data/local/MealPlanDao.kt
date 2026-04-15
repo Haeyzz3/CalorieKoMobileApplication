@@ -34,4 +34,8 @@ interface MealPlanDao {
     /** One-shot fetch of all planned meals (for cloud sync). */
     @Query("SELECT * FROM PLANNED_MEALS_TABLE ORDER BY week_start_date ASC, day_index ASC")
     suspend fun getAllPlannedMeals(): List<PlannedMealEntity>
+
+    /** Deletes all planned meals. Used during logout to clear user data only. */
+    @Query("DELETE FROM PLANNED_MEALS_TABLE")
+    suspend fun deleteAll()
 }
