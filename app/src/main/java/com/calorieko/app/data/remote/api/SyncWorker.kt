@@ -61,7 +61,7 @@ class SyncWorker(
             } else {
                 Log.d(TAG, "Found ${unsyncedLogs.size} un-synced activity logs to push.")
 
-                // ── Step 2: Push un-synced logs to Firestore ──
+                // ── Step 2a: Push un-synced activity logs to Firestore ──
                 try {
                     val firestoreRepo = FirestoreSyncRepository()
                     firestoreRepo.syncActivityLogsBatch(uid, unsyncedLogs)
@@ -69,6 +69,42 @@ class SyncWorker(
                 } catch (e: Exception) {
                     Log.w(TAG, "Firestore sync failed (non-fatal, continuing to Laravel): ${e.message}")
                     // Continue — Firestore is fire-and-forget, don't block Laravel sync
+                }
+            }
+
+            // ── Step 2b: Push un-synced meal logs to Firestore ──
+            val mealLogDao = db.mealLogDao()
+            val unsyncedMeals = mealLogDao.getUnsyncedMealLogs(uid)
+
+            if (unsyncedMeals.isEmpty()) {
+                Log.d(TAG, "No un-synced meal logs found.")
+            } else {
+                Log.d(TAG, "Found ${unsyncedMeals.size} un-synced meal logs to push.")
+                try {
+                    val firestoreRepo = FirestoreSyncRepository()
+                    for (mealWithItems in unsyncedMeals) {
+                        firestoreRepo.syncMealLog(uid, mealWithItems.mealLog, mealWithItems.items)
+                    }
+                    // Also sync daily nutrition summaries for affected dates
+                    val summaryDao = db.dailyNutritionSummaryDao()
+                    val affectedDates = unsyncedMeals.map { meal ->
+                        java.time.Instant.ofEpochMilli(meal.mealLog.timestamp)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                            .toEpochDay()
+                    }.distinct()
+                    for (dateEpochDay in affectedDates) {
+                        val summary = summaryDao.getSummaryForDate(uid, dateEpochDay)
+                        if (summary != null) {
+                            firestoreRepo.syncDailyNutritionSummary(uid, summary)
+                        }
+                    }
+                    // Mark meal logs as synced
+                    val syncedIds = unsyncedMeals.map { it.mealLog.mealLogId }
+                    mealLogDao.markMealLogsAsSynced(syncedIds)
+                    Log.d(TAG, "Marked ${syncedIds.size} meal logs as synced (status=1).")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Meal log Firestore sync failed (non-fatal): ${e.message}")
                 }
             }
 

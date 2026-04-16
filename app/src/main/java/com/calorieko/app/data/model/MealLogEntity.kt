@@ -27,5 +27,10 @@ data class MealLogEntity(
     @ColumnInfo(name = "notes") val notes: String? = null,
 
     // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
-    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
+
+    // --- OFFLINE-FIRST: Sync status flag ---
+    // 0 = PENDING (saved locally, not yet synced to Firestore)
+    // 1 = SYNCED  (successfully pushed to Firestore)
+    @ColumnInfo(name = "sync_status") val syncStatus: Int = 0
 )

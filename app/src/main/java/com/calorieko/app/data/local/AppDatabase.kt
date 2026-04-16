@@ -17,7 +17,7 @@ import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 16 to 17 — adds data_source to FOOD_TABLE
+// INCREMENT version from 17 to 18 — adds sync_status to meal_log_table
 @Database(
     entities = [
         FoodItem::class,
@@ -30,7 +30,7 @@ import kotlinx.coroutines.CoroutineScope
         PantryItem::class,
         PlannedMealEntity::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -269,6 +269,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 17 → 18: Adds `sync_status` column to meal_log_table.
+         *
+         * Mirrors the existing sync_status on activity_log_table (added in Migration 10→11).
+         * Default is 0 (PENDING) so that all pre-existing meal logs will be picked up
+         * by the SyncWorker on its next run. Firestore uses set() which is idempotent,
+         * so re-pushing already-synced meals is safe (just overwrites with same data).
+         */
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE meal_log_table ADD COLUMN sync_status INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -279,7 +295,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

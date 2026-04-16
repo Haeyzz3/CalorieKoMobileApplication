@@ -113,16 +113,20 @@ class MealRepository(
         // 4. Sync to Firestore (with timeout — avoids blocking indefinitely when offline)
         //    Online:  batch.commit().await() completes in milliseconds.
         //    Offline: times out after 5 s, saveMeal() returns, navigation fires.
-        //    Firestore's SDK still queues the write in its local persistence cache
-        //    and automatically replays it when the device regains connectivity.
+        //    If sync succeeds, mark as synced (status=1). If timeout/failure,
+        //    status stays 0 → SyncWorker picks it up via WorkManager on reconnect.
         val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
-        withTimeoutOrNull(5_000L) {
+        val synced = withTimeoutOrNull(5_000L) {
             try {
                 firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
                 firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
+                true
             } catch (_: Exception) {
-                // Sync failed — Firestore's offline cache has the write queued.
+                false
             }
+        }
+        if (synced == true) {
+            mealLogDao.markMealLogsAsSynced(listOf(mealLogId))
         }
 
         // 5. Always trigger WorkManager sync (survives process death,

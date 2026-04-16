@@ -142,9 +142,10 @@ class CloudRestoreManager(
                 }
 
                 // 3. Meal Logs (with parent-child ID re-mapping)
+                //    Mark as synced (status=1) since they came FROM Firestore cloud.
                 for ((mealLog, items) in fetchResults.mealLogsWithItems) {
-                    // Insert the parent → get the new Room-generated mealLogId
-                    val newMealLogId = mealLogDao.insertMealLog(mealLog)
+                    // Insert the parent with syncStatus=1 → get the new Room-generated mealLogId
+                    val newMealLogId = mealLogDao.insertMealLog(mealLog.copy(syncStatus = 1))
 
                     // Re-map each child item's foreign key to the new parent ID
                     val remappedItems = items.map { item ->
