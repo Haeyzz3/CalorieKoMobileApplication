@@ -11,6 +11,7 @@ import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Read-write repository for user profile operations.
@@ -42,10 +43,12 @@ class UserRepository(
 
     // ── Profile Write ──
 
-    /** Save a profile to Room, sync to Firestore, and trigger auto-sync to Laravel. */
+    /** Save a profile to Room, sync to Firestore (with timeout), and trigger auto-sync to Laravel. */
     suspend fun saveProfile(uid: String, profile: UserProfile) {
         userDao.insertUser(profile)
-        firestoreSyncRepo.syncProfile(uid, profile)
+        withTimeoutOrNull(5_000L) {
+            try { firestoreSyncRepo.syncProfile(uid, profile) } catch (_: Exception) {}
+        }
         // Trigger auto-sync to Laravel backend (background, debounced)
         AutoSyncManager.triggerSync(appContext, uid)
     }

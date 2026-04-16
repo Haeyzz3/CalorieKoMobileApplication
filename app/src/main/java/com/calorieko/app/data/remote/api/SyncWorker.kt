@@ -138,6 +138,18 @@ class SyncWorker(
                 Log.w(TAG, "Meal plan full-state sync failed (non-fatal): ${e.message}")
             }
 
+            // ── Step 2e: Sync user profile to Firestore ──
+            try {
+                val firestoreRepo = FirestoreSyncRepository()
+                val userProfile = db.userDao().getUser(uid)
+                if (userProfile != null) {
+                    firestoreRepo.syncProfile(uid, userProfile)
+                    Log.d(TAG, "User profile synced to Firestore.")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Profile Firestore sync failed (non-fatal): ${e.message}")
+            }
+
             // ── Step 3: Push to Laravel backend (delta sync includes ALL modified data) ──
             val apiService = RetrofitClient.getApiService(BuildConfig.API_BASE_URL)
             val syncManager = ApiSyncManager(
