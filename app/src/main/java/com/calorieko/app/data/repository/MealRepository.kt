@@ -10,6 +10,9 @@ import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 /**
@@ -109,13 +112,15 @@ class MealRepository(
         }
         dailyNutritionSummaryDao.upsertSummary(updated)
 
-        // 4. Sync to Firestore
+        // 4. Sync to Firestore (fire-and-forget — never blocks the caller)
+        //    Firestore's offline persistence queues writes automatically.
+        //    Both sync methods catch exceptions internally, so this is safe.
         val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
-        firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
-        firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
-
-        // 5. Trigger auto-sync to Laravel backend (background, debounced)
-        AutoSyncManager.triggerSync(appContext, uid)
+        CoroutineScope(Dispatchers.IO).launch {
+            firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
+            firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
+            AutoSyncManager.triggerSync(appContext, uid)
+        }
     }
 
     /**

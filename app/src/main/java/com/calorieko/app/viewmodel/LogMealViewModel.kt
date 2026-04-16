@@ -102,6 +102,11 @@ class LogMealViewModel(
     private val WEIGHT_TOLERANCE = 3.0f // Allow +/- 3 grams of noise
 
 
+    // ── Confirm guard (prevents duplicate submissions) ──
+
+    private val _isConfirming = MutableStateFlow(false)
+    val isConfirming: StateFlow<Boolean> = _isConfirming.asStateFlow()
+
     // ── One-shot events ──
 
     private val _events = Channel<LogMealEvent>(Channel.BUFFERED)
@@ -319,6 +324,10 @@ class LogMealViewModel(
     }
 
     fun confirmMeal() {
+        // Guard: prevent duplicate submissions from rapid taps
+        if (_isConfirming.value) return
+        _isConfirming.value = true
+
         val uid = auth.currentUser?.uid ?: ""
         if (uid.isEmpty()) {
             viewModelScope.launch { _events.send(LogMealEvent.MealConfirmed) }

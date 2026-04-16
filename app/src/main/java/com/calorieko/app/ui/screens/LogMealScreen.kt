@@ -516,6 +516,7 @@ private fun AiScaleMealContent(
 
     // ── MEAL_SUMMARY overlay ──
     if (phase == LogMealPhase.MEAL_SUMMARY) {
+        val isConfirming by viewModel.isConfirming.collectAsState()
         MealSummaryOverlay(
             dishes = loggedDishes,
             mealType = mealType,
@@ -523,7 +524,8 @@ private fun AiScaleMealContent(
             onRemoveDish = { viewModel.removeDish(it) },
             onAddMore = { viewModel.setPhase(LogMealPhase.SCANNING) },
             onConfirmMeal = { viewModel.confirmMeal() },
-            onCancel = onBack
+            onCancel = onBack,
+            isConfirming = isConfirming
         )
         return
     }
@@ -876,6 +878,8 @@ private fun ManualMealContent(
     val mealType by viewModel.mealType.collectAsState()
     val showSummary by viewModel.showSummary.collectAsState()
 
+    val isConfirming by viewModel.isConfirming.collectAsState()
+
     // ── Meal Summary overlay ──
     if (showSummary) {
         ManualMealSummaryOverlay(
@@ -885,7 +889,8 @@ private fun ManualMealContent(
             onRemoveDish = { viewModel.removeDish(it) },
             onAddMore = { viewModel.setShowSummary(false) },
             onConfirmMeal = { viewModel.confirmMeal() },
-            onCancel = onBack
+            onCancel = onBack,
+            isConfirming = isConfirming
         )
         return
     }
@@ -1258,7 +1263,8 @@ private fun ManualMealSummaryOverlay(
     onRemoveDish: (Int) -> Unit,
     onAddMore: () -> Unit,
     onConfirmMeal: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    isConfirming: Boolean = false
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1467,14 +1473,17 @@ private fun ManualMealSummaryOverlay(
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Button(
                         onClick = onConfirmMeal,
-                        enabled = dishes.isNotEmpty(),
+                        enabled = dishes.isNotEmpty() && !isConfirming,
                         colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) {
                         Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Confirm Meal", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            if (isConfirming) "Saving..." else "Confirm Meal",
+                            fontWeight = FontWeight.Bold, fontSize = 16.sp
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     Button(
@@ -1686,7 +1695,8 @@ private fun MealSummaryOverlay(
     onRemoveDish: (Int) -> Unit,
     onAddMore: () -> Unit,
     onConfirmMeal: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    isConfirming: Boolean = false
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1895,14 +1905,17 @@ private fun MealSummaryOverlay(
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Button(
                         onClick = onConfirmMeal,
-                        enabled = dishes.isNotEmpty(),
+                        enabled = dishes.isNotEmpty() && !isConfirming,
                         colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) {
                         Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Confirm Meal", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            if (isConfirming) "Saving..." else "Confirm Meal",
+                            fontWeight = FontWeight.Bold, fontSize = 16.sp
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     Button(
