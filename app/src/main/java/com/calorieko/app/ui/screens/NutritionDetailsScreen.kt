@@ -55,6 +55,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.calorieko.app.util.DurationFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -482,8 +483,11 @@ fun ActivityHistoryTabContent(
                                 color = Color(0xFF6B7280)
                             )
                             if (!log.weightOrDuration.isBlank()) {
+                                val formattedDur = DurationFormatter.parseToSeconds(log.weightOrDuration)?.let {
+                                    DurationFormatter.formatSeconds(it)
+                                } ?: log.weightOrDuration
                                 Text(
-                                    log.weightOrDuration,
+                                    formattedDur,
                                     fontSize = 12.sp,
                                     color = Color(0xFF9CA3AF)
                                 )

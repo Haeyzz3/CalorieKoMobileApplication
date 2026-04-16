@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
-import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -95,18 +94,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.viewmodel.LogWorkoutViewModel
 import androidx.compose.runtime.collectAsState
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
@@ -125,7 +119,6 @@ import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManag
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.scalebar.scalebar
-import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
@@ -187,6 +180,14 @@ fun LogWorkoutScreen(
 
     val context = LocalContext.current
 
+    // Auto-resume: if the tracking service is still running in background
+    // (user pressed back during active tracking), jump to GPS mode on re-entry
+    LaunchedEffect(Unit) {
+        if (com.calorieko.app.util.LocationTrackingService.isServiceRunning) {
+            mode = WorkoutMode.GPS
+        }
+    }
+
     // ── Collect ViewModel State ──
     val userWeight by viewModel.userWeight.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
@@ -232,7 +233,7 @@ fun LogWorkoutScreen(
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
                     WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null) })
-                    WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = { handleBack() })
+                    WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, onSave = saveWorkout, onBack = { mode = WorkoutMode.SELECTION }, onBackToDashboard = onBack)
                 }
             }
 
@@ -397,11 +398,55 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
     }
 }
 
-// --- 3. ADVANCED OPENSTREETMAP TRACKER ---
+// --- 3. ADVANCED GPS TRACKER (backed by Foreground Service) ---
 
 @Composable
-fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit) {
+fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit, onBackToDashboard: () -> Unit) {
     val context = LocalContext.current
+
+    // ── Foreground Service Binding ──
+    val trackingService = remember { mutableStateOf<com.calorieko.app.util.LocationTrackingService?>(null) }
+    val serviceConnection = remember {
+        object : android.content.ServiceConnection {
+            override fun onServiceConnected(name: android.content.ComponentName?, binder: android.os.IBinder?) {
+                trackingService.value = (binder as com.calorieko.app.util.LocationTrackingService.LocalBinder).getService()
+            }
+            override fun onServiceDisconnected(name: android.content.ComponentName?) {
+                trackingService.value = null
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java)
+        context.bindService(intent, serviceConnection, android.content.Context.BIND_AUTO_CREATE)
+        onDispose {
+            // Only unbind — do NOT stop the service if tracking is still active
+            try { context.unbindService(serviceConnection) } catch (_: Exception) {}
+        }
+    }
+
+    // ── Collect all tracking state from the service ──
+    val svc = trackingService.value
+    val isTracking by (svc?.isTracking ?: MutableStateFlow(false)).collectAsState()
+    val isPaused by (svc?.isPaused ?: MutableStateFlow(false)).collectAsState()
+    val timeSeconds by (svc?.timeSeconds ?: MutableStateFlow(0L)).collectAsState()
+    val movingTimeSeconds by (svc?.movingTimeSeconds ?: MutableStateFlow(0L)).collectAsState()
+    val distanceKm by (svc?.distanceKm ?: MutableStateFlow(0.0)).collectAsState()
+    val currentPace by (svc?.currentPace ?: MutableStateFlow(0.0)).collectAsState()
+    val isMoving by (svc?.isMoving ?: MutableStateFlow(false)).collectAsState()
+    val lastLocation by (svc?.lastLocation ?: MutableStateFlow<Location?>(null)).collectAsState()
+
+    // Convert service's (lat,lng) pairs to Mapbox Points for map rendering
+    val servicePathPoints by (svc?.pathPoints ?: MutableStateFlow(emptyList<Pair<Double, Double>>())).collectAsState()
+    val pathPoints = remember(servicePathPoints) {
+        servicePathPoints.map { (lat, lng) -> Point.fromLngLat(lng, lat) }
+    }
+
+    val serviceCurrentPoint by (svc?.currentPoint ?: MutableStateFlow<Pair<Double, Double>?>(null)).collectAsState()
+    val currentPoint = remember(serviceCurrentPoint) {
+        serviceCurrentPoint?.let { (lat, lng) -> Point.fromLngLat(lng, lat) }
+    }
 
     // Photo and Map Expanded States
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -421,36 +466,21 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
     val activityTags = listOf("None", "For a Cause", "Workout", "Race", "Recovery")
 
     // UI State
-    var isTracking by remember { mutableStateOf(false) }
-    var isPaused by remember { mutableStateOf(false) }
     var showSummary by remember { mutableStateOf(false) }
     var selectedActivity by remember { mutableStateOf(OUTDOOR_ACTIVITIES[0]) } // Default Run
     var showLayerMenu by remember { mutableStateOf(false) }
-
-    // Tracking Math
-    var timeSeconds by remember { mutableLongStateOf(0L) }
-    var movingTimeSeconds by remember { mutableLongStateOf(0L) }
-    var lastMovementTimeMs by remember { mutableLongStateOf(0L) }
-    var distanceKm by remember { mutableDoubleStateOf(0.0) }
-    var currentPace by remember { mutableDoubleStateOf(0.0) }
     var isSaving by remember { mutableStateOf(false) }
-    var isMoving by remember { mutableStateOf(false) }
 
     // Save Activity State
     var activityTitle by remember { mutableStateOf("") }
     var privateNotes by remember { mutableStateOf("") }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showLocationDialog by remember { mutableStateOf(false) }
 
     // Map Settings
     var mapType by remember { mutableStateOf("Dark") } // Dark, Standard, Terrain
     var isCompassMode by remember { mutableStateOf(false) } // False = Center/Birds Eye, True = Forward Rotation
     var followUser by remember { mutableStateOf(true) }
-
-    // Maps State
-    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-    var lastLocation by remember { mutableStateOf<Location?>(null) }
-    var pathPoints by remember { mutableStateOf<List<Point>>(emptyList()) }
-    var currentPoint by remember { mutableStateOf<Point?>(null) }
 
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
@@ -458,16 +488,22 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (hasLocationPermission) {
-            isTracking = true; isPaused = false
-            pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L; lastLocation = null; movingTimeSeconds = 0L; lastMovementTimeMs = System.currentTimeMillis()
-            currentPace = 0.0; isMoving = false
+        if (hasLocationPermission && svc != null) {
+            // Also verify GPS/Location services are actually turned on
+            val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+            if (!locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                showLocationDialog = true
+            } else {
+                val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                    action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+                }
+                androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                svc!!.startTracking()
+            }
         }
     }
 
     // ── Proactive Offline Map Caching ──
-    // When we get the first GPS fix, cache the surrounding area so the map
-    // works offline for the remainder of the workout session.
     var hasTriggeredOfflineCache by remember { mutableStateOf(false) }
     LaunchedEffect(currentPoint) {
         if (currentPoint != null && !hasTriggeredOfflineCache) {
@@ -481,109 +517,16 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
         }
     }
 
-    LaunchedEffect(isTracking, isPaused) {
-        if (isTracking && !isPaused) {
-            while (true) {
-                delay(1000)
-                timeSeconds++
-
-                // Auto-pause timer if no new location received from OS in 3.5 seconds
-                if (System.currentTimeMillis() - lastMovementTimeMs > 3500L) {
-                    isMoving = false
-                }
-
-                if (isMoving) {
-                    movingTimeSeconds++
-                }
-            }
-        }
-    }
-
-    val locationCallback = remember {
-        object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                for (location in locationResult.locations) {
-                    // Update current point for map display smoothly
-                    if (location.accuracy < 50f) {
-                        currentPoint = Point.fromLngLat(location.longitude, location.latitude)
-                    }
-
-                    if (isTracking && !isPaused) {
-                        // 1. Strict Accuracy Gate: Ignore garbage data immediately
-                        if (location.accuracy > 25f) continue
-
-                        if (lastLocation != null) {
-                            val distanceToUpdate = lastLocation!!.distanceTo(location)
-                            val timeDeltaSec = (location.time - lastLocation!!.time) / 1000.0
-                            val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
-                            val physicalSpeed = if (location.hasSpeed()) location.speed else 0.0f
-
-                            // Check if the physical hardware reports we are standing still
-                            if (physicalSpeed < 0.25f && calculatedSpeed < 0.5) {
-                                isMoving = false
-                            }
-
-                            // 2. The "Stationary Jitter" Filter
-                            // ONLY process if we've moved outside a 5-meter buffer zone.
-                            // This completely absorbs the coordinates "dancing" while you are stopped.
-                            if (distanceToUpdate >= 5.0f) {
-
-                                // 3. Teleport/Glitch Check: Max 12 m/s (~43 km/h)
-                                // If speed is insane, it's a signal bounce. IGNORE COMPLETELY.
-                                if (calculatedSpeed < 12.0) {
-
-                                    // It's a valid, real movement!
-                                    isMoving = true
-                                    distanceKm += distanceToUpdate / 1000.0
-                                    lastMovementTimeMs = System.currentTimeMillis()
-
-                                    val newPoint = Point.fromLngLat(location.longitude, location.latitude)
-                                    pathPoints = pathPoints + newPoint
-
-                                    // CRITICAL FIX: Only update the anchor when we have a valid move.
-                                    lastLocation = location
-
-                                    if (distanceKm > 0.02) {
-                                        val timeInMinutes = movingTimeSeconds / 60.0
-                                        val rawPace = timeInMinutes / distanceKm
-                                        currentPace = rawPace.coerceAtMost(60.0)
-                                    }
-                                }
-                            }
-                        } else {
-                            // First tracking anchor point
-                            isMoving = true
-                            val newPoint = Point.fromLngLat(location.longitude, location.latitude)
-                            pathPoints = pathPoints + newPoint
-                            lastLocation = location
-                            lastMovementTimeMs = System.currentTimeMillis()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-
-    DisposableEffect(isTracking, isPaused, hasLocationPermission) {
-        if (hasLocationPermission) {
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
-                .setMinUpdateIntervalMillis(2000L)
-                .setMinUpdateDistanceMeters(1.5f)
-                .build()
-            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-            }
-        }
-        onDispose { fusedLocationClient.removeLocationUpdates(locationCallback) }
-    }
+    // NOTE: Timer and location updates are now handled entirely by LocationTrackingService.
+    // The LaunchedEffect timer and DisposableEffect locationCallback that were here before
+    // have been removed. The service handles:
+    //   - Timer incrementing (timeSeconds, movingTimeSeconds)
+    //   - GPS location callbacks (pathPoints, distanceKm, currentPace)
+    //   - WakeLock acquisition (keeps CPU alive when screen is off)
+    //   - Foreground notification (prevents OS from killing the service)
 
     val formatTime = { seconds: Long ->
-        if (seconds < 3600) {
-            "%02d:%02d".format(seconds / 60, seconds % 60)
-        } else {
-            "%02d:%02d:%02d".format(seconds / 3600, (seconds % 3600) / 60, seconds % 60)
-        }
+        com.calorieko.app.util.DurationFormatter.formatDigital(seconds)
     }
 
     val hours = movingTimeSeconds / 3600.0
@@ -699,7 +642,10 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                     text = "Resume",
                     color = Color.White,
                     fontSize = 16.sp,
-                    modifier = Modifier.clickable { showSummary = false; isPaused = true }
+                    modifier = Modifier.clickable {
+                        showSummary = false
+                        svc?.resumeTracking()
+                    }
                 )
                 Text(
                     text = "Save Activity",
@@ -878,6 +824,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                             finalTitle, caloriesBurned, formatTime(timeSeconds), safeDistance, currentPace,
                             movingTimeSeconds, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
                         )
+
+                        // Stop the foreground service after saving
+                        svc?.stopTracking()
                     },
                     enabled = !isSaving, modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange), shape = RoundedCornerShape(28.dp)
@@ -894,8 +843,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                 text = { Text("Discarding this activity will erase it permanently.") },
                 confirmButton = {
                     TextButton(onClick = {
-                        showDiscardDialog = false; showSummary = false; isTracking = false
-                        timeSeconds = 0L; movingTimeSeconds = 0L; distanceKm = 0.0; pathPoints = emptyList(); lastLocation = null
+                        showDiscardDialog = false; showSummary = false
+                        svc?.stopTracking()
+                        svc?.resetMetrics()
                         onBack()
                     }) { Text("Discard", color = Color(0xFFEF4444)) }
                 },
@@ -993,7 +943,15 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
             )
 
             IconButton(
-                onClick = { onBack() },
+                onClick = {
+                    if (isTracking || isPaused) {
+                        // Service continues running in background — don't stop it.
+                        // Navigate all the way back to dashboard.
+                        onBackToDashboard()
+                    } else {
+                        onBack()
+                    }
+                },
                 modifier = Modifier.padding(start = 16.dp, top = 48.dp).align(Alignment.TopStart).size(44.dp).background(Color(0xFF2A2A3E).copy(alpha = 0.9f), CircleShape)
             ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp)) }
 
@@ -1106,8 +1064,19 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                             Button(
                                 onClick = {
                                     if (hasLocationPermission) {
-                                        isTracking = true; isPaused = false
-                                        pathPoints = emptyList(); distanceKm = 0.0; timeSeconds = 0L; lastLocation = null
+                                        // Check if GPS/Location services are actually turned on
+                                        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+                                        val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                                        if (!isGpsEnabled) {
+                                            showLocationDialog = true
+                                        } else {
+                                            // Start the foreground service and begin tracking
+                                            val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                                                action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+                                            }
+                                            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                                            svc?.startTracking()
+                                        }
                                     } else {
                                         permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                                     }
@@ -1118,7 +1087,9 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                             Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
                                 val pauseBtnSize by animateDpAsState(targetValue = if (isPaused) 60.dp else 56.dp, animationSpec = spring(), label = "pauseSize")
                                 Button(
-                                    onClick = { isPaused = !isPaused },
+                                    onClick = {
+                                        if (isPaused) svc?.resumeTracking() else svc?.pauseTracking()
+                                    },
                                     modifier = Modifier.size(pauseBtnSize), shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(containerColor = if (isPaused) CalorieKoOrange.copy(alpha = 0.85f) else Color(0xFF2A2A3E)),
                                     elevation = ButtonDefaults.buttonElevation(defaultElevation = if (isPaused) 8.dp else 2.dp)
@@ -1129,7 +1100,8 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                                 }
                                 Button(
                                     onClick = {
-                                        isPaused = true; showSummary = true
+                                        svc?.pauseTracking()
+                                        showSummary = true
                                         val cal = java.util.Calendar.getInstance()
                                         val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
                                         val timePrefix = when { hour < 12 -> "Morning"; hour < 17 -> "Afternoon"; else -> "Evening" }
@@ -1194,6 +1166,27 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                 }
             }
         }
+    }
+
+    // GPS Location Services Dialog
+    if (showLocationDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showLocationDialog = false },
+            title = { Text("Location Required", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("GPS is turned off. Please enable location services for accurate workout tracking.", color = Color.Gray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLocationDialog = false
+                    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                }) { Text("Open Settings", color = CalorieKoOrange) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLocationDialog = false }) { Text("Cancel", color = Color.White) }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.Gray
+        )
     }
 } // THE GPSTrackerContent FUNCTION IS NOW PROPERLY CLOSED HERE
 

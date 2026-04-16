@@ -10,6 +10,7 @@ import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.repository.DashboardRepository
 import com.calorieko.app.data.repository.NutritionalTarget
+import com.calorieko.app.util.DurationFormatter
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -206,6 +207,18 @@ class DashboardViewModel(
 
         // Convert workout logs to feed entries
         val workoutEntries = workoutLogs.map { entity ->
+            // Standardise duration display:
+            //  - GPS workouts have movingTimeSeconds → use DurationFormatter directly
+            //  - Manual workouts only have weightOrDuration ("30 min") → parse & reformat
+            // Always use weightOrDuration (total elapsed time) for display consistency.
+            // movingTimeSeconds only counts GPS-moving time, which can be much less than
+            // the actual workout duration and would mismatch the Diary screen.
+            val formattedDuration = run {
+                val parsed = DurationFormatter.parseToSeconds(entity.weightOrDuration)
+                if (parsed != null) DurationFormatter.formatSeconds(parsed)
+                else entity.weightOrDuration  // fallback: show raw string
+            }
+
             ActivityLogEntry(
                 id = entity.id.toString(),
                 type = entity.type,
@@ -216,7 +229,7 @@ class DashboardViewModel(
                     protein = entity.protein,
                     carbs = entity.carbs,
                     fats = entity.fats,
-                    duration = entity.weightOrDuration
+                    duration = formattedDuration
                 ),
                 timestamp = entity.timestamp
             )

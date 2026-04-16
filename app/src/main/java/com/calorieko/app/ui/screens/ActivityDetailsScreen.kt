@@ -37,6 +37,7 @@ import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import com.calorieko.app.viewmodel.ActivityDetailsViewModel
+import com.calorieko.app.util.DurationFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +54,9 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
         } ?: emptyList()
     }
 
-    // Format Time Duration
+    // Format Time Duration — uses the shared utility for consistency
     val formatDuration = { seconds: Long ->
-        if (seconds < 3600) "%d:%02d".format(seconds / 60, seconds % 60)
-        else "%d:%02d:%02d".format(seconds / 3600, (seconds % 3600) / 60, seconds % 60)
+        DurationFormatter.formatDigital(seconds)
     }
 
     // Format highly professional Date & Time (e.g., "March 16, 2026 at 11:53 AM")
@@ -184,10 +184,14 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                         unit = "/km"
                     )
 
-                    // Time
+                    // Time — uses weightOrDuration (total elapsed time) for consistency
+                    // with Dashboard and Diary. movingTimeSeconds is GPS-moving-only time.
                     StatBlock(
                         label = "Time",
-                        value = formatDuration(activity.movingTimeSeconds ?: 0L),
+                        value = DurationFormatter.formatDigital(
+                            DurationFormatter.parseToSeconds(activity.weightOrDuration)
+                                ?: (activity.movingTimeSeconds ?: 0L)
+                        ),
                         unit = ""
                     )
                 }
