@@ -494,12 +494,33 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
             if (!locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
                 showLocationDialog = true
             } else {
-                val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
-                    action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+                // On Android 13+, also request notification permission before starting the service
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                        action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+                    }
+                    androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                    svc!!.startTracking()
                 }
-                androidx.core.content.ContextCompat.startForegroundService(context, intent)
-                svc!!.startTracking()
             }
+        }
+    }
+
+    // POST_NOTIFICATIONS runtime permission (required on Android 13+ / API 33+).
+    // Without this, the foreground service notification is completely invisible.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Whether granted or denied, start the service — it will still run,
+        // but the notification will only be visible if permission was granted.
+        if (svc != null) {
+            val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+            }
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+            svc!!.startTracking()
         }
     }
 
@@ -1070,12 +1091,19 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                                         if (!isGpsEnabled) {
                                             showLocationDialog = true
                                         } else {
-                                            // Start the foreground service and begin tracking
-                                            val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
-                                                action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+                                            // On Android 13+, request notification permission first
+                                            // so the foreground service notification is visible
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                                androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                            } else {
+                                                // Start the foreground service and begin tracking
+                                                val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                                                    action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+                                                }
+                                                androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                                                svc?.startTracking()
                                             }
-                                            androidx.core.content.ContextCompat.startForegroundService(context, intent)
-                                            svc?.startTracking()
                                         }
                                     } else {
                                         permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))

@@ -3,6 +3,7 @@ package com.calorieko.app
 import android.app.Application
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.util.StreakReminderWorker
+import com.mapbox.common.MapboxOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
@@ -16,6 +17,11 @@ class CalorieKoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize Mapbox access token BEFORE any MapView is created.
+        // The token is injected as a string resource by build.gradle.kts from local.properties.
+        MapboxOptions.accessToken = getString(R.string.mapbox_access_token)
+
         // Schedule the daily streak reminder notification (8 PM local time).
         // Uses WorkManager KEEP policy — safe to call on every app start.
         StreakReminderWorker.schedule(this)
