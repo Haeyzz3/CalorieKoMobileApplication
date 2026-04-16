@@ -10,9 +10,7 @@ import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 
 /**
@@ -112,15 +110,24 @@ class MealRepository(
         }
         dailyNutritionSummaryDao.upsertSummary(updated)
 
-        // 4. Sync to Firestore (fire-and-forget — never blocks the caller)
-        //    Firestore's offline persistence queues writes automatically.
-        //    Both sync methods catch exceptions internally, so this is safe.
+        // 4. Sync to Firestore (with timeout — avoids blocking indefinitely when offline)
+        //    Online:  batch.commit().await() completes in milliseconds.
+        //    Offline: times out after 5 s, saveMeal() returns, navigation fires.
+        //    Firestore's SDK still queues the write in its local persistence cache
+        //    and automatically replays it when the device regains connectivity.
         val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
-        CoroutineScope(Dispatchers.IO).launch {
-            firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
-            firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
-            AutoSyncManager.triggerSync(appContext, uid)
+        withTimeoutOrNull(5_000L) {
+            try {
+                firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
+                firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
+            } catch (_: Exception) {
+                // Sync failed — Firestore's offline cache has the write queued.
+            }
         }
+
+        // 5. Always trigger WorkManager sync (survives process death,
+        //    only runs when network is available via CONNECTED constraint)
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 
     /**
