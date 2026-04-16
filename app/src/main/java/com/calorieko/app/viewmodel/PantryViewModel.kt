@@ -11,6 +11,7 @@ import com.calorieko.app.data.local.ensureReferenceDataSeeded
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -242,14 +244,24 @@ class PantryViewModel(
         if (trimmed.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
             pantryDao.insertItem(PantryItem(ingredientName = trimmed))
-            if (uid.isNotEmpty()) firestoreSyncRepo.syncPantryItem(uid, trimmed)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.syncPantryItem(uid, trimmed) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
     fun removeIngredient(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
             pantryDao.deleteItem(name)
-            if (uid.isNotEmpty()) firestoreSyncRepo.deletePantryItem(uid, name)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.deletePantryItem(uid, name) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
@@ -398,28 +410,48 @@ class PantryViewModel(
                 mealSlot = mealSlot
             )
             mealPlanDao.insertMeal(meal)
-            if (uid.isNotEmpty()) firestoreSyncRepo.syncPlannedMeal(uid, meal)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.syncPlannedMeal(uid, meal) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
     fun removeDishFromSlot(dayIndex: Int, mealSlot: String, dishLabel: String) {
         viewModelScope.launch(Dispatchers.IO) {
             mealPlanDao.removeDish(dayIndex, _currentWeekStart.value, mealSlot, dishLabel)
-            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot, dishLabel)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot, dishLabel) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
     fun clearMealSlot(dayIndex: Int, mealSlot: String) {
         viewModelScope.launch(Dispatchers.IO) {
             mealPlanDao.clearSlot(dayIndex, _currentWeekStart.value, mealSlot)
-            if (uid.isNotEmpty()) firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, _currentWeekStart.value, mealSlot)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, _currentWeekStart.value, mealSlot) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
     fun clearMealDay(dayIndex: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             mealPlanDao.clearDay(dayIndex, _currentWeekStart.value)
-            if (uid.isNotEmpty()) firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, _currentWeekStart.value)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, _currentWeekStart.value) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
@@ -427,13 +459,24 @@ class PantryViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val week = _currentWeekStart.value
             mealPlanDao.clearWeek(week)
-            if (uid.isNotEmpty()) firestoreSyncRepo.clearWeekPlannedMeals(uid, week)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.clearWeekPlannedMeals(uid, week) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 
     fun clearAllPantryItems() {
         viewModelScope.launch(Dispatchers.IO) {
             pantryDao.clearAllItems()
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.clearPantryItems(uid) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
         }
     }
 

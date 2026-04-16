@@ -108,6 +108,36 @@ class SyncWorker(
                 }
             }
 
+            // ── Step 2c: Full-state sync for Pantry items ──
+            //    Read current Room state → clear Firestore → re-push.
+            //    Handles all offline mutations (adds, deletes, clears) in one shot.
+            val pantryDao = db.pantryDao()
+            try {
+                val firestoreRepo = FirestoreSyncRepository()
+                val currentPantryItems = pantryDao.getAllItemsList()
+                firestoreRepo.clearPantryItems(uid)
+                if (currentPantryItems.isNotEmpty()) {
+                    firestoreRepo.syncPantryItemsBatch(uid, currentPantryItems)
+                }
+                Log.d(TAG, "Pantry full-state sync complete: ${currentPantryItems.size} items.")
+            } catch (e: Exception) {
+                Log.w(TAG, "Pantry full-state sync failed (non-fatal): ${e.message}")
+            }
+
+            // ── Step 2d: Full-state sync for Planned Meals ──
+            val mealPlanDao = db.mealPlanDao()
+            try {
+                val firestoreRepo = FirestoreSyncRepository()
+                val currentMeals = mealPlanDao.getAllPlannedMeals()
+                firestoreRepo.clearAllPlannedMeals(uid)
+                if (currentMeals.isNotEmpty()) {
+                    firestoreRepo.syncPlannedMealsBatch(uid, currentMeals)
+                }
+                Log.d(TAG, "Meal plan full-state sync complete: ${currentMeals.size} meals.")
+            } catch (e: Exception) {
+                Log.w(TAG, "Meal plan full-state sync failed (non-fatal): ${e.message}")
+            }
+
             // ── Step 3: Push to Laravel backend (delta sync includes ALL modified data) ──
             val apiService = RetrofitClient.getApiService(BuildConfig.API_BASE_URL)
             val syncManager = ApiSyncManager(

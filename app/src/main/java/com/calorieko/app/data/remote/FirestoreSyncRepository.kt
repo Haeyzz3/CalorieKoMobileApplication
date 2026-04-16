@@ -575,6 +575,64 @@ class FirestoreSyncRepository {
     }
 
     // ════════════════════════════════════════════════════════════
+    //  FULL-STATE SYNC HELPERS (used by SyncWorker)
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Deletes ALL pantry item documents from Firestore for a user.
+     * Used by SyncWorker's full-state sync: clear → re-push current Room state.
+     */
+    suspend fun clearPantryItems(uid: String) {
+        try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("pantryItems")
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) return
+
+            snapshot.documents.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (doc in chunk) {
+                    batch.delete(doc.reference)
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "Cleared ${snapshot.size()} pantry items from Firestore for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear pantry items from Firestore", e)
+        }
+    }
+
+    /**
+     * Deletes ALL planned meal documents from Firestore for a user.
+     * Used by SyncWorker's full-state sync: clear → re-push current Room state.
+     */
+    suspend fun clearAllPlannedMeals(uid: String) {
+        try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("plannedMeals")
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) return
+
+            snapshot.documents.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (doc in chunk) {
+                    batch.delete(doc.reference)
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "Cleared ${snapshot.size()} planned meals from Firestore for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear planned meals from Firestore", e)
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  WIPE ALL USER DATA
     // ════════════════════════════════════════════════════════════
 
