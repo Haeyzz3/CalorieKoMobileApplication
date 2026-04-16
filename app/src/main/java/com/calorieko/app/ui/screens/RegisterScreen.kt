@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -50,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
@@ -78,6 +81,7 @@ fun RegisterScreen(
 
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     // Validation
     val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
@@ -192,7 +196,8 @@ fun RegisterScreen(
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = CalorieKoGreen) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CalorieKoGreen, unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
                         focusedLabelColor = CalorieKoGreen, unfocusedContainerColor = Color(0xFFFAFAFA), focusedContainerColor = Color.White
@@ -224,7 +229,8 @@ fun RegisterScreen(
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CalorieKoGreen, unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
                         focusedLabelColor = CalorieKoGreen, unfocusedContainerColor = Color(0xFFFAFAFA), focusedContainerColor = Color.White
@@ -256,7 +262,8 @@ fun RegisterScreen(
                     visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CalorieKoGreen, unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
                         focusedLabelColor = CalorieKoGreen, unfocusedContainerColor = Color(0xFFFAFAFA), focusedContainerColor = Color.White

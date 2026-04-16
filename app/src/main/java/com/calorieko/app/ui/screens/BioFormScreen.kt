@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,6 +43,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
@@ -305,6 +308,7 @@ fun NameInput(
     label: String,
     placeholder: String
 ) {
+    val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -315,7 +319,8 @@ fun NameInput(
         },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = CalorieKoGreen,
             unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
@@ -336,6 +341,7 @@ fun CustomInput(
     modifier: Modifier = Modifier,
     isError: Boolean = false
 ) {
+    val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -344,7 +350,8 @@ fun CustomInput(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         isError = isError,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = CalorieKoGreen,
             unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),

@@ -203,8 +203,8 @@ class LocationTrackingService : Service() {
     // ── Location Handling ──
 
     private fun handleLocationUpdate(location: Location) {
-        // Update current point for map display (moderate accuracy OK)
-        if (location.accuracy < 50f) {
+        // Update current point for map display — tighter filter to avoid visible drift
+        if (location.accuracy < 20f) {
             _currentPoint.value = Pair(location.latitude, location.longitude)
         }
 
@@ -256,7 +256,7 @@ class LocationTrackingService : Service() {
     private fun startLocationUpdates() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
             .setMinUpdateIntervalMillis(2000L)
-            .setMinUpdateDistanceMeters(1.5f)
+            .setMinUpdateDistanceMeters(3.0f)  // Increased from 1.5m to reduce stationary drift
             .build()
 
         fusedLocationClient.requestLocationUpdates(

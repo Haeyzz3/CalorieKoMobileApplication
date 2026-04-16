@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -981,6 +982,7 @@ private fun DishSelectionContent(
     onSearchChange: (String) -> Unit,
     onSelectDish: (FoodItem) -> Unit
 ) {
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     Column(modifier = Modifier.fillMaxSize()) {
         // Search bar
         OutlinedTextField(
@@ -992,6 +994,8 @@ private fun DishSelectionContent(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = Color(0xFFE5E7EB),
                 focusedBorderColor = CalorieKoGreen
@@ -1076,6 +1080,7 @@ private fun WeightInputContent(
     onChangeDish: () -> Unit,
     onAddDish: () -> Unit
 ) {
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val parsedWeight = weightText.toFloatOrNull() ?: 0f
     val estimatedCalories = if (parsedWeight > 0f) dish.caloriesPer100g * parsedWeight / 100f else 0f
     val isValid = parsedWeight > 0f
@@ -1158,7 +1163,8 @@ private fun WeightInputContent(
                 OutlinedTextField(
                     value = weightText,
                     onValueChange = onWeightChange,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(

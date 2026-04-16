@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -553,7 +554,8 @@ fun SettingsScreen(
                                 },
                                 label = { Text("Actual Weight (g)") },
                                 placeholder = { Text("e.g. 50.0") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { }),
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(

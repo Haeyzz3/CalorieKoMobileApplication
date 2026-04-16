@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -578,6 +579,7 @@ private fun EditField(
     iconBg: Color,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -603,7 +605,8 @@ private fun EditField(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = CalorieKoGreen,
                 unfocusedBorderColor = FieldBorder,
@@ -627,6 +630,7 @@ private fun EditMetricCard(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Decimal
 ) {
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -671,7 +675,8 @@ private fun EditMetricCard(
                         color = CalorieKoGreen
                     )
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = CalorieKoGreen,
                     unfocusedBorderColor = FieldBorder,

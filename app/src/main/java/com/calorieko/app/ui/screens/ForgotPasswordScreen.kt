@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,6 +49,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +79,7 @@ fun ForgotPasswordScreen(
 
     // ── Local form state ──
     var email by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         Column(
@@ -215,7 +219,8 @@ fun ForgotPasswordScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(

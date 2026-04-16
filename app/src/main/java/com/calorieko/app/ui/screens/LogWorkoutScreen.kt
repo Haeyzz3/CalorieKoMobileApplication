@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -118,6 +119,7 @@ import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.plugin.scalebar.scalebar
 import java.io.File
 import java.io.FileOutputStream
@@ -329,6 +331,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
     var durationText by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
     val filteredActivities = remember(searchQuery) { ACTIVITIES.filter { it.name.contains(searchQuery, ignoreCase = true) || it.category.contains(searchQuery, ignoreCase = true) } }
     val caloriesBurned = remember(selectedActivity, durationText) {
@@ -340,7 +343,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = 24.dp), contentPadding = PaddingValues(vertical = 24.dp)) {
             if (selectedActivity == null) {
-                item { OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, placeholder = { Text("Search activities (e.g. Walking)") }, leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = CalorieKoOrange)) }
+                item { OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, placeholder = { Text("Search activities (e.g. Walking)") }, leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }), colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color(0xFFE5E7EB), focusedBorderColor = CalorieKoOrange)) }
                 items(filteredActivities) { activity ->
                     Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).clickable { selectedActivity = activity }) {
                         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -368,7 +371,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text("Duration (minutes)", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
                             Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(value = durationText, onValueChange = { durationText = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CalorieKoOrange, unfocusedBorderColor = Color(0xFFE5E7EB)), placeholder = { Text("e.g. 30") }, leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) })
+                            OutlinedTextField(value = durationText, onValueChange = { durationText = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = androidx.compose.ui.text.input.ImeAction.Done), keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CalorieKoOrange, unfocusedBorderColor = Color(0xFFE5E7EB)), placeholder = { Text("e.g. 30") }, leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) })
                         }
                     }
                     Spacer(modifier = Modifier.height(24.dp))
@@ -475,6 +478,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
     var activityTitle by remember { mutableStateOf("") }
     var privateNotes by remember { mutableStateOf("") }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    val gpsFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var showLocationDialog by remember { mutableStateOf(false) }
 
     // Map Settings
@@ -484,6 +488,22 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
 
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+
+    // POST_NOTIFICATIONS runtime permission (required on Android 13+ / API 33+).
+    // Without this, the foreground service notification is completely invisible.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Whether granted or denied, start the service — it will still run,
+        // but the notification will only be visible if permission was granted.
+        if (svc != null) {
+            val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+            }
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+            svc!!.startTracking()
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -505,22 +525,6 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                     svc!!.startTracking()
                 }
             }
-        }
-    }
-
-    // POST_NOTIFICATIONS runtime permission (required on Android 13+ / API 33+).
-    // Without this, the foreground service notification is completely invisible.
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        // Whether granted or denied, start the service — it will still run,
-        // but the notification will only be visible if permission was granted.
-        if (svc != null) {
-            val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
-                action = com.calorieko.app.util.LocationTrackingService.ACTION_START
-            }
-            androidx.core.content.ContextCompat.startForegroundService(context, intent)
-            svc!!.startTracking()
         }
     }
 
@@ -572,6 +576,11 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                             }
                             mapboxMap.loadStyle(style) {
                                 polylineAnnotationManager = annotations.createPolylineAnnotationManager()
+                            }
+                            // Enable location puck on the expanded summary map too
+                            location.updateSettings {
+                                enabled = true
+                                pulsingEnabled = true
                             }
                         }
                     },
@@ -688,6 +697,8 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         onValueChange = { activityTitle = it },
                         placeholder = { Text("Activity Title", color = Color.Gray) },
                         modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { gpsFocusManager.clearFocus() }),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White, unfocusedTextColor = Color.White,
                             unfocusedBorderColor = Color(0xFF2A2A2A), focusedBorderColor = CalorieKoOrange,
@@ -812,6 +823,8 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         placeholder = { Text("Jot down private notes here. Only you can see these.", color = Color.Gray, fontSize = 14.sp) },
                         modifier = Modifier.fillMaxWidth().height(100.dp),
                         leadingIcon = { Icon(Icons.Default.Person, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) },
+                        keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { gpsFocusManager.clearFocus() }),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White, unfocusedTextColor = Color.White,
                             unfocusedBorderColor = Color(0xFF2A2A2A), focusedBorderColor = CalorieKoOrange,
@@ -911,6 +924,30 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         }
                         mapboxMap.setCamera(CameraOptions.Builder().zoom(16.0).pitch(0.0).build())
                         scalebar.enabled = false
+
+                        // Enable Mapbox native location puck (blue dot) — visible even before tracking starts
+                        location.updateSettings {
+                            enabled = true
+                            pulsingEnabled = true
+                            pulsingColor = android.graphics.Color.parseColor("#4A90D9")
+                            pulsingMaxRadius = 30f
+                        }
+
+                        // Get initial GPS fix to center camera on user's location immediately
+                        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                            val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
+                            fusedClient.lastLocation.addOnSuccessListener { loc ->
+                                if (loc != null) {
+                                    mapboxMap.setCamera(
+                                        CameraOptions.Builder()
+                                            .center(Point.fromLngLat(loc.longitude, loc.latitude))
+                                            .zoom(16.0)
+                                            .build()
+                                    )
+                                }
+                            }
+                        }
+
                         this.gestures.addOnMoveListener(object : OnMoveListener {
                             override fun onMoveBegin(detector: MoveGestureDetector) { followUser = false }
                             override fun onMove(detector: MoveGestureDetector): Boolean = false
@@ -946,18 +983,28 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         }
                     }
 
-                    currentPoint?.let { point ->
-                        if (circleManager != null) {
-                            if (activeCircles.isEmpty()) {
-                                activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(16.0).withCircleColor("#00BFFF").withCircleOpacity(0.15)))
-                                activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(11.0).withCircleColor("#00BFFF").withCircleOpacity(0.3)))
-                                activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(7.0).withCircleColor("#00DFFF").withCircleStrokeWidth(2.5).withCircleStrokeColor("#FFFFFF")))
-                            } else {
-                                activeCircles.forEach {
-                                    it.point = point
-                                    circleManager!!.update(it)
+                    // Only draw the custom circle annotation while tracking is active.
+                    // Before tracking, the native Mapbox location puck provides the blue dot.
+                    if (isTracking || isPaused) {
+                        currentPoint?.let { point ->
+                            if (circleManager != null) {
+                                if (activeCircles.isEmpty()) {
+                                    activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(16.0).withCircleColor("#00BFFF").withCircleOpacity(0.15)))
+                                    activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(11.0).withCircleColor("#00BFFF").withCircleOpacity(0.3)))
+                                    activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(7.0).withCircleColor("#00DFFF").withCircleStrokeWidth(2.5).withCircleStrokeColor("#FFFFFF")))
+                                } else {
+                                    activeCircles.forEach {
+                                        it.point = point
+                                        circleManager!!.update(it)
+                                    }
                                 }
                             }
+                        }
+                    } else {
+                        // Pre-tracking: clear any stale custom circles (native puck is visible)
+                        if (activeCircles.isNotEmpty() && circleManager != null) {
+                            activeCircles.forEach { circleManager!!.delete(it) }
+                            activeCircles.clear()
                         }
                     }
                 }
@@ -1009,14 +1056,27 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         .border(1.dp, if (followUser) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f), CircleShape)
                         .clickable {
                             followUser = true
-                            currentPoint?.let { point ->
-                                val cameraBuilder = CameraOptions.Builder().center(point)
+                            val targetPoint = currentPoint
+                            if (targetPoint != null) {
+                                val cameraBuilder = CameraOptions.Builder().center(targetPoint)
                                 if (isCompassMode && lastLocation?.hasBearing() == true) {
                                     cameraBuilder.bearing(lastLocation!!.bearing.toDouble()).pitch(60.0).zoom(17.5)
                                 } else {
                                     cameraBuilder.bearing(0.0).pitch(0.0).zoom(16.0)
                                 }
                                 mapViewRef.value?.camera?.easeTo(cameraBuilder.build(), MapAnimationOptions.Builder().duration(800L).build())
+                            } else {
+                                // Before tracking: use last known GPS fix to center
+                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                    val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+                                    fusedClient.lastLocation.addOnSuccessListener { loc ->
+                                        if (loc != null) {
+                                            val cameraBuilder = CameraOptions.Builder().center(Point.fromLngLat(loc.longitude, loc.latitude))
+                                            cameraBuilder.bearing(0.0).pitch(0.0).zoom(16.0)
+                                            mapViewRef.value?.camera?.easeTo(cameraBuilder.build(), MapAnimationOptions.Builder().duration(800L).build())
+                                        }
+                                    }
+                                }
                             }
                         },
                     contentAlignment = Alignment.Center
