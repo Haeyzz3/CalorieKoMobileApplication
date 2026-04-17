@@ -82,7 +82,7 @@ fun SplashScreen(
 
             // Tagline
             Text(
-                text = "Smart Nutrition Tracking",
+                text = "Smart Pinoy Nutrition Tracking",
                 fontSize = 18.sp,
                 color = Color.White.copy(alpha = 0.9f)
             )
