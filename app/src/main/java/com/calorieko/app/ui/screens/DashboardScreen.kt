@@ -212,8 +212,9 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                     }
 
                     Surface(
+                        onClick = { onNavigate("scalePairing/settings") },
                         color = badgeBgColor,
-                        shape = RoundedCornerShape(50),
+                        shape = RoundedCornerShape(50)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
