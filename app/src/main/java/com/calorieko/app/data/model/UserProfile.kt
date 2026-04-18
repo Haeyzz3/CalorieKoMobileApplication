@@ -13,7 +13,7 @@ data class UserProfile(
     val weight: Double,
     val height: Double,
     val sex: String = "",
-    val activityLevel: String = "", // "not_very_active", "lightly_active", "active", "very_active"
+    val activityLevel: String = "", // NDAP IDs: "sedentary", "light", "moderate", "vigorous" (legacy: "not_very_active", "lightly_active", "active", "very_active")
     val goal: String,
     val streak: Int = 0,         // Current streak counter
     val level: Int = 1,          // Global user level (increments when milestones tier is maxed)

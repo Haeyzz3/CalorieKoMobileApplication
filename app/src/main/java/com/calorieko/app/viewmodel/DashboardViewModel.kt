@@ -136,17 +136,19 @@ class DashboardViewModel(
                     _targetSodium.value = targets.targetSodium
 
                     // Dynamic burn target: Active calories = TDEE - BMR
-                    // For weight loss, add a 300 kcal deficit modifier.
+                    // BMR via Mifflin-St Jeor (used only for burn target estimation,
+                    // not for nutritional TEA which uses NDAP method).
                     val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
                         (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
                     } else {
                         (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
                     }
+                    // Backward-compatible: accepts both new NDAP IDs and legacy IDs.
                     val activityMultiplier = when (profile.activityLevel.lowercase().trim()) {
-                        "not_very_active" -> 1.2
-                        "lightly_active" -> 1.375
-                        "active" -> 1.55
-                        "very_active" -> 1.725
+                        "sedentary", "not_very_active"  -> 1.2
+                        "light", "lightly_active"       -> 1.375
+                        "moderate", "active"             -> 1.55
+                        "vigorous", "very_active"        -> 1.725
                         else -> 1.2
                     }
                     val tdee = bmr * activityMultiplier

@@ -51,7 +51,7 @@ class EditProfileViewModel(
     private val _selectedGoal = MutableStateFlow("general")
     val selectedGoal: StateFlow<String> = _selectedGoal.asStateFlow()
 
-    private val _selectedActivityLevel = MutableStateFlow("lightly_active")
+    private val _selectedActivityLevel = MutableStateFlow("light")
     val selectedActivityLevel: StateFlow<String> = _selectedActivityLevel.asStateFlow()
 
     private val _existingPhotoUrl = MutableStateFlow("")
@@ -88,7 +88,15 @@ class EditProfileViewModel(
                     _height.value = profile.height.toString()
                     _weight.value = profile.weight.toString()
                     _sex.value = profile.sex.ifEmpty { "Male" }
-                    _selectedActivityLevel.value = profile.activityLevel.ifEmpty { "lightly_active" }
+                    // Map legacy IDs to NDAP IDs for backward compatibility
+                    val rawLevel = profile.activityLevel.ifEmpty { "light" }
+                    _selectedActivityLevel.value = when (rawLevel) {
+                        "not_very_active" -> "sedentary"
+                        "lightly_active"  -> "light"
+                        "active"          -> "moderate"
+                        "very_active"     -> "vigorous"
+                        else              -> rawLevel // already an NDAP ID
+                    }
                     _selectedGoal.value = profile.goal.ifEmpty { "general" }
                     _existingPhotoUrl.value = profile.photoUrl
                 }

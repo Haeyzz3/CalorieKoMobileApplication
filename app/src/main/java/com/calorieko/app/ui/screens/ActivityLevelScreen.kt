@@ -62,24 +62,24 @@ fun ActivityLevelScreen(onContinue: (String) -> Unit) {
 
     val levels = listOf(
         ActivityLevel(
-            id = "not_very_active",
-            title = "Not Very Active",
-            description = "Spend most of the day sitting (e.g. bankteller, desk job)"
+            id = "sedentary",
+            title = "Sedentary",
+            description = "Office worker, student, driver — mostly sitting throughout the day"
         ),
         ActivityLevel(
-            id = "lightly_active",
-            title = "Lightly Active",
-            description = "Spend a good part of the day on your feet (e.g. teacher, salesperson)"
+            id = "light",
+            title = "Light Activity",
+            description = "Teacher, nurse, housewife with chores — on your feet part of the day"
         ),
         ActivityLevel(
-            id = "active",
-            title = "Active",
-            description = "Spend a good part of the day doing some physical activity (e.g. food server, postal carrier)"
+            id = "moderate",
+            title = "Moderate Activity",
+            description = "Farmer, manual laborer, regular athlete — sustained physical activity"
         ),
         ActivityLevel(
-            id = "very_active",
-            title = "Very Active",
-            description = "Spend most of the day doing heavy physical activity (e.g. bike messenger, carpenter)"
+            id = "vigorous",
+            title = "Vigorous Activity",
+            description = "Logger, construction worker, athlete in training — heavy exertion daily"
         )
     )
 

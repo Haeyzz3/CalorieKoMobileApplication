@@ -429,28 +429,28 @@ fun EditProfileScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ActivityLevelOption(
-                    title = "Not Very Active",
-                    description = "Spend most of the day sitting (e.g. bankteller, desk job)",
-                    isSelected = selectedActivityLevel == "not_very_active",
-                    onClick = { viewModel.updateActivityLevel("not_very_active") }
+                    title = "Sedentary",
+                    description = "Office worker, student, driver — mostly sitting throughout the day",
+                    isSelected = selectedActivityLevel == "sedentary",
+                    onClick = { viewModel.updateActivityLevel("sedentary") }
                 )
                 ActivityLevelOption(
-                    title = "Lightly Active",
-                    description = "Spend a good part of the day on your feet (e.g. teacher, salesperson)",
-                    isSelected = selectedActivityLevel == "lightly_active",
-                    onClick = { viewModel.updateActivityLevel("lightly_active") }
+                    title = "Light Activity",
+                    description = "Teacher, nurse, housewife with chores — on your feet part of the day",
+                    isSelected = selectedActivityLevel == "light",
+                    onClick = { viewModel.updateActivityLevel("light") }
                 )
                 ActivityLevelOption(
-                    title = "Active",
-                    description = "Spend a good part of the day doing some physical activity (e.g. food server, postal carrier)",
-                    isSelected = selectedActivityLevel == "active",
-                    onClick = { viewModel.updateActivityLevel("active") }
+                    title = "Moderate Activity",
+                    description = "Farmer, manual laborer, regular athlete — sustained physical activity",
+                    isSelected = selectedActivityLevel == "moderate",
+                    onClick = { viewModel.updateActivityLevel("moderate") }
                 )
                 ActivityLevelOption(
-                    title = "Very Active",
-                    description = "Spend most of the day doing heavy physical activity (e.g. bike messenger, carpenter)",
-                    isSelected = selectedActivityLevel == "very_active",
-                    onClick = { viewModel.updateActivityLevel("very_active") }
+                    title = "Vigorous Activity",
+                    description = "Logger, construction worker, athlete in training — heavy exertion daily",
+                    isSelected = selectedActivityLevel == "vigorous",
+                    onClick = { viewModel.updateActivityLevel("vigorous") }
                 )
             }
 

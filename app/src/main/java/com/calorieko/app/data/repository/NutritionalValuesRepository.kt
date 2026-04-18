@@ -92,46 +92,58 @@ class NutritionalValuesRepository(private val context: Context) {
             // Fallbacks act as safety nets if CSV breaks
         }
 
-        // --- 1. Mifflin-St Jeor Logic ---
-        val bmr = if (sex.equals("Male", ignoreCase = true)) {
-            (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5
-        } else {
-            (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161
+        // ═══════════════════════════════════════════════════════════════
+        // NDAP + Broca-Tanhauser Method
+        // Standard protocol used by Filipino Registered Nutritionist-
+        // Dietitians (NDAP — National Dietetic Association of the Philippines).
+        //
+        // Step 1: Compute Desirable Body Weight (DBW) via modified Broca
+        //         formula adjusted for smaller Asian frames (10% deduction).
+        // Step 2: Map the user's activity level to an NDAP kcal/kg factor.
+        // Step 3: Branch on goal to determine final Total Energy Allowance.
+        // ═══════════════════════════════════════════════════════════════
+
+        // --- 1. Broca-Tanhauser: Desirable Body Weight (DBW) ---
+        // DBW = (Height in cm − 100) × 0.90
+        val dbw = (heightCm - 100) * 0.90
+
+        // --- 2. NDAP Activity Factor (kcal per kg of DBW) ---
+        // Backward-compatible: accepts both new NDAP IDs and legacy IDs.
+        val activityKcalPerKg = when (activityLevel.lowercase().trim()) {
+            "sedentary", "not_very_active"    -> 30.0  // Office worker, student, driver
+            "light", "lightly_active"         -> 35.0  // Teacher, nurse, housewife with chores
+            "moderate", "active"              -> 40.0  // Farmer, manual laborer, regular athlete
+            "vigorous", "very_active"         -> 45.0  // Logger, construction worker, athlete in training
+            else                              -> 30.0  // Conservative default
         }
 
-        // --- 2. Activity Level Multiplier ---
-        val activityMultiplier = when (activityLevel.lowercase().trim()) {
-            "not_very_active" -> 1.2
-            "lightly_active" -> 1.375
-            "active" -> 1.55
-            "very_active" -> 1.725
-            else -> 1.2 // defaults conservative
-        }
+        // --- 3. Total Energy Allowance (TEA) — Goal-Aware Branching ---
+        // "General Health" → pure NDAP (no adjustment)
+        // "Gain Muscle"    → NDAP baseline + 300 kcal surplus
+        // "Weight Control" → NDAP baseline − 500 kcal deficit (floor 1200)
+        val ndapBaseline = dbw * activityKcalPerKg
 
-        val tdee = bmr * activityMultiplier
-
-        // --- 3. Health Goals (Calorie shift & Macro Splits) ---
-        var finalCalories = tdee.toInt()
+        var finalCalories = ndapBaseline.toInt()
         var proteinPct = 0.30
         var carbsPct = 0.40
         var fatsPct = 0.30
-        
+
         when (goal.lowercase().trim()) {
             "lose_weight", "weight_loss", "weight", "weight control" -> {
-                finalCalories = (tdee - 500).toInt().coerceAtLeast(1200) // 1200 floor safety
+                finalCalories = (ndapBaseline - 500).toInt().coerceAtLeast(1200) // 1200 floor safety
                 proteinPct = 0.35 // Higher protein to preserve muscle mass
                 carbsPct = 0.35
                 fatsPct = 0.30
             }
             "gain_muscle" -> {
-                finalCalories = (tdee + 300).toInt()
-                proteinPct = 0.30 
+                finalCalories = (ndapBaseline + 300).toInt()
+                proteinPct = 0.30
                 carbsPct = 0.45 // Higher carbs to fuel muscle synthesis routines
                 fatsPct = 0.25
             }
             else -> {
-                // "General Health" or "Maintain"
-                finalCalories = tdee.toInt()
+                // "General Health & Wellness" or "Maintain" → pure NDAP TEA
+                finalCalories = ndapBaseline.toInt()
                 proteinPct = 0.30
                 carbsPct = 0.40
                 fatsPct = 0.30

@@ -91,7 +91,7 @@ data class UserData(
     val height: Double = 170.0, // cm
     val weight: Double = 70.0,  // kg
     val sex: String = "Male",
-    val activityLevel: String = "lightly_active",
+    val activityLevel: String = "light",
     val goal: String = "general",
     val photoUrl: String = "" // Profile photo URL from backend
 )
@@ -170,7 +170,7 @@ fun ProfileScreen(
             height = p.height,
             weight = p.weight,
             sex = p.sex.ifEmpty { "Male" },
-            activityLevel = p.activityLevel.ifEmpty { "lightly_active" },
+            activityLevel = p.activityLevel.ifEmpty { "light" },
             goal = p.goal.ifEmpty { "general" },
             photoUrl = p.photoUrl
         )
@@ -379,10 +379,10 @@ fun BaselineMetricsGrid(user: UserData) {
 
         val activityLabel = when (user.activityLevel) {
             "" -> "--"
-            "not_very_active" -> "Not Very Active"
-            "lightly_active" -> "Lightly Active"
-            "active" -> "Active"
-            "very_active" -> "Very Active"
+            "sedentary", "not_very_active" -> "Sedentary"
+            "light", "lightly_active" -> "Light Activity"
+            "moderate", "active" -> "Moderate Activity"
+            "vigorous", "very_active" -> "Vigorous Activity"
             else -> "Not Set"
         }
         Card(
