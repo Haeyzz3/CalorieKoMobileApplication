@@ -1,6 +1,7 @@
 package com.calorieko.app.ui.screens
 
 
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.rounded.SetMeal
 import androidx.compose.material.icons.rounded.BreakfastDining
 import androidx.compose.material.icons.rounded.EggAlt
@@ -42,8 +43,18 @@ fun TargetSummaryScreen(
     targetCarbs: Int,
     targetFats: Int,
     goalTitle: String,
+    activityLevel: String,
     onContinue: () -> Unit
 ) {
+
+    // Map activity level ID to display label
+    val activityLabel = when (activityLevel.lowercase().trim()) {
+        "sedentary", "not_very_active" -> "Sedentary"
+        "light", "lightly_active" -> "Light Activity"
+        "moderate", "active" -> "Moderate Activity"
+        "vigorous", "very_active" -> "Vigorous Activity"
+        else -> "Sedentary"
+    }
 
     // 2. Add macro animations
     val animatedProtein by animateIntAsState(targetValue = targetProtein, animationSpec = tween(1000, 700), label = "protein")
@@ -111,17 +122,46 @@ fun TargetSummaryScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
-            // Goal Badge (Uses REAL Goal Title)
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+            // Goal & Activity Level Badges
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("YOUR GOAL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 0.5.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = goalTitle, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                // Goal Badge
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("YOUR GOAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 0.5.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = goalTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    }
+                }
+
+                // Activity Level Badge
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.DirectionsRun,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("ACTIVITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 0.5.sp)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = activityLabel, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+                    }
                 }
             }
 

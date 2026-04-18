@@ -327,10 +327,11 @@ fun AppNavigation() {
             TargetSummaryScreen(
                 targetCalories = targetCalories,
                 targetSodium = targetSodium,
-                targetProtein = targetProtein,  // PASS NEW VARS
-                targetCarbs = targetCarbs,      // PASS NEW VARS
-                targetFats = targetFats,        // PASS NEW VARS
+                targetProtein = targetProtein,
+                targetCarbs = targetCarbs,
+                targetFats = targetFats,
                 goalTitle = setupGoalTitle,
+                activityLevel = setupActivityLevel,
                 onContinue = {
                     navController.navigate("scalePairing/signup")
                 }
