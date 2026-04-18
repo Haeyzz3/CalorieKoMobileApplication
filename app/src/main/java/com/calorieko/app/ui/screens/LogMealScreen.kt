@@ -1349,12 +1349,12 @@ private fun ManualMealSummaryOverlay(
                                     Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.roundToInt()}g  •  ${dish.calories.fmt()} kcal",
+                                        "${dish.weightGrams.roundToInt()}g  •  ~${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        "P: ${dish.protein.fmt()}g  C: ${dish.carbs.fmt()}g  F: ${dish.fat.fmt()}g",
+                                        "P: ~${dish.protein.fmt()}g  C: ~${dish.carbs.fmt()}g  F: ~${dish.fat.fmt()}g",
                                         fontSize = 12.sp, color = Color(0xFF9CA3AF)
                                     )
                                 }
@@ -1402,13 +1402,21 @@ private fun ManualMealSummaryOverlay(
                         colors = CardDefaults.cardColors(containerColor = CalorieKoGreen.copy(alpha = 0.1f))
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                            Text("Meal Totals", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            var showDisclaimer by remember { mutableStateOf(false) }
+                            if (showDisclaimer) {
+                                NutrientDisclaimerDialog(onDismiss = { showDisclaimer = false })
+                            }
+                            Text("Estimated Meal Totals", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            NutrientDisclaimerIconButton(onClick = { showDisclaimer = true })
+                        }
                             Spacer(Modifier.height(8.dp))
                             HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
                             Spacer(Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Calories", fontSize = 14.sp, color = Color(0xFF374151))
-                                Text("${totalCalories.fmt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
+                                Text("≈${totalCalories.fmt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
                             }
                             Spacer(Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -1781,12 +1789,12 @@ private fun MealSummaryOverlay(
                                     Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.roundToInt()}g  •  ${dish.calories.fmt()} kcal",
+                                        "${dish.weightGrams.roundToInt()}g  •  ~${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        "P: ${dish.protein.fmt()}g  C: ${dish.carbs.fmt()}g  F: ${dish.fat.fmt()}g",
+                                        "P: ~${dish.protein.fmt()}g  C: ~${dish.carbs.fmt()}g  F: ~${dish.fat.fmt()}g",
                                         fontSize = 12.sp, color = Color(0xFF9CA3AF)
                                     )
                                 }
@@ -1834,13 +1842,21 @@ private fun MealSummaryOverlay(
                         colors = CardDefaults.cardColors(containerColor = CalorieKoGreen.copy(alpha = 0.1f))
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                            Text("Meal Totals", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            var showDisclaimer by remember { mutableStateOf(false) }
+                            if (showDisclaimer) {
+                                NutrientDisclaimerDialog(onDismiss = { showDisclaimer = false })
+                            }
+                            Text("Estimated Meal Totals", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            NutrientDisclaimerIconButton(onClick = { showDisclaimer = true })
+                        }
                             Spacer(Modifier.height(8.dp))
                             HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
                             Spacer(Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Calories", fontSize = 14.sp, color = Color(0xFF374151))
-                                Text("${totalCalories.fmt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
+                                Text("≈${totalCalories.fmt()} kcal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = CalorieKoGreen)
                             }
                             Spacer(Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
