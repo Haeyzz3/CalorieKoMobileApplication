@@ -287,7 +287,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
             )
             // Total / Avg
             Text(
-                text = nutrient.total.toFormattedString(),
+                text = "~${nutrient.total.toFormattedString()}",
                 fontSize = 14.sp,
                 color = SubtleText,
                 modifier = Modifier.width(60.dp)

@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.ui.components.NutrientDisclaimerDialog
+import com.calorieko.app.ui.components.NutrientDisclaimerIconButton
 import com.calorieko.app.ui.theme.*
 import com.calorieko.app.viewmodel.NutritionDetailsViewModel
 import java.text.SimpleDateFormat
@@ -115,7 +117,17 @@ fun NutritionDetailsScreen(viewModel: NutritionDetailsViewModel, onBackClick: ()
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Diary", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
+                title = { 
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Diary", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        var showDisclaimer by remember { mutableStateOf(false) }
+                        if (showDisclaimer) {
+                            NutrientDisclaimerDialog(onDismiss = { showDisclaimer = false })
+                        }
+                        NutrientDisclaimerIconButton(onClick = { showDisclaimer = true })
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

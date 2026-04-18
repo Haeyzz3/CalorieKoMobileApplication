@@ -103,6 +103,8 @@ import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
 import com.calorieko.app.ui.components.NutrientChip
+import com.calorieko.app.ui.components.NutrientDisclaimerDialog
+import com.calorieko.app.ui.components.NutrientDisclaimerIconButton
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.viewmodel.LogMealEvent
@@ -1645,7 +1647,7 @@ private fun DishReadySheet(
                 InfoRow("Dish", dishName)
                 InfoRow("Confidence", "${(confidence * 100).toInt()}%")
                 InfoRow("Weight", "${weight.roundToInt()}g")
-                InfoRow("Est. Calories", "${estimatedCalories.toInt()} kcal")
+                InfoRow("Est. Calories", "≈${estimatedCalories.toInt()} kcal")
 
                 Spacer(Modifier.height(24.dp))
 

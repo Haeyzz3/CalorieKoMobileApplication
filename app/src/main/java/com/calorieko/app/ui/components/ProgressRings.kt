@@ -91,7 +91,7 @@ fun ProgressRings(
                 ) {
                     // Primary Metric: Consumed (Green)
                     Text(
-                        text = "$caloriesCurrent",
+                        text = "~$caloriesCurrent",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2E7D32)
@@ -111,7 +111,7 @@ fun ProgressRings(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "$caloriesBurned",
+                                text = "~$caloriesBurned",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFD32F2F)
@@ -125,7 +125,7 @@ fun ProgressRings(
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "$sodiumCurrent",
+                                text = "~$sodiumCurrent",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFEAB308)
@@ -342,7 +342,7 @@ fun MacroProgressBar(
         Spacer(modifier = Modifier.width(12.dp))
 
         Text(
-            text = "${current}$unit / ${target}$unit",
+            text = "~${current}$unit / ${target}$unit",
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = Color(0xFF6B7280),

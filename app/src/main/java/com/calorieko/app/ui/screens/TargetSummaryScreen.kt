@@ -101,7 +101,7 @@ fun TargetSummaryScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text("STEP 3 OF 3", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    Text("Your Daily Targets", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text("Estimated Daily Targets", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
             }
             Text(
@@ -128,7 +128,7 @@ fun TargetSummaryScreen(
             // Metric Cards
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 MetricGradientCard(
-                    title = "Daily Calories",
+                    title = "Estimated Daily Calories",
                     subtitle = "Energy target",
                     value = animatedCalories.toString(),
                     unit = "kcal",
@@ -156,7 +156,7 @@ fun TargetSummaryScreen(
                 }
 
                 MetricGradientCard(
-                    title = "Daily Sodium",
+                    title = "Estimated Daily Sodium",
                     subtitle = "Salt intake limit",
                     value = animatedSodium.toString(),
                     unit = "mg",

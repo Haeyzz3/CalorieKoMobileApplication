@@ -174,9 +174,9 @@ private fun CaloriesDayView(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                CalorieSummaryRow(label = "Total Calories", value = totalCalories.toString(), valueColor = DarkText)
+                CalorieSummaryRow(label = "Estimated Total Calories", value = "~$totalCalories", valueColor = DarkText)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
-                CalorieSummaryRow(label = "Net Calories", value = totalCalories.toString(), valueColor = DarkText)
+                CalorieSummaryRow(label = "Estimated Net Calories", value = "~$totalCalories", valueColor = DarkText)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
                 CalorieSummaryRow(label = "Goal", value = goalCalories.toFormattedString(), valueColor = CalorieKoGreen)
             }
@@ -432,25 +432,25 @@ private fun CaloriesWeekView(
                 if (isTotal) {
                     CalorieSummaryRow(
                         label = "Calories Under Weekly Goal",
-                        value = caloriesUnderGoal.toFormattedString(),
+                        value = "~${caloriesUnderGoal.toFormattedString()}",
                         valueColor = DarkText
                     )
                     HorizontalDivider(color = DividerGray, thickness = 1.dp)
                     CalorieSummaryRow(
                         label = "Daily Average",
-                        value = avgTotal.toString(),
+                        value = "~$avgTotal",
                         valueColor = DarkText
                     )
                 } else {
                     CalorieSummaryRow(
                         label = "Net Calories Under Weekly Goal",
-                        value = netUnderGoal.toFormattedString(),
+                        value = "~${netUnderGoal.toFormattedString()}",
                         valueColor = DarkText
                     )
                     HorizontalDivider(color = DividerGray, thickness = 1.dp)
                     CalorieSummaryRow(
                         label = "Net Average",
-                        value = avgNet.toString(),
+                        value = "~$avgNet",
                         valueColor = DarkText
                     )
                 }
@@ -495,7 +495,7 @@ private fun MealLegendItem(
                 color = DarkText
             )
             Text(
-                text = "$percent% ($calories cal)",
+                text = "$percent% (~$calories cal)",
                 fontSize = 12.sp,
                 color = SubtleText
             )

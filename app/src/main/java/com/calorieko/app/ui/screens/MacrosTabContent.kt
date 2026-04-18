@@ -420,7 +420,7 @@ private fun MacroLegendRow(
         Spacer(modifier = Modifier.width(8.dp))
         // Name + grams
         Text(
-            text = "$name (${grams}g)",
+            text = "$name (~${grams}g)",
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = DarkText,

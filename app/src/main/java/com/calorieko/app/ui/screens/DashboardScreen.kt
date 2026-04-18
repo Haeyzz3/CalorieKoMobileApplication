@@ -82,9 +82,11 @@ import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
+import com.calorieko.app.ui.components.NutrientDisclaimerDialog
+import com.calorieko.app.ui.components.NutrientDisclaimerIconButton
 import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.components.ProgressRings
-import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.*
 import com.calorieko.app.viewmodel.DashboardViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -187,6 +189,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
+                            val firstName = firstNameState ?: "User"
                             Text(
                                 text = "Hello, $firstName!",
                                 fontSize = 18.sp,
@@ -721,7 +724,7 @@ fun MealDetailBottomSheet(
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${item.weightGrams.toInt()}g  •  ${item.calories.fmt()} kcal",
+                                        "${item.weightGrams.toInt()}g  •  ~${item.calories.fmt()} kcal",
                                         fontSize = 13.sp,
                                         color = Color(0xFF6B7280)
                                     )
@@ -779,12 +782,20 @@ fun MealDetailBottomSheet(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            Text(
-                                "Meal Totals",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color(0xFF1F2937)
-                            )
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                var showDisclaimer by remember { mutableStateOf(false) }
+                                if (showDisclaimer) {
+                                    NutrientDisclaimerDialog(onDismiss = { showDisclaimer = false })
+                                }
+                                Text(
+                                    text = "Estimated Meal Totals",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1F2937)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                NutrientDisclaimerIconButton(onClick = { showDisclaimer = true })
+                            }
                             Spacer(Modifier.height(8.dp))
                             HorizontalDivider(color = CalorieKoGreen.copy(alpha = 0.3f))
                             Spacer(Modifier.height(8.dp))
@@ -798,7 +809,7 @@ fun MealDetailBottomSheet(
                                     color = Color(0xFF374151)
                                 )
                                 Text(
-                                    "${totalCalories.fmt()} kcal",
+                                    "≈${totalCalories.fmt()} kcal",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = CalorieKoGreen
