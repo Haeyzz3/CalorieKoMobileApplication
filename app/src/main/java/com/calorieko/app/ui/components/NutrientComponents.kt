@@ -100,6 +100,15 @@ fun ExpandableNutrientGrid(
                 }
             }
         }
+        
+        // --- Estimation Disclaimer Footer ---
+        Text(
+            text = "* Values are approximations based on standard nutritional data",
+            fontSize = 11.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(top = 16.dp, start = 8.dp, bottom = 8.dp),
+            style = androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+        )
     }
 }
 
