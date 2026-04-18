@@ -124,7 +124,8 @@ fun TargetSummaryScreen(
 
             // Goal & Activity Level Badges
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+                    .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Goal Badge
@@ -132,7 +133,7 @@ fun TargetSummaryScreen(
                     shape = RoundedCornerShape(16.dp),
                     color = Color.White,
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("YOUR GOAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, letterSpacing = 0.5.sp)
@@ -146,7 +147,7 @@ fun TargetSummaryScreen(
                     shape = RoundedCornerShape(16.dp),
                     color = Color.White,
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -251,33 +252,65 @@ fun TargetSummaryScreen(
     }
 }
 
-// Helper Gradient Card (Unchanged)
+// Helper Gradient Card — uses stacked layout to prevent value overflow
 @Composable
 fun MetricGradientCard(title: String, subtitle: String, value: String, unit: String, icon: ImageVector, gradientColors: List<Color>) {
     Box(
-        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(gradientColors))
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Brush.linearGradient(gradientColors))
     ) {
-        // Decorative circles
-        Box(modifier = Modifier.align(Alignment.BottomEnd).offset(20.dp, 20.dp).size(100.dp).alpha(0.1f).background(Color.White, CircleShape))
+        // Decorative circle
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(20.dp, 20.dp)
+                .size(100.dp)
+                .alpha(0.1f)
+                .background(Color.White, CircleShape)
+        )
 
-        Row(
-            modifier = Modifier.padding(20.dp).fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        Column(modifier = Modifier.padding(20.dp).fillMaxWidth()) {
+            // Top row: icon + labels
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(48.dp).background(Color.White.copy(0.2f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color.White.copy(0.2f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(title, color = Color.White.copy(0.9f), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Text(title, color = Color.White.copy(0.9f), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text(subtitle, color = Color.White.copy(0.7f), fontSize = 12.sp)
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(value, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(unit, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(0.8f))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Bottom row: large value + unit
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.End
+            ) {
+                Text(
+                    text = value,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = unit,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(0.8f),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
             }
         }
     }
