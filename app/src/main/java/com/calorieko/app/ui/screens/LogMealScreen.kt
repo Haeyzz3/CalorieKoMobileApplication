@@ -312,8 +312,14 @@ fun LogMealScreenWithManual(
     onMealConfirmed: () -> Unit,
     onNavigateToPairing: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val phase by viewModel.phase.collectAsState()
     var isManualMode by remember { mutableStateOf(false) }
+
+    // Classifier hoisted here so it survives phase changes (MODE_SELECTION <-> SCANNING).
+    // Created once per navigation to logMeal, not on every camera open/close cycle.
+    val classifier = remember { CalorieKoClassifier(context) }
+    DisposableEffect(Unit) { onDispose { classifier.close() } }
 
     // Listen for AI flow one-shot events
     LaunchedEffect(Unit) {
@@ -353,6 +359,7 @@ fun LogMealScreenWithManual(
         LogMealPhase.SCANNING, LogMealPhase.DISH_READY, LogMealPhase.MEAL_SUMMARY -> {
             AiScaleMealContent(
                 viewModel = viewModel,
+                classifier = classifier,
                 bleScaleManager = bleScaleManager,
                 onBack = { viewModel.setPhase(LogMealPhase.MODE_SELECTION) },
                 onMealConfirmed = onMealConfirmed,
@@ -369,14 +376,13 @@ fun LogMealScreenWithManual(
 @Composable
 private fun AiScaleMealContent(
     viewModel: LogMealViewModel,
+    classifier: CalorieKoClassifier,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
     onMealConfirmed: () -> Unit,
     onNavigateToPairing: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val classifier = remember { CalorieKoClassifier(context) }
-    DisposableEffect(Unit) { onDispose { classifier.close() } }
 
     // Collect one-shot navigation events from the ViewModel
     LaunchedEffect(Unit) {

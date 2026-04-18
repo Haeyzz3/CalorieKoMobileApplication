@@ -25,6 +25,13 @@ class CalorieKoClassifier(context: Context) : AutoCloseable {
     private val interpreter = Interpreter(modelBuffer)
     private val labels = loadLabels(context)
 
+    // Guards against concurrent classify()/close() calls from different threads.
+    // The CameraX analyzer runs on an executor thread while close() is called
+    // on the main thread during composable disposal.
+    private val lock = Any()
+    @Volatile
+    private var isClosed = false
+
     private fun loadModelFile(context: Context): ByteBuffer {
         val assetFileDescriptor = context.assets.openFd("calorieko_model.tflite")
         val inputStream = FileInputStream(assetFileDescriptor.fileDescriptor)
@@ -41,40 +48,52 @@ class CalorieKoClassifier(context: Context) : AutoCloseable {
     /**
      * Classify a camera frame bitmap.
      *
+     * Thread-safe: will return an empty list if [close] has already been called
+     * or is in progress. The synchronized block ensures the interpreter is never
+     * accessed after it has been closed.
+     *
      * @return Top-3 predictions as `List<Pair<label, confidence>>`, sorted
      *         descending by confidence. Labels are the raw snake_case model
      *         labels (e.g. `"sinigang_pork"`, `"negative"`).
      */
     fun classify(bitmap: Bitmap): List<Pair<String, Float>> {
-        val input = ByteBuffer.allocateDirect(1 * 224 * 224 * 3 * 4).apply {
-            order(ByteOrder.nativeOrder())
+        synchronized(lock) {
+            if (isClosed) return emptyList()
+
+            val input = ByteBuffer.allocateDirect(1 * 224 * 224 * 3 * 4).apply {
+                order(ByteOrder.nativeOrder())
+            }
+
+            // Centre-crop to square
+            val size = minOf(bitmap.width, bitmap.height)
+            val xOffset = (bitmap.width - size) / 2
+            val yOffset = (bitmap.height - size) / 2
+            val croppedBitmap = Bitmap.createBitmap(bitmap, xOffset, yOffset, size, size)
+            val resizedBitmap = croppedBitmap.scale(224, 224)
+
+            val intValues = IntArray(224 * 224)
+            resizedBitmap.getPixels(intValues, 0, 224, 0, 0, 224, 224)
+
+            for (pixel in intValues) {
+                input.putFloat(((pixel shr 16) and 0xFF).toFloat())
+                input.putFloat(((pixel shr 8) and 0xFF).toFloat())
+                input.putFloat((pixel and 0xFF).toFloat())
+            }
+
+            val output = Array(1) { FloatArray(labels.size) }
+            interpreter.run(input, output)
+
+            return labels.indices.map { labels[it] to output[0][it] }
+                .sortedByDescending { it.second }
+                .take(3)
         }
-
-        // Centre-crop to square
-        val size = minOf(bitmap.width, bitmap.height)
-        val xOffset = (bitmap.width - size) / 2
-        val yOffset = (bitmap.height - size) / 2
-        val croppedBitmap = Bitmap.createBitmap(bitmap, xOffset, yOffset, size, size)
-        val resizedBitmap = croppedBitmap.scale(224, 224)
-
-        val intValues = IntArray(224 * 224)
-        resizedBitmap.getPixels(intValues, 0, 224, 0, 0, 224, 224)
-
-        for (pixel in intValues) {
-            input.putFloat(((pixel shr 16) and 0xFF).toFloat())
-            input.putFloat(((pixel shr 8) and 0xFF).toFloat())
-            input.putFloat((pixel and 0xFF).toFloat())
-        }
-
-        val output = Array(1) { FloatArray(labels.size) }
-        interpreter.run(input, output)
-
-        return labels.indices.map { labels[it] to output[0][it] }
-            .sortedByDescending { it.second }
-            .take(3)
     }
 
     override fun close() {
-        interpreter.close()
+        synchronized(lock) {
+            if (isClosed) return
+            isClosed = true
+            interpreter.close()
+        }
     }
 }

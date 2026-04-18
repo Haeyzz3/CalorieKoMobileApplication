@@ -19,7 +19,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.calorieko.app.ml.CalorieKoClassifier
-import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Full-screen live camera preview with per-frame AI dish classification.
@@ -41,19 +43,46 @@ fun CameraPreview(
     onFrameAnalyzed: (List<Pair<String, Float>>) -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val executor = remember { Executors.newSingleThreadExecutor() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // Use a shared dispatcher as an executor. It never shuts down during the app's life, 
+    // ensuring no RejectedExecutionException occurs if CameraX posts a frame during cleanup.
+    val executor = remember { Dispatchers.Default.limitedParallelism(1).asExecutor() }
+
+    // Thread-safe flag to prevent the analyzer from calling classify() after disposal.
+    // This guards against the race where CameraX delivers a frame after the parent
+    // composable has already called classifier.close().
+    val isActive = remember { AtomicBoolean(true) }
 
     // Hold a reference to the Camera so we can control torch
     var camera by remember { mutableStateOf<Camera?>(null) }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var analysisUseCase by remember { mutableStateOf<ImageAnalysis?>(null) }
 
     // Toggle torch whenever flashEnabled changes
     LaunchedEffect(flashEnabled, camera) {
         camera?.cameraControl?.enableTorch(flashEnabled)
     }
 
-    // Shut down the executor when the composable leaves composition
+    // Cleanup when the composable leaves composition.
+    // Order matters: deactivate flag → clear analyzer → unbind camera.
+    // The flag stops any in-flight frame from reaching the classifier,
+    // and clearAnalyzer prevents new frames from being enqueued.
     DisposableEffect(Unit) {
-        onDispose { executor.shutdown() }
+        onDispose {
+            // 1. Immediately stop any in-flight frame from calling classify()
+            isActive.set(false)
+
+            // 2. Remove the analyzer so no new frames are dispatched
+            analysisUseCase?.clearAnalyzer()
+            
+            // 3. Unbind everything from the lifecycle
+            try {
+                cameraProvider?.unbindAll()
+            } catch (e: Exception) {
+                // Ignore if provider not ready
+            }
+        }
     }
 
     AndroidView(
@@ -68,7 +97,11 @@ fun CameraPreview(
 
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
             cameraProviderFuture.addListener({
-                val cameraProvider = cameraProviderFuture.get()
+                // If the composable was disposed before the future resolved, bail out
+                if (!isActive.get()) return@addListener
+
+                val provider = cameraProviderFuture.get()
+                cameraProvider = provider
 
                 // 1. Preview use case
                 val preview = Preview.Builder().build().also {
@@ -79,17 +112,32 @@ fun CameraPreview(
                 val analysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
+                analysisUseCase = analysis
 
                 analysis.setAnalyzer(executor) { imageProxy ->
-                    val bitmap = imageProxy.toBitmap()
-                    val results = classifier.classify(bitmap)
-                    onFrameAnalyzed(results)
-                    imageProxy.close()
+                    try {
+                        // Guard: skip classification if we're shutting down
+                        if (!isActive.get()) return@setAnalyzer
+
+                        val bitmap = imageProxy.toBitmap()
+                        val results = classifier.classify(bitmap)
+
+                        // Only deliver results if still active
+                        if (isActive.get()) {
+                            onFrameAnalyzed(results)
+                        }
+                    } catch (e: IllegalStateException) {
+                        // Interpreter was closed — safe to ignore
+                    } catch (e: Exception) {
+                        // Catch-all for any other teardown race
+                    } finally {
+                        imageProxy.close()
+                    }
                 }
 
                 try {
-                    cameraProvider.unbindAll()
-                    camera = cameraProvider.bindToLifecycle(
+                    provider.unbindAll()
+                    camera = provider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
