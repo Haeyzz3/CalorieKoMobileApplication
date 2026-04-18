@@ -189,7 +189,6 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
-                            val firstName = firstNameState ?: "User"
                             Text(
                                 text = "Hello, $firstName!",
                                 fontSize = 18.sp,
