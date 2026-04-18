@@ -21,18 +21,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * A detailed nutrient breakdown grid showing all 13 additional nutrients
+ * A detailed nutrient breakdown grid showing additional nutrients
  * beyond the primary calories/protein/carbs/fat.
+ * Note: Secondary macros (saturated/poly/mono/trans fat, cholesterol)
+ * are hidden per nutritionist recommendation — data layer retains them.
  */
 @Composable
 fun ExpandableNutrientGrid(
     fiber: Float,
     sugar: Float,
-    saturatedFat: Float,
-    polyunsaturatedFat: Float,
-    monounsaturatedFat: Float,
-    transFat: Float,
-    cholesterol: Float,
     sodium: Float,
     potassium: Float,
     vitaminA: Float,
@@ -44,11 +41,6 @@ fun ExpandableNutrientGrid(
     val nutrients = listOf(
         Triple("Fiber",               "${fiber.fmt()}g",              Color(0xFF10B981)),
         Triple("Sugar",               "${sugar.fmt()}g",              Color(0xFFF59E0B)),
-        Triple("Saturated Fat",       "${saturatedFat.fmt()}g",       Color(0xFFEF4444)),
-        Triple("Polyunsat. Fat",      "${polyunsaturatedFat.fmt()}g", Color(0xFF6366F1)),
-        Triple("Monounsat. Fat",      "${monounsaturatedFat.fmt()}g", Color(0xFF8B5CF6)),
-        Triple("Trans Fat",           "${transFat.fmt()}g",           Color(0xFFDC2626)),
-        Triple("Cholesterol",         "${cholesterol.fmt()}mg",       Color(0xFFEC4899)),
         Triple("Sodium",              "${sodium.fmt()}mg",            Color(0xFFF97316)),
         Triple("Potassium",           "${potassium.fmt()}mg",         Color(0xFF14B8A6)),
         Triple("Vitamin A",           "${vitaminA.fmt()}µg",          Color(0xFFEAB308)),

@@ -1341,7 +1341,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        if (showFullNutrients) "Hide Full Nutrients" else "View Full Nutrients (17)",
+                        if (showFullNutrients) "Hide Full Nutrients" else "View Full Nutrients (12)",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF374151),
@@ -1385,18 +1385,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Fat Breakdown
-                        NutrientCategoryHeader("🧈 Fat Breakdown")
-                        NutrientDetailRow("Saturated Fat", "${formatNutrientValue(recipe.saturatedFat)} g")
-                        NutrientDetailRow("Polyunsaturated Fat", "${formatNutrientValue(recipe.polyunsaturatedFat)} g")
-                        NutrientDetailRow("Monounsaturated Fat", "${formatNutrientValue(recipe.monounsaturatedFat)} g")
-                        NutrientDetailRow("Trans Fat", "${formatNutrientValue(recipe.transFat)} g")
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
                         // Minerals
                         NutrientCategoryHeader("⛏️ Minerals")
-                        NutrientDetailRow("Cholesterol", "${formatNutrientValue(recipe.cholesterol)} mg")
                         NutrientDetailRow("Sodium", "${recipe.sodium} mg")
                         NutrientDetailRow("Potassium", "${formatNutrientValue(recipe.potassium)} mg")
                         NutrientDetailRow("Calcium", "${formatNutrientValue(recipe.calcium)} mg")

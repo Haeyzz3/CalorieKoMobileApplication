@@ -750,11 +750,6 @@ fun MealDetailBottomSheet(
                                 ExpandableNutrientGrid(
                                     fiber = item.fiber,
                                     sugar = item.sugar,
-                                    saturatedFat = item.saturatedFat,
-                                    polyunsaturatedFat = item.polyunsaturatedFat,
-                                    monounsaturatedFat = item.monounsaturatedFat,
-                                    transFat = item.transFat,
-                                    cholesterol = item.cholesterol,
                                     sodium = item.sodium,
                                     potassium = item.potassium,
                                     vitaminA = item.vitaminA,
@@ -856,11 +851,6 @@ fun MealDetailBottomSheet(
                                 ExpandableNutrientGrid(
                                     fiber = items.sumOf { it.fiber.toDouble() }.toFloat(),
                                     sugar = items.sumOf { it.sugar.toDouble() }.toFloat(),
-                                    saturatedFat = items.sumOf { it.saturatedFat.toDouble() }.toFloat(),
-                                    polyunsaturatedFat = items.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
-                                    monounsaturatedFat = items.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
-                                    transFat = items.sumOf { it.transFat.toDouble() }.toFloat(),
-                                    cholesterol = items.sumOf { it.cholesterol.toDouble() }.toFloat(),
                                     sodium = items.sumOf { it.sodium.toDouble() }.toFloat(),
                                     potassium = items.sumOf { it.potassium.toDouble() }.toFloat(),
                                     vitaminA = items.sumOf { it.vitaminA.toDouble() }.toFloat(),
