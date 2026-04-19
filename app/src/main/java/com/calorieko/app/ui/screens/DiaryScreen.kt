@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -353,7 +354,9 @@ fun DiaryScreen(viewModel: DiaryViewModel, onBackClick: () -> Unit, onNavigateTo
 
 // ────────────────────────────────────────────────────────────────────
 // Meals Tab Content
-// Renders a day's logged meals: meal type, dishes, calories, delete.
+// Renders a day's logged meals using the same card layout as
+// DashboardScreen's ActivityItemRevised — proven to render cleanly.
+// Tapping a meal card opens the MealDetailBottomSheet for full details.
 // ────────────────────────────────────────────────────────────────────
 @Composable
 fun MealsTabContent(
@@ -364,8 +367,10 @@ fun MealsTabContent(
 ) {
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
+    // Track which meal is selected for the detail bottom sheet
+    var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
+
     if (viewMode == "week") {
-        // Show a placeholder for week view — per-day breakdown not yet implemented
         Box(
             modifier = Modifier.fillMaxSize().padding(32.dp),
             contentAlignment = Alignment.Center
@@ -397,6 +402,7 @@ fun MealsTabContent(
         return
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -468,13 +474,13 @@ fun MealsTabContent(
 
                 // Meal type color
                 val mealTypeColor = when (mealLog.mealType) {
-                    "Breakfast" -> Color(0xFFF59E0B) // Amber
-                    "Lunch" -> Color(0xFF3B82F6)     // Blue
-                    "Dinner" -> Color(0xFF8B5CF6)    // Purple
-                    "Snacks" -> Color(0xFF10B981)    // Emerald
+                    "Breakfast" -> Color(0xFFF59E0B)
+                    "Lunch" -> Color(0xFF3B82F6)
+                    "Dinner" -> Color(0xFF8B5CF6)
+                    "Snacks" -> Color(0xFF10B981)
                     else -> Color(0xFF6B7280)
                 }
-                val mealTypeBg = when (mealLog.mealType) {
+                val mealIconBg = when (mealLog.mealType) {
                     "Breakfast" -> Color(0xFFFEF3C7)
                     "Lunch" -> Color(0xFFDBEAFE)
                     "Dinner" -> Color(0xFFEDE9FE)
@@ -482,94 +488,116 @@ fun MealsTabContent(
                     else -> Color(0xFFF3F4F6)
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    shadowElevation = 1.dp,
-                    modifier = Modifier.fillMaxWidth()
+                // ── Card: mirrors ActivityItemRevised layout from DashboardScreen ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .clickable { selectedMeal = mealWithItems }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    // Icon circle
+                    Surface(
+                        shape = CircleShape,
+                        color = mealIconBg,
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        // Meal type icon
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(mealTypeBg, mealTypeBg.copy(alpha = 0.7f))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.Restaurant,
                                 contentDescription = mealLog.mealType,
                                 tint = mealTypeColor,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            // Meal type badge
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // Text content column — takes remaining space
+                    Column(modifier = Modifier.weight(1f)) {
+                        // First row: meal type name + calorie badge
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    mealLog.mealType,
-                                    fontSize = 15.sp,
+                                    text = mealLog.mealType,
                                     fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
                                     color = Color(0xFF1F2937)
                                 )
+                                Text(
+                                    text = timeFormatter.format(Date(mealLog.timestamp)),
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Calorie badge
                                 Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = mealTypeBg
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFF0FDF4)
                                 ) {
-                                    Text(
-                                        "$totalDishes dish${if (totalDishes > 1) "es" else ""}",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = mealTypeColor,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                            contentDescription = null,
+                                            tint = Color(0xFF16A34A),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "${totalCalories.roundToInt()} cal",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF374151)
+                                        )
+                                    }
+                                }
+
+                                // Delete button
+                                IconButton(
+                                    modifier = Modifier.size(28.dp),
+                                    onClick = { onDelete(mealLog.mealLogId) }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = Color(0xFFEF4444),
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
-                            // Time
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Dish names + dish count
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                timeFormatter.format(Date(mealLog.timestamp)),
+                                text = "$totalDishes dish${if (totalDishes > 1) "es" else ""} • ",
                                 fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = Color(0xFF6B7280)
                             )
-                            // Dish names
                             Text(
-                                dishNames,
+                                text = dishNames,
                                 fontSize = 12.sp,
                                 color = Color(0xFF9CA3AF),
-                                maxLines = 2
+                                maxLines = 1
                             )
-                        }
-
-                        // Calories badge
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color(0xFFF0FDF4)
-                        ) {
-                            Text(
-                                "+${totalCalories.roundToInt()} kcal",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF16A34A),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-
-                        // Delete button
-                        IconButton(modifier = Modifier.size(32.dp), onClick = { onDelete(mealLog.mealLogId) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -603,6 +631,16 @@ fun MealsTabContent(
             }
         }
     }
+
+    // ── Meal Detail Bottom Sheet (reuses DashboardScreen's component) ──
+    // Must be inside the same Box so it overlays on top of the LazyColumn
+    selectedMeal?.let { mealWithItems ->
+        MealDetailBottomSheet(
+            mealWithItems = mealWithItems,
+            onDismiss = { selectedMeal = null }
+        )
+    }
+    } // end Box
 }
 
 // ────────────────────────────────────────────────────────────────────
