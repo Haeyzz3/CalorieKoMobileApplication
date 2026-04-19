@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.ApiSyncManager
@@ -11,7 +12,10 @@ import com.calorieko.app.data.remote.api.ApiSyncResult
 import com.calorieko.app.data.remote.api.RetrofitClient
 import com.calorieko.app.BuildConfig
 import com.calorieko.app.util.NetworkUtils
+import com.calorieko.app.util.StreakReminderWorker
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -56,6 +61,8 @@ class SettingsViewModel(
         data class SyncPartial(val message: String) : Event()
         data object WipeProgressSuccess : Event()
         data object LogoutReady : Event()
+        data object AccountDeleted : Event()
+        data class AccountDeletionError(val message: String) : Event()
         data class PasswordResetSent(val email: String) : Event()
         data class PasswordResetError(val message: String) : Event()
     }
@@ -70,6 +77,9 @@ class SettingsViewModel(
 
     private val _isWipingProgress = MutableStateFlow(false)
     val isWipingProgress: StateFlow<Boolean> = _isWipingProgress.asStateFlow()
+
+    private val _isDeletingAccount = MutableStateFlow(false)
+    val isDeletingAccount: StateFlow<Boolean> = _isDeletingAccount.asStateFlow()
 
     // ── Last Synced Timestamp ──
 
@@ -265,6 +275,85 @@ class SettingsViewModel(
             }
             auth.signOut()
             _events.send(Event.LogoutReady)
+        }
+    }
+
+    /**
+     * Permanently deletes the user's account and all associated data.
+     *
+     * Requires the user's password for re-authentication (Firebase mandates
+     * a recent sign-in for sensitive operations like account deletion).
+     *
+     * Execution order (designed so the user isn't locked out if a step fails):
+     * 1. Re-authenticate with password
+     * 2. Delete all Firestore data (sub-collections + profile document)
+     * 3. Clear all local Room user data
+     * 4. Reset sync timestamps
+     * 5. Cancel scheduled WorkManager tasks (streak reminders, pending syncs)
+     * 6. Delete Firebase Auth account (LAST — point of no return)
+     *
+     * // TODO [Laravel Backend]: When the Laravel delete-user API endpoint
+     * //   is available, add an API call here BEFORE step 6 to purge the
+     * //   user's data from the System of Record (Laravel database).
+     * //   e.g., apiService.deleteUser(uid)
+     */
+    fun deleteAccount(password: String) {
+        val user = auth.currentUser ?: return
+        val email = user.email ?: return
+        if (_isDeletingAccount.value) return
+
+        _isDeletingAccount.value = true
+
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    // 1. Re-authenticate (Firebase requires recent login for account deletion)
+                    val credential = EmailAuthProvider.getCredential(email, password)
+                    user.reauthenticate(credential).await()
+
+                    // 2. Delete ALL Firestore data (sub-collections + profile document)
+                    firestoreSyncRepo.deleteUserAccount(user.uid)
+
+                    // 3. Clear all local Room user data
+                    db.userDao().deleteAll()
+                    db.activityLogDao().deleteAll()
+                    db.mealLogDao().deleteAll()
+                    db.mealLogItemDao().deleteAll()
+                    db.dailyNutritionSummaryDao().deleteAll()
+                    db.pantryDao().clearAllItems()
+                    db.mealPlanDao().deleteAll()
+
+                    // 4. Reset sync timestamps
+                    apiSyncManager.resetSyncTimestamp()
+                    syncPrefs.edit().remove(KEY_LAST_SYNC).apply()
+
+                    // 5. Cancel scheduled WorkManager tasks
+                    StreakReminderWorker.cancel(appContext)
+                    WorkManager.getInstance(appContext).cancelAllWork()
+
+                    // 6. Delete Firebase Auth account (point of no return)
+                    user.delete().await()
+                }
+
+                _isDeletingAccount.value = false
+                _events.send(Event.AccountDeleted)
+            } catch (e: FirebaseAuthRecentLoginRequiredException) {
+                _isDeletingAccount.value = false
+                _events.send(Event.AccountDeletionError(
+                    "Your session has expired. Please log out and log back in, then try again."
+                ))
+            } catch (e: Exception) {
+                _isDeletingAccount.value = false
+                val message = when {
+                    e.message?.contains("password is invalid", ignoreCase = true) == true ||
+                    e.message?.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true) == true ->
+                        "Incorrect password. Please try again."
+                    e.message?.contains("network", ignoreCase = true) == true ->
+                        "Network error. Please check your connection and try again."
+                    else -> e.localizedMessage ?: "Account deletion failed. Please try again."
+                }
+                _events.send(Event.AccountDeletionError(message))
+            }
         }
     }
 

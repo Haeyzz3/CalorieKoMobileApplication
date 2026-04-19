@@ -85,6 +85,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
+import androidx.compose.material.icons.filled.PersonOff
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 import com.calorieko.app.ble.BleConnectionState
 import com.calorieko.app.ble.BleScaleManager
@@ -123,10 +128,14 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showWipeDialog by remember { mutableStateOf(false) }
     var showPasswordResetDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var deleteAccountPassword by remember { mutableStateOf("") }
+    var deleteAccountPasswordVisible by remember { mutableStateOf(false) }
 
     // Collect ViewModel State
     val isSyncing by viewModel.isSyncing.collectAsState()
     val isWipingProgress by viewModel.isWipingProgress.collectAsState()
+    val isDeletingAccount by viewModel.isDeletingAccount.collectAsState()
     val lastSyncedAt by viewModel.lastSyncedAt.collectAsState()
 
     // State for the notification banner system
@@ -188,6 +197,18 @@ fun SettingsScreen(
                 }
                 is SettingsViewModel.Event.LogoutReady -> {
                     onLogout()
+                }
+                is SettingsViewModel.Event.AccountDeleted -> {
+                    showDeleteAccountDialog = false
+                    deleteAccountPassword = ""
+                    onLogout()
+                }
+                is SettingsViewModel.Event.AccountDeletionError -> {
+                    showBanner(
+                        NotificationType.ERROR,
+                        "Deletion Failed",
+                        event.message
+                    )
                 }
                 is SettingsViewModel.Event.PasswordResetSent -> {
                     showBanner(
@@ -392,6 +413,12 @@ fun SettingsScreen(
                             iconColor = Color(0xFF6B7280), showArrow = false,
                             onClick = { showLogoutDialog = true }
                         )
+                        SettingsDivider()
+                        SettingsRow(
+                            icon = Icons.Default.PersonOff, title = "Delete Account", subtitle = "Permanently delete your account and all data",
+                            iconColor = Color(0xFFEF4444), textColor = Color(0xFFEF4444), showArrow = false,
+                            onClick = { showDeleteAccountDialog = true }
+                        )
                     }
                 }
 
@@ -474,6 +501,98 @@ fun SettingsScreen(
                 }
             },
             containerColor = Color.White
+        )
+    }
+
+    // --- DELETE ACCOUNT DIALOG ---
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isDeletingAccount) {
+                    showDeleteAccountDialog = false
+                    deleteAccountPassword = ""
+                    deleteAccountPasswordVisible = false
+                }
+            },
+            title = {
+                Text(
+                    "Delete Account",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFEF4444)
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "This will permanently delete your account and all associated data, including:\n\n" +
+                            "• Your profile and settings\n" +
+                            "• All logged meals and activities\n" +
+                            "• Nutrition history and meal plans\n" +
+                            "• Pantry items\n\n" +
+                            "This action is irreversible. Enter your password to confirm.",
+                        color = Color(0xFF4B5563),
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = deleteAccountPassword,
+                        onValueChange = { deleteAccountPassword = it },
+                        label = { Text("Password") },
+                        placeholder = { Text("Enter your password") },
+                        singleLine = true,
+                        visualTransformation = if (deleteAccountPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { deleteAccountPasswordVisible = !deleteAccountPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (deleteAccountPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (deleteAccountPasswordVisible) "Hide password" else "Show password",
+                                    tint = Color(0xFF6B7280)
+                                )
+                            }
+                        },
+                        enabled = !isDeletingAccount,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF4444),
+                            focusedLabelColor = Color(0xFFEF4444),
+                            cursorColor = Color(0xFFEF4444)
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteAccount(deleteAccountPassword)
+                    },
+                    enabled = deleteAccountPassword.isNotEmpty() && !isDeletingAccount
+                ) {
+                    Text(
+                        if (isDeletingAccount) "Deleting..." else "Delete My Account",
+                        color = if (deleteAccountPassword.isNotEmpty() && !isDeletingAccount)
+                            Color(0xFFEF4444) else Color(0xFFEF4444).copy(alpha = 0.4f),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        deleteAccountPassword = ""
+                        deleteAccountPasswordVisible = false
+                    },
+                    enabled = !isDeletingAccount
+                ) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            },
+            containerColor = Color.White,
+            properties = DialogProperties(
+                dismissOnBackPress = !isDeletingAccount,
+                dismissOnClickOutside = !isDeletingAccount
+            )
         )
     }
 

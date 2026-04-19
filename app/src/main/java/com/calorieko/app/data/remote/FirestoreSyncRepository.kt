@@ -686,6 +686,26 @@ class FirestoreSyncRepository {
         }
     }
 
+    /**
+     * Permanently deletes ALL user data from Firestore INCLUDING the root profile document.
+     *
+     * Used for permanent account deletion (unlike [wipeAllUserData] which preserves
+     * the profile document for the "Reset Progress" feature).
+     *
+     * Call order: sub-collections first → profile document last.
+     */
+    suspend fun deleteUserAccount(uid: String) {
+        // 1. Delete all sub-collections (reuse existing logic)
+        wipeAllUserData(uid)
+        // 2. Delete the root user profile document itself
+        try {
+            db.collection(USERS_COLLECTION).document(uid).delete().await()
+            Log.d(TAG, "User profile document deleted for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete user profile document for $uid", e)
+        }
+    }
+
     // ════════════════════════════════════════════════════════════
     //  FETCH METHODS (Pull from Cloud)
     // ════════════════════════════════════════════════════════════
