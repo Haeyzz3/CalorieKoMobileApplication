@@ -397,7 +397,7 @@ fun AppNavigation() {
             )
         }
 
-        // --- Nutrition Details Screen ---
+        // --- Diary Screen ---
         composable("diary") {
             val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
                 userDao = db.userDao(),
@@ -406,15 +406,24 @@ fun AppNavigation() {
                 activityLogDao = db.activityLogDao(),
                 nutritionalValuesRepo = nutritionalRepo
             )
-            val nutritionDetailsViewModel: com.calorieko.app.viewmodel.NutritionDetailsViewModel = viewModel(
-                factory = com.calorieko.app.viewmodel.NutritionDetailsViewModel.provideFactory(
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
+            )
+            val diaryViewModel: com.calorieko.app.viewmodel.DiaryViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.DiaryViewModel.provideFactory(
                     auth = auth,
                     dashboardRepository = dashboardRepo,
-                    activityLogDao = db.activityLogDao()
+                    activityLogDao = db.activityLogDao(),
+                    mealLogDao = db.mealLogDao(),
+                    mealRepository = mealRepo
                 )
             )
-            NutritionDetailsScreen(
-                viewModel = nutritionDetailsViewModel,
+            DiaryScreen(
+                viewModel = diaryViewModel,
                 onBackClick = {
                     navController.popBackStack()
                 },

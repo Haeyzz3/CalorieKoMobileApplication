@@ -14,13 +14,13 @@ import java.util.Calendar
 
 /**
  * Read-focused repository that provides all data needed by
- * DashboardScreen and NutritionDetailsScreen.
+ * DashboardScreen and DiaryScreen.
  *
  * This repository does NOT perform writes — write operations
  * are handled by MealRepository (meals) and ActivityRepository (workouts).
  *
  * Provides both:
- * - **Suspend functions** for one-shot reads (used by NutritionDetailsScreen, etc.)
+ * - **Suspend functions** for one-shot reads (used by DiaryScreen, etc.)
  * - **Flow functions** for reactive observation (used by DashboardViewModel)
  */
 class DashboardRepository(

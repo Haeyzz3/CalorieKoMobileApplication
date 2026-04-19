@@ -4,9 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.ActivityLogDao
+import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.repository.DashboardRepository
+import com.calorieko.app.data.repository.MealRepository
 import com.calorieko.app.data.repository.NutritionalTarget
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -19,10 +22,12 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
 
-class NutritionDetailsViewModel(
+class DiaryViewModel(
     private val auth: FirebaseAuth,
     private val dashboardRepository: DashboardRepository,
-    private val activityLogDao: ActivityLogDao
+    private val activityLogDao: ActivityLogDao,
+    private val mealLogDao: MealLogDao,
+    private val mealRepository: MealRepository
 ) : ViewModel() {
 
     // ── Targets ──
@@ -50,6 +55,11 @@ class NutritionDetailsViewModel(
     private val _weeklyActivityLogs = MutableStateFlow<List<ActivityLogEntity>>(emptyList())
     val weeklyActivityLogs: StateFlow<List<ActivityLogEntity>> = _weeklyActivityLogs.asStateFlow()
 
+    // ── Meal Logs (for Meals Tab) ──
+
+    private val _mealLogs = MutableStateFlow<List<MealLogWithItems>>(emptyList())
+    val mealLogs: StateFlow<List<MealLogWithItems>> = _mealLogs.asStateFlow()
+
     // ── Date Navigation State ──
 
     private val _dayOffset = MutableStateFlow(0)
@@ -70,6 +80,7 @@ class NutritionDetailsViewModel(
         loadWeekSummaries()
         loadActivityLogs()
         loadWeeklyActivityLogs()
+        loadMealLogs()
     }
 
     // ── Public Actions ──
@@ -78,18 +89,21 @@ class NutritionDetailsViewModel(
         _dayOffset.value = offset
         loadDaySummary()
         loadActivityLogs()
+        loadMealLogs()
     }
 
     fun incrementDayOffset() {
         _dayOffset.value++
         loadDaySummary()
         loadActivityLogs()
+        loadMealLogs()
     }
 
     fun decrementDayOffset() {
         _dayOffset.value--
         loadDaySummary()
         loadActivityLogs()
+        loadMealLogs()
     }
 
     fun setWeekOffset(offset: Int) {
@@ -123,6 +137,7 @@ class NutritionDetailsViewModel(
         _dayOffset.value = (pickedDate.toEpochDay() - today.toEpochDay()).toInt()
         _viewMode.value = "day"
         loadDaySummary()
+        loadMealLogs()
     }
 
     // ── Data Loading ──
@@ -189,6 +204,18 @@ class NutritionDetailsViewModel(
         }
     }
 
+    private fun loadMealLogs() {
+        if (uid.isEmpty()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val selectedDate = LocalDate.now().plusDays(_dayOffset.value.toLong())
+                val startOfDay = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val endOfDay = startOfDay + 24 * 60 * 60 * 1000L
+                _mealLogs.value = mealLogDao.getMealLogsWithItemsByDate(uid, startOfDay, endOfDay)
+            }
+        }
+    }
+
     fun deleteActivity(activityId: Int) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
@@ -202,16 +229,29 @@ class NutritionDetailsViewModel(
         }
     }
 
+    fun deleteMeal(mealLogId: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                mealRepository.deleteMealLogLocally(uid, mealLogId)
+                // Reload to update UI
+                loadMealLogs()
+                loadDaySummary()
+            }
+        }
+    }
+
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
             dashboardRepository: DashboardRepository,
-            activityLogDao: ActivityLogDao
+            activityLogDao: ActivityLogDao,
+            mealLogDao: MealLogDao,
+            mealRepository: MealRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                if (modelClass.isAssignableFrom(NutritionDetailsViewModel::class.java)) {
-                    return NutritionDetailsViewModel(auth, dashboardRepository, activityLogDao) as T
+                if (modelClass.isAssignableFrom(DiaryViewModel::class.java)) {
+                    return DiaryViewModel(auth, dashboardRepository, activityLogDao, mealLogDao, mealRepository) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

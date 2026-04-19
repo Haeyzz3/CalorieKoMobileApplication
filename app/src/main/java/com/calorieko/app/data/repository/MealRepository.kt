@@ -135,10 +135,74 @@ class MealRepository(
     }
 
     /**
-     * Deletes a meal log and its child items from Firestore.
-     * (For future use by DashboardScreen refactor.)
+     * Fully deletes a meal log from Room (local DB), recalculates the
+     * daily nutrition summary, syncs the deletion to Firestore, and
+     * triggers WorkManager for background sync.
+     *
+     * Steps:
+     * 1. Fetch the meal + items so we know what nutrients to subtract
+     * 2. Subtract those nutrients from the DailyNutritionSummaryEntity
+     * 3. Delete from Room (CASCADE deletes child MealLogItemEntity rows)
+     * 4. Sync deletion to Firestore (with timeout for offline resilience)
+     * 5. Trigger AutoSyncManager via WorkManager
      */
-    suspend fun deleteMealLog(uid: String, mealLogId: Long) {
-        firestoreSyncRepo.deleteMealLog(uid, mealLogId)
+    suspend fun deleteMealLogLocally(uid: String, mealLogId: Long) {
+        // 1. Fetch the meal with items before deleting
+        val mealWithItems = mealLogDao.getMealLogWithItems(mealLogId) ?: return
+        val items = mealWithItems.items
+        val mealType = mealWithItems.mealLog.mealType
+
+        // Compute the total nutrients of the deleted meal
+        val deletedCalories = items.sumOf { it.calories.toDouble() }.toFloat()
+
+        // 2. Determine which day this meal belongs to and update the summary
+        val mealDate = java.time.Instant.ofEpochMilli(mealWithItems.mealLog.timestamp)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+        val epochDay = mealDate.toEpochDay()
+        val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, epochDay)
+        if (existing != null) {
+            val updated = existing.copy(
+                updatedAt = System.currentTimeMillis(),
+                totalCalories = (existing.totalCalories - deletedCalories).coerceAtLeast(0f),
+                totalProtein = (existing.totalProtein - items.sumOf { it.protein.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalCarbs = (existing.totalCarbs - items.sumOf { it.carbs.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalFiber = (existing.totalFiber - items.sumOf { it.fiber.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalSugar = (existing.totalSugar - items.sumOf { it.sugar.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalFat = (existing.totalFat - items.sumOf { it.fat.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalSaturatedFat = (existing.totalSaturatedFat - items.sumOf { it.saturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalPolyunsaturatedFat = (existing.totalPolyunsaturatedFat - items.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalMonounsaturatedFat = (existing.totalMonounsaturatedFat - items.sumOf { it.monounsaturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalTransFat = (existing.totalTransFat - items.sumOf { it.transFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalCholesterol = (existing.totalCholesterol - items.sumOf { it.cholesterol.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalSodium = (existing.totalSodium - items.sumOf { it.sodium.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalPotassium = (existing.totalPotassium - items.sumOf { it.potassium.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalVitaminA = (existing.totalVitaminA - items.sumOf { it.vitaminA.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalVitaminC = (existing.totalVitaminC - items.sumOf { it.vitaminC.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalCalcium = (existing.totalCalcium - items.sumOf { it.calcium.toDouble() }.toFloat()).coerceAtLeast(0f),
+                totalIron = (existing.totalIron - items.sumOf { it.iron.toDouble() }.toFloat()).coerceAtLeast(0f),
+                breakfastCalories = if (mealType == "Breakfast") (existing.breakfastCalories - deletedCalories).coerceAtLeast(0f) else existing.breakfastCalories,
+                lunchCalories = if (mealType == "Lunch") (existing.lunchCalories - deletedCalories).coerceAtLeast(0f) else existing.lunchCalories,
+                dinnerCalories = if (mealType == "Dinner") (existing.dinnerCalories - deletedCalories).coerceAtLeast(0f) else existing.dinnerCalories,
+                snacksCalories = if (mealType == "Snacks") (existing.snacksCalories - deletedCalories).coerceAtLeast(0f) else existing.snacksCalories
+            )
+            dailyNutritionSummaryDao.upsertSummary(updated)
+
+            // Sync updated summary to Firestore (best-effort with timeout)
+            withTimeoutOrNull(5_000L) {
+                try { firestoreSyncRepo.syncDailyNutritionSummary(uid, updated) } catch (_: Exception) {}
+            }
+        }
+
+        // 3. Delete from Room (CASCADE deletes child items automatically)
+        mealLogDao.deleteMealLog(mealLogId)
+
+        // 4. Sync deletion to Firestore (best-effort with timeout)
+        withTimeoutOrNull(5_000L) {
+            try { firestoreSyncRepo.deleteMealLog(uid, mealLogId) } catch (_: Exception) {}
+        }
+
+        // 5. Always trigger WorkManager sync
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 }

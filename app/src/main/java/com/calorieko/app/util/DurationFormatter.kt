@@ -3,7 +3,7 @@ package com.calorieko.app.util
 /**
  * Shared utility for formatting duration values consistently across the app.
  *
- * All screens (DashboardScreen, ActivityDetailsScreen, NutritionDetailsScreen,
+ * All screens (DashboardScreen, ActivityDetailsScreen, DiaryScreen,
  * LogWorkoutScreen) must use these functions so that the same activity
  * always displays the same human-readable time string.
  */
