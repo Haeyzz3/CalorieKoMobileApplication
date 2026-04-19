@@ -184,7 +184,7 @@ class PantryViewModel(
 
     init {
         // Defense-in-depth: ensure reference data is seeded before any queries.
-        // Covers edge cases where db.clearAllTables() was called (e.g., wipeAllData)
+        // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
         // and the async FoodDatabaseCallback re-seed hasn't completed yet.
         viewModelScope.launch(Dispatchers.IO) {
             ensureReferenceDataSeeded(appContext, foodDao, pantryDao)

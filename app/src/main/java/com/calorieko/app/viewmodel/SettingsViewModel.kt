@@ -54,7 +54,7 @@ class SettingsViewModel(
         data object SyncSuccess : Event()
         data class SyncError(val message: String) : Event()
         data class SyncPartial(val message: String) : Event()
-        data object WipeSuccess : Event()
+        data object WipeProgressSuccess : Event()
         data object LogoutReady : Event()
         data class PasswordResetSent(val email: String) : Event()
         data class PasswordResetError(val message: String) : Event()
@@ -68,8 +68,8 @@ class SettingsViewModel(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
-    private val _isWipingData = MutableStateFlow(false)
-    val isWipingData: StateFlow<Boolean> = _isWipingData.asStateFlow()
+    private val _isWipingProgress = MutableStateFlow(false)
+    val isWipingProgress: StateFlow<Boolean> = _isWipingProgress.asStateFlow()
 
     // ── Last Synced Timestamp ──
 
@@ -163,37 +163,47 @@ class SettingsViewModel(
     }
 
     /**
-     * Wipes all local Room data and cloud Firestore data for the current user.
+     * Wipes all progress data (meals, activities, nutrition summaries, pantry,
+     * and meal plans) from both Room and Firestore while **preserving** the
+     * user's profile and settings (name, age, weight, height, etc.).
+     *
      * Also resets the delta sync timestamp so the next sync is a full sync.
      */
-    fun wipeAllData() {
+    fun wipeProgress() {
         val uid = auth.currentUser?.uid
-        if (_isWipingData.value) return
+        if (_isWipingProgress.value) return
 
-        _isWipingData.value = true
+        _isWipingProgress.value = true
 
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    // 1. Wipe Firestore cloud data
+                    // 1. Wipe Firestore cloud progress data (sub-collections only;
+                    //    the user profile document at users/{uid} is preserved)
                     if (uid != null) {
                         firestoreSyncRepo.wipeAllUserData(uid)
                     }
-                    // 2. Wipe the local Room database
-                    db.clearAllTables()
+                    // 2. Selectively clear progress tables in Room.
+                    //    Preserves: user_profile (settings), FOOD_TABLE, DISH_INGREDIENTS_TABLE
+                    db.activityLogDao().deleteAll()
+                    db.mealLogDao().deleteAll()
+                    db.mealLogItemDao().deleteAll()
+                    db.dailyNutritionSummaryDao().deleteAll()
+                    db.pantryDao().clearAllItems()
+                    db.mealPlanDao().deleteAll()
                     // 3. Reset delta sync timestamp (critical!)
                     apiSyncManager.resetSyncTimestamp()
                     // 4. Clear last-sync display timestamp
                     syncPrefs.edit().remove(KEY_LAST_SYNC).apply()
                     _lastSyncedAt.value = formatSyncTimestamp(0L)
                 }
-                _isWipingData.value = false
-                _events.send(Event.WipeSuccess)
+                _isWipingProgress.value = false
+                _events.send(Event.WipeProgressSuccess)
             } catch (e: Exception) {
-                _isWipingData.value = false
+                _isWipingProgress.value = false
                 e.printStackTrace()
                 // Still emit success since partial wipe may have occurred
-                _events.send(Event.WipeSuccess)
+                _events.send(Event.WipeProgressSuccess)
             }
         }
     }

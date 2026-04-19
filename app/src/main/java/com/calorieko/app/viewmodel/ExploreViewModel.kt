@@ -135,7 +135,7 @@ class ExploreViewModel(
             _isLoading.value = true
 
             // Defense-in-depth: ensure reference data is seeded before querying.
-            // Covers edge cases where db.clearAllTables() was called (e.g., wipeAllData)
+            // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
             // and the async FoodDatabaseCallback re-seed hasn't completed yet.
             ensureReferenceDataSeeded(appContext, foodDao, pantryDao)
 

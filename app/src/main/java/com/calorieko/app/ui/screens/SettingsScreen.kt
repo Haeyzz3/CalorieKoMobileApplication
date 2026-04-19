@@ -126,7 +126,7 @@ fun SettingsScreen(
 
     // Collect ViewModel State
     val isSyncing by viewModel.isSyncing.collectAsState()
-    val isWipingData by viewModel.isWipingData.collectAsState()
+    val isWipingProgress by viewModel.isWipingProgress.collectAsState()
     val lastSyncedAt by viewModel.lastSyncedAt.collectAsState()
 
     // State for the notification banner system
@@ -178,12 +178,12 @@ fun SettingsScreen(
                         event.message
                     )
                 }
-                is SettingsViewModel.Event.WipeSuccess -> {
+                is SettingsViewModel.Event.WipeProgressSuccess -> {
                     showWipeDialog = false
                     showBanner(
                         NotificationType.SUCCESS,
-                        "Data Wiped Successfully",
-                        "Your device and cloud data have been cleared."
+                        "Progress Reset",
+                        "All meals, activities, and plans have been cleared."
                     )
                 }
                 is SettingsViewModel.Event.LogoutReady -> {
@@ -382,7 +382,7 @@ fun SettingsScreen(
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
                         SettingsRow(
-                            icon = Icons.Default.DeleteForever, title = "Wipe Profile Data", subtitle = "Clear all data from this device and the cloud",
+                            icon = Icons.Default.DeleteForever, title = "Reset Progress", subtitle = "Clear all meals, activities, and plans",
                             iconColor = Color(0xFFEF4444), textColor = Color(0xFFEF4444), showArrow = false,
                             onClick = { showWipeDialog = true }
                         )
@@ -426,29 +426,29 @@ fun SettingsScreen(
         }
     }
 
-    // --- WIPE LOCAL DATA DIALOG ---
+    // --- RESET PROGRESS DIALOG ---
     if (showWipeDialog) {
         AlertDialog(
-            onDismissRequest = { if (!isWipingData) showWipeDialog = false },
-            title = { Text("Wipe All Profile Data?", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
-            text = { Text("This will permanently delete all your meals, workouts, and settings from this device AND the cloud. This cannot be undone.", color = Color(0xFF4B5563)) },
+            onDismissRequest = { if (!isWipingProgress) showWipeDialog = false },
+            title = { Text("Reset All Progress?", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
+            text = { Text("This will permanently delete all your logged meals, activities, nutrition history, pantry items, and meal plans from this device and the cloud.\n\nYour profile and settings (name, weight, height, goals) will be preserved.\n\nThis action cannot be undone.", color = Color(0xFF4B5563)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.wipeAllData()
+                        viewModel.wipeProgress()
                     },
-                    enabled = !isWipingData
+                    enabled = !isWipingProgress
                 ) {
-                    Text(if (isWipingData) "Wiping..." else "Yes, Wipe Everything", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Text(if (isWipingProgress) "Resetting..." else "Yes, Reset Progress", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showWipeDialog = false }, enabled = !isWipingData) {
+                TextButton(onClick = { showWipeDialog = false }, enabled = !isWipingProgress) {
                     Text("Cancel", color = Color(0xFF6B7280))
                 }
             },
             containerColor = Color.White,
-            properties = DialogProperties(dismissOnBackPress = !isWipingData, dismissOnClickOutside = !isWipingData)
+            properties = DialogProperties(dismissOnBackPress = !isWipingProgress, dismissOnClickOutside = !isWipingProgress)
         )
     }
 

@@ -66,7 +66,7 @@ suspend fun populateDatabase(context: Context, foodDao: FoodDao, pantryDao: Pant
  * This is a **defense-in-depth** measure that ViewModels can call before
  * querying reference data. It covers edge cases where the async
  * FoodDatabaseCallback.onOpen() re-seed hasn't completed yet (e.g., after
- * wipeAllData() calls db.clearAllTables()).
+ * wipeAllData() or db.clearAllTables() is called on some code path).
  *
  * Safe to call multiple times — checks row counts before re-seeding.
  */

@@ -638,7 +638,7 @@ class FirestoreSyncRepository {
 
     /**
      * Deletes all sub-collections under a user document.
-     * Called when the user chooses "Wipe Profile Data" in Settings.
+     * Called when the user chooses "Reset Progress" in Settings.
      *
      * Note: Firestore doesn't support recursive deletes natively on the client.
      * We iterate each known sub-collection, collect all document references
