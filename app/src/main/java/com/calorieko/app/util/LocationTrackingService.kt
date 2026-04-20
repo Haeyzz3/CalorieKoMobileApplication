@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -41,6 +42,16 @@ import kotlinx.coroutines.flow.asStateFlow
  * directly observe the location state flows and send commands (start/pause/stop).
  * It also holds a partial [WakeLock] so the CPU stays awake for timer increments
  * even when the screen is off.
+ *
+ * ── Timer Design ──
+ * The elapsed duration is computed from [SystemClock.elapsedRealtime()] anchored
+ * at tracking start time, minus accumulated pause durations. This is immune to
+ * Thread.sleep drift and provides wall-clock accuracy regardless of CPU scheduling.
+ *
+ * ── GPS Warm-Up ──
+ * The first few seconds of GPS data are buffered before selecting the most accurate
+ * reading as the route anchor point. This prevents stale cell-tower or cached locations
+ * from causing coordinate displacement (e.g., plotting the route at the wrong location).
  */
 class LocationTrackingService : Service() {
 
@@ -50,6 +61,36 @@ class LocationTrackingService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_START = "com.calorieko.app.ACTION_START_TRACKING"
         const val ACTION_STOP = "com.calorieko.app.ACTION_STOP_TRACKING"
+
+        // ── GPS Accuracy Thresholds ──
+
+        /** Maximum accuracy (meters) for the map display dot. */
+        private const val MAP_DISPLAY_ACCURACY = 20f
+
+        /** Maximum accuracy (meters) for tracking distance/path points. */
+        private const val TRACKING_ACCURACY = 15f
+
+        /** Ideal accuracy (meters) for the initial GPS anchor point. */
+        private const val ANCHOR_ACCURACY = 12f
+
+        /** How long (ms) to buffer GPS readings before accepting an anchor. */
+        private const val WARM_UP_DURATION_MS = 5000L
+
+        // ── Stationary Jitter Suppression ──
+
+        /** GPS-reported speed (m/s) below which the user is considered stationary.
+         *  0.3 m/s ≈ 1.1 km/h — well below even the slowest walking pace. */
+        private const val STATIONARY_SPEED_THRESHOLD = 0.3f
+
+        /** Position-derived speed (m/s) below which we confirm stationarity. */
+        private const val STATIONARY_CALC_SPEED_THRESHOLD = 0.8
+
+        /** Number of consecutive stationary readings before entering "locked" mode. */
+        private const val STATIONARY_LOCK_COUNT = 3
+
+        /** Displacement (meters) required to break out of locked-stationary mode.
+         *  Must be large enough that no single GPS jitter spike can trigger it. */
+        private const val LOCKED_STATIONARY_MIN_DISPLACEMENT = 10.0f
 
         /** Global flag so Compose can quickly check if the service is alive. */
         @Volatile
@@ -104,6 +145,29 @@ class LocationTrackingService : Service() {
     private var timerThread: Thread? = null
     private var isTimerRunning = false
 
+    // ── Stationary Detection ──
+    // Tracks how many consecutive GPS readings indicated the user is stationary.
+    // After STATIONARY_LOCK_COUNT readings, we enter "locked stationary" mode
+    // which requires a much larger displacement to break out, preventing
+    // GPS jitter spikes from registering as real movement.
+    private var consecutiveStationaryCount = 0
+
+    // ── Wall-Clock Timer Anchors ──
+    // Using SystemClock.elapsedRealtime() ensures the timer is immune to
+    // Thread.sleep drift. The total elapsed time is:
+    //   (now - trackingStartRealtimeMs - totalPauseMs) / 1000
+    private var trackingStartRealtimeMs = 0L
+    private var accumulatedPauseMs = 0L
+    private var pauseStartRealtimeMs = 0L
+
+    // ── GPS Warm-Up State ──
+    // The first few seconds after GPS activation often yield low-accuracy readings
+    // from cell towers or cached locations. We buffer readings during the warm-up
+    // window and select the most accurate one as the route anchor point.
+    private var isGpsWarmedUp = false
+    private var gpsWarmUpStartMs = 0L
+    private val warmUpLocations = mutableListOf<Location>()
+
     private val fusedLocationClient by lazy {
         LocationServices.getFusedLocationProviderClient(this)
     }
@@ -131,8 +195,10 @@ class LocationTrackingService : Service() {
                 stopSelf()
             }
             ACTION_START -> {
+                // Only start the foreground notification here.
+                // Location updates and timer are started by startTracking()
+                // (called from the bound UI) to prevent duplicate registration.
                 startForegroundWithNotification()
-                startLocationUpdates()
             }
         }
         // START_STICKY: OS will re-create the service if it's killed.
@@ -160,6 +226,17 @@ class LocationTrackingService : Service() {
         _pathPoints.value = emptyList()
         _isMoving.value = false
         lastMovementTimeMs = System.currentTimeMillis()
+        consecutiveStationaryCount = 0
+
+        // Anchor wall-clock for accurate duration tracking
+        trackingStartRealtimeMs = SystemClock.elapsedRealtime()
+        accumulatedPauseMs = 0L
+        pauseStartRealtimeMs = 0L
+
+        // Reset GPS warm-up: buffer initial readings before accepting an anchor
+        isGpsWarmedUp = false
+        gpsWarmUpStartMs = System.currentTimeMillis()
+        warmUpLocations.clear()
 
         acquireWakeLock()
         startForegroundWithNotification()
@@ -169,18 +246,36 @@ class LocationTrackingService : Service() {
 
     fun pauseTracking() {
         _isPaused.value = true
-        stopTimer()
+        // Record when this pause started so we can subtract it from elapsed time
+        pauseStartRealtimeMs = SystemClock.elapsedRealtime()
+        // Timer thread stays alive — it computes time from wall-clock,
+        // so _timeSeconds naturally freezes while paused.
         updateNotification("Workout Paused")
     }
 
     fun resumeTracking() {
+        // Accumulate the pause duration into the total pause offset
+        if (pauseStartRealtimeMs > 0L) {
+            accumulatedPauseMs += SystemClock.elapsedRealtime() - pauseStartRealtimeMs
+            pauseStartRealtimeMs = 0L
+        }
         _isPaused.value = false
         lastMovementTimeMs = System.currentTimeMillis()
-        startTimer()
         updateNotification("Tracking Workout...")
     }
 
     fun stopTracking() {
+        // Finalize time one last time from wall-clock to ensure the saved value
+        // is authoritative and matches what was displayed on screen.
+        if (_isTracking.value && trackingStartRealtimeMs > 0L) {
+            val now = SystemClock.elapsedRealtime()
+            val currentPauseMs = if (_isPaused.value && pauseStartRealtimeMs > 0L) {
+                now - pauseStartRealtimeMs
+            } else 0L
+            val totalElapsedMs = now - trackingStartRealtimeMs - accumulatedPauseMs - currentPauseMs
+            _timeSeconds.value = (totalElapsedMs / 1000L).coerceAtLeast(0L)
+        }
+
         _isTracking.value = false
         _isPaused.value = false
         stopTimer()
@@ -198,53 +293,128 @@ class LocationTrackingService : Service() {
         _lastLocation.value = null
         _pathPoints.value = emptyList()
         _isMoving.value = false
+        isGpsWarmedUp = false
+        warmUpLocations.clear()
+        consecutiveStationaryCount = 0
     }
 
     // ── Location Handling ──
 
     private fun handleLocationUpdate(location: Location) {
         // Update current point for map display — tighter filter to avoid visible drift
-        if (location.accuracy < 20f) {
+        if (location.accuracy < MAP_DISPLAY_ACCURACY) {
             _currentPoint.value = Pair(location.latitude, location.longitude)
         }
 
         if (!_isTracking.value || _isPaused.value) return
 
+        // ── GPS Warm-Up Phase ──
+        // Buffer readings for the first few seconds to let the GPS module lock on
+        // to satellites. The initial readings often use cell tower triangulation or
+        // a stale cached location, which can be hundreds of meters away from the
+        // actual position (explains the SPC → Ritz Hotel displacement).
+        if (!isGpsWarmedUp) {
+            if (location.accuracy < TRACKING_ACCURACY) {
+                warmUpLocations.add(location)
+            }
+
+            if (System.currentTimeMillis() - gpsWarmUpStartMs > WARM_UP_DURATION_MS) {
+                // Warm-up period over — select the most accurate reading as anchor
+                val bestLocation = warmUpLocations
+                    .filter { it.accuracy <= ANCHOR_ACCURACY }
+                    .minByOrNull { it.accuracy }
+                    ?: warmUpLocations.minByOrNull { it.accuracy }
+
+                if (bestLocation != null) {
+                    isGpsWarmedUp = true
+                    _isMoving.value = true
+                    _pathPoints.value = listOf(Pair(bestLocation.latitude, bestLocation.longitude))
+                    _lastLocation.value = bestLocation
+                    lastMovementTimeMs = System.currentTimeMillis()
+                    warmUpLocations.clear()
+                    Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
+                            "at (${bestLocation.latitude}, ${bestLocation.longitude})")
+                } else {
+                    // No usable reading yet — extend warm-up until we get one
+                    Log.d(TAG, "GPS warm-up extended: no reading with accuracy < ${TRACKING_ACCURACY}m")
+                }
+            }
+            return
+        }
+
         // Strict accuracy gate: ignore garbage data
-        if (location.accuracy > 25f) return
+        if (location.accuracy > TRACKING_ACCURACY) return
 
         val prevLocation = _lastLocation.value
         if (prevLocation != null) {
             val distanceToUpdate = prevLocation.distanceTo(location)
             val timeDeltaSec = (location.time - prevLocation.time) / 1000.0
             val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
-            val physicalSpeed = if (location.hasSpeed()) location.speed else 0.0f
 
-            // Check if standing still
-            if (physicalSpeed < 0.25f && calculatedSpeed < 0.5) {
+            // ── Stationary Detection (Hard Gate) ──
+            // Use the GPS hardware speed (Doppler-based, more reliable than
+            // position-derived speed for stationarity) as the primary indicator.
+            // If both GPS speed and calculated speed indicate no movement,
+            // this is GPS jitter — NOT real displacement.
+            val gpsSpeed = if (location.hasSpeed()) location.speed.toDouble() else calculatedSpeed
+            val isLikelyStationary = gpsSpeed < STATIONARY_SPEED_THRESHOLD
+                    && calculatedSpeed < STATIONARY_CALC_SPEED_THRESHOLD
+
+            if (isLikelyStationary) {
+                consecutiveStationaryCount++
                 _isMoving.value = false
+
+                // ── Stale Anchor Prevention ──
+                // Update _lastLocation to the current (jittered) position.
+                // This prevents the "ratcheting" problem where jitter accumulates
+                // relative to a fixed old anchor until it exceeds the displacement
+                // threshold, adding phantom distance.
+                _lastLocation.value = location
+                return  // ← Hard gate: do NOT process displacement while stationary
             }
 
-            // Stationary jitter filter — only process if moved > 5 meters
-            if (distanceToUpdate >= 5.0f) {
-                // Teleport/glitch check — max 12 m/s (~43 km/h)
-                if (calculatedSpeed < 12.0) {
-                    _isMoving.value = true
-                    _distanceKm.value += distanceToUpdate / 1000.0
-                    lastMovementTimeMs = System.currentTimeMillis()
+            // ── Displacement Check ──
+            // The speed gate above already confirmed the user is NOT stationary.
+            // Now we apply a moderate displacement filter to absorb residual noise.
+            // Key insight (Strava-aligned): once speed confirms movement, use a LOW
+            // displacement threshold — walking at 1.4 m/s × 3s interval = ~4.2m,
+            // so the threshold must be BELOW that to count real walking segments.
+            val isLockedStationary = consecutiveStationaryCount >= STATIONARY_LOCK_COUNT
+            val minDisplacement = if (isLockedStationary) {
+                LOCKED_STATIONARY_MIN_DISPLACEMENT
+            } else {
+                // Normal movement: 3m minimum absorbs sub-step GPS noise
+                // while accepting real walking displacement (~4m per reading).
+                3.0f
+            }
 
-                    _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
-                    _lastLocation.value = location
+            if (distanceToUpdate >= minDisplacement && calculatedSpeed < 12.0) {
+                // Confirmed real movement — reset stationary counter
+                consecutiveStationaryCount = 0
+                _isMoving.value = true
+                _distanceKm.value += distanceToUpdate / 1000.0
+                lastMovementTimeMs = System.currentTimeMillis()
 
-                    if (_distanceKm.value > 0.02) {
-                        val timeInMinutes = _movingTimeSeconds.value / 60.0
+                _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
+                _lastLocation.value = location
+
+                // Calculate pace using TOTAL elapsed time, not just moving time.
+                // Total elapsed time gives the correct average pace that matches
+                // what fitness apps like Strava display as "overall pace".
+                if (_distanceKm.value > 0.02) {
+                    val timeInMinutes = _timeSeconds.value / 60.0
+                    if (timeInMinutes > 0) {
                         val rawPace = timeInMinutes / _distanceKm.value
-                        _currentPace.value = rawPace.coerceAtMost(60.0)
+                        _currentPace.value = rawPace.coerceIn(1.0, 60.0)
                     }
                 }
+            } else {
+                // Below threshold — treat as not moving but don't update anchor
+                // (anchor stays at last confirmed movement point)
+                _isMoving.value = false
             }
         } else {
-            // First tracking anchor point
+            // Defensive fallback — warm-up should have set _lastLocation
             _isMoving.value = true
             _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
             _lastLocation.value = location
@@ -256,7 +426,7 @@ class LocationTrackingService : Service() {
     private fun startLocationUpdates() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
             .setMinUpdateIntervalMillis(2000L)
-            .setMinUpdateDistanceMeters(3.0f)  // Increased from 1.5m to reduce stationary drift
+            .setMinUpdateDistanceMeters(5.0f)  // Increased from 3.0m to further reduce stationary jitter
             .build()
 
         fusedLocationClient.requestLocationUpdates(
@@ -266,6 +436,14 @@ class LocationTrackingService : Service() {
 
     // ── Timer ──
 
+    /**
+     * Starts a background thread that updates [_timeSeconds] every second.
+     *
+     * Unlike the previous implementation that incremented a counter (susceptible
+     * to Thread.sleep drift), this computes elapsed time directly from
+     * [SystemClock.elapsedRealtime], ensuring wall-clock accuracy. The timer
+     * thread stays alive during pauses so the UI can observe the frozen time.
+     */
     private fun startTimer() {
         if (isTimerRunning) return
         isTimerRunning = true
@@ -278,9 +456,19 @@ class LocationTrackingService : Service() {
                     break
                 }
 
-                if (!_isTracking.value || _isPaused.value) continue
+                if (!_isTracking.value) continue
 
-                _timeSeconds.value++
+                // ── Compute elapsed time from wall-clock ──
+                // This is immune to Thread.sleep drift and gives consistent
+                // results regardless of CPU scheduling or Doze mode timing.
+                val now = SystemClock.elapsedRealtime()
+                val currentPauseMs = if (_isPaused.value && pauseStartRealtimeMs > 0L) {
+                    now - pauseStartRealtimeMs
+                } else 0L
+                val totalElapsedMs = now - trackingStartRealtimeMs - accumulatedPauseMs - currentPauseMs
+                _timeSeconds.value = (totalElapsedMs / 1000L).coerceAtLeast(0L)
+
+                if (_isPaused.value) continue
 
                 // Auto-pause moving time if no location update in 3.5s
                 if (System.currentTimeMillis() - lastMovementTimeMs > 3500L) {

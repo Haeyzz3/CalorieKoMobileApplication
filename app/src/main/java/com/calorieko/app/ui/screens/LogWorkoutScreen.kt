@@ -854,9 +854,17 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         val permanentPhotoPath = saveImageToInternalStorage(context, selectedPhotoUri)
                         val safeDistance = if (distanceKm.isNaN()) 0.0 else distanceKm
 
+                        // ── Snapshot values directly from the service's StateFlow ──
+                        // This bypasses Compose's collectAsState() recomposition pipeline,
+                        // ensuring the saved values are exactly what the service holds
+                        // at this instant — no lag, no race condition.
+                        val snapshotTime = svc?.timeSeconds?.value ?: timeSeconds
+                        val snapshotPace = svc?.currentPace?.value ?: currentPace
+                        val snapshotMovingTime = svc?.movingTimeSeconds?.value ?: movingTimeSeconds
+
                         onSave(
-                            finalTitle, caloriesBurned, formatTime(timeSeconds), safeDistance, currentPace,
-                            movingTimeSeconds, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
+                            finalTitle, caloriesBurned, formatTime(snapshotTime), safeDistance, snapshotPace,
+                            snapshotMovingTime, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
                         )
 
                         // Stop the foreground service after saving
@@ -893,9 +901,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
 
         val mapViewRef = remember { mutableStateOf<com.mapbox.maps.MapView?>(null) }
         var polylineManager by remember { mutableStateOf<PolylineAnnotationManager?>(null) }
-        var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
         val activePolylines = remember { mutableListOf<PolylineAnnotation>() }
-        val activeCircles = remember { mutableListOf<CircleAnnotation>() }
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
@@ -903,9 +909,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                 mapView.mapboxMap.loadStyle(style) {
                     mapView.annotations.cleanup()
                     activePolylines.clear()
-                    activeCircles.clear()
                     polylineManager = mapView.annotations.createPolylineAnnotationManager()
-                    circleManager = mapView.annotations.createCircleAnnotationManager()
                 }
             }
         }
@@ -918,9 +922,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         mapboxMap.loadStyle(Style.DARK) {
                             annotations.cleanup()
                             activePolylines.clear()
-                            activeCircles.clear()
                             polylineManager = annotations.createPolylineAnnotationManager()
-                            circleManager = annotations.createCircleAnnotationManager()
                         }
                         mapboxMap.setCamera(CameraOptions.Builder().zoom(16.0).pitch(0.0).build())
                         scalebar.enabled = false
@@ -983,30 +985,10 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         }
                     }
 
-                    // Only draw the custom circle annotation while tracking is active.
-                    // Before tracking, the native Mapbox location puck provides the blue dot.
-                    if (isTracking || isPaused) {
-                        currentPoint?.let { point ->
-                            if (circleManager != null) {
-                                if (activeCircles.isEmpty()) {
-                                    activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(16.0).withCircleColor("#00BFFF").withCircleOpacity(0.15)))
-                                    activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(11.0).withCircleColor("#00BFFF").withCircleOpacity(0.3)))
-                                    activeCircles.add(circleManager!!.create(CircleAnnotationOptions().withPoint(point).withCircleRadius(7.0).withCircleColor("#00DFFF").withCircleStrokeWidth(2.5).withCircleStrokeColor("#FFFFFF")))
-                                } else {
-                                    activeCircles.forEach {
-                                        it.point = point
-                                        circleManager!!.update(it)
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Pre-tracking: clear any stale custom circles (native puck is visible)
-                        if (activeCircles.isNotEmpty() && circleManager != null) {
-                            activeCircles.forEach { circleManager!!.delete(it) }
-                            activeCircles.clear()
-                        }
-                    }
+                    // Location indicator is handled solely by the Mapbox native puck
+                    // (configured in factory block with pulsingEnabled = true).
+                    // No custom circle annotation needed — the native puck has built-in
+                    // position smoothing and doesn't drift from GPS jitter.
                 }
             )
 
