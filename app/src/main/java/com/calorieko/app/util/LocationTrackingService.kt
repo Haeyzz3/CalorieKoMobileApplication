@@ -68,7 +68,7 @@ class LocationTrackingService : Service() {
         private const val MAP_DISPLAY_ACCURACY = 20f
 
         /** Maximum accuracy (meters) for tracking distance/path points. */
-        private const val TRACKING_ACCURACY = 15f
+        private const val TRACKING_ACCURACY = 20f
 
         /** Ideal accuracy (meters) for the initial GPS anchor point. */
         private const val ANCHOR_ACCURACY = 12f
@@ -78,12 +78,15 @@ class LocationTrackingService : Service() {
 
         // ── Stationary Jitter Suppression ──
 
-        /** GPS-reported speed (m/s) below which the user is considered stationary.
-         *  0.3 m/s ≈ 1.1 km/h — well below even the slowest walking pace. */
-        private const val STATIONARY_SPEED_THRESHOLD = 0.3f
+        /** GPS Doppler speed (m/s) below which the user is considered stationary.
+         *  0.5 m/s ≈ 1.8 km/h — provides margin for Doppler noise (0-0.4 m/s
+         *  while stationary) while staying well below any walking pace (≥1.0 m/s). */
+        private const val STATIONARY_SPEED_THRESHOLD = 0.5f
 
-        /** Position-derived speed (m/s) below which we confirm stationarity. */
-        private const val STATIONARY_CALC_SPEED_THRESHOLD = 0.8
+        /** Position-derived speed (m/s) fallback threshold when no Doppler speed
+         *  is available. Stricter than the Doppler threshold because position-derived
+         *  speed is inherently noisy from GPS jitter. */
+        private const val STATIONARY_CALC_SPEED_THRESHOLD = 0.4
 
         /** Number of consecutive stationary readings before entering "locked" mode. */
         private const val STATIONARY_LOCK_COUNT = 3
@@ -301,8 +304,11 @@ class LocationTrackingService : Service() {
     // ── Location Handling ──
 
     private fun handleLocationUpdate(location: Location) {
-        // Update current point for map display — tighter filter to avoid visible drift
-        if (location.accuracy < MAP_DISPLAY_ACCURACY) {
+        // _currentPoint is now only updated when movement is confirmed (below).
+        // This prevents the camera from following GPS jitter while stationary,
+        // which was causing the visible "blue dot drift" on the map.
+        // Pre-tracking: still update for initial map centering.
+        if (!_isTracking.value && location.accuracy < MAP_DISPLAY_ACCURACY) {
             _currentPoint.value = Pair(location.latitude, location.longitude)
         }
 
@@ -352,13 +358,20 @@ class LocationTrackingService : Service() {
             val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
 
             // ── Stationary Detection (Hard Gate) ──
-            // Use the GPS hardware speed (Doppler-based, more reliable than
-            // position-derived speed for stationarity) as the primary indicator.
-            // If both GPS speed and calculated speed indicate no movement,
-            // this is GPS jitter — NOT real displacement.
-            val gpsSpeed = if (location.hasSpeed()) location.speed.toDouble() else calculatedSpeed
-            val isLikelyStationary = gpsSpeed < STATIONARY_SPEED_THRESHOLD
-                    && calculatedSpeed < STATIONARY_CALC_SPEED_THRESHOLD
+            // Use GPS Doppler speed as the PRIMARY indicator when available.
+            // Doppler speed is derived from satellite frequency shift, which is
+            // far more reliable than position-derived speed for detecting stationarity.
+            // CRITICAL: Do NOT use AND logic — GPS speed noise alone (0.4 m/s while
+            // stationary) could bypass one check, and calculatedSpeed (noisy from
+            // position jitter) could bypass the other. Use INDEPENDENT checks.
+            val isLikelyStationary = if (location.hasSpeed()) {
+                // Doppler speed available: trust it as sole indicator
+                location.speed < STATIONARY_SPEED_THRESHOLD
+            } else {
+                // No hardware speed: fall back to position-derived speed
+                // with a strict threshold (0.4 m/s) since it's inherently noisy
+                calculatedSpeed < STATIONARY_CALC_SPEED_THRESHOLD
+            }
 
             if (isLikelyStationary) {
                 consecutiveStationaryCount++
@@ -398,6 +411,10 @@ class LocationTrackingService : Service() {
                 _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
                 _lastLocation.value = location
 
+                // Update camera follow position ONLY on confirmed movement.
+                // This prevents the map from chasing GPS jitter while stationary.
+                _currentPoint.value = Pair(location.latitude, location.longitude)
+
                 // Calculate pace using TOTAL elapsed time, not just moving time.
                 // Total elapsed time gives the correct average pace that matches
                 // what fitness apps like Strava display as "overall pace".
@@ -409,8 +426,12 @@ class LocationTrackingService : Service() {
                     }
                 }
             } else {
-                // Below threshold — treat as not moving but don't update anchor
-                // (anchor stays at last confirmed movement point)
+                // Below threshold — treat as not moving.
+                // If locked stationary, update anchor to prevent ratcheting.
+                // If normal, keep anchor at last confirmed movement point.
+                if (isLockedStationary) {
+                    _lastLocation.value = location
+                }
                 _isMoving.value = false
             }
         } else {
@@ -426,7 +447,7 @@ class LocationTrackingService : Service() {
     private fun startLocationUpdates() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
             .setMinUpdateIntervalMillis(2000L)
-            .setMinUpdateDistanceMeters(5.0f)  // Increased from 3.0m to further reduce stationary jitter
+            .setMinUpdateDistanceMeters(2.0f)  // Reduced to 2.0m to receive more frequent updates and prevent sparse OS batching
             .build()
 
         fusedLocationClient.requestLocationUpdates(

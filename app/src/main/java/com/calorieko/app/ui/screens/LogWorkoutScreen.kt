@@ -1087,7 +1087,7 @@ fun GPSTrackerContent(userWeight: Double, onSave: (String, Int, String, Double?,
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            val paceDisplay = if (currentPace > 0.0 && currentPace < 60.0) {
+                            val paceDisplay = if (currentPace > 0.0 && currentPace <= 60.0) {
                                 val pMin = currentPace.toInt()
                                 val pSec = ((currentPace - pMin) * 60).toInt()
                                 String.format(java.util.Locale.US, "%d:%02d", pMin, pSec)
