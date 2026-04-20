@@ -73,27 +73,37 @@ class LocationTrackingService : Service() {
         /** Ideal accuracy (meters) for the initial GPS anchor point. */
         private const val ANCHOR_ACCURACY = 12f
 
-        /** How long (ms) to buffer GPS readings before accepting an anchor. */
-        private const val WARM_UP_DURATION_MS = 5000L
+        /** How long (ms) to buffer GPS readings before accepting an anchor.
+         *  10 seconds gives the GPS module enough time to obtain a satellite fix
+         *  instead of relying on cell tower triangulation or cached positions. */
+        private const val WARM_UP_DURATION_MS = 10000L
 
-        // ── Stationary Jitter Suppression ──
+        /** Maximum displacement (meters) allowed during post-warm-up stabilization.
+         *  If the first few readings after warm-up show a jump larger than this,
+         *  the anchor was wrong (cell tower → satellite transition). Re-anchor
+         *  without adding distance. */
+        private const val POST_WARMUP_MAX_JUMP = 30.0f
 
-        /** GPS Doppler speed (m/s) below which the user is considered stationary.
-         *  0.5 m/s ≈ 1.8 km/h — provides margin for Doppler noise (0-0.4 m/s
-         *  while stationary) while staying well below any walking pace (≥1.0 m/s). */
-        private const val STATIONARY_SPEED_THRESHOLD = 0.5f
+        /** Number of readings after warm-up that undergo stabilization checks. */
+        private const val POST_WARMUP_STABILIZATION_COUNT = 3
 
-        /** Position-derived speed (m/s) fallback threshold when no Doppler speed
-         *  is available. Stricter than the Doppler threshold because position-derived
-         *  speed is inherently noisy from GPS jitter. */
-        private const val STATIONARY_CALC_SPEED_THRESHOLD = 0.4
+        // ── Movement Detection via Rolling Window ──
+        // Instead of relying on GPS speed (unreliable on many devices),
+        // use NET DISPLACEMENT across a window of recent readings.
+        // Jitter = random walk (positions bounce around, net displacement ~0).
+        // Walking = directional (positions advance, net displacement grows).
+        // This approach works on ALL devices regardless of GPS implementation.
 
-        /** Number of consecutive stationary readings before entering "locked" mode. */
-        private const val STATIONARY_LOCK_COUNT = 3
+        /** Size of the rolling position window for jitter detection. */
+        private const val POSITION_WINDOW_SIZE = 5
 
-        /** Displacement (meters) required to break out of locked-stationary mode.
-         *  Must be large enough that no single GPS jitter spike can trigger it. */
-        private const val LOCKED_STATIONARY_MIN_DISPLACEMENT = 10.0f
+        /** Minimum net displacement (meters) across the window to confirm movement.
+         *  Must exceed typical GPS jitter radius (~5-10m random walk). */
+        private const val NET_DISPLACEMENT_THRESHOLD = 12.0f
+
+        /** Maximum distance (meters) that can be added from a single GPS reading.
+         *  Caps teleport glitches and cell-tower jumps that slip through other checks. */
+        private const val MAX_SINGLE_READING_DISTANCE = 25.0f
 
         /** Global flag so Compose can quickly check if the service is alive. */
         @Volatile
@@ -148,13 +158,6 @@ class LocationTrackingService : Service() {
     private var timerThread: Thread? = null
     private var isTimerRunning = false
 
-    // ── Stationary Detection ──
-    // Tracks how many consecutive GPS readings indicated the user is stationary.
-    // After STATIONARY_LOCK_COUNT readings, we enter "locked stationary" mode
-    // which requires a much larger displacement to break out, preventing
-    // GPS jitter spikes from registering as real movement.
-    private var consecutiveStationaryCount = 0
-
     // ── Wall-Clock Timer Anchors ──
     // Using SystemClock.elapsedRealtime() ensures the timer is immune to
     // Thread.sleep drift. The total elapsed time is:
@@ -170,6 +173,19 @@ class LocationTrackingService : Service() {
     private var isGpsWarmedUp = false
     private var gpsWarmUpStartMs = 0L
     private val warmUpLocations = mutableListOf<Location>()
+
+    // ── Rolling Window for Jitter Detection ──
+    // Stores the last N GPS positions. Net displacement from first to last
+    // in the window distinguishes random-walk jitter from directional movement.
+    private val recentPositions = mutableListOf<Location>()
+
+    // Tracks whether the user was in jitter/stationary state on the last reading.
+    // Used for clean transitions: when switching from jitter → movement, we
+    // re-anchor to avoid counting accumulated jitter as walked distance.
+    private var isInJitterState = true
+
+    // ── Wall-Clock Timing for Speed Calculations ──
+    private var lastUpdateWallClockMs = 0L
 
     private val fusedLocationClient by lazy {
         LocationServices.getFusedLocationProviderClient(this)
@@ -229,7 +245,9 @@ class LocationTrackingService : Service() {
         _pathPoints.value = emptyList()
         _isMoving.value = false
         lastMovementTimeMs = System.currentTimeMillis()
-        consecutiveStationaryCount = 0
+        recentPositions.clear()
+        isInJitterState = true
+        lastUpdateWallClockMs = 0L
 
         // Anchor wall-clock for accurate duration tracking
         trackingStartRealtimeMs = SystemClock.elapsedRealtime()
@@ -298,7 +316,9 @@ class LocationTrackingService : Service() {
         _isMoving.value = false
         isGpsWarmedUp = false
         warmUpLocations.clear()
-        consecutiveStationaryCount = 0
+        recentPositions.clear()
+        isInJitterState = true
+        lastUpdateWallClockMs = 0L
     }
 
     // ── Location Handling ──
@@ -325,20 +345,28 @@ class LocationTrackingService : Service() {
             }
 
             if (System.currentTimeMillis() - gpsWarmUpStartMs > WARM_UP_DURATION_MS) {
-                // Warm-up period over — select the most accurate reading as anchor
-                val bestLocation = warmUpLocations
+                // Warm-up period over — select the best anchor.
+                // Priority: readings with hasSpeed() (satellite fix indicator)
+                // are preferred over those without (cell tower/cached readings).
+                val satelliteReadings = warmUpLocations.filter { it.hasSpeed() }
+                val candidatePool = satelliteReadings.ifEmpty { warmUpLocations }
+
+                val bestLocation = candidatePool
                     .filter { it.accuracy <= ANCHOR_ACCURACY }
                     .minByOrNull { it.accuracy }
-                    ?: warmUpLocations.minByOrNull { it.accuracy }
+                    ?: candidatePool.minByOrNull { it.accuracy }
 
                 if (bestLocation != null) {
                     isGpsWarmedUp = true
                     _isMoving.value = true
                     _pathPoints.value = listOf(Pair(bestLocation.latitude, bestLocation.longitude))
                     _lastLocation.value = bestLocation
+                    _currentPoint.value = Pair(bestLocation.latitude, bestLocation.longitude)
                     lastMovementTimeMs = System.currentTimeMillis()
+                    lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
                     Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
+                            "hasSpeed=${bestLocation.hasSpeed()} " +
                             "at (${bestLocation.latitude}, ${bestLocation.longitude})")
                 } else {
                     // No usable reading yet — extend warm-up until we get one
@@ -351,73 +379,84 @@ class LocationTrackingService : Service() {
         // Strict accuracy gate: ignore garbage data
         if (location.accuracy > TRACKING_ACCURACY) return
 
+        // ── Rolling Window Update ──
+        // Add this reading to the window. The window is used to compute
+        // net displacement (first → last) which distinguishes jitter from walking.
+        recentPositions.add(location)
+        if (recentPositions.size > POSITION_WINDOW_SIZE) {
+            recentPositions.removeAt(0)
+        }
+
         val prevLocation = _lastLocation.value
         if (prevLocation != null) {
-            val distanceToUpdate = prevLocation.distanceTo(location)
-            val timeDeltaSec = (location.time - prevLocation.time) / 1000.0
-            val calculatedSpeed = if (timeDeltaSec > 0) distanceToUpdate / timeDeltaSec else 0.0
+            val distanceFromAnchor = prevLocation.distanceTo(location)
 
-            // ── Stationary Detection (Hard Gate) ──
-            // Use GPS Doppler speed as the PRIMARY indicator when available.
-            // Doppler speed is derived from satellite frequency shift, which is
-            // far more reliable than position-derived speed for detecting stationarity.
-            // CRITICAL: Do NOT use AND logic — GPS speed noise alone (0.4 m/s while
-            // stationary) could bypass one check, and calculatedSpeed (noisy from
-            // position jitter) could bypass the other. Use INDEPENDENT checks.
-            val isLikelyStationary = if (location.hasSpeed()) {
-                // Doppler speed available: trust it as sole indicator
-                location.speed < STATIONARY_SPEED_THRESHOLD
-            } else {
-                // No hardware speed: fall back to position-derived speed
-                // with a strict threshold (0.4 m/s) since it's inherently noisy
-                calculatedSpeed < STATIONARY_CALC_SPEED_THRESHOLD
+            // ── Post-Warm-Up Stabilization ──
+            // The first few readings after warm-up may reveal the anchor was a
+            // cell tower / cached position. If displacement > 30m, re-anchor.
+            if (recentPositions.size <= POST_WARMUP_STABILIZATION_COUNT) {
+                if (distanceFromAnchor > POST_WARMUP_MAX_JUMP) {
+                    Log.d(TAG, "Post-warm-up re-anchor: ${distanceFromAnchor.toInt()}m jump. " +
+                            "Re-anchoring without adding distance.")
+                    _lastLocation.value = location
+                    _pathPoints.value = listOf(Pair(location.latitude, location.longitude))
+                    _currentPoint.value = Pair(location.latitude, location.longitude)
+                    lastUpdateWallClockMs = System.currentTimeMillis()
+                    recentPositions.clear()
+                    recentPositions.add(location)
+                    return
+                }
             }
 
-            if (isLikelyStationary) {
-                consecutiveStationaryCount++
-                _isMoving.value = false
+            // ── Jitter Detection via Net Displacement ──
+            // Check the NET displacement from the oldest reading in the window
+            // to the newest. This is the KEY distinction:
+            //   Jitter (random walk):  positions bounce → net displacement ~ 0-8m
+            //   Walking (directional): positions advance → net displacement > 12m
+            // This works on ALL devices regardless of GPS speed reporting.
+            if (recentPositions.size >= 3) {
+                val netDisplacement = recentPositions.first().distanceTo(recentPositions.last())
 
-                // ── Stale Anchor Prevention ──
-                // Update _lastLocation to the current (jittered) position.
-                // This prevents the "ratcheting" problem where jitter accumulates
-                // relative to a fixed old anchor until it exceeds the displacement
-                // threshold, adding phantom distance.
+                if (netDisplacement < NET_DISPLACEMENT_THRESHOLD) {
+                    // Net displacement is small → GPS jitter, not real movement.
+                    _isMoving.value = false
+                    isInJitterState = true  // Reset so next movement triggers re-anchor
+                    return
+                }
+            }
+
+            // ── Movement Confirmed by Window ──
+            // Net displacement exceeds threshold → user is actually walking.
+
+            // Transition handling: if we were in jitter state, the anchor
+            // (_lastLocation) may have accumulated jitter offset. Re-anchor
+            // to the current position to start clean.
+            if (isInJitterState) {
+                isInJitterState = false
                 _lastLocation.value = location
-                return  // ← Hard gate: do NOT process displacement while stationary
-            }
-
-            // ── Displacement Check ──
-            // The speed gate above already confirmed the user is NOT stationary.
-            // Now we apply a moderate displacement filter to absorb residual noise.
-            // Key insight (Strava-aligned): once speed confirms movement, use a LOW
-            // displacement threshold — walking at 1.4 m/s × 3s interval = ~4.2m,
-            // so the threshold must be BELOW that to count real walking segments.
-            val isLockedStationary = consecutiveStationaryCount >= STATIONARY_LOCK_COUNT
-            val minDisplacement = if (isLockedStationary) {
-                LOCKED_STATIONARY_MIN_DISPLACEMENT
-            } else {
-                // Normal movement: 3m minimum absorbs sub-step GPS noise
-                // while accepting real walking displacement (~4m per reading).
-                3.0f
-            }
-
-            if (distanceToUpdate >= minDisplacement && calculatedSpeed < 12.0) {
-                // Confirmed real movement — reset stationary counter
-                consecutiveStationaryCount = 0
+                _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
+                _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastUpdateWallClockMs = System.currentTimeMillis()
                 _isMoving.value = true
-                _distanceKm.value += distanceToUpdate / 1000.0
+                lastMovementTimeMs = System.currentTimeMillis()
+                Log.d(TAG, "Movement confirmed. Re-anchored for clean distance tracking.")
+                return  // Don't add distance on transition — just set clean anchor
+            }
+
+            // ── Add Distance ──
+            // Cap single-reading distance to prevent any remaining glitch from
+            // inflating the total. Normal walking: ~4m per reading (1.4 m/s × 3s).
+            if (distanceFromAnchor >= 2.0f && distanceFromAnchor <= MAX_SINGLE_READING_DISTANCE) {
+                _distanceKm.value += distanceFromAnchor / 1000.0
+                _isMoving.value = true
                 lastMovementTimeMs = System.currentTimeMillis()
 
                 _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
                 _lastLocation.value = location
-
-                // Update camera follow position ONLY on confirmed movement.
-                // This prevents the map from chasing GPS jitter while stationary.
                 _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastUpdateWallClockMs = System.currentTimeMillis()
 
-                // Calculate pace using TOTAL elapsed time, not just moving time.
-                // Total elapsed time gives the correct average pace that matches
-                // what fitness apps like Strava display as "overall pace".
+                // Calculate pace using TOTAL elapsed time.
                 if (_distanceKm.value > 0.02) {
                     val timeInMinutes = _timeSeconds.value / 60.0
                     if (timeInMinutes > 0) {
@@ -425,21 +464,20 @@ class LocationTrackingService : Service() {
                         _currentPace.value = rawPace.coerceIn(1.0, 60.0)
                     }
                 }
-            } else {
-                // Below threshold — treat as not moving.
-                // If locked stationary, update anchor to prevent ratcheting.
-                // If normal, keep anchor at last confirmed movement point.
-                if (isLockedStationary) {
-                    _lastLocation.value = location
-                }
-                _isMoving.value = false
+            } else if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE) {
+                // Teleport/glitch — re-anchor without adding distance
+                Log.d(TAG, "Teleport detected: ${distanceFromAnchor.toInt()}m. Re-anchoring.")
+                _lastLocation.value = location
+                _currentPoint.value = Pair(location.latitude, location.longitude)
             }
         } else {
             // Defensive fallback — warm-up should have set _lastLocation
             _isMoving.value = true
             _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
             _lastLocation.value = location
+            _currentPoint.value = Pair(location.latitude, location.longitude)
             lastMovementTimeMs = System.currentTimeMillis()
+            lastUpdateWallClockMs = System.currentTimeMillis()
         }
     }
 
