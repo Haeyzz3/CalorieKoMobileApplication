@@ -27,22 +27,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CameraEnhance
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -105,8 +114,63 @@ data class Badge(
     val colorIcon: Color,
     val earned: Boolean,
     val progress: Int,
-    val max: Int
+    val max: Int,
+    val level: Int = 0  // 1 = Bronze, 2 = Silver, 3 = Gold
 )
+
+/**
+ * Returns a progressively upgraded icon for each badge depending on its level.
+ * Lvl 1 (Bronze) = base icon, Lvl 2 (Silver) = intermediate, Lvl 3 (Gold) = premium.
+ */
+fun upgradedBadgeIcon(badgeId: Int, level: Int): ImageVector {
+    return when (badgeId) {
+        // Consistent Logger: CalendarToday → DateRange → Verified
+        1 -> when (level) {
+            1 -> Icons.Default.CalendarToday
+            2 -> Icons.Default.DateRange
+            else -> Icons.Default.Verified
+        }
+        // Scale Pro: MonitorWeight → Scale → AutoAwesome
+        2 -> when (level) {
+            1 -> Icons.Default.MonitorWeight
+            2 -> Icons.Default.Scale
+            else -> Icons.Default.AutoAwesome
+        }
+        // Workout Warrior: Bolt → FitnessCenter → MilitaryTech
+        3 -> when (level) {
+            1 -> Icons.Default.Bolt
+            2 -> Icons.Default.FitnessCenter
+            else -> Icons.Default.MilitaryTech
+        }
+        // Photo Logger: CameraAlt → PhotoCamera → CameraEnhance
+        4 -> when (level) {
+            1 -> Icons.Default.CameraAlt
+            2 -> Icons.Default.PhotoCamera
+            else -> Icons.Default.CameraEnhance
+        }
+        // Streak Master: LocalFireDepartment → Whatshot → FlashOn
+        5 -> when (level) {
+            1 -> Icons.Default.LocalFireDepartment
+            2 -> Icons.Default.Whatshot
+            else -> Icons.Default.FlashOn
+        }
+        // Health Champion: MilitaryTech → EmojiEvents → Star
+        6 -> when (level) {
+            1 -> Icons.Default.MilitaryTech
+            2 -> Icons.Default.EmojiEvents
+            else -> Icons.Default.Star
+        }
+        else -> Icons.Default.EmojiEvents
+    }
+}
+
+/** Returns the tier ring color for a badge level. */
+fun tierRingColor(level: Int): Color = when (level) {
+    1 -> Color(0xFFCD7F32)  // Bronze
+    2 -> Color(0xFFC0C0C0)  // Silver
+    3 -> Color(0xFFFFD700)  // Gold
+    else -> Color.Transparent
+}
 
 // Helper: convert cm to imperial string e.g. 162 cm → "5'4""
 fun cmToImperial(cm: Double): String {
@@ -534,6 +598,7 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
     // ── Expand each badge into individual level entries ──
     // If "Workout Warrior" is Lv 3, this creates 3 earned cards:
     //   Lv 1 — Bronze, Lv 2 — Silver, Lv 3 — Gold
+    // Each level uses a progressively upgraded icon.
     // Plus one "In Progress" card for the next unearned level per badge type.
     val earned = mutableListOf<Badge>()
     val inProgress = mutableListOf<Badge>()
@@ -545,26 +610,29 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
                 id = lb.id * 10 + level,  // unique ID per level
                 name = lb.name,
                 description = "Lv $level — ${levelLabel(level)}",
-                icon = badgeIcon(lb.id),
+                icon = upgradedBadgeIcon(lb.id, level),
                 colorBg = badgeBg(lb.id),
                 colorIcon = badgeIconColor(lb.id),
                 earned = true,
                 progress = lb.levelThresholds[level - 1],
-                max = lb.levelThresholds[level - 1]
+                max = lb.levelThresholds[level - 1],
+                level = level
             ))
         }
         // Create one "In Progress" card for the next unearned level
         if (!lb.isMaxed) {
+            val nextLevel = lb.currentLevel + 1
             inProgress.add(Badge(
-                id = lb.id * 10 + (lb.currentLevel + 1),
+                id = lb.id * 10 + nextLevel,
                 name = lb.name,
                 description = "Lv ${lb.currentLevel} — ${if (lb.currentLevel > 0) levelLabel(lb.currentLevel) else "Locked"}",
-                icon = badgeIcon(lb.id),
+                icon = upgradedBadgeIcon(lb.id, nextLevel),
                 colorBg = badgeBg(lb.id),
                 colorIcon = badgeIconColor(lb.id),
                 earned = false,
                 progress = lb.currentProgress,
-                max = lb.nextLevelThreshold
+                max = lb.nextLevelThreshold,
+                level = nextLevel
             ))
         }
     }
@@ -654,15 +722,47 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
 
 @Composable
 fun EarnedBadgeCard(badge: Badge, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+    // Visual scaling per level: icon grows, ring gets more prominent
+    val iconSize = when (badge.level) {
+        1 -> 24.dp; 2 -> 28.dp; 3 -> 32.dp; else -> 24.dp
+    }
+    val ringColor = tierRingColor(badge.level)
+    val ringWidth = when (badge.level) {
+        1 -> 2.dp; 2 -> 2.5.dp; 3 -> 3.dp; else -> 1.dp
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), onClick = onClick, modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.size(56.dp).background(badge.colorBg, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(badge.icon, null, tint = badge.colorIcon, modifier = Modifier.size(28.dp))
+            // Badge circle with tier-colored ring border
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .border(ringWidth, ringColor, CircleShape)
+                    .padding(ringWidth)
+                    .background(badge.colorBg, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(badge.icon, null, tint = badge.colorIcon, modifier = Modifier.size(iconSize))
             }
-            Spacer(modifier = Modifier.height(8.dp))
+
+            // Star indicators showing level count
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(badge.level.coerceIn(0, 3)) {
+                    Icon(
+                        Icons.Default.Star, null,
+                        tint = ringColor,
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
             Text(badge.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), maxLines = 1)
             Text(badge.description, fontSize = 10.sp, color = Color(0xFF6B7280), maxLines = 1)
 
@@ -690,13 +790,22 @@ fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
         )
     }
 
+    val nextTierRing = tierRingColor(badge.level)
+
     Card(
         shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), onClick = onClick, modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(badge.colorBg.copy(alpha = 0.6f), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(badge.icon, null, tint = badge.colorIcon, modifier = Modifier.size(24.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .border(1.5.dp, nextTierRing.copy(alpha = 0.4f), CircleShape)
+                    .padding(1.5.dp)
+                    .background(badge.colorBg.copy(alpha = 0.6f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(badge.icon, null, tint = badge.colorIcon.copy(alpha = 0.7f), modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
