@@ -9,12 +9,20 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 // 1. Define Dark Mode Colors
 private val DarkColorScheme = darkColorScheme(
     primary = CalorieKoLightGreen,
     secondary = CalorieKoLightOrange,
-    tertiary = CalorieKoGreen
+    tertiary = CalorieKoGreen,
+    background = Color(0xFF121212),
+    surface = Color(0xFF1E1E1E),
+    onPrimary = Color.Black,
+    onSecondary = Color.Black,
+    onTertiary = Color.Black,
+    onBackground = Color(0xFFE3E3E3),
+    onSurface = Color(0xFFE3E3E3),
 )
 
 // 2. Define Light Mode Colors

@@ -67,16 +67,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.viewmodel.AuthViewModel
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.CalorieKoLightGreen
+import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.ui.theme.CalorieKoDarkOrange
 
-// ─── Brand Colors (reused from theme) ───
-private val CalorieKoGreen = Color(0xFF4CAF50)
-private val CalorieKoLightGreen = Color(0xFF81C784)
-private val CalorieKoOrange = Color(0xFFFDB05E)
-private val CalorieKoDeepOrange = Color(0xFFFF9800)
-private val TextDark = Color(0xFF2D2D2D)
-private val TextGray = Color(0xFF8E8E8E)
-private val FieldBackground = Color(0xFFF7F8FA)
-private val FieldBorder = Color(0xFFE0E0E0)
+// (Brand Colors are now imported from Theme/Color.kt or using MaterialTheme)
 
 @Composable
 fun AuthScreen(
@@ -112,7 +110,7 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
         ) {
             // ─── Top Hero Banner ───
@@ -145,7 +143,7 @@ fun AuthScreen(
                     // Logo with white circle background
                     Surface(
                         shape = CircleShape,
-                        color = Color.White,
+                        color = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface else Color.White,
                         shadowElevation = 8.dp,
                         modifier = Modifier.size(90.dp)
                     ) {
@@ -194,12 +192,12 @@ fun AuthScreen(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFEBEE),
+                        color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = errorMessage ?: "",
-                            color = Color(0xFFD32F2F),
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
@@ -211,14 +209,14 @@ fun AuthScreen(
                     text = "Email",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextDark
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; viewModel.clearError() },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text("Enter your email", color = TextGray, fontSize = 14.sp)
+                        Text("Enter your email", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     },
                     leadingIcon = {
                         Icon(
@@ -233,11 +231,13 @@ fun AuthScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = CalorieKoGreen,
-                        unfocusedBorderColor = FieldBorder,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = FieldBackground,
-                        cursorColor = CalorieKoGreen
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color(0xFFF7F8FA),
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
 
@@ -246,14 +246,14 @@ fun AuthScreen(
                     text = "Password",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextDark
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; viewModel.clearError() },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text("Enter your password", color = TextGray, fontSize = 14.sp)
+                        Text("Enter your password", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     },
                     leadingIcon = {
                         Icon(
@@ -269,7 +269,7 @@ fun AuthScreen(
                                 if (passwordVisible) Icons.Default.VisibilityOff
                                 else Icons.Default.Visibility,
                                 contentDescription = "Toggle password visibility",
-                                tint = TextGray,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -281,11 +281,13 @@ fun AuthScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = CalorieKoGreen,
-                        unfocusedBorderColor = FieldBorder,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = FieldBackground,
-                        cursorColor = CalorieKoGreen
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color(0xFFF7F8FA),
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
 
@@ -321,7 +323,7 @@ fun AuthScreen(
                             .fillMaxSize()
                             .background(
                                 brush = Brush.horizontalGradient(
-                                    colors = listOf(CalorieKoOrange, CalorieKoDeepOrange)
+                                    colors = listOf(CalorieKoOrange, Color(0xFFFF9800)) // Using direct Orange for gradient
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ),
@@ -356,7 +358,7 @@ fun AuthScreen(
                 ) {
                     Text(
                         text = "Don't have an account? ",
-                        color = TextGray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                     Text(

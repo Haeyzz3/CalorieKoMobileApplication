@@ -55,16 +55,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.viewmodel.ForgotPasswordViewModel
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.CalorieKoLightGreen
+import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.ui.theme.CalorieKoDarkOrange
 
-// ─── Brand Colors (matching AuthScreen) ───
-private val CalorieKoGreen = Color(0xFF4CAF50)
-private val CalorieKoLightGreen = Color(0xFF81C784)
-private val CalorieKoOrange = Color(0xFFFDB05E)
-private val CalorieKoDeepOrange = Color(0xFFFF9800)
-private val TextDark = Color(0xFF2D2D2D)
-private val TextGray = Color(0xFF8E8E8E)
-private val FieldBackground = Color(0xFFF7F8FA)
-private val FieldBorder = Color(0xFFE0E0E0)
+// (Brand Colors are inherited from theme or Color.kt)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +79,7 @@ fun ForgotPasswordScreen(
     var email by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,7 +149,7 @@ fun ForgotPasswordScreen(
                 Text(
                     text = "Enter your email address and we'll send you instructions to reset your password.",
                     fontSize = 15.sp,
-                    color = TextGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 22.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -165,12 +163,12 @@ fun ForgotPasswordScreen(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFEBEE),
+                        color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = errorMessage ?: "",
-                            color = Color(0xFFD32F2F),
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
@@ -185,12 +183,12 @@ fun ForgotPasswordScreen(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFE8F5E9),
+                        color = if (isSystemInDarkTheme()) Color(0xFF1B5E20) else Color(0xFFE8F5E9),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = successMessage ?: "",
-                            color = Color(0xFF2E7D32),
+                            color = if (isSystemInDarkTheme()) Color(0xFFE8F5E9) else Color(0xFF2E7D32),
                             fontSize = 13.sp,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                         )
@@ -202,20 +200,20 @@ fun ForgotPasswordScreen(
                     text = "Email Address",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextDark
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; viewModel.clearMessages() },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text("example@email.com", color = TextGray, fontSize = 14.sp)
+                        Text("example@email.com", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     },
                     leadingIcon = {
                         Icon(
                             Icons.Default.Email,
                             contentDescription = null,
-                            tint = CalorieKoGreen,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
@@ -224,11 +222,13 @@ fun ForgotPasswordScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = CalorieKoGreen,
-                        unfocusedBorderColor = FieldBorder,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = FieldBackground,
-                        cursorColor = CalorieKoGreen
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color(0xFFF7F8FA),
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
 
@@ -250,7 +250,7 @@ fun ForgotPasswordScreen(
                             .fillMaxSize()
                             .background(
                                 brush = Brush.horizontalGradient(
-                                    colors = listOf(CalorieKoOrange, CalorieKoDeepOrange)
+                                    colors = listOf(CalorieKoOrange, Color(0xFFFF9800))
                                 ),
                                 shape = RoundedCornerShape(12.dp)
                             ),
