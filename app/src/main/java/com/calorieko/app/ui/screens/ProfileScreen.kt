@@ -510,45 +510,68 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
 
     // Check if all badges are maxed → user should level up
     val allMaxed = leveledBadges.all { it.isMaxed }
-    val earnedCount = leveledBadges.count { it.currentLevel > 0 }
 
-    // Convert to old Badge format for existing dialogs (backward-compat shim)
-    val badges = leveledBadges.map { lb ->
-        Badge(
-            id = lb.id, name = lb.name,
-            description = "Lv ${lb.currentLevel} — ${lb.levelLabel}",
-            icon = lb.id.let {
-                when (it) {
-                    1 -> Icons.Default.CalendarToday
-                    2 -> Icons.Default.MonitorWeight
-                    3 -> Icons.Default.Bolt
-                    4 -> Icons.Default.CameraAlt
-                    5 -> Icons.Default.LocalFireDepartment
-                    else -> Icons.Default.MilitaryTech
-                }
-            },
-            colorBg = lb.id.let {
-                when (it) {
-                    1 -> Color(0xFFDBEAFE); 2 -> Color(0xFFDCFCE7)
-                    3 -> Color(0xFFFEF3C7); 4 -> Color(0xFFF3E8FF)
-                    5 -> Color(0xFFFFEDD5); else -> Color(0xFFFCE7F3)
-                }
-            },
-            colorIcon = lb.id.let {
-                when (it) {
-                    1 -> Color(0xFF2563EB); 2 -> Color(0xFF16A34A)
-                    3 -> Color(0xFFD97706); 4 -> Color(0xFF9333EA)
-                    5 -> Color(0xFFEA580C); else -> Color(0xFFDB2777)
-                }
-            },
-            earned = lb.currentLevel > 0,
-            progress = lb.currentProgress,
-            max = lb.nextLevelThreshold
-        )
+    // Helper: resolve icon/colors by badge ID
+    fun badgeIcon(id: Int) = when (id) {
+        1 -> Icons.Default.CalendarToday; 2 -> Icons.Default.MonitorWeight
+        3 -> Icons.Default.Bolt; 4 -> Icons.Default.CameraAlt
+        5 -> Icons.Default.LocalFireDepartment; else -> Icons.Default.MilitaryTech
+    }
+    fun badgeBg(id: Int) = when (id) {
+        1 -> Color(0xFFDBEAFE); 2 -> Color(0xFFDCFCE7)
+        3 -> Color(0xFFFEF3C7); 4 -> Color(0xFFF3E8FF)
+        5 -> Color(0xFFFFEDD5); else -> Color(0xFFFCE7F3)
+    }
+    fun badgeIconColor(id: Int) = when (id) {
+        1 -> Color(0xFF2563EB); 2 -> Color(0xFF16A34A)
+        3 -> Color(0xFFD97706); 4 -> Color(0xFF9333EA)
+        5 -> Color(0xFFEA580C); else -> Color(0xFFDB2777)
+    }
+    fun levelLabel(level: Int) = when (level) {
+        1 -> "Bronze"; 2 -> "Silver"; 3 -> "Gold"; else -> "Legendary"
     }
 
-    val earned = badges.filter { it.earned }
-    val inProgress = badges.filter { !it.earned }
+    // ── Expand each badge into individual level entries ──
+    // If "Workout Warrior" is Lv 3, this creates 3 earned cards:
+    //   Lv 1 — Bronze, Lv 2 — Silver, Lv 3 — Gold
+    // Plus one "In Progress" card for the next unearned level per badge type.
+    val earned = mutableListOf<Badge>()
+    val inProgress = mutableListOf<Badge>()
+
+    for (lb in leveledBadges) {
+        // Create a card for each earned level (1..currentLevel)
+        for (level in 1..lb.currentLevel) {
+            earned.add(Badge(
+                id = lb.id * 10 + level,  // unique ID per level
+                name = lb.name,
+                description = "Lv $level — ${levelLabel(level)}",
+                icon = badgeIcon(lb.id),
+                colorBg = badgeBg(lb.id),
+                colorIcon = badgeIconColor(lb.id),
+                earned = true,
+                progress = lb.levelThresholds[level - 1],
+                max = lb.levelThresholds[level - 1]
+            ))
+        }
+        // Create one "In Progress" card for the next unearned level
+        if (!lb.isMaxed) {
+            inProgress.add(Badge(
+                id = lb.id * 10 + (lb.currentLevel + 1),
+                name = lb.name,
+                description = "Lv ${lb.currentLevel} — ${if (lb.currentLevel > 0) levelLabel(lb.currentLevel) else "Locked"}",
+                icon = badgeIcon(lb.id),
+                colorBg = badgeBg(lb.id),
+                colorIcon = badgeIconColor(lb.id),
+                earned = false,
+                progress = lb.currentProgress,
+                max = lb.nextLevelThreshold
+            ))
+        }
+    }
+
+    val totalPossibleLevels = leveledBadges.sumOf { it.maxLevel }
+    val earnedCount = earned.size
+    val badges = earned + inProgress
 
     selectedBadge?.let { badge -> BadgeDetailDialog(badge = badge, onDismiss = { selectedBadge = null }) }
 
@@ -561,7 +584,7 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.EmojiEvents, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("$earnedCount/${badges.size}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563))
+                Text("$earnedCount/$totalPossibleLevels", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563))
             }
         }
 
@@ -589,16 +612,15 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
 
         if (earned.isNotEmpty()) {
             Text("Earned Badges", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                earned.take(3).forEach { badge -> EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge }) }
-            }
-            if (earned.size > 3) {
-                Spacer(Modifier.height(12.dp))
+            // Dynamic grid: rows of 3 badges, handles any count
+            earned.chunked(3).forEachIndexed { index, rowBadges ->
+                if (index > 0) Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    earned.drop(3).forEach { badge -> EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge }) }
-                    if (earned.size % 3 != 0) { // fill empty slots
-                        repeat(3 - (earned.size % 3)) { Spacer(modifier = Modifier.weight(1f)) }
+                    rowBadges.forEach { badge ->
+                        EarnedBadgeCard(badge = badge, modifier = Modifier.weight(1f), onClick = { selectedBadge = badge })
                     }
+                    // Fill empty slots in incomplete rows
+                    repeat(3 - rowBadges.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
         }
