@@ -60,7 +60,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun SuccessScreen(onEnterDashboard: () -> Unit) {
+fun SuccessScreen(isScaleConnected: Boolean, onEnterDashboard: () -> Unit) {
     // --- Animation States ---
     var showIcon by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
@@ -68,7 +68,13 @@ fun SuccessScreen(onEnterDashboard: () -> Unit) {
     var showButton by remember { mutableStateOf(false) }
 
     // --- Trigger Animations Sequence ---
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isScaleConnected) {
+        val checklistItems = listOf(
+            "Profile configured",
+            "Health goals set",
+            if (isScaleConnected) "Smart scale connected" else "Smart scale setup skipped"
+        )
+
         delay(200)
         showIcon = true
 
@@ -76,11 +82,11 @@ fun SuccessScreen(onEnterDashboard: () -> Unit) {
         showText = true
 
         delay(500)
-        showListItems = 1
-        delay(200)
-        showListItems = 2
-        delay(200)
-        showListItems = 3
+        // Dynamically animate each item
+        for (i in 1..checklistItems.size) {
+            showListItems = i
+            delay(200)
+        }
 
         delay(400)
         showButton = true
@@ -196,7 +202,7 @@ fun SuccessScreen(onEnterDashboard: () -> Unit) {
             val checklist = listOf(
                 "Profile configured",
                 "Health goals set",
-                "Smart scale connected"
+                if (isScaleConnected) "Smart scale connected" else "Smart scale setup skipped"
             )
 
             Column(

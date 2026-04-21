@@ -347,25 +347,36 @@ fun AppNavigation() {
             ScalePairingScreen(
                 bleScaleManager = bleScaleManager,
                 onComplete = {
+                    val isConnected = bleScaleManager.connectionState.value is com.calorieko.app.ble.BleConnectionState.Connected
                     if (source == "settings") {
                         navController.popBackStack()
                     } else {
-                        navController.navigate("success")
+                        navController.navigate("success/$isConnected")
                     }
                 },
                 onSkip = {
                     if (source == "settings") {
                         navController.popBackStack()
                     } else {
-                        navController.navigate("success")
+                        navController.navigate("success/false")
                     }
                 }
             )
         }
 
-        // 7. Success
-        composable("success") {
-            SuccessScreen(onEnterDashboard = { navController.navigate("dashboard") })
+        composable(
+            route = "success/{isScaleConnected}",
+            arguments = listOf(navArgument("isScaleConnected") { type = NavType.BoolType })
+        ) { backStackEntry ->
+            val isScaleConnected = backStackEntry.arguments?.getBoolean("isScaleConnected") ?: false
+            SuccessScreen(
+                isScaleConnected = isScaleConnected,
+                onEnterDashboard = {
+                    navController.navigate("dashboard") {
+                        popUpTo("success/{isScaleConnected}") { inclusive = true }
+                    }
+                }
+            )
         }
 
         // 8. Dashboard
