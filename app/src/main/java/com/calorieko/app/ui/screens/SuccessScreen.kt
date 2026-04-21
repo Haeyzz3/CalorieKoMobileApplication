@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -317,7 +318,7 @@ fun SuccessCheckItem(text: String, isSkipped: Boolean = false) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isSkipped) androidx.compose.material.icons.rounded.Remove else Icons.Rounded.Check,
+                    imageVector = if (isSkipped) Icons.Rounded.Remove else Icons.Rounded.Check,
                     contentDescription = null,
                     tint = if (isSkipped) Color.White.copy(alpha = 0.5f) else Color.White,
                     modifier = Modifier.size(14.dp)
