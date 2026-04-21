@@ -54,7 +54,9 @@ class AuthRepository(
                 )
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Login failed. Please try again.")
+            // For security and clarity, show a generic "Incorrect email or password" 
+            // for all login failures (invalid user, wrong password, etc.)
+            AuthResult.Error("Incorrect email or password. Please try again.")
         }
     }
 
@@ -69,8 +71,16 @@ class AuthRepository(
             // Send email verification (fire-and-forget)
             auth.currentUser?.sendEmailVerification()
             AuthResult.Success
+        } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+            AuthResult.Error("This email is already registered. Please login instead.")
+        } catch (e: com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
+            AuthResult.Error("Password is too weak. Please use at least 6 characters.")
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
+            AuthResult.Error("Please enter a valid email address.")
+        } catch (e: com.google.firebase.FirebaseNetworkException) {
+            AuthResult.Error("No internet connection. Please check your network and try again.")
         } catch (e: Exception) {
-            AuthResult.Error(e.localizedMessage ?: "Registration failed. Please try again.")
+            AuthResult.Error("Registration failed. Please check your details and try again.")
         }
     }
 
@@ -83,8 +93,12 @@ class AuthRepository(
         return try {
             auth.sendPasswordResetEmail(email.trim()).await()
             ResetResult.Success("A password reset link has been sent to $email")
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+            ResetResult.Error("No account found with that email address.")
+        } catch (e: com.google.firebase.FirebaseNetworkException) {
+            ResetResult.Error("No internet connection. Please try again.")
         } catch (e: Exception) {
-            ResetResult.Error(e.message ?: "Failed to send reset email. Please try again.")
+            ResetResult.Error("Failed to send reset email. Please ensure the email is correct.")
         }
     }
 
