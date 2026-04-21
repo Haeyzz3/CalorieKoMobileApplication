@@ -214,7 +214,10 @@ fun SuccessScreen(isScaleConnected: Boolean, onEnterDashboard: () -> Unit) {
                         visible = showListItems > index,
                         enter = slideInVertically { 50 } + fadeIn()
                     ) {
-                        SuccessCheckItem(text = item)
+                        SuccessCheckItem(
+                            text = item,
+                            isSkipped = index == 2 && !isScaleConnected
+                        )
                     }
                 }
             }
@@ -293,9 +296,9 @@ fun AnimatedCheckIcon(showIcon: Boolean) {
 
 // --- Helper Component: Checklist Item ---
 @Composable
-fun SuccessCheckItem(text: String) {
+fun SuccessCheckItem(text: String, isSkipped: Boolean = false) {
     Surface(
-        color = Color.White.copy(alpha = 0.1f),
+        color = Color.White.copy(alpha = if (isSkipped) 0.05f else 0.1f),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -303,17 +306,20 @@ fun SuccessCheckItem(text: String) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(16.dp)
         ) {
-            // Tiny Circle Check
+            // Tiny Circle Check/Dash
             Box(
                 modifier = Modifier
                     .size(24.dp)
-                    .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                    .background(
+                        if (isSkipped) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.2f),
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Check,
+                    imageVector = if (isSkipped) androidx.compose.material.icons.rounded.Remove else Icons.Rounded.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (isSkipped) Color.White.copy(alpha = 0.5f) else Color.White,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -322,7 +328,7 @@ fun SuccessCheckItem(text: String) {
 
             Text(
                 text = text,
-                color = Color.White,
+                color = if (isSkipped) Color.White.copy(alpha = 0.6f) else Color.White,
                 fontWeight = FontWeight.Medium,
                 fontSize = 16.sp
             )
