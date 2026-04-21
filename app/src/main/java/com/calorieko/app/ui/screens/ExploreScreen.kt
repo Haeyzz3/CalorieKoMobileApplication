@@ -104,7 +104,8 @@ private val CATEGORY_EMOJIS = mapOf(
 private val SOURCE_BADGE_COLORS = mapOf(
     "DOST_FNRI_MENU_GUIDE" to Pair(Color(0xFF1565C0), Color(0xFFE3F2FD)),
     "DOST_FNRI_FCT" to Pair(Color(0xFF6A1B9A), Color(0xFFF3E5F5)),
-    "USDA_FNDDS" to Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
+    "USDA_FNDDS" to Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9)),
+    "USDA_FDC" to Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
@@ -219,7 +220,7 @@ fun ExploreScreen(
                         SourceFilterChip("ALL", "All Sources", sourceFilter) { viewModel.setSourceFilter(it) }
                         SourceFilterChip("DOST_FNRI_MENU_GUIDE", "FNRI", sourceFilter) { viewModel.setSourceFilter(it) }
                         SourceFilterChip("DOST_FNRI_FCT", "FCT", sourceFilter) { viewModel.setSourceFilter(it) }
-                        SourceFilterChip("USDA_FNDDS", "USDA", sourceFilter) { viewModel.setSourceFilter(it) }
+                        SourceFilterChip("USDA_FDC", "USDA", sourceFilter) { viewModel.setSourceFilter(it) }
                     }
                 }
             }
@@ -375,7 +376,7 @@ fun ExploreScreen(
                     scope.launch { sheetState.hide() }.invokeOnCompletion { selectedDish.value = null }
                 },
                 onAddToPantry = {
-                    viewModel.addCoreIngredientsToPantry(selectedDish.value!!.mlLabel)
+                    viewModel.addCoreIngredientsToPantry(selectedDish.value!!.dishLabel)
                 }
             )
         }
@@ -457,7 +458,7 @@ private fun ExploreDishCard(
                         .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = getDishEmoji(dish.mlLabel), fontSize = 24.sp)
+                    Text(text = getDishEmoji(dish.dishLabel), fontSize = 24.sp)
                 }
                 Surface(color = sourceBgColor, shape = RoundedCornerShape(4.dp)) {
                     Text(
@@ -562,10 +563,10 @@ private fun ExploreDishDetailContent(
     var addedToPantry by remember { mutableStateOf(false) }
 
     // Load ingredient details on first composition
-    LaunchedEffect(dish.mlLabel) {
+    LaunchedEffect(dish.dishLabel) {
         isLoadingDetails = true
         ingredientDetails = withContext(Dispatchers.IO) {
-            viewModel.getIngredientDetails(dish.mlLabel)
+            viewModel.getIngredientDetails(dish.dishLabel)
         }
         isLoadingDetails = false
     }
@@ -593,7 +594,7 @@ private fun ExploreDishDetailContent(
                         .background(Color(0xFFF3F4F6), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = getDishEmoji(dish.mlLabel), fontSize = 36.sp)
+                    Text(text = getDishEmoji(dish.dishLabel), fontSize = 36.sp)
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
@@ -652,7 +653,7 @@ private fun ExploreDishDetailContent(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "Sodium: ${dish.sodium}mg per 100g",
+                    "Sodium: ${dish.sodium}mg per serving",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (dish.sodium <= 500) Color(0xFF16A34A) else if (dish.sodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
@@ -664,8 +665,8 @@ private fun ExploreDishDetailContent(
 
         // Data Source Attribution Card (Interactive)
         val context = LocalContext.current
-        val proofDoc = remember(dish.mlLabel, dish.dataSource) {
-            viewModel.getDishProofDocument(dish.mlLabel, dish.dataSource)
+        val proofDoc = remember(dish.dishLabel, dish.dataSource) {
+            viewModel.getDishProofDocument(dish.dishLabel, dish.dataSource)
         }
 
         Card(

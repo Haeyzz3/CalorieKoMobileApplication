@@ -3,11 +3,10 @@ package com.calorieko.app.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieko.app.data.local.FoodDao
+import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.UserDao
-import com.calorieko.app.data.local.ensureReferenceDataSeeded
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
@@ -60,12 +59,6 @@ data class DishResult(
     val fats: Int = 0,
     val fiber: Float = 0f,
     val sugar: Float = 0f,
-    // Fat breakdown
-    val saturatedFat: Float = 0f,
-    val polyunsaturatedFat: Float = 0f,
-    val monounsaturatedFat: Float = 0f,
-    val transFat: Float = 0f,
-    val cholesterol: Float = 0f,
     // Minerals & vitamins
     val sodium: Int = 0,
     val potassium: Float = 0f,
@@ -74,14 +67,14 @@ data class DishResult(
     val calcium: Float = 0f,
     val iron: Float = 0f,
     // Source attribution
-    val dataSource: String = "DOST_FNRI_MENU_GUIDE"
+    val dataSource: String = "USDA_FDC"
 )
 
 class PantryViewModel(
     private val auth: FirebaseAuth,
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
-    private val foodDao: FoodDao,
+    private val dishRecipeDao: DishRecipeDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val userDao: UserDao,
     private val nutritionalValuesRepo: NutritionalValuesRepository,
@@ -96,7 +89,7 @@ class PantryViewModel(
             auth: FirebaseAuth,
             pantryDao: PantryDao,
             mealPlanDao: MealPlanDao,
-            foodDao: FoodDao,
+            dishRecipeDao: DishRecipeDao,
             firestoreSyncRepo: FirestoreSyncRepository,
             userDao: UserDao,
             nutritionalValuesRepo: NutritionalValuesRepository,
@@ -105,7 +98,7 @@ class PantryViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, foodDao, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -157,18 +150,12 @@ class PantryViewModel(
         val fats: Int,
         val fiber: Float,
         val sugar: Float,
-        val saturatedFat: Float,
-        val polyunsaturatedFat: Float,
-        val monounsaturatedFat: Float,
-        val transFat: Float,
-        val cholesterol: Float,
         val sodium: Int,
         val potassium: Float,
         val vitaminA: Float,
         val vitaminC: Float,
         val calcium: Float,
-        val iron: Float,
-        val dataSource: String = "DOST_FNRI_MENU_GUIDE"
+        val iron: Float
     )
 
     // --- User's actual daily calorie target and sodium limit ---
@@ -187,7 +174,8 @@ class PantryViewModel(
         // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
         // and the async FoodDatabaseCallback re-seed hasn't completed yet.
         viewModelScope.launch(Dispatchers.IO) {
-            ensureReferenceDataSeeded(appContext, foodDao, pantryDao)
+            // No-op: legacy ensureReferenceDataSeeded removed since we now
+            // use DISH_RECIPES_TABLE which is seeded via FoodDatabaseCallback
         }
 
         // Load all unique ingredients for autocomplete
@@ -348,18 +336,12 @@ class PantryViewModel(
                 fats = nutrition.fats,
                 fiber = nutrition.fiber,
                 sugar = nutrition.sugar,
-                saturatedFat = nutrition.saturatedFat,
-                polyunsaturatedFat = nutrition.polyunsaturatedFat,
-                monounsaturatedFat = nutrition.monounsaturatedFat,
-                transFat = nutrition.transFat,
-                cholesterol = nutrition.cholesterol,
                 sodium = nutrition.sodium,
                 potassium = nutrition.potassium,
                 vitaminA = nutrition.vitaminA,
                 vitaminC = nutrition.vitaminC,
                 calcium = nutrition.calcium,
-                iron = nutrition.iron,
-                dataSource = nutrition.dataSource
+                iron = nutrition.iron
             )
 
             if (info.core_matched >= info.core_total) {
@@ -509,37 +491,32 @@ class PantryViewModel(
     // ============================================================
 
     /**
-     * Gets nutritional data for a dish by looking up the FOOD_TABLE via ml_label.
+     * Gets nutritional data for a dish by looking up the DISH_RECIPES_TABLE.
+     * Returns per-serving nutrient values.
      * Results are cached to avoid repeated DB lookups.
      */
     private suspend fun getDishNutrition(dishLabel: String): DishNutritionInfo {
         _dishNutritionCache[dishLabel]?.let { return it }
 
-        val foodItem = foodDao.getFoodByMlLabel(dishLabel)
-        val info = if (foodItem != null) {
+        val recipe = dishRecipeDao.getByDishLabel(dishLabel)
+        val info = if (recipe != null) {
             DishNutritionInfo(
-                calories = foodItem.caloriesPer100g.toInt(),
-                protein = foodItem.proteinPer100g.toInt(),
-                carbs = foodItem.carbsPer100g.toInt(),
-                fats = foodItem.fatPer100g.toInt(),
-                fiber = foodItem.fiberPer100g,
-                sugar = foodItem.sugarPer100g,
-                saturatedFat = foodItem.saturatedFatPer100g,
-                polyunsaturatedFat = foodItem.polyunsaturatedFatPer100g,
-                monounsaturatedFat = foodItem.monounsaturatedFatPer100g,
-                transFat = foodItem.transFatPer100g,
-                cholesterol = foodItem.cholesterolPer100g,
-                sodium = foodItem.sodiumPer100g.toInt(),
-                potassium = foodItem.potassiumPer100g,
-                vitaminA = foodItem.vitaminAPer100g,
-                vitaminC = foodItem.vitaminCPer100g,
-                calcium = foodItem.calciumPer100g,
-                iron = foodItem.ironPer100g,
-                dataSource = foodItem.dataSource
+                calories = recipe.calPerServing.toInt(),
+                protein = recipe.proteinPerServing.toInt(),
+                carbs = recipe.carbsPerServing.toInt(),
+                fats = recipe.fatPerServing.toInt(),
+                fiber = recipe.fiberPerServing,
+                sugar = recipe.sugarPerServing,
+                sodium = recipe.sodiumPerServing.toInt(),
+                potassium = recipe.potassiumPerServing,
+                vitaminA = recipe.vitaminAPerServing,
+                vitaminC = recipe.vitaminCPerServing,
+                calcium = recipe.calciumPerServing,
+                iron = recipe.ironPerServing
             )
         } else {
-            // Dish exists in ingredients table but not in food table — no nutrition data available
-            DishNutritionInfo(0, 0, 0, 0, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0f, 0f, 0f, 0f, 0f)
+            // Dish exists in ingredients table but not in recipes table — no nutrition data available
+            DishNutritionInfo(0, 0, 0, 0, 0f, 0f, 0, 0f, 0f, 0f, 0f, 0f)
         }
 
         _dishNutritionCache[dishLabel] = info

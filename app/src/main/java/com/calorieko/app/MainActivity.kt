@@ -561,7 +561,7 @@ fun AppNavigation() {
                     auth = auth,
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
-                    foodDao = db.foodDao(),
+                    dishRecipeDao = db.dishRecipeDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
                     userDao = db.userDao(),
                     nutritionalValuesRepo = nutritionalRepo,
@@ -586,7 +586,7 @@ fun AppNavigation() {
             val exploreViewModel: com.calorieko.app.viewmodel.ExploreViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ExploreViewModel.provideFactory(
                     auth = auth,
-                    foodDao = db.foodDao(),
+                    dishRecipeDao = db.dishRecipeDao(),
                     pantryDao = db.pantryDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext

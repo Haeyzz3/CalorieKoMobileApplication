@@ -3,10 +3,9 @@ package com.calorieko.app.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieko.app.data.local.FoodDao
+import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.local.PantryDao
-import com.calorieko.app.data.local.ensureReferenceDataSeeded
-import com.calorieko.app.data.model.FoodItem
+import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -24,10 +23,10 @@ import kotlinx.coroutines.launch
 
 /**
  * Represents a dish for display in the Explore screen.
- * Enriched with ingredient count and data source info beyond what FoodItem alone provides.
+ * Enriched with ingredient names and data source info beyond what DishRecipeEntity alone provides.
  */
 data class ExploreDish(
-    val mlLabel: String,
+    val dishLabel: String,
     val nameEn: String,
     val namePh: String,
     val category: String,
@@ -38,7 +37,9 @@ data class ExploreDish(
     val sodium: Int,
     val dataSource: String,
     val ingredientCount: Int = 0,
-    val ingredientNames: List<String> = emptyList()
+    val ingredientNames: List<String> = emptyList(),
+    val servings: Int = 1,
+    val perServingWeightG: Float = 0f
 )
 
 /**
@@ -47,7 +48,7 @@ data class ExploreDish(
  */
 class ExploreViewModel(
     private val auth: FirebaseAuth,
-    private val foodDao: FoodDao,
+    private val dishRecipeDao: DishRecipeDao,
     private val pantryDao: PantryDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
@@ -59,7 +60,7 @@ class ExploreViewModel(
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
-            foodDao: FoodDao,
+            dishRecipeDao: DishRecipeDao,
             pantryDao: PantryDao,
             firestoreSyncRepo: FirestoreSyncRepository,
             appContext: Context
@@ -67,7 +68,7 @@ class ExploreViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ExploreViewModel::class.java)) {
-                    return ExploreViewModel(auth, foodDao, pantryDao, firestoreSyncRepo, appContext) as T
+                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, firestoreSyncRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -93,15 +94,15 @@ class ExploreViewModel(
     ) { dishes, query, source ->
         dishes
             .filter { dish ->
-                // Exclude non-food ML labels
-                dish.mlLabel != "negative"
+                // Exclude non-food labels
+                dish.dishLabel != "negative"
             }
             .filter { dish ->
                 // Search filter — matches dish name, Filipino name, label, AND ingredient names
                 if (query.isBlank()) true
                 else dish.nameEn.contains(query, ignoreCase = true) ||
                      dish.namePh.contains(query, ignoreCase = true) ||
-                     dish.mlLabel.contains(query, ignoreCase = true) ||
+                     dish.dishLabel.contains(query, ignoreCase = true) ||
                      dish.ingredientNames.any { it.contains(query, ignoreCase = true) }
             }
             .filter { dish ->
@@ -134,27 +135,24 @@ class ExploreViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
 
-            // Defense-in-depth: ensure reference data is seeded before querying.
-            // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
-            // and the async FoodDatabaseCallback re-seed hasn't completed yet.
-            ensureReferenceDataSeeded(appContext, foodDao, pantryDao)
-
-            val foods = foodDao.getAllFoods()
-            val dishes = foods.map { food ->
-                val ingredients = pantryDao.getIngredientsForDish(food.mlLabel)
+            val recipes = dishRecipeDao.getAllDishRecipes()
+            val dishes = recipes.map { recipe ->
+                val ingredients = pantryDao.getIngredientsForDish(recipe.dishLabel)
                 ExploreDish(
-                    mlLabel = food.mlLabel,
-                    nameEn = food.nameEn,
-                    namePh = food.namePh,
-                    category = food.category,
-                    calories = food.caloriesPer100g.toInt(),
-                    protein = food.proteinPer100g.toInt(),
-                    carbs = food.carbsPer100g.toInt(),
-                    fats = food.fatPer100g.toInt(),
-                    sodium = food.sodiumPer100g.toInt(),
-                    dataSource = food.dataSource,
+                    dishLabel = recipe.dishLabel,
+                    nameEn = recipe.nameEn,
+                    namePh = recipe.namePh,
+                    category = recipe.category,
+                    calories = recipe.calPerServing.toInt(),
+                    protein = recipe.proteinPerServing.toInt(),
+                    carbs = recipe.carbsPerServing.toInt(),
+                    fats = recipe.fatPerServing.toInt(),
+                    sodium = recipe.sodiumPerServing.toInt(),
+                    dataSource = "USDA_FDC",
                     ingredientCount = ingredients.size,
-                    ingredientNames = ingredients
+                    ingredientNames = ingredients,
+                    servings = recipe.servings,
+                    perServingWeightG = recipe.perServingWeightG
                 )
             }
 
@@ -208,10 +206,10 @@ class ExploreViewModel(
     }
 
     /**
-     * Returns the full FoodItem for a dish (for use in the detail bottom sheet).
+     * Returns the full DishRecipeEntity for a dish (for use in the detail bottom sheet).
      */
-    suspend fun getFoodItem(mlLabel: String): FoodItem? {
-        return foodDao.getFoodByMlLabel(mlLabel)
+    suspend fun getDishRecipe(dishLabel: String): DishRecipeEntity? {
+        return dishRecipeDao.getByDishLabel(dishLabel)
     }
 
     /**
@@ -247,6 +245,7 @@ class ExploreViewModel(
             "DOST_FNRI_MENU_GUIDE" -> "DOST-FNRI Menu Guide"
             "DOST_FNRI_FCT" -> "DOST-FNRI FCT"
             "USDA_FNDDS" -> "USDA FNDDS"
+            "USDA_FDC" -> "USDA FoodData Central"
             else -> source
         }
     }
@@ -258,7 +257,7 @@ class ExploreViewModel(
         return when (source) {
             "DOST_FNRI_MENU_GUIDE" -> "FNRI"
             "DOST_FNRI_FCT" -> "FCT"
-            "USDA_FNDDS" -> "USDA"
+            "USDA_FNDDS", "USDA_FDC" -> "USDA"
             else -> source
         }
     }
@@ -270,7 +269,7 @@ class ExploreViewModel(
         return when (source) {
             "DOST_FNRI_MENU_GUIDE" -> "https://www.fnri.dost.gov.ph/index.php/tools-and-standard/fnri-menu-guide-calendar"
             "DOST_FNRI_FCT" -> "https://i.fnri.dost.gov.ph/login/fct"
-            "USDA_FNDDS" -> "https://fdc.nal.usda.gov/food-search?type=Survey%20(FNDDS)"
+            "USDA_FNDDS", "USDA_FDC" -> "https://fdc.nal.usda.gov/food-search"
             else -> ""
         }
     }
@@ -293,7 +292,7 @@ class ExploreViewModel(
         )
 
         return when (dataSource) {
-            "USDA_FNDDS" -> {
+            "USDA_FNDDS", "USDA_FDC" -> {
                 val url = usdaUrls[mlLabel] ?: ""
                 if (url.isNotEmpty()) DishProofDocument(ProofType.URL, url)
                 else DishProofDocument(ProofType.NONE, "")

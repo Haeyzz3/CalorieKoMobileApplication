@@ -1286,8 +1286,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
         // Nutrition Cards
         if (recipe.calories > 0) {
-            Text("Nutrition Overview", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            Text("Values per 100 grams", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+            Text("Per Serving Nutrition", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            Text("Values per single serving", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.height(IntrinsicSize.Max),
@@ -1485,12 +1485,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             "DOST_FNRI_MENU_GUIDE" -> "DOST-FNRI Menu Guide"
             "DOST_FNRI_FCT" -> "DOST-FNRI FCT"
             "USDA_FNDDS" -> "USDA FNDDS"
+            "USDA_FDC" -> "USDA FoodData Central"
             else -> recipe.dataSource
         }
         val (sourceTextColor, sourceBgColor) = when (recipe.dataSource) {
             "DOST_FNRI_MENU_GUIDE" -> Pair(Color(0xFF1565C0), Color(0xFFE3F2FD))
             "DOST_FNRI_FCT" -> Pair(Color(0xFF6A1B9A), Color(0xFFF3E5F5))
-            "USDA_FNDDS" -> Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
+            "USDA_FNDDS", "USDA_FDC" -> Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
             else -> Pair(Color(0xFF374151), Color(0xFFF3F4F6))
         }
         val proofDoc = remember(recipe.dishLabel, recipe.dataSource) {
@@ -1824,7 +1825,7 @@ private fun getDishProofDocument(mlLabel: String, dataSource: String): DishProof
     )
 
     return when (dataSource) {
-        "USDA_FNDDS" -> {
+        "USDA_FNDDS", "USDA_FDC" -> {
             val url = usdaUrls[mlLabel] ?: ""
             if (url.isNotEmpty()) DishProofDocument(ProofType.URL, url)
             else DishProofDocument(ProofType.NONE, "")
@@ -1843,7 +1844,7 @@ private fun getSourceDatabaseUrl(source: String): String {
     return when (source) {
         "DOST_FNRI_MENU_GUIDE" -> "https://www.fnri.dost.gov.ph/index.php/tools-and-standard/fnri-menu-guide-calendar"
         "DOST_FNRI_FCT" -> "https://i.fnri.dost.gov.ph/login/fct"
-        "USDA_FNDDS" -> "https://fdc.nal.usda.gov/food-search?type=Survey%20(FNDDS)"
+        "USDA_FNDDS", "USDA_FDC" -> "https://fdc.nal.usda.gov/food-search"
         else -> ""
     }
 }
