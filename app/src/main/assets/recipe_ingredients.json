@@ -1,0 +1,1602 @@
+[
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "chicken_egg",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 250.0,
+    "portion_original": "5 pcs",
+    "preparation_method": "boiled & peeled",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "cornstarch",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 16.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "cornstarch",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 42.7,
+    "portion_original": "1/3 cup",
+    "preparation_method": "",
+    "step": 2
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "all_purpose_flour",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 15.6,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "1/2 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 2
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.3,
+    "portion_original": "1/8 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "food_coloring_orange",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 0.5,
+    "portion_original": "1/4 tsp",
+    "preparation_method": "powder",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "chicken_egg",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 50.0,
+    "portion_original": "1 pc",
+    "preparation_method": "beaten",
+    "step": 2
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 545.0,
+    "portion_original": "2 1/2 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "onion_red",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 40.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 8.5,
+    "portion_original": "1 tbsp",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "vinegar_cane",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 119.5,
+    "portion_original": "1/2 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "sugar_brown",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 4.6,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.3,
+    "portion_original": "1/8 tsp",
+    "preparation_method": "crushed",
+    "step": 2
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "cucumber",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 99.8,
+    "portion_original": "3/4 cup",
+    "preparation_method": "quarter cut",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "lato_seaweed",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 120.0,
+    "portion_original": "1 1/2 cups",
+    "preparation_method": "cleaned & sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "tokneneng_salad",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 29.6,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "tuna_fish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 225.0,
+    "portion_original": "1 1/2 cups",
+    "preparation_method": "cubed",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "vinegar_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 179.2,
+    "portion_original": "3/4 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "vinegar_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 59.8,
+    "portion_original": "1/4 cup",
+    "preparation_method": "",
+    "step": 2
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "guso_seaweed",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 480.0,
+    "portion_original": "6 cups",
+    "preparation_method": "fresh & trimmed",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "onion_red",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 53.3,
+    "portion_original": "1/3 cup",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "tomato",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 90.0,
+    "portion_original": "1/2 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "ginger",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 40.0,
+    "portion_original": "1/3 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "calamansi_juice",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 61.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "freshly squeezed",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 4.5,
+    "portion_original": "3/4 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 1.1,
+    "portion_original": "1/2 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "kinilaw_tuna",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 473.2,
+    "portion_original": "2 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 27.2,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 10.0,
+    "portion_original": "1 tbsp",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 8.5,
+    "portion_original": "1 tbsp",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "tinapa_fish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 350.0,
+    "portion_original": "2 1/2 cups",
+    "preparation_method": "smoked & flaked",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "eggplant",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 102.5,
+    "portion_original": "1.25 cups (from mixed_vegetables)",
+    "preparation_method": "talong & okra & kalabasa & sitaw",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "okra",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 125.0,
+    "portion_original": "1.25 cups (from mixed_vegetables)",
+    "preparation_method": "talong & okra & kalabasa & sitaw",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "squash",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 175.0,
+    "portion_original": "1.25 cups (from mixed_vegetables)",
+    "preparation_method": "talong & okra & kalabasa & sitaw",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "sitaw",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 125.0,
+    "portion_original": "1.25 cups (from mixed_vegetables)",
+    "preparation_method": "talong & okra & kalabasa & sitaw",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 473.2,
+    "portion_original": "2 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.3,
+    "portion_original": "1/8 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 27.2,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 10.0,
+    "portion_original": "1 tbsp",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 8.5,
+    "portion_original": "1 tbsp",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "tomato",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 90.0,
+    "portion_original": "1/2 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "ampalaya",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 480.0,
+    "portion_original": "4 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "malunggay_leaves",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 25.0,
+    "portion_original": "1 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.3,
+    "portion_original": "1/8 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_ampalaya",
+    "ingredient_key": "chicken_egg",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 500.0,
+    "portion_original": "10 pcs",
+    "preparation_method": "beaten",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 109.0,
+    "portion_original": "1/2 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "onion_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 40.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "tomato_red",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 450.0,
+    "portion_original": "2 1/2 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "pork_liempo",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 900.0,
+    "portion_original": "4 cups",
+    "preparation_method": "lean & sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 1419.6,
+    "portion_original": "6 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "gabi",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 280.0,
+    "portion_original": "2 cups",
+    "preparation_method": "cubed",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "sitaw",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 300.0,
+    "portion_original": "3 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "sinigang_mix",
+    "ingredient_type": "core",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 44.0,
+    "portion_original": "1 pack",
+    "preparation_method": "44 gram",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "patis",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 36.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 18.0,
+    "portion_original": "1 tbsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinigang_pork",
+    "ingredient_key": "kangkong_leaves",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 525.0,
+    "portion_original": "17 1/2 cups",
+    "preparation_method": "stem & sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 72.7,
+    "portion_original": "1/3 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 17.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "onion_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 40.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "pork_liempo",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 900.0,
+    "portion_original": "4 cups",
+    "preparation_method": "lean & ground",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 18.0,
+    "portion_original": "1 tbsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.3,
+    "portion_original": "1/8 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 236.6,
+    "portion_original": "1 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "tomato_sauce",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 500.0,
+    "portion_original": "2 packs",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "potato",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 525.0,
+    "portion_original": "3 1/2 cups",
+    "preparation_method": "cubed",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "bell_pepper_red",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 49.7,
+    "portion_original": "1/3 cup",
+    "preparation_method": "strips",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "sugar_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 25.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "green_peas",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 362.5,
+    "portion_original": "2 1/2 cups",
+    "preparation_method": "frozen",
+    "step": 1
+  },
+  {
+    "dish_label": "menudo",
+    "ingredient_key": "raisins",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 50.0,
+    "portion_original": "1 pack",
+    "preparation_method": "50 gram",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 72.7,
+    "portion_original": "1/3 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 17.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 40.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "upo",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 360.0,
+    "portion_original": "3 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 295.8,
+    "portion_original": "1 1/4 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.6,
+    "portion_original": "1/4 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "odong_noodles",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 80.0,
+    "portion_original": "8 packs",
+    "preparation_method": "10 gram per pack",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "sardines_tomato_sauce_canned",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 930.0,
+    "portion_original": "6 cans",
+    "preparation_method": "155 gram per can",
+    "step": 1
+  },
+  {
+    "dish_label": "udong",
+    "ingredient_key": "kamote_tops_green",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 180.0,
+    "portion_original": "6 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 27.2,
+    "portion_original": "1/8 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "ginger",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 15.0,
+    "portion_original": "1/8 cup",
+    "preparation_method": "strips",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 12.8,
+    "portion_original": "1 1/2 tbsps",
+    "preparation_method": "crushed & chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 20.0,
+    "portion_original": "1/8 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 709.8,
+    "portion_original": "3 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "1/2 tsp",
+    "preparation_method": "refined",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "sayote",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 303.8,
+    "portion_original": "2 1/4 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "bangus_fish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 750.0,
+    "portion_original": "3/4 kilo or 5 pcs small sized",
+    "preparation_method": "boneless & sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "pesang_bangus",
+    "ingredient_key": "pechay",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 385.0,
+    "portion_original": "5 1/2 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "galunggong_grilled",
+    "ingredient_key": "galunggong_fish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 800.0,
+    "portion_original": "10 pcs",
+    "preparation_method": "whole",
+    "step": 1
+  },
+  {
+    "dish_label": "galunggong_grilled",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "tilapya_fried",
+    "ingredient_key": "tilapya_fish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 1000.0,
+    "portion_original": "1 kilo or 5 pcs small size",
+    "preparation_method": "whole",
+    "step": 1
+  },
+  {
+    "dish_label": "tilapya_fried",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 4.5,
+    "portion_original": "1/4 tbsp",
+    "preparation_method": "refined",
+    "step": 1
+  },
+  {
+    "dish_label": "tilapya_fried",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 218.0,
+    "portion_original": "1 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 40.8,
+    "portion_original": "3 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 25.5,
+    "portion_original": "3 tbsps",
+    "preparation_method": "crushed & chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 30.0,
+    "portion_original": "3 tbsps",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "tomato",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 112.5,
+    "portion_original": "1/2 cup + 1/8 cup",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "alamang_bagoong",
+    "ingredient_type": "core",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 30.0,
+    "portion_original": "1/8 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "squash",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 350.0,
+    "portion_original": "2 1/2 cups",
+    "preparation_method": "cubed",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 236.6,
+    "portion_original": "1 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "okra",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 150.0,
+    "portion_original": "1 1/2 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "sitaw",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 200.0,
+    "portion_original": "2 cups",
+    "preparation_method": "cut into 1\"",
+    "step": 1
+  },
+  {
+    "dish_label": "pinakbet",
+    "ingredient_key": "eggplant",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 164.0,
+    "portion_original": "2 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 40.8,
+    "portion_original": "3 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 25.5,
+    "portion_original": "3 tbsps",
+    "preparation_method": "crushed & chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 30.0,
+    "portion_original": "3 tbsps",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "chicken_breast",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 420.0,
+    "portion_original": "3 cups",
+    "preparation_method": "fillet & strips",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "soy_sauce",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 85.0,
+    "portion_original": "1/3 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.6,
+    "portion_original": "1/4 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "sugar_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 25.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "cauliflower",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 300.0,
+    "portion_original": "3 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "carrot",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 256.0,
+    "portion_original": "2 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "baguio_beans",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 200.0,
+    "portion_original": "2 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "bell_pepper_red",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 74.5,
+    "portion_original": "1/2 cup",
+    "preparation_method": "strips",
+    "step": 1
+  },
+  {
+    "dish_label": "chopseuy",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 118.3,
+    "portion_original": "1/2 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 40.8,
+    "portion_original": "3 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "ginger",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 30.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "crushed",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "onion_bombay",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 30.0,
+    "portion_original": "3 tbsps",
+    "preparation_method": "chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 25.5,
+    "portion_original": "3 tbsps",
+    "preparation_method": "crushed & chopped",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "chicken_breast",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 420.0,
+    "portion_original": "3 cups",
+    "preparation_method": "fillet & sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 12.0,
+    "portion_original": "2 tsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "papaya_green",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 455.0,
+    "portion_original": "3 1/4 cups",
+    "preparation_method": "unripe & sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 1183.0,
+    "portion_original": "5 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_tinola",
+    "ingredient_key": "malunggay_leaves",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 75.0,
+    "portion_original": "3 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "pork_tenderloin",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 450.0,
+    "portion_original": "5 slices",
+    "preparation_method": "90 gram per slice",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 13.6,
+    "portion_original": "1 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "calamansi_juice",
+    "ingredient_type": "core",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 30.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "garlic",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 8.5,
+    "portion_original": "1 tbsps",
+    "preparation_method": "grated",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "thyme",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 1.4,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "1/2 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 0.6,
+    "portion_original": "1/4 tsp",
+    "preparation_method": "ground",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "mango_unripe",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 288.8,
+    "portion_original": "1 3/4 cups",
+    "preparation_method": "unripe & strips",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "cucumber",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 177.3,
+    "portion_original": "1 1/3 cups",
+    "preparation_method": "sliced into thin quarters",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "calamansi_juice",
+    "ingredient_type": "core",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 30.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "freshly squeezed",
+    "step": 2
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "1/2 tsp",
+    "preparation_method": "",
+    "step": 2
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "pansit-pansitan",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 22.5,
+    "portion_original": "1/2 cup",
+    "preparation_method": "blanched",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "onion_red",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 20.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "sliced into thin quarters",
+    "step": 1
+  },
+  {
+    "dish_label": "sinuglaw_pork",
+    "ingredient_key": "radish",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 87.0,
+    "portion_original": "3/4 cup",
+    "preparation_method": "sliced into thin quarters",
+    "step": 1
+  },
+  {
+    "dish_label": "milkfish_fried",
+    "ingredient_key": "milkfish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 150.0,
+    "portion_original": "(default: 150.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "milkfish_fried",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 30.0,
+    "portion_original": "(default: 30.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "milkfish_fried",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "(default: 3.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "mackerel_fried",
+    "ingredient_key": "mackerel_fish",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 150.0,
+    "portion_original": "(default: 150.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "mackerel_fried",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 30.0,
+    "portion_original": "(default: 30.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "mackerel_fried",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "(default: 3.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "rice_well_milled",
+    "ingredient_key": "rice_bigas",
+    "ingredient_type": "core",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 185.0,
+    "portion_original": "(default: 185.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "rice_well_milled",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 370.0,
+    "portion_original": "(default: 370.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_sunny",
+    "ingredient_key": "chicken_egg",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 50.0,
+    "portion_original": "(default: 50.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_sunny",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 5.0,
+    "portion_original": "(default: 5.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_fried",
+    "ingredient_key": "chicken_egg",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 50.0,
+    "portion_original": "(default: 50.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_fried",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 5.0,
+    "portion_original": "(default: 5.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_boiled",
+    "ingredient_key": "chicken_egg",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 50.0,
+    "portion_original": "(default: 50.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "egg_boiled",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 236.6,
+    "portion_original": "(default: 236.6g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_wings",
+    "ingredient_key": "store_bought_lechon_manok_wing",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 90.0,
+    "portion_original": "(default: 90.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_thigh",
+    "ingredient_key": "store_bought_lechon_manok_thigh",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 150.0,
+    "portion_original": "(default: 150.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_drumstick",
+    "ingredient_key": "store_bought_lechon_manok_drumstick",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 130.0,
+    "portion_original": "(default: 130.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_breast",
+    "ingredient_key": "store_bought_lechon_manok_breast",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 200.0,
+    "portion_original": "(default: 200.0g per serving)",
+    "preparation_method": "",
+    "step": 1
+  }
+]
