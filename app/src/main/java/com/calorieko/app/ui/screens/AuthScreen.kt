@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -149,12 +150,11 @@ fun AuthScreen(
                         modifier = Modifier.size(90.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Image(
-                                painter = painterResource(id = R.drawable.calorieko_logo),
+                            Icon(
+                                imageVector = Icons.Rounded.Eco,
                                 contentDescription = "CalorieKo Logo",
-                                modifier = Modifier
-                                    .size(70.dp)
-                                    .clip(CircleShape)
+                                tint = CalorieKoGreen,
+                                modifier = Modifier.size(50.dp)
                             )
                         }
                     }

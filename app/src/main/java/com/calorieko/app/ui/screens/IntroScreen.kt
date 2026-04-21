@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowRight
+import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Smartphone
@@ -88,17 +89,22 @@ fun IntroScreen(onNavigate: (String) -> Unit) {
                     .padding(top = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- MODIFIED LOGO SECTION ---
-                // Removed the white background and padding to make it seamless
-                Image(
-                    painter = painterResource(id = R.drawable.calorieko_logo),
-                    contentDescription = "CalorieKo Logo",
-                    modifier = Modifier
-                        .size(120.dp) // Increased size slightly
-                        .clip(CircleShape) // Optional: Clips to circle if your image is square
-                    // Removed .background(Color.White)
-                    // Removed .padding(8.dp)
-                )
+                // Logo - White circle with Eco leaf (matches splash screen)
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.size(100.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.Eco,
+                            contentDescription = "CalorieKo Logo",
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
