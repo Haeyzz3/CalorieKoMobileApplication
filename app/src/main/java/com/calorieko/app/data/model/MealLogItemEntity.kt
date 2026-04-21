@@ -9,9 +9,10 @@ import androidx.room.PrimaryKey
 /**
  * Child entity representing a single recognized dish within a meal session.
  *
- * All nutrition values are **pre-computed at log time** using the formula:
- *   `nutrientPer100g × weightGrams / 100`
- * so that downstream queries never need to join back to [FoodItem].
+ * All nutrition values are **pre-computed at log time** via
+ * [RecipeNutritionCalculator][com.calorieko.app.data.local.RecipeNutritionCalculator]
+ * using raw-ingredient summation with yield factor scaling.
+ * Downstream queries never need to join back to the food tables.
  *
  * Foreign-keyed to [MealLogEntity] with CASCADE delete.
  */

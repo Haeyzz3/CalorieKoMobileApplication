@@ -3,8 +3,9 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.calorieko.app.data.local.FoodDao
-import com.calorieko.app.data.model.FoodItem
+import com.calorieko.app.data.local.DishRecipeDao
+import com.calorieko.app.data.local.RecipeNutritionCalculator
+import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.repository.MealRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -26,25 +27,26 @@ sealed interface ManualLogEvent {
 }
 
 class ManualLogViewModel(
-    private val foodDao: FoodDao,
+    private val dishRecipeDao: DishRecipeDao,
     private val auth: FirebaseAuth,
-    private val mealRepository: MealRepository
+    private val mealRepository: MealRepository,
+    private val calculator: RecipeNutritionCalculator
 ) : ViewModel() {
 
     // ── Dish catalogue ──
 
-    private val _allDishes = MutableStateFlow<List<FoodItem>>(emptyList())
+    private val _allDishes = MutableStateFlow<List<DishRecipeEntity>>(emptyList())
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _filteredDishes = MutableStateFlow<List<FoodItem>>(emptyList())
-    val filteredDishes: StateFlow<List<FoodItem>> = _filteredDishes.asStateFlow()
+    private val _filteredDishes = MutableStateFlow<List<DishRecipeEntity>>(emptyList())
+    val filteredDishes: StateFlow<List<DishRecipeEntity>> = _filteredDishes.asStateFlow()
 
     // ── Selection state ──
 
-    private val _selectedDish = MutableStateFlow<FoodItem?>(null)
-    val selectedDish: StateFlow<FoodItem?> = _selectedDish.asStateFlow()
+    private val _selectedDish = MutableStateFlow<DishRecipeEntity?>(null)
+    val selectedDish: StateFlow<DishRecipeEntity?> = _selectedDish.asStateFlow()
 
     private val _manualWeightText = MutableStateFlow("")
     val manualWeightText: StateFlow<String> = _manualWeightText.asStateFlow()
@@ -74,9 +76,9 @@ class ManualLogViewModel(
 
     init {
         viewModelScope.launch {
-            val foods = withContext(Dispatchers.IO) { foodDao.getAllFoods() }
-            _allDishes.value = foods
-            _filteredDishes.value = foods
+            val dishes = withContext(Dispatchers.IO) { dishRecipeDao.getAllDishRecipes() }
+            _allDishes.value = dishes
+            _filteredDishes.value = dishes
         }
     }
 
@@ -107,7 +109,7 @@ class ManualLogViewModel(
         }
     }
 
-    fun selectDish(dish: FoodItem) {
+    fun selectDish(dish: DishRecipeEntity) {
         _selectedDish.value = dish
         _manualWeightText.value = ""
     }
@@ -122,43 +124,49 @@ class ManualLogViewModel(
     }
 
     /**
-     * Computes all 17 nutrients from the selected dish's per-100g values
-     * scaled by the manually entered weight, then appends to loggedDishes.
+     * Computes all 12 nutrients via [RecipeNutritionCalculator] for the
+     * selected dish, scaled by the manually entered cooked weight.
      * Resets selection state for multi-dish entry.
      */
     fun addDish() {
-        val food = _selectedDish.value ?: return
+        val recipe = _selectedDish.value ?: return
         val w = _manualWeightText.value.toFloatOrNull() ?: return
         if (w <= 0f) return
 
-        val dish = LoggedDish(
-            dishNameEn = food.nameEn,
-            weightGrams = w,
-            confidence = 1.0f, // Manual entry = 100% confidence
-            foodId = food.foodId,
-            calories = food.caloriesPer100g * w / 100f,
-            protein = food.proteinPer100g * w / 100f,
-            carbs = food.carbsPer100g * w / 100f,
-            fat = food.fatPer100g * w / 100f,
-            fiber = food.fiberPer100g * w / 100f,
-            sugar = food.sugarPer100g * w / 100f,
-            saturatedFat = food.saturatedFatPer100g * w / 100f,
-            polyunsaturatedFat = food.polyunsaturatedFatPer100g * w / 100f,
-            monounsaturatedFat = food.monounsaturatedFatPer100g * w / 100f,
-            transFat = food.transFatPer100g * w / 100f,
-            cholesterol = food.cholesterolPer100g * w / 100f,
-            sodium = food.sodiumPer100g * w / 100f,
-            potassium = food.potassiumPer100g * w / 100f,
-            vitaminA = food.vitaminAPer100g * w / 100f,
-            vitaminC = food.vitaminCPer100g * w / 100f,
-            calcium = food.calciumPer100g * w / 100f,
-            iron = food.ironPer100g * w / 100f
-        )
-        _loggedDishes.update { it + dish }
+        viewModelScope.launch {
+            val nutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(recipe.dishLabel, w)
+            }
+            val dish = LoggedDish(
+                dishNameEn = recipe.nameEn,
+                weightGrams = w,
+                confidence = 1.0f, // Manual entry = 100% confidence
+                foodId = 0,        // No legacy food_id needed for new calculator path
+                calories = nutrients.calories,
+                protein = nutrients.protein,
+                carbs = nutrients.carbs,
+                fat = nutrients.fat,
+                fiber = nutrients.fiber,
+                sugar = nutrients.sugar,
+                // Secondary fat macros zeroed — removed from UI per earlier decision
+                saturatedFat = 0f,
+                polyunsaturatedFat = 0f,
+                monounsaturatedFat = 0f,
+                transFat = 0f,
+                cholesterol = 0f,
+                sodium = nutrients.sodium,
+                potassium = nutrients.potassium,
+                vitaminA = nutrients.vitaminA,
+                vitaminC = nutrients.vitaminC,
+                calcium = nutrients.calcium,
+                iron = nutrients.iron
+            )
+            _loggedDishes.update { it + dish }
 
-        // Reset for next dish
-        _selectedDish.value = null
-        _manualWeightText.value = ""
+            // Reset for next dish
+            _selectedDish.value = null
+            _manualWeightText.value = ""
+        }
     }
 
     fun removeDish(index: Int) {
@@ -194,14 +202,15 @@ class ManualLogViewModel(
 
     companion object {
         fun provideFactory(
-            foodDao: FoodDao,
+            dishRecipeDao: DishRecipeDao,
             auth: FirebaseAuth,
-            mealRepository: MealRepository
+            mealRepository: MealRepository,
+            calculator: RecipeNutritionCalculator
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ManualLogViewModel::class.java)) {
-                    return ManualLogViewModel(foodDao, auth, mealRepository) as T
+                    return ManualLogViewModel(dishRecipeDao, auth, mealRepository, calculator) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

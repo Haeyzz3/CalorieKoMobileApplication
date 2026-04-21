@@ -607,18 +607,27 @@ fun AppNavigation() {
                 firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
+            val calculator = remember {
+                com.calorieko.app.data.local.RecipeNutritionCalculator(
+                    dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
+                    recipeIngredientDao = db.recipeIngredientDao()
+                )
+            }
             val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
                     foodDao = db.foodDao(),
                     auth = auth,
-                    mealRepository = mealRepo
+                    mealRepository = mealRepo,
+                    calculator = calculator
                 )
             )
             val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
-                    foodDao = db.foodDao(),
+                    dishRecipeDao = db.dishRecipeDao(),
                     auth = auth,
-                    mealRepository = mealRepo
+                    mealRepository = mealRepo,
+                    calculator = calculator
                 )
             )
             LogMealScreenWithManual(

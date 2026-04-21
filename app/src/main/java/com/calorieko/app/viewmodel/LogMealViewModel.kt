@@ -3,6 +3,7 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.FoodDao
+import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.LogMealPhase
 import com.calorieko.app.data.model.LoggedDish
@@ -33,7 +34,8 @@ sealed interface LogMealEvent {
 class LogMealViewModel(
     private val foodDao: FoodDao,
     private val auth: FirebaseAuth,
-    private val mealRepository: MealRepository
+    private val mealRepository: MealRepository,
+    private val calculator: RecipeNutritionCalculator
 ) : ViewModel() {
 
     // ── UI States ──
@@ -199,8 +201,13 @@ class LogMealViewModel(
                 return@launch
             }
 
+            // Use the new calculator for the calorie estimate
+            val calEst = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(food1.mlLabel, currentWeight).calories
+            }
+
             if (top1.second >= 0.80f) {
-                setDishReady(food1.foodId, food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
+                setDishReady(food1.foodId, food1.nameEn, top1.second, calEst)
             } else if (top2 != null && (top1.second - top2.second) <= 0.30f && top1.second > 0.10f) {
                 val food2 = withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(top2.first) }
                 if (food2 != null) {
@@ -208,7 +215,7 @@ class LogMealViewModel(
                     _candidate2.value = Pair(food2, top2.second)
                     _showCandidateSelection.value = true
                 } else {
-                    setDishReady(food1.foodId, food1.nameEn, top1.second, food1.caloriesPer100g * currentWeight / 100f)
+                    setDishReady(food1.foodId, food1.nameEn, top1.second, calEst)
                 }
             } else {
                 triggerUnsupportedBanner()
@@ -234,8 +241,13 @@ class LogMealViewModel(
     }
 
     fun onCandidateSelected(food: FoodItem, confidence: Float) {
-        setDishReady(food.foodId, food.nameEn, confidence, food.caloriesPer100g * _weight.value / 100f)
-        _showCandidateSelection.value = false
+        viewModelScope.launch {
+            val calEst = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(food.mlLabel, _weight.value).calories
+            }
+            setDishReady(food.foodId, food.nameEn, confidence, calEst)
+            _showCandidateSelection.value = false
+        }
     }
 
     fun cancelCandidateSelection() {
@@ -253,28 +265,33 @@ class LogMealViewModel(
             val food = withContext(Dispatchers.IO) { foodDao.getFoodById(foodId) }
             if (food != null) {
                 val w = currentWeight
+                // Use the new calculator to compute all nutrients at once
+                val nutrients = withContext(Dispatchers.IO) {
+                    calculator.calculatePortionNutrition(food.mlLabel, w)
+                }
                 val dish = LoggedDish(
                     dishNameEn = dishName,
                     weightGrams = w,
                     confidence = confidence,
                     foodId = food.foodId,
-                    calories = food.caloriesPer100g * w / 100f,
-                    protein = food.proteinPer100g * w / 100f,
-                    carbs = food.carbsPer100g * w / 100f,
-                    fat = food.fatPer100g * w / 100f,
-                    fiber = food.fiberPer100g * w / 100f,
-                    sugar = food.sugarPer100g * w / 100f,
-                    saturatedFat = food.saturatedFatPer100g * w / 100f,
-                    polyunsaturatedFat = food.polyunsaturatedFatPer100g * w / 100f,
-                    monounsaturatedFat = food.monounsaturatedFatPer100g * w / 100f,
-                    transFat = food.transFatPer100g * w / 100f,
-                    cholesterol = food.cholesterolPer100g * w / 100f,
-                    sodium = food.sodiumPer100g * w / 100f,
-                    potassium = food.potassiumPer100g * w / 100f,
-                    vitaminA = food.vitaminAPer100g * w / 100f,
-                    vitaminC = food.vitaminCPer100g * w / 100f,
-                    calcium = food.calciumPer100g * w / 100f,
-                    iron = food.ironPer100g * w / 100f
+                    calories = nutrients.calories,
+                    protein = nutrients.protein,
+                    carbs = nutrients.carbs,
+                    fat = nutrients.fat,
+                    fiber = nutrients.fiber,
+                    sugar = nutrients.sugar,
+                    // Secondary fat macros zeroed — removed from UI per earlier decision
+                    saturatedFat = 0f,
+                    polyunsaturatedFat = 0f,
+                    monounsaturatedFat = 0f,
+                    transFat = 0f,
+                    cholesterol = 0f,
+                    sodium = nutrients.sodium,
+                    potassium = nutrients.potassium,
+                    vitaminA = nutrients.vitaminA,
+                    vitaminC = nutrients.vitaminC,
+                    calcium = nutrients.calcium,
+                    iron = nutrients.iron
                 )
                 _loggedDishes.update { it + dish }
             } else {
@@ -348,12 +365,13 @@ class LogMealViewModel(
         fun provideFactory(
             foodDao: FoodDao,
             auth: FirebaseAuth,
-            mealRepository: MealRepository
+            mealRepository: MealRepository,
+            calculator: RecipeNutritionCalculator
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(LogMealViewModel::class.java)) {
-                    return LogMealViewModel(foodDao, auth, mealRepository) as T
+                    return LogMealViewModel(foodDao, auth, mealRepository, calculator) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

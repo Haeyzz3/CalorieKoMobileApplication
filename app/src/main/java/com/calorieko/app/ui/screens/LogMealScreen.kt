@@ -96,6 +96,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.calorieko.app.ble.BleScaleManager
+import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.LogMealPhase
 import com.calorieko.app.data.model.LoggedDish
@@ -991,9 +992,9 @@ private fun ManualMealContent(
 @Composable
 private fun DishSelectionContent(
     searchQuery: String,
-    filteredDishes: List<FoodItem>,
+    filteredDishes: List<DishRecipeEntity>,
     onSearchChange: (String) -> Unit,
-    onSelectDish: (FoodItem) -> Unit
+    onSelectDish: (DishRecipeEntity) -> Unit
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1022,7 +1023,7 @@ private fun DishSelectionContent(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(filteredDishes, key = { it.foodId }) { dish ->
+            items(filteredDishes, key = { it.dishLabel }) { dish ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1064,13 +1065,13 @@ private fun DishSelectionContent(
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                "${dish.caloriesPer100g.fmt()}",
+                                "${dish.calPerServing.fmt()}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = CalorieKoGreen
                             )
                             Text(
-                                "kcal/100g",
+                                "kcal/serving",
                                 fontSize = 11.sp,
                                 color = Color(0xFF9CA3AF)
                             )
@@ -1087,7 +1088,7 @@ private fun DishSelectionContent(
 
 @Composable
 private fun WeightInputContent(
-    dish: FoodItem,
+    dish: DishRecipeEntity,
     weightText: String,
     onWeightChange: (String) -> Unit,
     onChangeDish: () -> Unit,
@@ -1095,7 +1096,9 @@ private fun WeightInputContent(
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val parsedWeight = weightText.toFloatOrNull() ?: 0f
-    val estimatedCalories = if (parsedWeight > 0f) dish.caloriesPer100g * parsedWeight / 100f else 0f
+    val estimatedCalories = if (parsedWeight > 0f && dish.cookedWeightG > 0f)
+        (parsedWeight / dish.cookedWeightG) * dish.calPerServing * dish.servings
+    else 0f
     val isValid = parsedWeight > 0f
 
     Column(
@@ -1146,7 +1149,7 @@ private fun WeightInputContent(
                     }
                     Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
                         Text(
-                            "${dish.caloriesPer100g.fmt()} kcal/100g",
+                            "${dish.calPerServing.fmt()} kcal/serving",
                             fontSize = 11.sp,
                             color = CalorieKoGreen,
                             fontWeight = FontWeight.Medium,
