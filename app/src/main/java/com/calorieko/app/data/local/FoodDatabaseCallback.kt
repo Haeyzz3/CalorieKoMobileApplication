@@ -1,6 +1,7 @@
 package com.calorieko.app.data.local
 
 import android.content.Context
+import android.util.Log
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -20,18 +21,24 @@ class FoodDatabaseCallback(
     // async coroutines would interleave, doubling the dish count.
 
     /**
-     * Runs on every database open. Checks if the dish ingredients table or
-     * food table is empty (e.g. fresh install or schema migration that drops
-     * and recreates them). If either is empty, seeds both from the CSV assets.
+     * Runs on every database open. Checks if tables are empty (e.g. fresh install
+     * or schema migration) and seeds from assets if needed.
      */
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
         databaseProvider().let { database ->
             scope.launch(Dispatchers.IO) {
+                // Legacy CSV seeding (kept for backward compatibility)
                 val dishCount = database.pantryDao().getDishIngredientCount()
                 val foodCount = database.foodDao().getAllFoods().size
                 if (dishCount == 0 || foodCount == 0) {
                     populateDatabase(context, database.foodDao(), database.pantryDao())
+                }
+
+                // New JSON seeding for raw ingredient tables (Phase 2)
+                val rawCount = database.rawIngredientDao().getCount()
+                if (rawCount == 0) {
+                    seedFromJson(context, database)
                 }
             }
         }
@@ -58,6 +65,46 @@ suspend fun populateDatabase(context: Context, foodDao: FoodDao, pantryDao: Pant
         val dishIngredients = FoodCsvParser.parseDishIngredients(inputStream)
         pantryDao.insertAllDishIngredients(dishIngredients)
     }
+}
+
+/**
+ * Seeds the 3 new raw-ingredient tables from JSON asset files.
+ *
+ * Insertion order matters due to foreign key constraints:
+ * 1. RAW_INGREDIENTS_TABLE first (parent of RECIPE_INGREDIENTS_TABLE)
+ * 2. DISH_RECIPES_TABLE second (parent of RECIPE_INGREDIENTS_TABLE)
+ * 3. RECIPE_INGREDIENTS_TABLE last (child with FKs to both parents)
+ */
+suspend fun seedFromJson(context: Context, database: AppDatabase) {
+    Log.d("FoodDatabaseCallback", "Seeding raw ingredient tables from JSON assets...")
+
+    // Clear in reverse FK order (child first, then parents)
+    database.recipeIngredientDao().deleteAll()
+    database.dishRecipeDao().deleteAll()
+    database.rawIngredientDao().deleteAll()
+
+    // 1. Seed raw ingredients
+    context.assets.open("raw_ingredients.json").use { inputStream ->
+        val ingredients = FoodJsonParser.parseRawIngredients(inputStream)
+        database.rawIngredientDao().insertAll(ingredients)
+        Log.d("FoodDatabaseCallback", "Seeded ${ingredients.size} raw ingredients")
+    }
+
+    // 2. Seed dish recipes
+    context.assets.open("dish_recipes.json").use { inputStream ->
+        val dishes = FoodJsonParser.parseDishRecipes(inputStream)
+        database.dishRecipeDao().insertAll(dishes)
+        Log.d("FoodDatabaseCallback", "Seeded ${dishes.size} dish recipes")
+    }
+
+    // 3. Seed recipe ingredients (must be after parents are inserted)
+    context.assets.open("recipe_ingredients.json").use { inputStream ->
+        val recipeIngredients = FoodJsonParser.parseRecipeIngredients(inputStream)
+        database.recipeIngredientDao().insertAll(recipeIngredients)
+        Log.d("FoodDatabaseCallback", "Seeded ${recipeIngredients.size} recipe ingredients")
+    }
+
+    Log.d("FoodDatabaseCallback", "JSON seeding complete.")
 }
 
 /**

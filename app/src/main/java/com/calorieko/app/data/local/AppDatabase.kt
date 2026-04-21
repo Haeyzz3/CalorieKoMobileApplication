@@ -9,15 +9,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.DishIngredient
+import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.model.RawIngredientEntity
+import com.calorieko.app.data.model.RecipeIngredientEntity
 import com.calorieko.app.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 
-// INCREMENT version from 17 to 18 — adds sync_status to meal_log_table
+// INCREMENT version from 18 to 19 — adds raw ingredient, dish recipe, and recipe ingredient tables
 @Database(
     entities = [
         FoodItem::class,
@@ -28,9 +31,12 @@ import kotlinx.coroutines.CoroutineScope
         DailyNutritionSummaryEntity::class,
         DishIngredient::class,
         PantryItem::class,
-        PlannedMealEntity::class
+        PlannedMealEntity::class,
+        RawIngredientEntity::class,
+        DishRecipeEntity::class,
+        RecipeIngredientEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -43,6 +49,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dailyNutritionSummaryDao(): DailyNutritionSummaryDao
     abstract fun pantryDao(): PantryDao
     abstract fun mealPlanDao(): MealPlanDao
+    abstract fun rawIngredientDao(): RawIngredientDao
+    abstract fun dishRecipeDao(): DishRecipeDao
+    abstract fun recipeIngredientDao(): RecipeIngredientDao
 
     companion object {
         @Volatile
@@ -285,6 +294,89 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 18 → 19: Creates 3 new tables for the raw-ingredient
+         * nutritional engine (Phase 2 of the refactor).
+         *
+         * This is purely additive — no existing tables are modified or dropped.
+         * The new tables are seeded from JSON assets by FoodDatabaseCallback.onOpen().
+         */
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Raw ingredients table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS RAW_INGREDIENTS_TABLE (
+                        ingredient_key TEXT NOT NULL PRIMARY KEY,
+                        display_name TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        sub_category TEXT NOT NULL,
+                        fdc_id INTEGER NOT NULL,
+                        data_source TEXT NOT NULL,
+                        calories REAL NOT NULL DEFAULT 0,
+                        protein REAL NOT NULL DEFAULT 0,
+                        carbs REAL NOT NULL DEFAULT 0,
+                        fat REAL NOT NULL DEFAULT 0,
+                        fiber REAL NOT NULL DEFAULT 0,
+                        sugar REAL NOT NULL DEFAULT 0,
+                        sodium REAL NOT NULL DEFAULT 0,
+                        potassium REAL NOT NULL DEFAULT 0,
+                        vitamin_a REAL NOT NULL DEFAULT 0,
+                        vitamin_c REAL NOT NULL DEFAULT 0,
+                        calcium REAL NOT NULL DEFAULT 0,
+                        iron REAL NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+
+                // 2. Dish recipes table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS DISH_RECIPES_TABLE (
+                        dish_label TEXT NOT NULL PRIMARY KEY,
+                        name_en TEXT NOT NULL,
+                        name_ph TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        cooking_method TEXT NOT NULL,
+                        servings INTEGER NOT NULL,
+                        total_raw_weight_g REAL NOT NULL,
+                        dish_yield_factor REAL NOT NULL,
+                        cooked_weight_g REAL NOT NULL,
+                        per_serving_weight_g REAL NOT NULL,
+                        ingredient_count INTEGER NOT NULL,
+                        cal_per_serving REAL NOT NULL DEFAULT 0,
+                        protein_per_serving REAL NOT NULL DEFAULT 0,
+                        carbs_per_serving REAL NOT NULL DEFAULT 0,
+                        fat_per_serving REAL NOT NULL DEFAULT 0,
+                        fiber_per_serving REAL NOT NULL DEFAULT 0,
+                        sugar_per_serving REAL NOT NULL DEFAULT 0,
+                        sodium_per_serving REAL NOT NULL DEFAULT 0,
+                        potassium_per_serving REAL NOT NULL DEFAULT 0,
+                        vitamin_a_per_serving REAL NOT NULL DEFAULT 0,
+                        vitamin_c_per_serving REAL NOT NULL DEFAULT 0,
+                        calcium_per_serving REAL NOT NULL DEFAULT 0,
+                        iron_per_serving REAL NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+
+                // 3. Recipe ingredients table (with FKs and indices)
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS RECIPE_INGREDIENTS_TABLE (
+                        dish_label TEXT NOT NULL,
+                        ingredient_key TEXT NOT NULL,
+                        ingredient_type TEXT NOT NULL,
+                        ingredient_category TEXT NOT NULL,
+                        raw_weight_grams REAL NOT NULL,
+                        portion_original TEXT NOT NULL,
+                        preparation_method TEXT NOT NULL,
+                        step INTEGER NOT NULL,
+                        PRIMARY KEY(dish_label, ingredient_key, step),
+                        FOREIGN KEY(dish_label) REFERENCES DISH_RECIPES_TABLE(dish_label) ON DELETE CASCADE,
+                        FOREIGN KEY(ingredient_key) REFERENCES RAW_INGREDIENTS_TABLE(ingredient_key) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_RECIPE_INGREDIENTS_TABLE_dish_label ON RECIPE_INGREDIENTS_TABLE(dish_label)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_RECIPE_INGREDIENTS_TABLE_ingredient_key ON RECIPE_INGREDIENTS_TABLE(ingredient_key)")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -295,7 +387,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
