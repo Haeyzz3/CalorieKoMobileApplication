@@ -48,6 +48,8 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoLightOrange
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 
 // Data class for activity levels
 data class ActivityLevel(
@@ -86,12 +88,12 @@ fun ActivityLevelScreen(onContinue: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // --- 1. Progress Bar (50%) ---
         val progress by animateFloatAsState(targetValue = 0.50f, label = "progress")
 
-        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0xFFF1F5F9))) {
+        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -110,6 +112,7 @@ fun ActivityLevelScreen(onContinue: (String) -> Unit) {
                 // Activity Icon Circle
                 Surface(
                     shape = CircleShape,
+                    color = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface else Color.White,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(
@@ -137,7 +140,7 @@ fun ActivityLevelScreen(onContinue: (String) -> Unit) {
                     Text(
                         text = "STEP 2 OF 4",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -145,20 +148,20 @@ fun ActivityLevelScreen(onContinue: (String) -> Unit) {
                         text = "Activity Level",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "What is your baseline activity level?",
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = "Not including workouts - we count that separately.",
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
         }
@@ -182,7 +185,7 @@ fun ActivityLevelScreen(onContinue: (String) -> Unit) {
 
         // --- 4. Continue Button ---
         Surface(
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 16.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -240,12 +243,12 @@ fun ActivityLevelItem(
     onClick: () -> Unit
 ) {
     val borderColor by animateColorAsState(
-        if (isSelected) CalorieKoGreen else Color(0xFFE5E7EB),
+        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         animationSpec = tween(300),
         label = "border"
     )
     val backgroundColor by animateColorAsState(
-        if (isSelected) CalorieKoGreen.copy(alpha = 0.05f) else Color.White,
+        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface,
         animationSpec = tween(300),
         label = "background"
     )
@@ -269,13 +272,13 @@ fun ActivityLevelItem(
                     text = level.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = Color(0xFF111827)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = level.description,
                     fontSize = 14.sp,
-                    color = Color(0xFF4B5563),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
             }
@@ -287,8 +290,8 @@ fun ActivityLevelItem(
                 selected = isSelected,
                 onClick = onClick,
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = CalorieKoGreen,
-                    unselectedColor = Color(0xFFD1D5DB)
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    unselectedColor = MaterialTheme.colorScheme.outline
                 )
             )
         }

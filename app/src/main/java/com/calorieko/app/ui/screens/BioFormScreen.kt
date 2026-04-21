@@ -51,6 +51,8 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoLightOrange
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import kotlin.math.roundToInt
 
 @Composable
@@ -100,12 +102,12 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // --- 1. Progress Bar ---
         val progress by animateFloatAsState(targetValue = 0.25f, label = "progress")
 
-        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0xFFF1F5F9))) {
+        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -123,7 +125,7 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = CircleShape,
-                    color = Color.Transparent,
+                    color = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface else Color.Transparent,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(
@@ -137,12 +139,12 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("STEP 1 OF 4", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                    Text("Your Profile", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text("STEP 1 OF 4", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("Your Profile", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Help us personalize your experience", color = Color.Gray, fontSize = 16.sp)
+            Text("Help us personalize your experience", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
         }
 
         // --- 3. Form Fields ---
@@ -170,7 +172,7 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
 
             // Sex Selection
             Column {
-                Text("Sex", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Gray, modifier = Modifier.padding(bottom = 8.dp))
+                Text("Sex", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SexButton(text = "Male", isSelected = sex == "Male", onClick = { sex = "Male" }, modifier = Modifier.weight(1f))
                     SexButton(text = "Female", isSelected = sex == "Female", onClick = { sex = "Female" }, modifier = Modifier.weight(1f))
@@ -184,7 +186,7 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Height", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
+                    Text("Height", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                     // Toggle Button
                     Surface(
@@ -295,7 +297,7 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
 fun ErrorText(text: String) {
     Text(
         text = text,
-        color = Color(0xFFEF4444), // Tailwind Red 500
+        color = MaterialTheme.colorScheme.error,
         fontSize = 12.sp,
         modifier = Modifier.padding(top = 4.dp, start = 4.dp)
     )
@@ -313,7 +315,7 @@ fun NameInput(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        placeholder = { Text(placeholder, color = Color.LightGray) },
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
         leadingIcon = {
             Icon(Icons.Default.Person, null, tint = CalorieKoGreen, modifier = Modifier.size(20.dp))
         },
@@ -322,11 +324,13 @@ fun NameInput(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
         keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = CalorieKoGreen,
-            unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
-            focusedLabelColor = CalorieKoGreen,
-            unfocusedContainerColor = Color(0xFFFAFAFA),
-            focusedContainerColor = Color.White
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedContainerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color(0xFFFAFAFA),
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
         ),
         singleLine = true
     )
@@ -346,20 +350,22 @@ fun CustomInput(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        placeholder = { Text(placeholder, color = Color.LightGray) },
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         isError = isError,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = CalorieKoGreen,
-            unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f),
-            focusedLabelColor = CalorieKoGreen,
-            unfocusedContainerColor = Color(0xFFFAFAFA),
-            focusedContainerColor = Color.White,
-            errorBorderColor = Color(0xFFEF4444),
-            errorLabelColor = Color(0xFFEF4444)
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedContainerColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color(0xFFFAFAFA),
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            errorBorderColor = MaterialTheme.colorScheme.error,
+            errorLabelColor = MaterialTheme.colorScheme.error
         ),
         singleLine = true
     )
@@ -377,16 +383,16 @@ fun SexButton(
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = 2.dp,
-            color = if (isSelected) CalorieKoGreen else Color.LightGray.copy(alpha = 0.3f)
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        color = if (isSelected) CalorieKoGreen.copy(alpha = 0.05f) else Color.White,
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface,
         modifier = modifier.height(56.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = text,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isSelected) CalorieKoGreen else Color.Gray
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

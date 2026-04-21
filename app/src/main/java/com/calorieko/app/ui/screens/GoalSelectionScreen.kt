@@ -51,6 +51,8 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoLightOrange
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 
 // Data class to define our specific goals
 data class HealthGoal(
@@ -93,12 +95,12 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // --- 1. Progress Bar (75%) ---
         val progress by animateFloatAsState(targetValue = 0.75f, label = "progress")
 
-        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(Color(0xFFF1F5F9))) {
+        Box(modifier = Modifier.fillMaxWidth().height(6.dp).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -117,6 +119,7 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
                 // Target Icon Circle
                 Surface(
                     shape = CircleShape,
+                    color = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surface else Color.White,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(
@@ -144,7 +147,7 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
                     Text(
                         text = "STEP 3 OF 4",
                         fontSize = 12.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -152,14 +155,14 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
                         text = "Health Goals",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "What would you like to achieve?",
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 16.sp
             )
         }
@@ -183,7 +186,7 @@ fun GoalSelectionScreen(onContinue: (String) -> Unit) {
 
         // --- 4. Continue Button ---
         Surface(
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 16.dp, // Subtle shadow for the bottom bar
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -243,11 +246,11 @@ fun GoalItem(
     onClick: () -> Unit
 ) {
     val borderColor by animateColorAsState(
-        if (isSelected) CalorieKoGreen else Color(0xFFE5E7EB), // gray-200
+        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, // gray-200 replacement
         label = "border"
     )
     val backgroundColor by animateColorAsState(
-        if (isSelected) CalorieKoGreen.copy(alpha = 0.05f) else Color.White,
+        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface,
         label = "background"
     )
 
@@ -288,13 +291,13 @@ fun GoalItem(
                     text = goal.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = Color(0xFF111827) // gray-900
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = goal.description,
                     fontSize = 14.sp,
-                    color = Color(0xFF4B5563), // gray-600
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
             }
