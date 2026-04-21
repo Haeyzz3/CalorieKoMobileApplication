@@ -47,7 +47,7 @@ object FoodJsonParser {
                     displayName = obj.getString("display_name"),
                     category = obj.getString("category"),
                     subCategory = obj.getString("sub_category"),
-                    fdcId = obj.getInt("fdc_id"),
+                    fdcId = obj.optInt("fdc_id", 0),
                     dataSource = obj.getString("data_source"),
                     calories = nutrients.optDouble("calories", 0.0).toFloat(),
                     protein = nutrients.optDouble("protein", 0.0).toFloat(),
