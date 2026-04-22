@@ -71,7 +71,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
+import coil.compose.AsyncImagePainter
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.ble.BleConnectionState
@@ -175,7 +179,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            AsyncImage(
+                            SubcomposeAsyncImage(
                                 model = photoModel,
                                 contentDescription = "Profile Picture",
                                 modifier = Modifier
@@ -183,7 +187,14 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                                     .clip(CircleShape)
                                     .clickable { onNavigate("profile") },
                                 contentScale = ContentScale.Crop
-                            )
+                            ) {
+                                val state = painter.state
+                                if (state is AsyncImagePainter.State.Loading || state is AsyncImagePainter.State.Error || state is AsyncImagePainter.State.Empty) {
+                                    ProfileImagePlaceholder(name = firstName, modifier = Modifier.fillMaxSize())
+                                } else {
+                                    SubcomposeAsyncImageContent()
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -343,6 +354,35 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
             mealWithItems = mealWithItems,
             onDismiss = { selectedMeal = null }
         )
+    }
+}
+
+@Composable
+private fun ProfileImagePlaceholder(
+    name: String,
+    modifier: Modifier = Modifier
+) {
+    val initial = if (name.isNotBlank()) name.trim().take(1).uppercase() else ""
+    Box(
+        modifier = modifier
+            .background(Color(0xFFE5E7EB)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (initial.isNotEmpty()) {
+            Text(
+                text = initial,
+                color = Color(0xFF6B7280),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
