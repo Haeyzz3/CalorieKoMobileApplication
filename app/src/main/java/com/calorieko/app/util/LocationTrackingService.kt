@@ -18,6 +18,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import com.calorieko.app.R
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -57,7 +58,7 @@ class LocationTrackingService : Service() {
 
     companion object {
         private const val TAG = "LocationTrackingService"
-        const val NOTIFICATION_CHANNEL_ID = "calorieko_workout_tracking"
+        const val NOTIFICATION_CHANNEL_ID = "calorieko_workout_v4"
         const val NOTIFICATION_ID = 1001
         const val ACTION_START = "com.calorieko.app.ACTION_START_TRACKING"
         const val ACTION_STOP = "com.calorieko.app.ACTION_STOP_TRACKING"
@@ -271,7 +272,17 @@ class LocationTrackingService : Service() {
         pauseStartRealtimeMs = SystemClock.elapsedRealtime()
         // Timer thread stays alive — it computes time from wall-clock,
         // so _timeSeconds naturally freezes while paused.
-        updateNotification("Workout Paused")
+        val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
+        val dist = "%.2f km".format(_distanceKm.value)
+        val pace = _currentPace.value
+        val paceStr = if (pace > 0.0 && pace <= 60.0) {
+            val pMin = pace.toInt()
+            val pSec = ((pace - pMin) * 60).toInt()
+            "%d:%02d /km".format(pMin, pSec)
+        } else {
+            "-:-- /km"
+        }
+        updateNotificationWithStats(formatted, dist, paceStr, isPaused = true)
     }
 
     fun resumeTracking() {
@@ -282,7 +293,11 @@ class LocationTrackingService : Service() {
         }
         _isPaused.value = false
         lastMovementTimeMs = System.currentTimeMillis()
-        updateNotification("Tracking Workout...")
+        updateNotificationWithStats(
+            DurationFormatter.formatDigital(_timeSeconds.value),
+            "%.2f km".format(_distanceKm.value),
+            "-:-- /km"
+        )
     }
 
     fun stopTracking() {
@@ -538,10 +553,18 @@ class LocationTrackingService : Service() {
                     _movingTimeSeconds.value++
                 }
 
-                // Update notification with live timer every second (visible on lock screen)
+                // Update notification with live stats every second (visible on lock screen)
                 val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
                 val dist = "%.2f km".format(_distanceKm.value)
-                updateNotification("$formatted • $dist")
+                val pace = _currentPace.value
+                val paceStr = if (pace > 0.0 && pace <= 60.0) {
+                    val pMin = pace.toInt()
+                    val pSec = ((pace - pMin) * 60).toInt()
+                    "%d:%02d /km".format(pMin, pSec)
+                } else {
+                    "-:-- /km"
+                }
+                updateNotificationWithStats(formatted, dist, paceStr)
             }
         }.apply {
             name = "CalorieKo-Timer"
@@ -561,32 +584,50 @@ class LocationTrackingService : Service() {
     private fun createNotificationChannel() {
         val manager = getSystemService(NotificationManager::class.java)
 
-        // Delete old channel (it used IMPORTANCE_LOW which hid the notification)
+        // Delete legacy channel name (one-time cleanup)
         manager.deleteNotificationChannel("calorieko_tracking")
 
-        val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            "Workout Tracking",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "Shows when CalorieKo is actively tracking your workout"
-            setShowBadge(false)
-            setSound(null, null)  // No sound despite DEFAULT importance
-            enableVibration(false)
+        // Only create if it doesn't already exist — avoids wiping user settings
+        if (manager.getNotificationChannel(NOTIFICATION_CHANNEL_ID) == null) {
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Workout Tracking",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Shows live workout stats while CalorieKo is tracking"
+                setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(channel)
         }
-
-        manager.createNotificationChannel(channel)
     }
 
-    private fun buildNotification(contentText: String): Notification {
-        // Intent to open the app when the notification is tapped
+    /**
+     * Build a standard notification with live workout data.
+     *
+     * ── Lock Screen Strategy ──
+     * Realme/OPPO/Vivo lock screens hide `contentText` but always display
+     * `contentTitle`. So we put the TIMER directly in the title:
+     *   Title:   "⏱ 05:32 — 1.24 km"
+     *   Content: "Pace: 5:12 /km • Tracking Workout"
+     *
+     * This ensures the runner can see their time at a glance on the lock
+     * screen without unlocking or expanding the notification.
+     */
+    private fun buildNotification(
+        time: String,
+        distance: String,
+        pace: String,
+        isPaused: Boolean = false
+    ): Notification {
         val intent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Stop action for the notification
         val stopIntent = Intent(this, LocationTrackingService::class.java).apply {
             action = ACTION_STOP
         }
@@ -595,22 +636,45 @@ class LocationTrackingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Put the timer in the TITLE — this is always visible on lock screen
+        val title = if (isPaused) {
+            "⏸ $time — $distance (Paused)"
+        } else {
+            "⏱ $time — $distance"
+        }
+        val content = "Pace: $pace • CalorieKo Workout"
+
+        // Explicit public version for lock screens
+        val publicNotification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setShowWhen(false)
+            .build()
+
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("CalorieKo • Tracking Workout")
-            .setContentText(contentText)
+            .setContentTitle(title)
+            .setContentText(content)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(pendingIntent)
             .addAction(android.R.drawable.ic_media_pause, "Stop", stopPendingIntent)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPublicVersion(publicNotification)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setShowWhen(false)
             .build()
     }
 
     private fun startForegroundWithNotification() {
-        val notification = buildNotification("Tracking Workout...")
+        val notification = buildNotification(
+            time = "00:00",
+            distance = "0.00 km",
+            pace = "-:-- /km"
+        )
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
@@ -619,10 +683,15 @@ class LocationTrackingService : Service() {
         )
     }
 
-    private fun updateNotification(text: String) {
+    private fun updateNotificationWithStats(
+        time: String,
+        distance: String,
+        pace: String,
+        isPaused: Boolean = false
+    ) {
         try {
             val manager = getSystemService(NotificationManager::class.java)
-            manager.notify(NOTIFICATION_ID, buildNotification(text))
+            manager.notify(NOTIFICATION_ID, buildNotification(time, distance, pace, isPaused))
         } catch (e: Exception) {
             Log.w(TAG, "Failed to update notification: ${e.message}")
         }

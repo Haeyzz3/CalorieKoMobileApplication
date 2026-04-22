@@ -569,6 +569,7 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                             location.updateSettings {
                                 enabled = true
                                 pulsingEnabled = true
+                                puckBearingEnabled = false
                             }
                         }
                     },
@@ -919,6 +920,7 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         location.updateSettings {
                             enabled = true
                             pulsingEnabled = true
+                            puckBearingEnabled = false
                             pulsingColor = android.graphics.Color.parseColor("#4A90D9")
                             pulsingMaxRadius = 30f
                         }
