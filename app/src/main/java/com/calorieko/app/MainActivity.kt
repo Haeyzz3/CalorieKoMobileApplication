@@ -391,7 +391,9 @@ fun AppNavigation() {
             val dashboardViewModel: com.calorieko.app.viewmodel.DashboardViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.DashboardViewModel.provideFactory(
                     auth = auth,
-                    dashboardRepository = dashboardRepo
+                    dashboardRepository = dashboardRepo,
+                    mealPlanDao = db.mealPlanDao(),
+                    dishRecipeDao = db.dishRecipeDao()
                 )
             )
             DashboardScreen(
@@ -626,6 +628,7 @@ fun AppNavigation() {
             val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
                     foodDao = db.foodDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator
@@ -646,6 +649,45 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() },
                 onMealConfirmed = { navController.popBackStack() },
                 onNavigateToPairing = { navController.navigate("scalePairing/settings") }
+            )
+        }
+
+        // Quick-log from planned meal
+        composable("logMeal/quick/{dishLabel}/{mealSlot}") { backStackEntry ->
+            val dishLabel = backStackEntry.arguments?.getString("dishLabel") ?: ""
+            val mealSlot = backStackEntry.arguments?.getString("mealSlot") ?: "Lunch"
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
+            )
+            val calculator = remember {
+                com.calorieko.app.data.local.RecipeNutritionCalculator(
+                    dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
+                    recipeIngredientDao = db.recipeIngredientDao()
+                )
+            }
+            val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
+                    dishRecipeDao = db.dishRecipeDao(),
+                    auth = auth,
+                    mealRepository = mealRepo,
+                    calculator = calculator
+                )
+            )
+            // Pre-select the planned dish
+            androidx.compose.runtime.LaunchedEffect(dishLabel) {
+                manualLogViewModel.quickLogFromPlan(dishLabel, mealSlot)
+            }
+            QuickLogScreen(
+                viewModel = manualLogViewModel,
+                dishLabel = dishLabel,
+                mealSlot = mealSlot,
+                onBack = { navController.popBackStack() },
+                onMealConfirmed = { navController.popBackStack() }
             )
         }
 

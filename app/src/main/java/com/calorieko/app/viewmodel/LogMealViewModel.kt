@@ -3,7 +3,10 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.FoodDao
+import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
+import com.calorieko.app.data.local.IngredientNutritionBreakdown
+import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.LogMealPhase
 import com.calorieko.app.data.model.LoggedDish
@@ -33,6 +36,7 @@ sealed interface LogMealEvent {
 
 class LogMealViewModel(
     private val foodDao: FoodDao,
+    private val rawIngredientDao: RawIngredientDao,
     private val auth: FirebaseAuth,
     private val mealRepository: MealRepository,
     private val calculator: RecipeNutritionCalculator
@@ -359,11 +363,71 @@ class LogMealViewModel(
         }
     }
 
+    // ── Ingredient Breakdown & Substitution ──
+
+    /** Resolves a foodId to its ML label for calculator lookups. */
+    suspend fun getMlLabelForDish(foodId: Int): String? {
+        return withContext(Dispatchers.IO) {
+            foodDao.getFoodById(foodId)?.mlLabel
+        }
+    }
+
+    /** Returns per-ingredient nutrition breakdown for a dish. */
+    suspend fun getIngredientBreakdown(dishLabel: String): Map<String, IngredientNutritionBreakdown> {
+        return calculator.getIngredientBreakdown(dishLabel)
+    }
+
+    /** Returns same-subcategory substitution candidates for an ingredient. */
+    suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
+        val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
+        return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
+    }
+
+    /**
+     * Applies an ingredient substitution to a specific logged dish and
+     * recalculates its nutrition values.
+     * @param dishIndex index in the logged dishes list
+     * @param substitutions map of originalIngredientKey → newIngredientKey
+     */
+    fun applySubstitutionToDish(dishIndex: Int, substitutions: Map<String, String>) {
+        viewModelScope.launch {
+            val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return@launch
+            val food = withContext(Dispatchers.IO) { foodDao.getFoodById(dish.foodId) } ?: return@launch
+            val nutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(food.mlLabel, dish.weightGrams, substitutions)
+            }
+            _loggedDishes.update { list ->
+                list.toMutableList().also {
+                    it[dishIndex] = dish.copy(
+                        calories = nutrients.calories,
+                        protein = nutrients.protein,
+                        carbs = nutrients.carbs,
+                        fat = nutrients.fat,
+                        fiber = nutrients.fiber,
+                        sugar = nutrients.sugar,
+                        sodium = nutrients.sodium,
+                        potassium = nutrients.potassium,
+                        vitaminA = nutrients.vitaminA,
+                        vitaminC = nutrients.vitaminC,
+                        calcium = nutrients.calcium,
+                        iron = nutrients.iron
+                    )
+                }
+            }
+        }
+    }
+
+    /** Formats an ingredient_key into a readable display name. */
+    fun formatIngredientName(key: String): String {
+        return key.replace("_", " ").replaceFirstChar { it.uppercase() }
+    }
+
     companion object {
         const val CONFIDENCE_THRESHOLD = 0.70f
 
         fun provideFactory(
             foodDao: FoodDao,
+            rawIngredientDao: RawIngredientDao,
             auth: FirebaseAuth,
             mealRepository: MealRepository,
             calculator: RecipeNutritionCalculator
@@ -371,7 +435,7 @@ class LogMealViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(LogMealViewModel::class.java)) {
-                    return LogMealViewModel(foodDao, auth, mealRepository, calculator) as T
+                    return LogMealViewModel(foodDao, rawIngredientDao, auth, mealRepository, calculator) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

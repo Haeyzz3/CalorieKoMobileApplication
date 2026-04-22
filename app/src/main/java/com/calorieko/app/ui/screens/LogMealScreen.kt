@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -66,6 +67,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -74,7 +78,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -100,6 +106,8 @@ import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.LogMealPhase
 import com.calorieko.app.data.model.LoggedDish
+import com.calorieko.app.data.local.IngredientNutritionBreakdown
+import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.ml.CalorieKoClassifier
 import com.calorieko.app.ui.components.CameraPreview
 import com.calorieko.app.ui.components.ExpandableNutrientGrid
@@ -534,7 +542,8 @@ private fun AiScaleMealContent(
             onAddMore = { viewModel.setPhase(LogMealPhase.SCANNING) },
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
-            isConfirming = isConfirming
+            isConfirming = isConfirming,
+            viewModel = viewModel
         )
         return
     }
@@ -1696,6 +1705,7 @@ private fun InfoRow(label: String, value: String) {
 // Meal Summary Overlay (AI flow — original)
 // ───────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MealSummaryOverlay(
     dishes: List<LoggedDish>,
@@ -1705,7 +1715,8 @@ private fun MealSummaryOverlay(
     onAddMore: () -> Unit,
     onConfirmMeal: () -> Unit,
     onCancel: () -> Unit,
-    isConfirming: Boolean = false
+    isConfirming: Boolean = false,
+    viewModel: LogMealViewModel
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1715,6 +1726,15 @@ private fun MealSummaryOverlay(
     // Track expanded state per dish (by index)
     val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
     var totalsExpanded by remember { mutableStateOf(false) }
+
+    // Ingredient detail bottom sheet state
+    var ingredientSheetDishIndex by remember { mutableStateOf<Int?>(null) }
+    var ingredientBreakdown by remember { mutableStateOf<Map<String, IngredientNutritionBreakdown>>(emptyMap()) }
+    var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
+    var substitutionTarget by remember { mutableStateOf<String?>(null) }
+    var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
@@ -1823,6 +1843,30 @@ private fun MealSummaryOverlay(
                                     calcium = dish.calcium,
                                     iron = dish.iron
                                 )
+                            }
+
+                            // View Ingredients button
+                            HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        ingredientSheetDishIndex = index
+                                        activeSubstitutions = emptyMap()
+                                        scope.launch {
+                                            val mlLabel = viewModel.getMlLabelForDish(dish.foodId) ?: return@launch
+                                            ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                viewModel.getIngredientBreakdown(mlLabel)
+                                            }
+                                        }
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Restaurant, null, tint = Color(0xFF6B7280), modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("View Ingredients", fontSize = 12.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -1939,12 +1983,219 @@ private fun MealSummaryOverlay(
             }
         }
     }
+
+    // ── Ingredient Detail Bottom Sheet ──
+    if (ingredientSheetDishIndex != null) {
+        val dishIdx = ingredientSheetDishIndex!!
+        val dish = dishes.getOrNull(dishIdx)
+
+        if (dish != null) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    ingredientSheetDishIndex = null
+                    substitutionTarget = null
+                    substitutionCandidates = emptyList()
+                },
+                sheetState = sheetState,
+                containerColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 32.dp)
+                ) {
+                    // Header
+                    Text(dish.dishNameEn, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text("${dish.weightGrams.roundToInt()}g cooked portion", fontSize = 13.sp, color = Color(0xFF6B7280))
+                    Spacer(Modifier.height(16.dp))
+
+                    if (ingredientBreakdown.isEmpty()) {
+                        Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                    } else {
+                        // Substitution picker
+                        if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
+                            Surface(
+                                color = Color(0xFFF0F9FF),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Swap: ${viewModel.formatIngredientName(substitutionTarget!!)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0C4A6E))
+                                        TextButton(onClick = { substitutionTarget = null; substitutionCandidates = emptyList() }) {
+                                            Text("Cancel", fontSize = 12.sp)
+                                        }
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    substitutionCandidates.forEach { candidate ->
+                                        Surface(
+                                            onClick = {
+                                                val newSubs = activeSubstitutions.toMutableMap()
+                                                newSubs[substitutionTarget!!] = candidate.ingredientKey
+                                                activeSubstitutions = newSubs
+                                                viewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                                // Reload breakdown
+                                                scope.launch {
+                                                    val mlLabel = viewModel.getMlLabelForDish(dish.foodId) ?: return@launch
+                                                    ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        viewModel.getIngredientBreakdown(mlLabel)
+                                                    }
+                                                }
+                                                substitutionTarget = null
+                                                substitutionCandidates = emptyList()
+                                            },
+                                            color = Color.White,
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(candidate.displayName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+                                                    Text("${candidate.calories.toInt()} kcal/100g • P:${candidate.protein.toInt()}g F:${candidate.fat.toInt()}g C:${candidate.carbs.toInt()}g",
+                                                        fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                                }
+                                                Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                        }
+
+                        // Ingredient list with nutrition
+                        Text("Ingredients", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                        Spacer(Modifier.height(8.dp))
+
+                        ingredientBreakdown.values.forEach { breakdown ->
+                            val isSwapped = activeSubstitutions.containsKey(breakdown.ingredientKey)
+                            Surface(
+                                color = if (isSwapped) Color(0xFFF0F9FF) else Color(0xFFF9FAFB),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(breakdown.displayName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+                                            Text("${breakdown.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        // Swap button
+                                        Surface(
+                                            onClick = {
+                                                scope.launch {
+                                                    substitutionTarget = breakdown.ingredientKey
+                                                    substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        viewModel.getSubstitutesForIngredient(breakdown.ingredientKey)
+                                                    }
+                                                    if (substitutionCandidates.isEmpty()) {
+                                                        substitutionTarget = null
+                                                    }
+                                                }
+                                            },
+                                            color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
+                                        }
+                                    }
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        Column {
+                                            Text("${breakdown.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                            Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${breakdown.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                            Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${breakdown.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                            Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${breakdown.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                            Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${breakdown.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                            Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // NutrientChip and ExpandableNutrientGrid are now imported from
 // com.calorieko.app.ui.components.NutrientComponents
+// ───────────────────────────────────────────────────────────────
+// Quick Log Screen (used for planned meal → one-tap logging)
+// ───────────────────────────────────────────────────────────────
 
+@Composable
+fun QuickLogScreen(
+    viewModel: ManualLogViewModel,
+    dishLabel: String,
+    mealSlot: String,
+    onBack: () -> Unit,
+    onMealConfirmed: () -> Unit
+) {
+    val dishes by viewModel.loggedDishes.collectAsState()
+    val mealType by viewModel.mealType.collectAsState()
+    val showSummary by viewModel.showSummary.collectAsState()
+    val isConfirming by viewModel.isConfirming.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                ManualLogEvent.MealConfirmed -> onMealConfirmed()
+            }
+        }
+    }
 
+    if (showSummary && dishes.isNotEmpty()) {
+        ManualMealSummaryOverlay(
+            dishes = dishes,
+            mealType = mealType,
+            onMealTypeChange = { viewModel.updateMealType(it) },
+            onRemoveDish = { viewModel.removeDish(it) },
+            onAddMore = { /* Not applicable for quick-log */ },
+            onConfirmMeal = { viewModel.confirmMeal() },
+            onCancel = onBack,
+            isConfirming = isConfirming
+        )
+    } else {
+        // Loading state while the dish is being pre-computed
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Preparing quick log...", fontSize = 16.sp, color = Color(0xFF6B7280))
+                Spacer(Modifier.height(8.dp))
+                Text(dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() },
+                    fontSize = 14.sp, color = Color(0xFF9CA3AF))
+            }
+        }
+    }
+}
 
 private fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)

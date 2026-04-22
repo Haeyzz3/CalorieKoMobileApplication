@@ -92,6 +92,7 @@ import com.calorieko.app.ui.components.NutrientChip
 import com.calorieko.app.ui.components.ProgressRings
 import com.calorieko.app.ui.theme.*
 import com.calorieko.app.viewmodel.DashboardViewModel
+import com.calorieko.app.data.model.PlannedMealEntity
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -122,6 +123,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
 
     val todayMealLogs by viewModel.todayMealLogs.collectAsState()
     val activityLog by viewModel.activityFeed.collectAsState()
+    val todayPlannedMeals by viewModel.todayPlannedMeals.collectAsState()
 
     // ── Local UI State ──
     var activeTab by remember { mutableStateOf("home") }
@@ -330,6 +332,17 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         }
                     }
 
+                    // Today's Planned Meals
+                    if (todayPlannedMeals.isNotEmpty()) {
+                        TodayPlannedMealsCard(
+                            plannedMeals = todayPlannedMeals,
+                            getDishName = { viewModel.getPlannedDishName(it) },
+                            onQuickLog = { dishLabel, mealSlot ->
+                                onNavigate("logMeal/quick/$dishLabel/$mealSlot")
+                            }
+                        )
+                    }
+
                     DailyActivityFeedRevised(
                         activities = activityLog,
                         onMealClick = { activityEntry ->
@@ -488,6 +501,86 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Log Workout", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 Text("Track Activity", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+// ── Today's Planned Meals Card ──
+
+@Composable
+fun TodayPlannedMealsCard(
+    plannedMeals: List<PlannedMealEntity>,
+    getDishName: (String) -> String,
+    onQuickLog: (dishLabel: String, mealSlot: String) -> Unit
+) {
+    // Group by meal slot for organized display
+    val groupedBySlot = plannedMeals.groupBy { it.mealSlot }
+    val slotOrder = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Text("📋", fontSize = 18.sp)
+                Spacer(Modifier.width(8.dp))
+                Text("Today's Planned Meals", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+            }
+
+            slotOrder.forEach { slot ->
+                val dishes = groupedBySlot[slot] ?: return@forEach
+
+                // Slot label
+                Text(
+                    slot,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF6B7280),
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+
+                dishes.forEach { planned ->
+                    Surface(
+                        color = Color(0xFFF0FDF4),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.LocalDining, null, tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                getDishName(planned.dishLabel),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF374151),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Surface(
+                                onClick = { onQuickLog(planned.dishLabel, planned.mealSlot) },
+                                color = Color(0xFF16A34A),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    "Quick Log",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

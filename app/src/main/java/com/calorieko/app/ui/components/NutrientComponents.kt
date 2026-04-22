@@ -95,7 +95,7 @@ fun ExpandableNutrientGrid(
         
         // --- Estimation Disclaimer Footer ---
         Text(
-            text = "* Values are approximations based on standard nutritional data",
+            text = "* Nutritional values are calculated from USDA-verified ingredient data based on raw recipe weights. Actual values may vary with cooking method and ingredient freshness.",
             fontSize = 11.sp,
             color = Color.Gray,
             modifier = Modifier.padding(top = 16.dp, start = 8.dp, bottom = 8.dp),

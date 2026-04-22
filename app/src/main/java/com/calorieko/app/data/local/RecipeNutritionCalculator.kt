@@ -77,6 +77,40 @@ class RecipeNutritionCalculator(
     }
 
     /**
+     * Calculates portion nutrition with ingredient substitutions.
+     *
+     * Uses the **dynamic path**: sums raw ingredient nutrients (with swaps),
+     * then scales to the requested cooked portion weight.
+     *
+     * @param dishLabel The ML label / dish key
+     * @param cookedWeightGrams The actual cooked weight
+     * @param substitutions Map of originalIngredientKey → replacementIngredientKey
+     * @return [NutritionResult] with nutrients for the weighed portion
+     */
+    suspend fun calculatePortionNutrition(
+        dishLabel: String,
+        cookedWeightGrams: Float,
+        substitutions: Map<String, String>
+    ): NutritionResult {
+        if (substitutions.isEmpty()) {
+            return calculatePortionNutrition(dishLabel, cookedWeightGrams)
+        }
+
+        val dish = dishRecipeDao.getByDishLabel(dishLabel)
+            ?: return NutritionResult.ZERO
+
+        if (dish.cookedWeightG <= 0f) return NutritionResult.ZERO
+
+        // Use dynamic path: calculate total batch with substitutions
+        val totalBatchPerServing = calculateWithSubstitution(dishLabel, substitutions)
+        val totalBatch = totalBatchPerServing * dish.servings.coerceAtLeast(1).toFloat()
+
+        // Scale to portion
+        val portionFraction = cookedWeightGrams / dish.cookedWeightG
+        return totalBatch * portionFraction
+    }
+
+    /**
      * Returns the total nutrients for the entire dish batch (all servings).
      *
      * Uses pre-computed per-serving values from [DishRecipeEntity], multiplied

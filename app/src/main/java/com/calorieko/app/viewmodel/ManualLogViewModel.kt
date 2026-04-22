@@ -181,6 +181,52 @@ class ManualLogViewModel(
         _showSummary.value = show
     }
 
+    /**
+     * Quick-log shortcut from planned meals: pre-selects the dish,
+     * calculates one standard serving, and shows the summary.
+     */
+    fun quickLogFromPlan(dishLabel: String, mealSlot: String) {
+        viewModelScope.launch {
+            val recipe = withContext(Dispatchers.IO) {
+                dishRecipeDao.getByDishLabel(dishLabel)
+            } ?: return@launch
+
+            val nutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePerServingNutrition(dishLabel)
+            }
+
+            // Standard serving weight = cooked_weight / servings
+            val servingWeight = if (recipe.servings > 0) recipe.cookedWeightG / recipe.servings else recipe.cookedWeightG
+
+            val dish = LoggedDish(
+                dishNameEn = recipe.nameEn,
+                weightGrams = servingWeight,
+                confidence = 1.0f,
+                foodId = 0,
+                calories = nutrients.calories,
+                protein = nutrients.protein,
+                carbs = nutrients.carbs,
+                fat = nutrients.fat,
+                fiber = nutrients.fiber,
+                sugar = nutrients.sugar,
+                saturatedFat = 0f,
+                polyunsaturatedFat = 0f,
+                monounsaturatedFat = 0f,
+                transFat = 0f,
+                cholesterol = 0f,
+                sodium = nutrients.sodium,
+                potassium = nutrients.potassium,
+                vitaminA = nutrients.vitaminA,
+                vitaminC = nutrients.vitaminC,
+                calcium = nutrients.calcium,
+                iron = nutrients.iron
+            )
+            _loggedDishes.update { it + dish }
+            _mealType.value = mealSlot
+            _showSummary.value = true
+        }
+    }
+
     fun confirmMeal() {
         // Guard: prevent duplicate submissions from rapid taps
         if (_isConfirming.value) return

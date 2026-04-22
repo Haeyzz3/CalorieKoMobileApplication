@@ -8,6 +8,9 @@ import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.ActivityLogEntry
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
+import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.local.MealPlanDao
+import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.repository.DashboardRepository
 import com.calorieko.app.data.repository.NutritionalTarget
 import com.calorieko.app.util.DurationFormatter
@@ -26,6 +29,10 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 
 /**
  * DashboardViewModel — fully reactive via Room Flow observation.
@@ -41,7 +48,9 @@ import java.util.Locale
  */
 class DashboardViewModel(
     private val auth: FirebaseAuth,
-    private val dashboardRepository: DashboardRepository
+    private val dashboardRepository: DashboardRepository,
+    private val mealPlanDao: MealPlanDao,
+    private val dishRecipeDao: DishRecipeDao
 ) : ViewModel() {
 
     private val uid: String? = auth.currentUser?.uid
@@ -114,6 +123,41 @@ class DashboardViewModel(
 
     init {
         loadUserProfileAndTargets()
+        loadDishNames()
+    }
+
+    // ── Today's Planned Meals ──
+
+    /** Today's planned meals, reactively observed from Room. */
+    val todayPlannedMeals: StateFlow<List<PlannedMealEntity>> = run {
+        val weekStart = LocalDate.now()
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val todayDayIndex = LocalDate.now().dayOfWeek.value - 1 // Mon=0, Sun=6
+
+        mealPlanDao.getMealsForWeek(weekStart)
+            .map { meals -> meals.filter { it.dayIndex == todayDayIndex } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
+    /** Formats dish_label to display name. Checks DishRecipeEntity first for proper name. */
+    private val _dishNameCache = mutableMapOf<String, String>()
+    fun getPlannedDishName(dishLabel: String): String {
+        return _dishNameCache.getOrPut(dishLabel) {
+            dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    /** Pre-load actual dish names from the database. */
+    private fun loadDishNames() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val allRecipes = dishRecipeDao.getAllDishRecipes()
+                allRecipes.forEach { recipe ->
+                    _dishNameCache[recipe.dishLabel] = recipe.nameEn
+                }
+            }
+        }
     }
 
     /**
@@ -244,12 +288,14 @@ class DashboardViewModel(
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
-            dashboardRepository: DashboardRepository
+            dashboardRepository: DashboardRepository,
+            mealPlanDao: MealPlanDao,
+            dishRecipeDao: DishRecipeDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
-                    return DashboardViewModel(auth, dashboardRepository) as T
+                    return DashboardViewModel(auth, dashboardRepository, mealPlanDao, dishRecipeDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
