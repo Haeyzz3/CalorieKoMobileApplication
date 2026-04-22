@@ -891,6 +891,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         val mapViewRef = remember { mutableStateOf<com.mapbox.maps.MapView?>(null) }
         var polylineManager by remember { mutableStateOf<PolylineAnnotationManager?>(null) }
         val activePolylines = remember { mutableListOf<PolylineAnnotation>() }
+        
+        var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
+        var currentPuck by remember { mutableStateOf<CircleAnnotation?>(null) }
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
@@ -898,7 +901,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                 mapView.mapboxMap.loadStyle(style) {
                     mapView.annotations.cleanup()
                     activePolylines.clear()
+                    currentPuck = null
                     polylineManager = mapView.annotations.createPolylineAnnotationManager()
+                    circleManager = mapView.annotations.createCircleAnnotationManager()
                 }
             }
         }
@@ -911,18 +916,17 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         mapboxMap.loadStyle(Style.DARK) {
                             annotations.cleanup()
                             activePolylines.clear()
+                            currentPuck = null
                             polylineManager = annotations.createPolylineAnnotationManager()
+                            circleManager = annotations.createCircleAnnotationManager()
                         }
                         mapboxMap.setCamera(CameraOptions.Builder().zoom(16.0).pitch(0.0).build())
                         scalebar.enabled = false
 
-                        // Enable Mapbox native location puck (blue dot) — visible even before tracking starts
+                        // Disable Mapbox native location puck so we can draw our own filtered dot.
+                        // The native puck listens directly to raw GPS, bypassing our jitter filter.
                         location.updateSettings {
-                            enabled = true
-                            pulsingEnabled = true
-                            puckBearingEnabled = false
-                            pulsingColor = android.graphics.Color.parseColor("#4A90D9")
-                            pulsingMaxRadius = 30f
+                            enabled = false
                         }
 
                         // Get initial GPS fix to center camera on user's location immediately
@@ -975,10 +979,21 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         }
                     }
 
-                    // Location indicator is handled solely by the Mapbox native puck
-                    // (configured in factory block with pulsingEnabled = true).
-                    // No custom circle annotation needed — the native puck has built-in
-                    // position smoothing and doesn't drift from GPS jitter.
+                    // Draw the custom location puck (blue dot) that strictly follows our filtered currentPoint
+                    if (currentPoint != null && circleManager != null) {
+                        if (currentPuck == null) {
+                            val options = CircleAnnotationOptions()
+                                .withPoint(currentPoint)
+                                .withCircleRadius(10.0)
+                                .withCircleColor("#4A90D9")
+                                .withCircleStrokeWidth(3.0)
+                                .withCircleStrokeColor("#FFFFFF")
+                            currentPuck = circleManager!!.create(options)
+                        } else {
+                            currentPuck!!.point = currentPoint
+                            circleManager!!.update(currentPuck!!)
+                        }
+                    }
                 }
             )
 
