@@ -86,6 +86,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.RawIngredientEntity
+import com.calorieko.app.data.local.IngredientNutritionBreakdown
+import androidx.compose.runtime.LaunchedEffect
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.SimpleFlowRow
 import com.calorieko.app.ui.theme.CalorieKoGreen
@@ -1482,11 +1484,63 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Nutrition Methodology Disclaimer
+            Surface(
+                color = Color(0xFFF9FAFB),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text("ⓘ", fontSize = 14.sp, color = Color(0xFF6B7280))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            "How we calculate nutrition",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF374151)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            "Values are computed by summing each raw ingredient\u2019s USDA-verified nutrients based on recipe weights before cooking. Actual values may vary based on cooking method, ingredient freshness, and brand-specific differences.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF6B7280),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // Load per-ingredient nutrition breakdown
+        var ingredientBreakdown by remember { mutableStateOf<Map<String, IngredientNutritionBreakdown>>(emptyMap()) }
+        var expandedIngredient by remember { mutableStateOf<String?>(null) }
+
+        LaunchedEffect(recipe.dishLabel) {
+            ingredientBreakdown = withContext(Dispatchers.IO) {
+                viewModel.getIngredientBreakdown(recipe.dishLabel)
+            }
+        }
+
         // Ingredients List
-        Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            if (!hasSubstitutions) {
+                Text("Tap to swap", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             recipe.ingredientDetails.forEach { detail ->
@@ -1517,88 +1571,163 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     isMissingOptional -> Color(0xFFCA8A04)
                     else -> CalorieKoGreen
                 }
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(bgColor, RoundedCornerShape(8.dp))
                         .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                        .clickable {
-                            scope.launch {
-                                isLoadingCandidates = true
-                                substitutionTarget = detail.name
-                                val candidates = withContext(Dispatchers.IO) {
-                                    viewModel.getSubstitutesForIngredient(detail.name)
-                                }
-                                substitutionCandidates = candidates
-                                isLoadingCandidates = false
-                                if (candidates.isEmpty()) {
-                                    substitutionTarget = null // No alternatives, close
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                // Toggle nutrition detail on tap; also load substitutes
+                                if (expandedIngredient == detail.name) {
+                                    expandedIngredient = null
+                                } else {
+                                    expandedIngredient = detail.name
                                 }
                             }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.size(20.dp).background(iconColor, CircleShape), contentAlignment = Alignment.Center) {
+                            Icon(
+                                if (isSubstituted) Icons.Default.SwapHoriz
+                                else if (isMissing) Icons.Rounded.Warning
+                                else Icons.Default.Check,
+                                null, tint = Color.White, modifier = Modifier.size(12.dp)
+                            )
                         }
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.size(20.dp).background(iconColor, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(
-                            if (isSubstituted) Icons.Default.SwapHoriz
-                            else if (isMissing) Icons.Rounded.Warning
-                            else Icons.Default.Check,
-                            null, tint = Color.White, modifier = Modifier.size(12.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        // Ingredient name (show substituted name if active)
-                        val displayName = viewModel.formatIngredientName(effectiveIngredientName)
-                        val nameWithPrep = if (!isSubstituted && detail.preparationMethod.isNotBlank()) {
-                            "$displayName, ${detail.preparationMethod}"
-                        } else {
-                            displayName
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            // Ingredient name (show substituted name if active)
+                            val displayName = viewModel.formatIngredientName(effectiveIngredientName)
+                            val nameWithPrep = if (!isSubstituted && detail.preparationMethod.isNotBlank()) {
+                                "$displayName, ${detail.preparationMethod}"
+                            } else {
+                                displayName
+                            }
+                            Text(
+                                nameWithPrep,
+                                fontSize = 14.sp,
+                                color = when {
+                                    isSubstituted -> Color(0xFF0C4A6E)
+                                    isMissingCore -> CalorieKoOrange
+                                    isMissingOptional -> Color(0xFFCA8A04)
+                                    else -> Color(0xFF374151)
+                                },
+                                fontWeight = if (isSubstituted || isMissing) FontWeight.Medium else FontWeight.Normal
+                            )
+                            // Show original ingredient name if substituted
+                            if (isSubstituted) {
+                                Text(
+                                    "\u21a9 ${viewModel.formatIngredientName(detail.name)}",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF0369A1)
+                                )
+                            } else if (detail.portionQuantity.isNotBlank()) {
+                                // Portion quantity
+                                Text(
+                                    detail.portionQuantity,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
                         }
-                        Text(
-                            nameWithPrep,
-                            fontSize = 14.sp,
-                            color = when {
-                                isSubstituted -> Color(0xFF0C4A6E)
-                                isMissingCore -> CalorieKoOrange
-                                isMissingOptional -> Color(0xFFCA8A04)
-                                else -> Color(0xFF374151)
-                            },
-                            fontWeight = if (isSubstituted || isMissing) FontWeight.Medium else FontWeight.Normal
-                        )
-                        // Show original ingredient name if substituted
+                        // Badges
                         if (isSubstituted) {
-                            Text(
-                                "↩ ${viewModel.formatIngredientName(detail.name)}",
-                                fontSize = 11.sp,
-                                color = Color(0xFF0369A1)
-                            )
-                        } else if (detail.portionQuantity.isNotBlank()) {
-                            // Portion quantity
-                            Text(
-                                detail.portionQuantity,
-                                fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
-                            )
+                            Surface(
+                                onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
+                                color = Color(0xFFBAE6FD),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text("Undo", fontSize = 9.sp, color = Color(0xFF0C4A6E), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                        } else if (isMissingCore) {
+                            Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(4.dp)) {
+                                Text("Core", fontSize = 9.sp, color = CalorieKoOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                        } else if (isMissingOptional) {
+                            Surface(color = Color(0xFFFEF9C3), shape = RoundedCornerShape(4.dp)) {
+                                Text("Optional", fontSize = 9.sp, color = Color(0xFFCA8A04), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
                         }
                     }
-                    // Badges
-                    if (isSubstituted) {
-                        Surface(
-                            onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
-                            color = Color(0xFFBAE6FD),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text("Undo", fontSize = 9.sp, color = Color(0xFF0C4A6E), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                        }
-                    } else if (isMissingCore) {
-                        Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(4.dp)) {
-                            Text("Core", fontSize = 9.sp, color = CalorieKoOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                        }
-                    } else if (isMissingOptional) {
-                        Surface(color = Color(0xFFFEF9C3), shape = RoundedCornerShape(4.dp)) {
-                            Text("Optional", fontSize = 9.sp, color = Color(0xFFCA8A04), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+
+                    // Expandable per-ingredient nutrition detail
+                    val breakdown = ingredientBreakdown[detail.name]
+                    AnimatedVisibility(
+                        visible = expandedIngredient == detail.name && breakdown != null,
+                        enter = expandVertically(),
+                        exit = shrinkVertically()
+                    ) {
+                        if (breakdown != null) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFF3F4F6).copy(alpha = 0.5f))
+                                    .padding(start = 44.dp, end = 12.dp, top = 4.dp, bottom = 10.dp)
+                            ) {
+                                Text(
+                                    "${breakdown.rawWeightGrams.toInt()}g raw",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF6B7280)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    Column {
+                                        Text("${breakdown.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                        Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                    }
+                                    Column {
+                                        Text("${breakdown.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                        Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                    }
+                                    Column {
+                                        Text("${breakdown.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                        Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                    }
+                                    Column {
+                                        Text("${breakdown.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                        Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                    }
+                                    Column {
+                                        Text("${breakdown.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                        Text("mg sod.", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                // Swap action
+                                Surface(
+                                    onClick = {
+                                        scope.launch {
+                                            isLoadingCandidates = true
+                                            substitutionTarget = detail.name
+                                            val candidates = withContext(Dispatchers.IO) {
+                                                viewModel.getSubstitutesForIngredient(detail.name)
+                                            }
+                                            substitutionCandidates = candidates
+                                            isLoadingCandidates = false
+                                            if (candidates.isEmpty()) {
+                                                substitutionTarget = null
+                                            }
+                                        }
+                                    },
+                                    color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Swap ingredient", fontSize = 11.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.Medium)
+                                    }
+                                }
+                            }
                         }
                     }
                 }

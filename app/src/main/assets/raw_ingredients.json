@@ -2489,5 +2489,441 @@
         "grams": 28.4
       }
     ]
+  },
+  {
+    "ingredient_key": "olive_oil",
+    "display_name": "Olive Oil",
+    "category": "pantry_staple",
+    "sub_category": "oil",
+    "fdc_id": 171413,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 884.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 2.0,
+      "potassium": 1.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 1.0,
+      "iron": 0.56
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 13.5
+      },
+      {
+        "description": "undetermined",
+        "grams": 4.5
+      },
+      {
+        "description": "undetermined",
+        "grams": 216.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "coconut_oil",
+    "display_name": "Coconut Oil",
+    "category": "pantry_staple",
+    "sub_category": "oil",
+    "fdc_id": 171412,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 892.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 99.06,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 1.0,
+      "iron": 0.05
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 218.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 4.5
+      },
+      {
+        "description": "undetermined",
+        "grams": 13.6
+      }
+    ]
+  },
+  {
+    "ingredient_key": "canola_oil",
+    "display_name": "Canola Oil",
+    "category": "pantry_staple",
+    "sub_category": "oil",
+    "fdc_id": 172336,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 884.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.0
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 4.5
+      },
+      {
+        "description": "undetermined",
+        "grams": 218.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 14.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "chicken_thigh",
+    "display_name": "Chicken Thigh (raw)",
+    "category": "protein",
+    "sub_category": "poultry",
+    "fdc_id": 171474,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 172.0,
+      "protein": 20.85,
+      "carbs": 0.0,
+      "fat": 9.25,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 63.0,
+      "potassium": 220.0,
+      "vitamin_a": 24.0,
+      "vitamin_c": 0.0,
+      "calcium": 11.0,
+      "iron": 0.74
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 87.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 145.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "chicken_drumstick",
+    "display_name": "Chicken Drumstick (raw)",
+    "category": "protein",
+    "sub_category": "poultry",
+    "fdc_id": 171466,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 173.0,
+      "protein": 30.91,
+      "carbs": 0.0,
+      "fat": 4.51,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 77.0,
+      "potassium": 247.0,
+      "vitamin_a": 9.0,
+      "vitamin_c": 0.0,
+      "calcium": 15.0,
+      "iron": 1.06
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 107.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 140.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 64.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "pork_shoulder",
+    "display_name": "Pork Shoulder (raw)",
+    "category": "protein",
+    "sub_category": "pork",
+    "fdc_id": 167820,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 242.0,
+      "protein": 27.32,
+      "carbs": 0.0,
+      "fat": 13.92,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 62.0,
+      "potassium": 423.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 0.6,
+      "calcium": 19.0,
+      "iron": 0.87
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 87.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 85.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "ground_pork",
+    "display_name": "Ground Pork (raw)",
+    "category": "protein",
+    "sub_category": "pork",
+    "fdc_id": 167904,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 201.0,
+      "protein": 29.86,
+      "carbs": 0.0,
+      "fat": 8.11,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 64.0,
+      "potassium": 444.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 1.0,
+      "calcium": 5.0,
+      "iron": 1.39
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 76.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 85.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "bihon_noodles",
+    "display_name": "Bihon (Rice Noodles)",
+    "category": "grain_starch",
+    "sub_category": "noodle",
+    "fdc_id": 168916,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 159.0,
+      "protein": 5.82,
+      "carbs": 31.51,
+      "fat": 1.5,
+      "fiber": 4.6,
+      "sugar": 0.85,
+      "sodium": 6.0,
+      "potassium": 77.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 12.0,
+      "iron": 1.65
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 107.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 107.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 117.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "canton_noodles",
+    "display_name": "Canton (Egg Noodles)",
+    "category": "grain_starch",
+    "sub_category": "noodle",
+    "fdc_id": 168919,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 138.0,
+      "protein": 4.54,
+      "carbs": 25.16,
+      "fat": 2.07,
+      "fiber": 1.2,
+      "sugar": 0.4,
+      "sodium": 165.0,
+      "potassium": 38.0,
+      "vitamin_a": 6.0,
+      "vitamin_c": 0.0,
+      "calcium": 12.0,
+      "iron": 1.47
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 160.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "brown_rice",
+    "display_name": "Brown Rice (raw)",
+    "category": "grain_starch",
+    "sub_category": "grain",
+    "fdc_id": 169704,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 123.0,
+      "protein": 2.74,
+      "carbs": 25.58,
+      "fat": 0.97,
+      "fiber": 1.6,
+      "sugar": 0.24,
+      "sodium": 4.0,
+      "potassium": 86.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 3.0,
+      "iron": 0.56
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 202.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "lemon_juice",
+    "display_name": "Lemon Juice (fresh)",
+    "category": "pantry_staple",
+    "sub_category": "citrus_juice",
+    "fdc_id": 167747,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 22.0,
+      "protein": 0.35,
+      "carbs": 6.9,
+      "fat": 0.24,
+      "fiber": 0.3,
+      "sugar": 2.52,
+      "sodium": 1.0,
+      "potassium": 103.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 38.7,
+      "calcium": 6.0,
+      "iron": 0.08
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 5.9
+      },
+      {
+        "description": "undetermined",
+        "grams": 48.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 244.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "lime_juice",
+    "display_name": "Lime Juice (fresh)",
+    "category": "pantry_staple",
+    "sub_category": "citrus_juice",
+    "fdc_id": 167748,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 17.0,
+      "protein": 0.45,
+      "carbs": 5.62,
+      "fat": 0.07,
+      "fiber": 0.7,
+      "sugar": 1.53,
+      "sodium": 24.0,
+      "potassium": 109.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 14.3,
+      "calcium": 10.0,
+      "iron": 0.06
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 5.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 244.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 30.5
+      }
+    ]
+  },
+  {
+    "ingredient_key": "tuyo_fish",
+    "display_name": "Tuyo (Dried Salted Fish)",
+    "category": "protein",
+    "sub_category": "fish_smoked",
+    "fdc_id": 175154,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 119.0,
+      "protein": 20.48,
+      "carbs": 0.0,
+      "fat": 3.46,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 31.0,
+      "potassium": 481.0,
+      "vitamin_a": 19.0,
+      "vitamin_c": 2.4,
+      "calcium": 67.0,
+      "iron": 0.7
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 159.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 85.0
+      }
+    ]
   }
 ]
