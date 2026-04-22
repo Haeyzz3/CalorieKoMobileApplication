@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import com.calorieko.app.ui.theme.*
 
 // 1. Update signature to accept REAL data
@@ -214,13 +215,25 @@ fun TargetSummaryScreen(
                 border = BorderStroke(1.dp, Color(0xFFDBEAFE)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(modifier = Modifier.padding(16.dp)) {
-                    Text("💡 Pro Tip: ", fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A), fontSize = 14.sp)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row {
+                        Text("💡 Pro Tip: ", fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A), fontSize = 14.sp)
+                        Text(
+                            text = "These targets are personalized based on your age, weight, height, and health goals.",
+                            color = Color(0xFF1E3A8A),
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
                     Text(
-                        text = "These targets are personalized based on your age, weight, height, and health goals.",
-                        color = Color(0xFF1E3A8A),
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
+                        text = "Note: You can always update your details and adjust these goals later in your Profile Settings.",
+                        color = Color(0xFF1E3A8A).copy(alpha = 0.7f),
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
