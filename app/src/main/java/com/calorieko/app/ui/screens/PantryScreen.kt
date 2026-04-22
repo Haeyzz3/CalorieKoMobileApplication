@@ -1,5 +1,7 @@
 package com.calorieko.app.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -12,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,10 +39,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -72,6 +75,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -79,24 +83,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.SimpleFlowRow
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.viewmodel.DishProofDocument
 import com.calorieko.app.viewmodel.DishResult
-import com.calorieko.app.viewmodel.IngredientInfo
 import com.calorieko.app.viewmodel.PantryViewModel
 import com.calorieko.app.viewmodel.ProofType
-import com.calorieko.app.viewmodel.DishProofDocument
-import com.calorieko.app.data.model.RawIngredientEntity
-
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.material.icons.filled.SwapHoriz
-
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1496,17 +1493,26 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 val isMissingCore = recipe.missingCoreIngredients.contains(detail.name)
                 val isMissingOptional = recipe.missingOptionalIngredients.contains(detail.name)
                 val isMissing = isMissingCore || isMissingOptional
+
+                // Check if this ingredient has been substituted
+                val substitutedWith = dishSubs[detail.name]
+                val isSubstituted = substitutedWith != null
+                val effectiveIngredientName = substitutedWith ?: detail.name
+
                 val bgColor = when {
+                    isSubstituted -> Color(0xFFF0F9FF)  // Light blue for substituted
                     isMissingCore -> Color(0xFFFFF7ED)
                     isMissingOptional -> Color(0xFFFEFCE8)
                     else -> Color(0xFFF9FAFB)
                 }
                 val borderColor = when {
+                    isSubstituted -> Color(0xFFBAE6FD)
                     isMissingCore -> Color(0xFFFFEDD5)
                     isMissingOptional -> Color(0xFFFEF9C3)
                     else -> Color.Transparent
                 }
                 val iconColor = when {
+                    isSubstituted -> Color(0xFF0284C7)
                     isMissingCore -> CalorieKoOrange
                     isMissingOptional -> Color(0xFFCA8A04)
                     else -> CalorieKoGreen
