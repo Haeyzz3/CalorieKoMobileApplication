@@ -8,6 +8,7 @@ import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
+import com.calorieko.app.data.local.IngredientNutritionBreakdown
 import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.model.PantryItem
@@ -583,6 +584,14 @@ class PantryViewModel(
     suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
         val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
         return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
+    }
+
+    /**
+     * Returns per-ingredient nutrition breakdown for a dish.
+     * Each entry shows how many calories/protein/fat/carbs that ingredient contributes.
+     */
+    suspend fun getIngredientBreakdown(dishLabel: String): Map<String, IngredientNutritionBreakdown> {
+        return calculator.getIngredientBreakdown(dishLabel)
     }
 
     /**

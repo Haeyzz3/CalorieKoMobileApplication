@@ -204,4 +204,70 @@ class RecipeNutritionCalculator(
             calcium = ingredient.calcium,
             iron = ingredient.iron,
         )
+
+    /**
+     * Returns per-ingredient nutrition contributions for a dish.
+     *
+     * For each ingredient in the recipe, calculates the actual nutrient
+     * amounts contributed (raw_weight_grams / 100 × per-100g nutrient).
+     * Results are keyed by ingredient_key for easy lookup.
+     *
+     * @param dishLabel The ML label / dish key
+     * @return Map of ingredientKey → [IngredientNutritionBreakdown]
+     */
+    suspend fun getIngredientBreakdown(
+        dishLabel: String
+    ): Map<String, IngredientNutritionBreakdown> {
+        val recipeIngredients = recipeIngredientDao.getIngredientsForDish(dishLabel)
+        if (recipeIngredients.isEmpty()) return emptyMap()
+
+        val result = mutableMapOf<String, IngredientNutritionBreakdown>()
+
+        for (ri in recipeIngredients) {
+            val ingredient = rawIngredientDao.getByKey(ri.ingredientKey) ?: continue
+            val factor = ri.rawWeightGrams / 100f
+
+            // If same ingredient appears in multiple steps, aggregate
+            val existing = result[ri.ingredientKey]
+            if (existing != null) {
+                result[ri.ingredientKey] = existing.copy(
+                    rawWeightGrams = existing.rawWeightGrams + ri.rawWeightGrams,
+                    calories = existing.calories + ingredient.calories * factor,
+                    protein = existing.protein + ingredient.protein * factor,
+                    carbs = existing.carbs + ingredient.carbs * factor,
+                    fat = existing.fat + ingredient.fat * factor,
+                    sodium = existing.sodium + ingredient.sodium * factor
+                )
+            } else {
+                result[ri.ingredientKey] = IngredientNutritionBreakdown(
+                    ingredientKey = ri.ingredientKey,
+                    displayName = ingredient.displayName,
+                    rawWeightGrams = ri.rawWeightGrams,
+                    calories = ingredient.calories * factor,
+                    protein = ingredient.protein * factor,
+                    carbs = ingredient.carbs * factor,
+                    fat = ingredient.fat * factor,
+                    sodium = ingredient.sodium * factor
+                )
+            }
+        }
+
+        return result
+    }
 }
+
+/**
+ * Per-ingredient nutrition contribution to a dish recipe.
+ * All nutrient values represent the actual amounts contributed
+ * by this ingredient (not per-100g).
+ */
+data class IngredientNutritionBreakdown(
+    val ingredientKey: String,
+    val displayName: String,
+    val rawWeightGrams: Float,
+    val calories: Float,
+    val protein: Float,
+    val carbs: Float,
+    val fat: Float,
+    val sodium: Float
+)
