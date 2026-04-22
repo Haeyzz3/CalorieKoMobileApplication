@@ -556,12 +556,21 @@ fun AppNavigation() {
 
         // --- NEW: Pantry Screen ---
         composable("pantry") {
+            val pantryCalculator = remember {
+                com.calorieko.app.data.local.RecipeNutritionCalculator(
+                    dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
+                    recipeIngredientDao = db.recipeIngredientDao()
+                )
+            }
             val pantryViewModel: com.calorieko.app.viewmodel.PantryViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.PantryViewModel.provideFactory(
                     auth = auth,
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
                     dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
+                    calculator = pantryCalculator,
                     firestoreSyncRepo = firestoreSyncRepo,
                     userDao = db.userDao(),
                     nutritionalValuesRepo = nutritionalRepo,

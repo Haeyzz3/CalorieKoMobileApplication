@@ -6,9 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
+import com.calorieko.app.data.local.RawIngredientDao
+import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.NutritionalValuesRepository
@@ -75,6 +79,8 @@ class PantryViewModel(
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
     private val dishRecipeDao: DishRecipeDao,
+    private val rawIngredientDao: RawIngredientDao,
+    private val calculator: RecipeNutritionCalculator,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val userDao: UserDao,
     private val nutritionalValuesRepo: NutritionalValuesRepository,
@@ -90,6 +96,8 @@ class PantryViewModel(
             pantryDao: PantryDao,
             mealPlanDao: MealPlanDao,
             dishRecipeDao: DishRecipeDao,
+            rawIngredientDao: RawIngredientDao,
+            calculator: RecipeNutritionCalculator,
             firestoreSyncRepo: FirestoreSyncRepository,
             userDao: UserDao,
             nutritionalValuesRepo: NutritionalValuesRepository,
@@ -98,7 +106,7 @@ class PantryViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, rawIngredientDao, calculator, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -548,5 +556,93 @@ class PantryViewModel(
         return name.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
+    }
+
+    // ============================================================
+    // Ingredient Substitution
+    // ============================================================
+
+    /**
+     * Active substitutions per dish. Key = dishLabel, Value = map of originalKey → replacementKey.
+     * Ephemeral — not persisted, resets when user closes the detail sheet.
+     */
+    private val _activeSubstitutions = MutableStateFlow<Map<String, Map<String, String>>>(emptyMap())
+    val activeSubstitutions: StateFlow<Map<String, Map<String, String>>> = _activeSubstitutions.asStateFlow()
+
+    /**
+     * Recalculated per-serving nutrition for dishes with active substitutions.
+     * Key = dishLabel, Value = NutritionResult with the substituted values.
+     */
+    private val _substitutedNutrition = MutableStateFlow<Map<String, NutritionResult>>(emptyMap())
+    val substitutedNutrition: StateFlow<Map<String, NutritionResult>> = _substitutedNutrition.asStateFlow()
+
+    /**
+     * Returns all substitute candidates for an ingredient (same sub_category).
+     * Returns empty list if the ingredient has no alternatives.
+     */
+    suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
+        val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
+        return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
+    }
+
+    /**
+     * Applies a substitution: replaces [originalKey] with [newKey] in the dish recipe
+     * and recalculates nutrition using the dynamic path.
+     */
+    fun applySubstitution(dishLabel: String, originalKey: String, newKey: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Update the substitution map
+            val currentSubs = _activeSubstitutions.value.toMutableMap()
+            val dishSubs = (currentSubs[dishLabel] ?: emptyMap()).toMutableMap()
+            dishSubs[originalKey] = newKey
+            currentSubs[dishLabel] = dishSubs
+            _activeSubstitutions.value = currentSubs
+
+            // Recalculate with substitutions
+            val result = calculator.calculateWithSubstitution(dishLabel, dishSubs)
+            val currentNutrition = _substitutedNutrition.value.toMutableMap()
+            currentNutrition[dishLabel] = result
+            _substitutedNutrition.value = currentNutrition
+        }
+    }
+
+    /**
+     * Removes a specific substitution for an ingredient in a dish.
+     * If no more substitutions remain, removes the dish entry entirely.
+     */
+    fun removeSubstitution(dishLabel: String, originalKey: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentSubs = _activeSubstitutions.value.toMutableMap()
+            val dishSubs = (currentSubs[dishLabel] ?: emptyMap()).toMutableMap()
+            dishSubs.remove(originalKey)
+
+            if (dishSubs.isEmpty()) {
+                currentSubs.remove(dishLabel)
+                val currentNutrition = _substitutedNutrition.value.toMutableMap()
+                currentNutrition.remove(dishLabel)
+                _substitutedNutrition.value = currentNutrition
+            } else {
+                currentSubs[dishLabel] = dishSubs
+                val result = calculator.calculateWithSubstitution(dishLabel, dishSubs)
+                val currentNutrition = _substitutedNutrition.value.toMutableMap()
+                currentNutrition[dishLabel] = result
+                _substitutedNutrition.value = currentNutrition
+            }
+
+            _activeSubstitutions.value = currentSubs
+        }
+    }
+
+    /**
+     * Clears all substitutions for a dish, resetting nutrition to the original values.
+     */
+    fun clearSubstitutions(dishLabel: String) {
+        val currentSubs = _activeSubstitutions.value.toMutableMap()
+        currentSubs.remove(dishLabel)
+        _activeSubstitutions.value = currentSubs
+
+        val currentNutrition = _substitutedNutrition.value.toMutableMap()
+        currentNutrition.remove(dishLabel)
+        _substitutedNutrition.value = currentNutrition
     }
 }

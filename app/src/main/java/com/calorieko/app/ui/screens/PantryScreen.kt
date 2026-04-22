@@ -89,11 +89,17 @@ import com.calorieko.app.viewmodel.IngredientInfo
 import com.calorieko.app.viewmodel.PantryViewModel
 import com.calorieko.app.viewmodel.ProofType
 import com.calorieko.app.viewmodel.DishProofDocument
+import com.calorieko.app.data.model.RawIngredientEntity
+
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.material.icons.filled.SwapHoriz
+
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 // --- Common Ingredients for Quick-Add ---
@@ -1200,23 +1206,51 @@ fun MealPlanCalendarSection(
                     Text("Clear Day", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                 }
             },
-            dismissButton = { TextButton(onClick = { showClearDayDialog.value = false }) { Text("Cancel") } }
+dismissButton = { TextButton(onClick = { showClearDayDialog.value = false }) { Text("Cancel") } }
         )
     }
 }
 
 // --- Recipe Detail Content (BottomSheet) ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedMeals: List<PlannedMealEntity>, onClose: () -> Unit, onAddToPlan: () -> Unit) {
     val isReady = recipe.missingCoreIngredients.isEmpty()
+    val scope = rememberCoroutineScope()
 
     // Use user's actual targets from ViewModel
     val userCalorieTarget by viewModel.userCalorieTarget.collectAsState()
     val userSodiumLimit by viewModel.userSodiumLimit.collectAsState()
 
-    val caloriePercent = if (userCalorieTarget > 0) (recipe.calories / userCalorieTarget.toFloat()) else 0f
-    val sodiumPercent = if (userSodiumLimit > 0) (recipe.sodium / userSodiumLimit.toFloat()) else 0f
-    val sodiumColor = if (recipe.sodium <= 500) Color(0xFF16A34A) else if (recipe.sodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
+    // --- Substitution state ---
+    val allSubstitutions by viewModel.activeSubstitutions.collectAsState()
+    val allSubNutrition by viewModel.substitutedNutrition.collectAsState()
+    val dishSubs = allSubstitutions[recipe.dishLabel] ?: emptyMap()
+    val subNutrition = allSubNutrition[recipe.dishLabel]
+    val hasSubstitutions = dishSubs.isNotEmpty()
+
+    // Substitution picker state
+    var substitutionTarget by remember { mutableStateOf<String?>(null) }  // ingredientKey being substituted
+    var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
+    var isLoadingCandidates by remember { mutableStateOf(false) }
+
+    // Effective nutrition: use substituted values if available, else original
+    val effectiveCalories = if (hasSubstitutions && subNutrition != null) subNutrition.calories.toInt() else recipe.calories
+    val effectiveProtein = if (hasSubstitutions && subNutrition != null) subNutrition.protein.toInt() else recipe.protein
+    val effectiveCarbs = if (hasSubstitutions && subNutrition != null) subNutrition.carbs.toInt() else recipe.carbs
+    val effectiveFats = if (hasSubstitutions && subNutrition != null) subNutrition.fat.toInt() else recipe.fats
+    val effectiveSodium = if (hasSubstitutions && subNutrition != null) subNutrition.sodium.toInt() else recipe.sodium
+    val effectiveFiber = if (hasSubstitutions && subNutrition != null) subNutrition.fiber else recipe.fiber
+    val effectiveSugar = if (hasSubstitutions && subNutrition != null) subNutrition.sugar else recipe.sugar
+    val effectivePotassium = if (hasSubstitutions && subNutrition != null) subNutrition.potassium else recipe.potassium
+    val effectiveVitaminA = if (hasSubstitutions && subNutrition != null) subNutrition.vitaminA else recipe.vitaminA
+    val effectiveVitaminC = if (hasSubstitutions && subNutrition != null) subNutrition.vitaminC else recipe.vitaminC
+    val effectiveCalcium = if (hasSubstitutions && subNutrition != null) subNutrition.calcium else recipe.calcium
+    val effectiveIron = if (hasSubstitutions && subNutrition != null) subNutrition.iron else recipe.iron
+
+    val caloriePercent = if (userCalorieTarget > 0) (effectiveCalories / userCalorieTarget.toFloat()) else 0f
+    val sodiumPercent = if (userSodiumLimit > 0) (effectiveSodium / userSodiumLimit.toFloat()) else 0f
+    val sodiumColor = if (effectiveSodium <= 500) Color(0xFF16A34A) else if (effectiveSodium <= 800) Color(0xFFCA8A04) else Color(0xFFEA580C)
 
     // Combine all missing for convenience
     val allMissing = recipe.missingCoreIngredients + recipe.missingOptionalIngredients
@@ -1286,15 +1320,64 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
         // Nutrition Cards
         if (recipe.calories > 0) {
+            // Substitution Active Banner
+            if (hasSubstitutions) {
+                Surface(
+                    color = Color(0xFFF0F9FF),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "${dishSubs.size} Substitution${if (dishSubs.size > 1) "s" else ""} Active",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0C4A6E)
+                            )
+                            Text(
+                                "Nutrition values updated below",
+                                fontSize = 11.sp,
+                                color = Color(0xFF0369A1)
+                            )
+                        }
+                        Surface(
+                            onClick = { viewModel.clearSubstitutions(recipe.dishLabel) },
+                            color = Color(0xFF0284C7).copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "Reset",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0284C7),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Text("Per Serving Nutrition", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            Text("Values per single serving", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+            Text(
+                if (hasSubstitutions) "Updated with substitutions" else "Values per single serving",
+                fontSize = 12.sp,
+                color = if (hasSubstitutions) Color(0xFF0284C7) else Color(0xFF9CA3AF)
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 NutritionCard(
-                    value = "${recipe.calories}",
+                    value = "$effectiveCalories",
                     unit = "kcal",
                     subtext = "${(caloriePercent * 100).toInt()}% of daily target",
                     progress = caloriePercent,
@@ -1303,12 +1386,12 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
                 NutritionCard(
-                    value = "${recipe.sodium}",
+                    value = "$effectiveSodium",
                     unit = "Sod. (mg)",
                     subtext = "${(sodiumPercent * 100).toInt()}% of limit",
                     progress = sodiumPercent,
                     color = sodiumColor,
-                    bgColor = if (recipe.sodium <= 500) Color(0xFFECFDF5) else if (recipe.sodium <= 800) Color(0xFFFEF9C3) else Color(0xFFFFF7ED),
+                    bgColor = if (effectiveSodium <= 500) Color(0xFFECFDF5) else if (effectiveSodium <= 800) Color(0xFFFEF9C3) else Color(0xFFFFF7ED),
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
@@ -1319,9 +1402,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             Text("Macronutrients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Spacer(modifier = Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                MacroRow("Protein", "${recipe.protein}g", Color(0xFF3B82F6), "P")
-                MacroRow("Carbohydrates", "${recipe.carbs}g", Color(0xFFEAB308), "C")
-                MacroRow("Fats", "${recipe.fats}g", Color(0xFFA855F7), "F")
+                MacroRow("Protein", "${effectiveProtein}g", Color(0xFF3B82F6), "P")
+                MacroRow("Carbohydrates", "${effectiveCarbs}g", Color(0xFFEAB308), "C")
+                MacroRow("Fats", "${effectiveFats}g", Color(0xFFA855F7), "F")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1371,33 +1454,33 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         // Energy
                         NutrientCategoryHeader("⚡ Energy")
-                        NutrientDetailRow("Calories", "${recipe.calories} kcal")
+                        NutrientDetailRow("Calories", "$effectiveCalories kcal")
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         // Macronutrients
                         NutrientCategoryHeader("🥩 Macronutrients")
-                        NutrientDetailRow("Protein", "${recipe.protein} g")
-                        NutrientDetailRow("Carbohydrates", "${recipe.carbs} g")
-                        NutrientDetailRow("Total Fat", "${recipe.fats} g")
-                        NutrientDetailRow("Dietary Fiber", "${formatNutrientValue(recipe.fiber)} g")
-                        NutrientDetailRow("Sugar", "${formatNutrientValue(recipe.sugar)} g")
+                        NutrientDetailRow("Protein", "$effectiveProtein g")
+                        NutrientDetailRow("Carbohydrates", "$effectiveCarbs g")
+                        NutrientDetailRow("Total Fat", "$effectiveFats g")
+                        NutrientDetailRow("Dietary Fiber", "${formatNutrientValue(effectiveFiber)} g")
+                        NutrientDetailRow("Sugar", "${formatNutrientValue(effectiveSugar)} g")
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         // Minerals
                         NutrientCategoryHeader("⛏️ Minerals")
-                        NutrientDetailRow("Sodium", "${recipe.sodium} mg")
-                        NutrientDetailRow("Potassium", "${formatNutrientValue(recipe.potassium)} mg")
-                        NutrientDetailRow("Calcium", "${formatNutrientValue(recipe.calcium)} mg")
-                        NutrientDetailRow("Iron", "${formatNutrientValue(recipe.iron)} mg")
+                        NutrientDetailRow("Sodium", "$effectiveSodium mg")
+                        NutrientDetailRow("Potassium", "${formatNutrientValue(effectivePotassium)} mg")
+                        NutrientDetailRow("Calcium", "${formatNutrientValue(effectiveCalcium)} mg")
+                        NutrientDetailRow("Iron", "${formatNutrientValue(effectiveIron)} mg")
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         // Vitamins
                         NutrientCategoryHeader("💊 Vitamins")
-                        NutrientDetailRow("Vitamin A", "${formatNutrientValue(recipe.vitaminA)} µg")
-                        NutrientDetailRow("Vitamin C", "${formatNutrientValue(recipe.vitaminC)} mg")
+                        NutrientDetailRow("Vitamin A", "${formatNutrientValue(effectiveVitaminA)} µg")
+                        NutrientDetailRow("Vitamin C", "${formatNutrientValue(effectiveVitaminC)} mg")
                     }
                 }
             }
@@ -1433,17 +1516,36 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         .fillMaxWidth()
                         .background(bgColor, RoundedCornerShape(8.dp))
                         .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+                        .clickable {
+                            scope.launch {
+                                isLoadingCandidates = true
+                                substitutionTarget = detail.name
+                                val candidates = withContext(Dispatchers.IO) {
+                                    viewModel.getSubstitutesForIngredient(detail.name)
+                                }
+                                substitutionCandidates = candidates
+                                isLoadingCandidates = false
+                                if (candidates.isEmpty()) {
+                                    substitutionTarget = null // No alternatives, close
+                                }
+                            }
+                        }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(modifier = Modifier.size(20.dp).background(iconColor, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(if (isMissing) Icons.Rounded.Warning else Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                        Icon(
+                            if (isSubstituted) Icons.Default.SwapHoriz
+                            else if (isMissing) Icons.Rounded.Warning
+                            else Icons.Default.Check,
+                            null, tint = Color.White, modifier = Modifier.size(12.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        // Ingredient name with optional preparation method
-                        val displayName = viewModel.formatIngredientName(detail.name)
-                        val nameWithPrep = if (detail.preparationMethod.isNotBlank()) {
+                        // Ingredient name (show substituted name if active)
+                        val displayName = viewModel.formatIngredientName(effectiveIngredientName)
+                        val nameWithPrep = if (!isSubstituted && detail.preparationMethod.isNotBlank()) {
                             "$displayName, ${detail.preparationMethod}"
                         } else {
                             displayName
@@ -1451,11 +1553,23 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         Text(
                             nameWithPrep,
                             fontSize = 14.sp,
-                            color = if (isMissingCore) CalorieKoOrange else if (isMissingOptional) Color(0xFFCA8A04) else Color(0xFF374151),
-                            fontWeight = if (isMissing) FontWeight.Medium else FontWeight.Normal
+                            color = when {
+                                isSubstituted -> Color(0xFF0C4A6E)
+                                isMissingCore -> CalorieKoOrange
+                                isMissingOptional -> Color(0xFFCA8A04)
+                                else -> Color(0xFF374151)
+                            },
+                            fontWeight = if (isSubstituted || isMissing) FontWeight.Medium else FontWeight.Normal
                         )
-                        // Portion quantity
-                        if (detail.portionQuantity.isNotBlank()) {
+                        // Show original ingredient name if substituted
+                        if (isSubstituted) {
+                            Text(
+                                "↩ ${viewModel.formatIngredientName(detail.name)}",
+                                fontSize = 11.sp,
+                                color = Color(0xFF0369A1)
+                            )
+                        } else if (detail.portionQuantity.isNotBlank()) {
+                            // Portion quantity
                             Text(
                                 detail.portionQuantity,
                                 fontSize = 12.sp,
@@ -1463,8 +1577,16 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             )
                         }
                     }
-                    // Core / Optional badge
-                    if (isMissingCore) {
+                    // Badges
+                    if (isSubstituted) {
+                        Surface(
+                            onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
+                            color = Color(0xFFBAE6FD),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text("Undo", fontSize = 9.sp, color = Color(0xFF0C4A6E), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        }
+                    } else if (isMissingCore) {
                         Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(4.dp)) {
                             Text("Core", fontSize = 9.sp, color = CalorieKoOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
@@ -1710,6 +1832,141 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             confirmButton = {},
             dismissButton = { TextButton(onClick = { showSlotPickerForPlan.value = false }) { Text("Cancel") } }
         )
+    }
+
+    // --- Substitution Picker Bottom Sheet ---
+    if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                substitutionTarget = null
+                substitutionCandidates = emptyList()
+            },
+            containerColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+            ) {
+                // Header
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("Swap Ingredient", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text(
+                            "Replace ${viewModel.formatIngredientName(substitutionTarget!!)} with:",
+                            fontSize = 13.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Alternative candidates
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    substitutionCandidates.forEach { candidate ->
+                        val isCurrentSub = dishSubs[substitutionTarget] == candidate.ingredientKey
+                        Surface(
+                            onClick = {
+                                viewModel.applySubstitution(
+                                    recipe.dishLabel,
+                                    substitutionTarget!!,
+                                    candidate.ingredientKey
+                                )
+                                substitutionTarget = null
+                                substitutionCandidates = emptyList()
+                            },
+                            color = if (isCurrentSub) Color(0xFFE0F2FE) else Color(0xFFF9FAFB),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                width = if (isCurrentSub) 1.5.dp else 1.dp,
+                                color = if (isCurrentSub) Color(0xFF0284C7) else Color(0xFFE5E7EB)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            candidate.displayName,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isCurrentSub) Color(0xFF0C4A6E) else Color(0xFF1F2937)
+                                        )
+                                        if (isCurrentSub) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Surface(
+                                                color = Color(0xFF0284C7),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    "Active",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    // Nutrition comparison (per 100g)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Text(
+                                            "${candidate.calories.toInt()} kcal",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF4B5563),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            "P: ${candidate.protein.toInt()}g",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF3B82F6)
+                                        )
+                                        Text(
+                                            "F: ${candidate.fat.toInt()}g",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFFA855F7)
+                                        )
+                                    }
+                                    Text(
+                                        "per 100g raw",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    null,
+                                    tint = Color(0xFF9CA3AF),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Cancel button
+                TextButton(
+                    onClick = {
+                        substitutionTarget = null
+                        substitutionCandidates = emptyList()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            }
+        }
     }
 }
 
