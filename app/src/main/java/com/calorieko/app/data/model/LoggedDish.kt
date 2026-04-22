@@ -6,6 +6,7 @@ data class LoggedDish(
     val weightGrams: Float,
     val confidence: Float,
     val foodId: Int,
+    val dishLabel: String = "",  // ML/recipe key for ingredient lookups
     // Pre-computed nutrients
     val calories: Float,
     val protein: Float,

@@ -27,7 +27,7 @@ fun NutrientDisclaimerDialog(
         },
         text = {
             Text(
-                text = "While weight measurements are precise, nutritional values are estimates based on standard food databases and natural variations in ingredients. These figures should be used as a general guide for your daily intake.",
+                text = "Nutritional values are calculated using USDA FoodData Central data, based on the raw weight of each ingredient before cooking. Actual nutrient content may vary due to cooking method, temperature, and natural ingredient differences. These figures should be used as a reliable guide for your daily intake.",
                 fontSize = 15.sp,
                 lineHeight = 22.sp
             )

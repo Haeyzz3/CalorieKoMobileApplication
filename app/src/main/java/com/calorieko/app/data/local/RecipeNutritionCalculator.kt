@@ -288,6 +288,15 @@ class RecipeNutritionCalculator(
 
         return result
     }
+
+    /**
+     * Returns same-subcategory substitution candidates for a given ingredient.
+     * Used by both AI and Manual flow ViewModels for the ingredient swap UI.
+     */
+    suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
+        val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
+        return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
+    }
 }
 
 /**

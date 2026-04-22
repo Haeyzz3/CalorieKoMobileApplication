@@ -278,6 +278,7 @@ class LogMealViewModel(
                     weightGrams = w,
                     confidence = confidence,
                     foodId = food.foodId,
+                    dishLabel = food.mlLabel,
                     calories = nutrients.calories,
                     protein = nutrients.protein,
                     carbs = nutrients.carbs,
@@ -379,8 +380,7 @@ class LogMealViewModel(
 
     /** Returns same-subcategory substitution candidates for an ingredient. */
     suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
-        val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
-        return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
+        return calculator.getSubstitutesForIngredient(ingredientKey)
     }
 
     /**
@@ -392,9 +392,9 @@ class LogMealViewModel(
     fun applySubstitutionToDish(dishIndex: Int, substitutions: Map<String, String>) {
         viewModelScope.launch {
             val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return@launch
-            val food = withContext(Dispatchers.IO) { foodDao.getFoodById(dish.foodId) } ?: return@launch
+            if (dish.dishLabel.isEmpty()) return@launch
             val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(food.mlLabel, dish.weightGrams, substitutions)
+                calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams, substitutions)
             }
             _loggedDishes.update { list ->
                 list.toMutableList().also {

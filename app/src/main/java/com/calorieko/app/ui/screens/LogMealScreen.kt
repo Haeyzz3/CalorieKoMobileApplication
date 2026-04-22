@@ -908,7 +908,8 @@ private fun ManualMealContent(
             onAddMore = { viewModel.setShowSummary(false) },
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
-            isConfirming = isConfirming
+            isConfirming = isConfirming,
+            manualViewModel = viewModel
         )
         return
     }
@@ -1275,6 +1276,7 @@ private fun WeightInputContent(
 // Manual Meal Summary Overlay
 // ───────────────────────────────────────────────────────────────
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ManualMealSummaryOverlay(
     dishes: List<LoggedDish>,
@@ -1284,7 +1286,8 @@ private fun ManualMealSummaryOverlay(
     onAddMore: () -> Unit,
     onConfirmMeal: () -> Unit,
     onCancel: () -> Unit,
-    isConfirming: Boolean = false
+    isConfirming: Boolean = false,
+    manualViewModel: ManualLogViewModel? = null
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1294,6 +1297,14 @@ private fun ManualMealSummaryOverlay(
     // Track expanded state per dish (by index)
     val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
     var totalsExpanded by remember { mutableStateOf(false) }
+
+    // ── Ingredient bottom sheet state ──
+    val scope = rememberCoroutineScope()
+    var ingredientSheetDishIndex by remember { mutableStateOf(-1) }
+    var ingredientBreakdown by remember { mutableStateOf<Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown>>(emptyMap()) }
+    var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var substitutionTarget by remember { mutableStateOf<String?>(null) }
+    var substitutionCandidates by remember { mutableStateOf<List<com.calorieko.app.data.model.RawIngredientEntity>>(emptyList()) }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
@@ -1402,6 +1413,31 @@ private fun ManualMealSummaryOverlay(
                                     calcium = dish.calcium,
                                     iron = dish.iron
                                 )
+                            }
+
+                            // View Ingredients button (only if dishLabel is available and VM is provided)
+                            if (manualViewModel != null && dish.dishLabel.isNotEmpty()) {
+                                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            ingredientSheetDishIndex = index
+                                            activeSubstitutions = emptyMap()
+                                            scope.launch {
+                                                ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                    manualViewModel.getIngredientBreakdown(dish.dishLabel)
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Restaurant, null, tint = Color(0xFF6B7280), modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("View Ingredients", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF6B7280))
+                                }
                             }
                         }
                     }
@@ -1513,6 +1549,140 @@ private fun ManualMealSummaryOverlay(
                         Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Add More Dishes", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Ingredient Bottom Sheet ──
+    if (ingredientSheetDishIndex >= 0 && ingredientBreakdown.isNotEmpty() && manualViewModel != null) {
+        val dish = dishes.getOrNull(ingredientSheetDishIndex)
+        if (dish != null) {
+            androidx.compose.material3.ModalBottomSheet(
+                onDismissRequest = {
+                    ingredientSheetDishIndex = -1
+                    ingredientBreakdown = emptyMap()
+                    substitutionTarget = null
+                    substitutionCandidates = emptyList()
+                },
+                containerColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 32.dp)
+                ) {
+                    Text(
+                        "Ingredients — ${dish.dishNameEn}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color(0xFF1F2937),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Text(
+                        "Raw ingredient nutritional values (before cooking)",
+                        fontSize = 11.sp,
+                        color = Color(0xFF9CA3AF),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    ingredientBreakdown.values.forEach { ing ->
+                        val effectiveName = activeSubstitutions[ing.ingredientKey]
+                            ?.let { manualViewModel.formatIngredientName(it) }
+                            ?: ing.displayName
+                        val isSubstituted = activeSubstitutions.containsKey(ing.ingredientKey)
+
+                        Surface(
+                            color = if (isSubstituted) Color(0xFFFEF3C7) else Color(0xFFF9FAFB),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(effectiveName, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Color(0xFF374151))
+                                    Text(
+                                        "${ing.rawWeightGrams.fmt()}g  •  ${ing.calories.fmt()} kcal",
+                                        fontSize = 11.sp, color = Color(0xFF6B7280)
+                                    )
+                                    Text(
+                                        "P:${ing.protein.fmt()}g  C:${ing.carbs.fmt()}g  F:${ing.fat.fmt()}g  Na:${ing.sodium.fmt()}mg",
+                                        fontSize = 10.sp, color = Color(0xFF9CA3AF)
+                                    )
+                                }
+                                // Swap button
+                                IconButton(
+                                    onClick = {
+                                        substitutionTarget = ing.ingredientKey
+                                        scope.launch {
+                                            substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                manualViewModel.getSubstitutesForIngredient(ing.ingredientKey)
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF6B7280), modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    // Substitution candidates
+                    if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Swap \"${manualViewModel.formatIngredientName(substitutionTarget!!)}\" with:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1F2937),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        substitutionCandidates.forEach { candidate ->
+                            val dishIdx = ingredientSheetDishIndex
+                            Surface(
+                                onClick = {
+                                    val newSubs = activeSubstitutions.toMutableMap()
+                                    newSubs[substitutionTarget!!] = candidate.ingredientKey
+                                    activeSubstitutions = newSubs
+                                    manualViewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                    // Reload breakdown
+                                    scope.launch {
+                                        val label = dish.dishLabel.ifEmpty { return@launch }
+                                        ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                            manualViewModel.getIngredientBreakdown(label)
+                                        }
+                                    }
+                                    substitutionTarget = null
+                                    substitutionCandidates = emptyList()
+                                },
+                                color = Color.White,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, null, tint = CalorieKoGreen, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            manualViewModel.formatIngredientName(candidate.ingredientKey),
+                                            fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151)
+                                        )
+                                        Text(
+                                            "${candidate.calories.fmt()} kcal/100g",
+                                            fontSize = 11.sp, color = Color(0xFF6B7280)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1854,7 +2024,7 @@ private fun MealSummaryOverlay(
                                         ingredientSheetDishIndex = index
                                         activeSubstitutions = emptyMap()
                                         scope.launch {
-                                            val mlLabel = viewModel.getMlLabelForDish(dish.foodId) ?: return@launch
+                                            val mlLabel = dish.dishLabel.ifEmpty { return@launch }
                                             ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                 viewModel.getIngredientBreakdown(mlLabel)
                                             }
@@ -2041,7 +2211,7 @@ private fun MealSummaryOverlay(
                                                 viewModel.applySubstitutionToDish(dishIdx, newSubs)
                                                 // Reload breakdown
                                                 scope.launch {
-                                                    val mlLabel = viewModel.getMlLabelForDish(dish.foodId) ?: return@launch
+                                                    val mlLabel = dish.dishLabel.ifEmpty { return@launch }
                                                     ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                         viewModel.getIngredientBreakdown(mlLabel)
                                                     }
@@ -2180,7 +2350,8 @@ fun QuickLogScreen(
             onAddMore = { /* Not applicable for quick-log */ },
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
-            isConfirming = isConfirming
+            isConfirming = isConfirming,
+            manualViewModel = viewModel
         )
     } else {
         // Loading state while the dish is being pre-computed

@@ -142,6 +142,7 @@ class ManualLogViewModel(
                 weightGrams = w,
                 confidence = 1.0f, // Manual entry = 100% confidence
                 foodId = 0,        // No legacy food_id needed for new calculator path
+                dishLabel = recipe.dishLabel,
                 calories = nutrients.calories,
                 protein = nutrients.protein,
                 carbs = nutrients.carbs,
@@ -203,6 +204,7 @@ class ManualLogViewModel(
                 weightGrams = servingWeight,
                 confidence = 1.0f,
                 foodId = 0,
+                dishLabel = recipe.dishLabel,
                 calories = nutrients.calories,
                 protein = nutrients.protein,
                 carbs = nutrients.carbs,
@@ -224,6 +226,53 @@ class ManualLogViewModel(
             _loggedDishes.update { it + dish }
             _mealType.value = mealSlot
             _showSummary.value = true
+        }
+    }
+
+    // ── Ingredient Breakdown & Substitution (shared with AI flow) ──
+
+    /** Returns per-ingredient nutrition breakdown for a dish. */
+    suspend fun getIngredientBreakdown(dishLabel: String): Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown> {
+        return calculator.getIngredientBreakdown(dishLabel)
+    }
+
+    /** Returns substitution candidates for an ingredient. */
+    suspend fun getSubstitutesForIngredient(ingredientKey: String): List<com.calorieko.app.data.model.RawIngredientEntity> {
+        return calculator.getSubstitutesForIngredient(ingredientKey)
+    }
+
+    /** Applies substitutions to a dish and recalculates its nutrition. */
+    fun applySubstitutionToDish(dishIndex: Int, substitutions: Map<String, String>) {
+        val current = _loggedDishes.value.toMutableList()
+        val dish = current.getOrNull(dishIndex) ?: return
+
+        viewModelScope.launch {
+            val newNutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams, substitutions)
+            }
+            val updated = dish.copy(
+                calories = newNutrients.calories,
+                protein = newNutrients.protein,
+                carbs = newNutrients.carbs,
+                fat = newNutrients.fat,
+                fiber = newNutrients.fiber,
+                sugar = newNutrients.sugar,
+                sodium = newNutrients.sodium,
+                potassium = newNutrients.potassium,
+                vitaminA = newNutrients.vitaminA,
+                vitaminC = newNutrients.vitaminC,
+                calcium = newNutrients.calcium,
+                iron = newNutrients.iron
+            )
+            current[dishIndex] = updated
+            _loggedDishes.value = current
+        }
+    }
+
+    /** Formats an ingredient key for display. */
+    fun formatIngredientName(key: String): String {
+        return key.split("_").joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
     }
 
