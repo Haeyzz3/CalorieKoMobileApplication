@@ -273,6 +273,9 @@ class SettingsViewModel(
                     db.mealPlanDao().deleteAll()
                 } catch (_: Exception) {}
             }
+            // Cancel scheduled workers
+            StreakReminderWorker.cancel(appContext)
+            com.calorieko.app.util.MealPlanReminderWorker.cancel(appContext)
             auth.signOut()
             _events.send(Event.LogoutReady)
         }

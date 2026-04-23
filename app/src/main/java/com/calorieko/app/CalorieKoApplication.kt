@@ -2,6 +2,7 @@ package com.calorieko.app
 
 import android.app.Application
 import com.calorieko.app.data.local.AppDatabase
+import com.calorieko.app.util.MealPlanReminderWorker
 import com.calorieko.app.util.StreakReminderWorker
 import com.mapbox.common.MapboxOptions
 import kotlinx.coroutines.CoroutineScope
@@ -25,5 +26,9 @@ class CalorieKoApplication : Application() {
         // Schedule the daily streak reminder notification (8 PM local time).
         // Uses WorkManager KEEP policy — safe to call on every app start.
         StreakReminderWorker.schedule(this)
+
+        // Schedule hourly meal plan reminder notifications.
+        // Only posts if user has upcoming planned meals and reminders are enabled.
+        MealPlanReminderWorker.schedule(this)
     }
 }

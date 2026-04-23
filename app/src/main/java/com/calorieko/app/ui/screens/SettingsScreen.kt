@@ -302,12 +302,65 @@ fun SettingsScreen(
                 Text("Preferences", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
-                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Reminders and meal alerts", iconColor = CalorieKoOrange, onClick = { 
+                        SettingsRow(icon = Icons.Default.Notifications, title = "System Notifications", subtitle = "Manage app notification permissions", iconColor = CalorieKoOrange, onClick = {
                             val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                                 putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
                             }
                             context.startActivity(intent)
                         })
+                        SettingsDivider()
+
+                        // ── Meal Plan Reminders Toggle ──
+                        var mealRemindersEnabled by remember {
+                            mutableStateOf(com.calorieko.app.util.MealPlanReminderWorker.isEnabled(context))
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    mealRemindersEnabled = !mealRemindersEnabled
+                                    com.calorieko.app.util.MealPlanReminderWorker.setEnabled(context, mealRemindersEnabled)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(CalorieKoGreen.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    tint = CalorieKoGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Meal Plan Reminders", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+                                Text(
+                                    if (mealRemindersEnabled) "You'll be reminded before each planned meal" else "Meal reminders are turned off",
+                                    fontSize = 12.sp, color = Color(0xFF9CA3AF)
+                                )
+                            }
+                            androidx.compose.material3.Switch(
+                                checked = mealRemindersEnabled,
+                                onCheckedChange = { enabled ->
+                                    mealRemindersEnabled = enabled
+                                    com.calorieko.app.util.MealPlanReminderWorker.setEnabled(context, enabled)
+                                },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = CalorieKoGreen,
+                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = Color(0xFFD1D5DB)
+                                )
+                            )
+                        }
+
                         SettingsDivider()
                         SettingsRow(
                             icon = Icons.Default.Sync,

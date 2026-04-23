@@ -38,4 +38,8 @@ interface MealPlanDao {
     /** Deletes all planned meals. Used during logout to clear user data only. */
     @Query("DELETE FROM PLANNED_MEALS_TABLE")
     suspend fun deleteAll()
+
+    /** One-shot fetch of meals for a specific day and week (for notifications). */
+    @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE day_index = :dayIndex AND week_start_date = :weekStartDate")
+    suspend fun getMealsForDayOneShot(dayIndex: Int, weekStartDate: String): List<PlannedMealEntity>
 }
