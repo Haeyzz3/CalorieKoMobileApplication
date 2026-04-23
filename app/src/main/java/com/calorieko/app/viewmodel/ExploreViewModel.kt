@@ -238,49 +238,39 @@ class ExploreViewModel(
     }
 
     /**
-     * Returns a user-friendly display label for a data source key.
+     * Returns a user-friendly display label for the nutritional data source.
+     *
+     * Since all ingredient nutrition now comes from USDA FoodData Central
+     * (via the raw_ingredients.json pipeline), this always returns USDA
+     * regardless of the legacy `dataSource` field on FoodItem.
      */
-    fun getSourceDisplayLabel(source: String): String {
-        return when (source) {
-            "DOST_FNRI_MENU_GUIDE" -> "DOST-FNRI Menu Guide"
-            "DOST_FNRI_FCT" -> "DOST-FNRI FCT"
-            "USDA_FNDDS" -> "USDA FNDDS"
-            "USDA_FDC" -> "USDA FoodData Central"
-            else -> source
-        }
+    fun getSourceDisplayLabel(@Suppress("UNUSED_PARAMETER") source: String): String {
+        return "USDA FoodData Central"
     }
 
     /**
      * Returns a short badge label for a data source key.
      */
-    fun getSourceBadgeLabel(source: String): String {
-        return when (source) {
-            "DOST_FNRI_MENU_GUIDE" -> "FNRI"
-            "DOST_FNRI_FCT" -> "FCT"
-            "USDA_FNDDS", "USDA_FDC" -> "USDA"
-            else -> source
-        }
+    fun getSourceBadgeLabel(@Suppress("UNUSED_PARAMETER") source: String): String {
+        return "USDA"
     }
 
     /**
-     * Returns the URL for a data source key (general database URL).
+     * Returns the URL for the nutritional data source (USDA).
      */
-    fun getSourceUrl(source: String): String {
-        return when (source) {
-            "DOST_FNRI_MENU_GUIDE" -> "https://www.fnri.dost.gov.ph/index.php/tools-and-standard/fnri-menu-guide-calendar"
-            "DOST_FNRI_FCT" -> "https://i.fnri.dost.gov.ph/login/fct"
-            "USDA_FNDDS", "USDA_FDC" -> "https://fdc.nal.usda.gov/food-search"
-            else -> ""
-        }
+    fun getSourceUrl(@Suppress("UNUSED_PARAMETER") source: String): String {
+        return "https://fdc.nal.usda.gov/food-search"
     }
 
     /**
-     * Returns the proof document info for a specific dish.
-     * - USDA dishes: direct browser URL to the nutrient detail page
-     * - FNRI/FCT dishes: asset path to the extracted PDF
+     * Returns the proof document info for a specific dish's nutritional data.
+     *
+     * Since all dishes now use USDA FoodData Central for ingredient-level
+     * nutrition, only single-ingredient dishes (like eggs and chicken parts)
+     * that map directly to a specific USDA FDC entry have a direct proof URL.
      */
-    fun getDishProofDocument(mlLabel: String, dataSource: String): DishProofDocument {
-        // USDA dishes have direct browser URLs
+    fun getDishProofDocument(mlLabel: String, @Suppress("UNUSED_PARAMETER") dataSource: String): DishProofDocument {
+        // Single-ingredient dishes with direct USDA nutrient detail pages
         val usdaUrls = mapOf(
             "egg_sunny" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
             "egg_boiled" to "https://fdc.nal.usda.gov/food-details/173424/nutrients",
@@ -291,16 +281,33 @@ class ExploreViewModel(
             "chicken_breast" to "https://fdc.nal.usda.gov/food-details/171125/nutrients"
         )
 
-        return when (dataSource) {
-            "USDA_FNDDS", "USDA_FDC" -> {
-                val url = usdaUrls[mlLabel] ?: ""
-                if (url.isNotEmpty()) DishProofDocument(ProofType.URL, url)
-                else DishProofDocument(ProofType.NONE, "")
-            }
-            "DOST_FNRI_MENU_GUIDE", "DOST_FNRI_FCT" -> {
-                DishProofDocument(ProofType.PDF_ASSET, "sources/$mlLabel.pdf")
-            }
-            else -> DishProofDocument(ProofType.NONE, "")
+        val url = usdaUrls[mlLabel] ?: ""
+        return if (url.isNotEmpty()) DishProofDocument(ProofType.URL, url)
+        else DishProofDocument(ProofType.NONE, "")
+    }
+
+    /**
+     * Returns the recipe source document for a dish, if available.
+     *
+     * These are DOST-FNRI Menu Guide PDFs that document the original
+     * recipe (ingredients, portions, preparation method). Even though
+     * the nutritional values are now computed from USDA data, these PDFs
+     * remain valuable as the provenance for the recipe itself.
+     */
+    fun getRecipeSourceDocument(mlLabel: String): DishProofDocument {
+        // Dishes with FNRI recipe source PDFs in assets/sources/
+        val fnriDishes = setOf(
+            "chicken_tinola", "chopseuy", "egg_ampalaya",
+            "galunggong_grilled", "kinilaw_tuna", "mackerel_fried",
+            "menudo", "milkfish_fried", "pesang_bangus", "pinakbet",
+            "rice_well_milled", "sinigang_pork", "sinuglaw_pork",
+            "tilapya_fried", "tinapa_ginisa", "tokneneng_salad", "udong"
+        )
+
+        return if (mlLabel in fnriDishes) {
+            DishProofDocument(ProofType.PDF_ASSET, "sources/$mlLabel.pdf")
+        } else {
+            DishProofDocument(ProofType.NONE, "")
         }
     }
 }
@@ -314,3 +321,4 @@ data class DishProofDocument(
 )
 
 enum class ProofType { URL, PDF_ASSET, NONE }
+

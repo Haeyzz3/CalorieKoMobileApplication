@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Card
@@ -668,6 +669,9 @@ private fun ExploreDishDetailContent(
         val proofDoc = remember(dish.dishLabel, dish.dataSource) {
             viewModel.getDishProofDocument(dish.dishLabel, dish.dataSource)
         }
+        val recipeSourceDoc = remember(dish.dishLabel) {
+            viewModel.getRecipeSourceDocument(dish.dishLabel)
+        }
 
         Card(
             shape = RoundedCornerShape(12.dp),
@@ -702,27 +706,19 @@ private fun ExploreDishDetailContent(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Two-action row
+                // USDA action row
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Primary: View Source Document
+                    // Primary: View USDA proof (for single-ingredient dishes)
                     if (proofDoc.type != ProofType.NONE) {
-                        val proofLabel = when (proofDoc.type) {
-                            ProofType.URL -> "View on USDA"
-                            ProofType.PDF_ASSET -> "View Source PDF"
-                            else -> ""
-                        }
                         Surface(
                             onClick = {
                                 when (proofDoc.type) {
                                     ProofType.URL -> {
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(proofDoc.path))
                                         context.startActivity(intent)
-                                    }
-                                    ProofType.PDF_ASSET -> {
-                                        openPdfFromAssets(context, proofDoc.path)
                                     }
                                     else -> {}
                                 }
@@ -733,7 +729,7 @@ private fun ExploreDishDetailContent(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    proofLabel,
+                                    "View on USDA",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -742,7 +738,7 @@ private fun ExploreDishDetailContent(
                         }
                     }
 
-                    // Secondary: Visit Database
+                    // Secondary: Visit USDA Database
                     Surface(
                         onClick = {
                             val url = viewModel.getSourceUrl(dish.dataSource)
@@ -766,6 +762,58 @@ private fun ExploreDishDetailContent(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = sourceTextColor
+                            )
+                        }
+                    }
+                }
+
+                // ── Recipe Source (FNRI) — shown only for dishes with FNRI PDFs ──
+                if (recipeSourceDoc.type == ProofType.PDF_ASSET) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Divider
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(sourceTextColor.copy(alpha = 0.15f))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Description,
+                            null,
+                            tint = sourceTextColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Recipe sourced from",
+                                fontSize = 11.sp,
+                                color = sourceTextColor.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                "DOST-FNRI Menu Guide",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = sourceTextColor
+                            )
+                        }
+                        Surface(
+                            onClick = {
+                                openPdfFromAssets(context, recipeSourceDoc.path)
+                            },
+                            color = sourceTextColor.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "View PDF",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sourceTextColor,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                             )
                         }
                     }
