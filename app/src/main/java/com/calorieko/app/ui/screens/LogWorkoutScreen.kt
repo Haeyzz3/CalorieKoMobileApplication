@@ -325,18 +325,57 @@ fun WorkoutSelectionCard(title: String, description: String, icon: ImageVector, 
 // --- 2. Manual METs Screen ---
 @Composable
 fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit) {
-    // (Unchanged from previous code)
     var searchQuery by remember { mutableStateOf("") }
     var selectedActivity by remember { mutableStateOf<ActivityItem?>(null) }
-    var durationText by remember { mutableStateOf("") }
+    var hoursText by remember { mutableStateOf("") }
+    var minutesText by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
+    // Derive total minutes from both fields for calorie calculation
+    val totalMinutes = remember(hoursText, minutesText) {
+        val h = hoursText.toIntOrNull() ?: 0
+        val m = minutesText.toIntOrNull() ?: 0
+        (h * 60) + m
+    }
+
     val filteredActivities = remember(searchQuery) { ACTIVITIES.filter { it.name.contains(searchQuery, ignoreCase = true) || it.category.contains(searchQuery, ignoreCase = true) } }
-    val caloriesBurned = remember(selectedActivity, durationText) {
-        val duration = durationText.toDoubleOrNull() ?: 0.0
+    val caloriesBurned = remember(selectedActivity, totalMinutes) {
         val met = selectedActivity?.met ?: 0.0
-        (met * userWeight * (duration / 60.0)).roundToInt()
+        (met * userWeight * (totalMinutes / 60.0)).roundToInt()
+    }
+
+    // Build the human-readable duration string for both display and save payload
+    val formattedDuration = remember(totalMinutes, hoursText, minutesText) {
+        val h = hoursText.toIntOrNull() ?: 0
+        val m = minutesText.toIntOrNull() ?: 0
+        when {
+            h > 0 && m > 0 -> {
+                val hourLabel = if (h == 1) "hour" else "hours"
+                val minLabel = if (m == 1) "minute" else "minutes"
+                "$h $hourLabel and $m $minLabel"
+            }
+            h > 0 -> {
+                val hourLabel = if (h == 1) "hour" else "hours"
+                "$h $hourLabel"
+            }
+            m > 0 -> {
+                val minLabel = if (m == 1) "minute" else "minutes"
+                "$m $minLabel"
+            }
+            else -> "0 minutes"
+        }
+    }
+
+    // Short label for the save payload (e.g. "1 hr 20 min", "45 min")
+    val saveDurationLabel = remember(hoursText, minutesText) {
+        val h = hoursText.toIntOrNull() ?: 0
+        val m = minutesText.toIntOrNull() ?: 0
+        when {
+            h > 0 && m > 0 -> "$h hr $m min"
+            h > 0 -> "$h hr"
+            else -> "$m min"
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -366,46 +405,90 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                         }
                     }
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    // ── Duration Card: Side-by-side Hours + Minutes ──
                     Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                         Column(modifier = Modifier.padding(20.dp)) {
-                            Text("Duration (minutes)", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(value = durationText, onValueChange = { durationText = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = androidx.compose.ui.text.input.ImeAction.Done), keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CalorieKoOrange, unfocusedBorderColor = Color(0xFFE5E7EB)), placeholder = { Text("e.g. 30") }, leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) })
+                            Text("Duration", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Hours field
+                                OutlinedTextField(
+                                    value = hoursText,
+                                    onValueChange = { newVal ->
+                                        // Allow only digits, max 2 characters, max value 23
+                                        val filtered = newVal.filter { it.isDigit() }.take(2)
+                                        val parsed = filtered.toIntOrNull()
+                                        if (parsed == null || parsed <= 23) hoursText = filtered
+                                    },
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Number,
+                                        imeAction = androidx.compose.ui.text.input.ImeAction.Next
+                                    ),
+                                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Right) }),
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = CalorieKoOrange,
+                                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                                    ),
+                                    placeholder = { Text("0") },
+                                    leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) },
+                                    suffix = { Text("hrs", color = Color.Gray, fontSize = 13.sp) },
+                                    singleLine = true
+                                )
+                                // Minutes field
+                                OutlinedTextField(
+                                    value = minutesText,
+                                    onValueChange = { newVal ->
+                                        // Allow only digits, max 2 characters, max value 59
+                                        val filtered = newVal.filter { it.isDigit() }.take(2)
+                                        val parsed = filtered.toIntOrNull()
+                                        if (parsed == null || parsed <= 59) minutesText = filtered
+                                    },
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Number,
+                                        imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = CalorieKoOrange,
+                                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                                    ),
+                                    placeholder = { Text("0") },
+                                    leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) },
+                                    suffix = { Text("min", color = Color.Gray, fontSize = 13.sp) },
+                                    singleLine = true
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    // ── Estimated Burn Card ──
                     if (caloriesBurned > 0) {
                         Box(modifier = Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFFF97316), Color(0xFFEA580C))), RoundedCornerShape(16.dp)).padding(24.dp)) {
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalFireDepartment, null, tint = Color.White); Spacer(modifier = Modifier.width(8.dp)); Text("Estimated Burn", color = Color.White, fontWeight = FontWeight.SemiBold) }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("$caloriesBurned", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                val formattedDuration = remember(durationText) {
-                            val totalMinutes = durationText.toIntOrNull()
-                            if (totalMinutes != null && totalMinutes >= 60) {
-                                val hours = totalMinutes / 60
-                                val mins = totalMinutes % 60
-                                val hourLabel = if (hours == 1) "hour" else "hours"
-                                if (mins == 0) "$hours $hourLabel"
-                                else {
-                                    val minLabel = if (mins == 1) "minute" else "minutes"
-                                    "$hours $hourLabel and $mins $minLabel"
-                                }
-                            } else {
-                                "$durationText minutes"
-                            }
-                        }
-                        Text("$formattedDuration • ${userWeight}kg body weight", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                Text("$formattedDuration • ${userWeight}kg body weight", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
                             }
                         }
                     }
                 }
             }
         }
-        if (selectedActivity != null && durationText.isNotEmpty()) {
+        // ── Bottom Save Button ──
+        if (selectedActivity != null && totalMinutes > 0) {
             Surface(shadowElevation = 8.dp) {
                 Box(modifier = Modifier.fillMaxWidth().background(Color.White).padding(24.dp)) {
-                    Button(onClick = { isSaving = true; onSave(selectedActivity!!.name, caloriesBurned, "$durationText min") }, enabled = !isSaving, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange)) {
+                    Button(onClick = { isSaving = true; onSave(selectedActivity!!.name, caloriesBurned, saveDurationLabel) }, enabled = !isSaving, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange)) {
                         Icon(Icons.Default.LocalFireDepartment, null); Spacer(modifier = Modifier.width(8.dp))
                         Text(text = if (isSaving) "Saving..." else "Log $caloriesBurned Calories", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }

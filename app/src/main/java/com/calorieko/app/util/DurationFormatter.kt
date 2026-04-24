@@ -61,9 +61,10 @@ object DurationFormatter {
      * Supports the following formats:
      *  - "HH:MM:SS" → hours * 3600 + minutes * 60 + seconds
      *  - "MM:SS"    → minutes * 60 + seconds
+     *  - "X hr Y min" / "X hrs Y min" → X * 3600 + Y * 60  (manual lifestyle activities)
+     *  - "X min"    → X * 60  (hours-only or minutes-only manual workouts)
+     *  - "Xh Ym Zs" → X * 3600 + Y * 60 + Z  (GPS workouts)
      *  - "Xm Ys"   → X * 60 + Y
-     *  - "Xh Ym Zs" → X * 3600 + Y * 60 + Z
-     *  - "X min"    → X * 60  (legacy manual workouts)
      */
     fun parseToSeconds(durationString: String?): Long? {
         if (durationString.isNullOrBlank()) return null
@@ -83,22 +84,24 @@ object DurationFormatter {
             return m * 60 + s
         }
 
-        // Try "Xh Ym Zs" / "Xm Ys" pattern
-        val hMatch = Regex("(\\d+)h").find(trimmed)
-        val mMatch = Regex("(\\d+)m").find(trimmed)
+        // Try "X hr Y min" / "X hrs Y min" pattern (manual lifestyle activities)
+        val hrMatch = Regex("(\\d+)\\s*hrs?", RegexOption.IGNORE_CASE).find(trimmed)
+        val minWordMatch = Regex("(\\d+)\\s*min", RegexOption.IGNORE_CASE).find(trimmed)
+        if (hrMatch != null || minWordMatch != null) {
+            val h = hrMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0
+            val m = minWordMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0
+            return h * 3600 + m * 60
+        }
+
+        // Try "Xh Ym Zs" / "Xm Ys" pattern (GPS workouts)
+        val hMatch = Regex("(\\d+)h(?!r)").find(trimmed)
+        val mMatch = Regex("(\\d+)m(?!i)").find(trimmed)
         val sMatch = Regex("(\\d+)s").find(trimmed)
         if (mMatch != null || sMatch != null || hMatch != null) {
             val h = hMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0
             val m = mMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0
             val s = sMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0
             return h * 3600 + m * 60 + s
-        }
-
-        // Try "X min" (legacy manual workout format)
-        val minMatch = Regex("^(\\d+(?:\\.\\d+)?)\\s*min", RegexOption.IGNORE_CASE).find(trimmed)
-        if (minMatch != null) {
-            val minutes = minMatch.groupValues[1].toDoubleOrNull() ?: return null
-            return (minutes * 60).toLong()
         }
 
         return null
