@@ -380,7 +380,22 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                                 Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalFireDepartment, null, tint = Color.White); Spacer(modifier = Modifier.width(8.dp)); Text("Estimated Burn", color = Color.White, fontWeight = FontWeight.SemiBold) }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("$caloriesBurned", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("$durationText minutes • ${userWeight}kg body weight", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                                val formattedDuration = remember(durationText) {
+                            val totalMinutes = durationText.toIntOrNull()
+                            if (totalMinutes != null && totalMinutes >= 60) {
+                                val hours = totalMinutes / 60
+                                val mins = totalMinutes % 60
+                                val hourLabel = if (hours == 1) "hour" else "hours"
+                                if (mins == 0) "$hours $hourLabel"
+                                else {
+                                    val minLabel = if (mins == 1) "minute" else "minutes"
+                                    "$hours $hourLabel and $mins $minLabel"
+                                }
+                            } else {
+                                "$durationText minutes"
+                            }
+                        }
+                        Text("$formattedDuration • ${userWeight}kg body weight", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
                             }
                         }
                     }

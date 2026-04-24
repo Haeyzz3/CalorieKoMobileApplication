@@ -121,7 +121,7 @@ class LogWorkoutViewModel(
     private val _lastLocation = MutableStateFlow<Location?>(null)
     val lastLocation: StateFlow<Location?> = _lastLocation.asStateFlow()
 
-    private val _currentPoint = MutableStateFlow<Pair<Double, Double>?>(null)
+    private val _currentPoint = MutableStateFlow(LocationTrackingService.lastKnownPoint)
     val currentPoint: StateFlow<Pair<Double, Double>?> = _currentPoint.asStateFlow()
 
     private val _pathPoints = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())

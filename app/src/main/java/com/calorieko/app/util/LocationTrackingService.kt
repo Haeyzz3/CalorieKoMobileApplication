@@ -110,6 +110,11 @@ class LocationTrackingService : Service() {
         @Volatile
         var isServiceRunning = false
             private set
+
+        /** Static cache of the last known GPS coordinate so the ViewModel can
+         *  seed its _currentPoint on recreation (survives ViewModel death). */
+        @Volatile
+        var lastKnownPoint: Pair<Double, Double>? = null
     }
 
     // ── Binder for Compose UI ──
@@ -345,6 +350,7 @@ class LocationTrackingService : Service() {
         // Pre-tracking: still update for initial map centering.
         if (!_isTracking.value && location.accuracy < MAP_DISPLAY_ACCURACY) {
             _currentPoint.value = Pair(location.latitude, location.longitude)
+            lastKnownPoint = _currentPoint.value
         }
 
         if (!_isTracking.value || _isPaused.value) return
@@ -357,6 +363,13 @@ class LocationTrackingService : Service() {
         if (!isGpsWarmedUp) {
             if (location.accuracy < TRACKING_ACCURACY) {
                 warmUpLocations.add(location)
+            }
+
+            // Keep the blue dot visible during warm-up by continuously updating
+            // _currentPoint with every reasonably accurate reading.
+            if (location.accuracy < MAP_DISPLAY_ACCURACY) {
+                _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastKnownPoint = _currentPoint.value
             }
 
             if (System.currentTimeMillis() - gpsWarmUpStartMs > WARM_UP_DURATION_MS) {
@@ -377,6 +390,7 @@ class LocationTrackingService : Service() {
                     _pathPoints.value = listOf(Pair(bestLocation.latitude, bestLocation.longitude))
                     _lastLocation.value = bestLocation
                     _currentPoint.value = Pair(bestLocation.latitude, bestLocation.longitude)
+                    lastKnownPoint = _currentPoint.value
                     lastMovementTimeMs = System.currentTimeMillis()
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
@@ -416,6 +430,7 @@ class LocationTrackingService : Service() {
                     _lastLocation.value = location
                     _pathPoints.value = listOf(Pair(location.latitude, location.longitude))
                     _currentPoint.value = Pair(location.latitude, location.longitude)
+                    lastKnownPoint = _currentPoint.value
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     recentPositions.clear()
                     recentPositions.add(location)
@@ -451,6 +466,7 @@ class LocationTrackingService : Service() {
                 _lastLocation.value = location
                 _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
                 _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastKnownPoint = _currentPoint.value
                 lastUpdateWallClockMs = System.currentTimeMillis()
                 _isMoving.value = true
                 lastMovementTimeMs = System.currentTimeMillis()
@@ -469,6 +485,7 @@ class LocationTrackingService : Service() {
                 _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
                 _lastLocation.value = location
                 _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastKnownPoint = _currentPoint.value
                 lastUpdateWallClockMs = System.currentTimeMillis()
 
                 // Calculate pace using TOTAL elapsed time.
@@ -484,6 +501,7 @@ class LocationTrackingService : Service() {
                 Log.d(TAG, "Teleport detected: ${distanceFromAnchor.toInt()}m. Re-anchoring.")
                 _lastLocation.value = location
                 _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastKnownPoint = _currentPoint.value
             }
         } else {
             // Defensive fallback — warm-up should have set _lastLocation
@@ -491,6 +509,7 @@ class LocationTrackingService : Service() {
             _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
             _lastLocation.value = location
             _currentPoint.value = Pair(location.latitude, location.longitude)
+            lastKnownPoint = _currentPoint.value
             lastMovementTimeMs = System.currentTimeMillis()
             lastUpdateWallClockMs = System.currentTimeMillis()
         }
