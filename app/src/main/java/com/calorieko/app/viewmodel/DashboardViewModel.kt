@@ -65,6 +65,12 @@ class DashboardViewModel(
 
     val firebaseProfileImageUrl = auth.currentUser?.photoUrl
 
+    private val _userProfile = MutableStateFlow<com.calorieko.app.data.model.UserProfile?>(null)
+    val userProfile: StateFlow<com.calorieko.app.data.model.UserProfile?> = _userProfile.asStateFlow()
+
+    private val _goalTitle = MutableStateFlow("General Health")
+    val goalTitle: StateFlow<String> = _goalTitle.asStateFlow()
+
     // ── Targets ──
 
     private val _targetCalories = MutableStateFlow(2000)
@@ -178,6 +184,13 @@ class DashboardViewModel(
                     _targetCarbs.value = targets.targetCarbs
                     _targetFats.value = targets.targetFats
                     _targetSodium.value = targets.targetSodium
+
+                    _userProfile.value = profile
+                    _goalTitle.value = when (profile.goal.lowercase().trim()) {
+                        "weight_loss" -> "Weight Control"
+                        "gain_muscle" -> "Gain Muscle"
+                        else -> "General Health & Wellness"
+                    }
 
                     // Dynamic burn target: Active calories = TDEE - BMR
                     // BMR via Mifflin-St Jeor (used only for burn target estimation,

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Eco
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -406,6 +408,53 @@ fun AppNavigation() {
                             launchSingleTop = true
                         }
                     }
+                }
+            )
+        }
+
+        // --- NEW: Profile Summary (Reusable TargetSummaryScreen) ---
+        composable("profileSummary") {
+            val dashboardRepo = com.calorieko.app.data.repository.DashboardRepository(
+                userDao = db.userDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                mealLogDao = db.mealLogDao(),
+                activityLogDao = db.activityLogDao(),
+                nutritionalValuesRepo = nutritionalRepo
+            )
+            val dashboardViewModel: com.calorieko.app.viewmodel.DashboardViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.DashboardViewModel.provideFactory(
+                    auth = auth,
+                    dashboardRepository = dashboardRepo,
+                    mealPlanDao = db.mealPlanDao(),
+                    dishRecipeDao = db.dishRecipeDao()
+                )
+            )
+
+            val profile by dashboardViewModel.userProfile.collectAsState()
+            val calories by dashboardViewModel.targetCalories.collectAsState()
+            val sodium by dashboardViewModel.targetSodium.collectAsState()
+            val protein by dashboardViewModel.targetProtein.collectAsState()
+            val carbs by dashboardViewModel.targetCarbs.collectAsState()
+            val fats by dashboardViewModel.targetFats.collectAsState()
+            val goalTitle by dashboardViewModel.goalTitle.collectAsState()
+
+            TargetSummaryScreen(
+                targetCalories = calories,
+                targetSodium = sodium,
+                targetProtein = protein,
+                targetCarbs = carbs,
+                targetFats = fats,
+                goalTitle = goalTitle,
+                activityLevel = profile?.activityLevel ?: "sedentary",
+                subtitle = null,
+                headerIcon = Icons.Rounded.Person,
+                buttonText = "Edit Profile",
+                buttonIcon = null,
+                onSecondaryAction = {
+                    navController.popBackStack()
+                },
+                onContinue = {
+                    navController.navigate("editProfile")
                 }
             )
         }

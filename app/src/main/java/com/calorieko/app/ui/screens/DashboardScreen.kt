@@ -177,7 +177,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .clickable { onNavigate("profile") },
+                                    .clickable { onNavigate("profileSummary") },
                                 contentScale = ContentScale.Crop
                             )
                         } else {
@@ -187,7 +187,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .clickable { onNavigate("profile") },
+                                    .clickable { onNavigate("profileSummary") },
                                 contentScale = ContentScale.Crop
                             ) {
                                 val state = painter.state

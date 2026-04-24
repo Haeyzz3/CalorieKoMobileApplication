@@ -19,6 +19,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +47,11 @@ fun TargetSummaryScreen(
     targetFats: Int,
     goalTitle: String,
     activityLevel: String,
+    subtitle: String? = "STEP 3 OF 3",
+    headerIcon: ImageVector = Icons.Rounded.CheckCircle,
+    buttonText: String = "Connect Smart Scale",
+    buttonIcon: ImageVector? = Icons.AutoMirrored.Rounded.ArrowRight,
+    onSecondaryAction: (() -> Unit)? = null,
     onContinue: () -> Unit
 ) {
 
@@ -107,12 +114,14 @@ fun TargetSummaryScreen(
                         ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Rounded.CheckCircle, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(headerIcon, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("STEP 3 OF 3", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    subtitle?.let {
+                        Text(it, fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    }
                     Text("Estimated Daily Targets", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 }
             }
@@ -241,23 +250,44 @@ fun TargetSummaryScreen(
 
         // --- 3. Connect Button ---
         Surface(color = Color.White, shadowElevation = 16.dp, modifier = Modifier.fillMaxWidth()) {
-            Button(
-                onClick = onContinue,
-                modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize().background(
-                        brush = Brush.horizontalGradient(listOf(CalorieKoOrange, CalorieKoLightOrange)),
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                    contentAlignment = Alignment.Center
+                if (onSecondaryAction != null) {
+                    Surface(
+                        onClick = onSecondaryAction,
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF1F5F9),
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.Home, null, tint = Color.Gray)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+
+                Button(
+                    onClick = onContinue,
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Connect Smart Scale", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.AutoMirrored.Rounded.ArrowRight, null, tint = Color.White)
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(
+                            brush = Brush.horizontalGradient(listOf(CalorieKoOrange, CalorieKoLightOrange)),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                            buttonIcon?.let {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(it, null, tint = Color.White)
+                            }
+                        }
                     }
                 }
             }
