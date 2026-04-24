@@ -34,9 +34,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calorieko.app.ui.theme.CalorieKoDarkOrange
-import com.calorieko.app.ui.theme.CalorieKoGreen
-import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.ui.theme.MacroCarbs
+import com.calorieko.app.ui.theme.MacroFat
+import com.calorieko.app.ui.theme.MacroProtein
 
 
 @Composable
@@ -156,12 +156,11 @@ fun ProgressRings(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- 3. Horizontal Macro Progress Bars ---
             MacroProgressBar(
                 label = "Protein",
                 current = proteinCurrent,
                 target = proteinTarget,
-                color = CalorieKoGreen,
+                color = MacroProtein,
                 unit = "g"
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -169,7 +168,7 @@ fun ProgressRings(
                 label = "Carbs",
                 current = carbsCurrent,
                 target = carbsTarget,
-                color = CalorieKoOrange,
+                color = MacroCarbs,
                 unit = "g"
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -177,7 +176,7 @@ fun ProgressRings(
                 label = "Fats",
                 current = fatsCurrent,
                 target = fatsTarget,
-                color = CalorieKoDarkOrange,
+                color = MacroFat,
                 unit = "g"
             )
         }

@@ -16,6 +16,11 @@ val DarkText = Color(0xFF1F2937)
 val SubtleText = Color(0xFF6B7280)
 val DividerGray = Color(0xFFE5E7EB)
 
+// Macro Nutrient Colors — Distinct palette, no overlap with brand green/orange
+val MacroProtein = Color(0xFF3B82F6)   // Royal Blue — industry standard for protein
+val MacroCarbs = Color(0xFFF59E0B)     // Warm Amber — universally recognized "energy"
+val MacroFat = Color(0xFFEF4444)       // Rose/Coral — fat = caution, red spectrum
+
 // Standard Colors
 val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF000000)

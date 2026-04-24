@@ -79,9 +79,9 @@ private fun MacrosDayView(
     val fatTotalPct = if (totalGrams > 0) (fatGrams * 100) / totalForPct else 0
     val proteinTotalPct = if (totalGrams > 0) (proteinGrams * 100) / totalForPct else 0
 
-    val carbsColor = CalorieKoOrange
-    val fatColor = CalorieKoDarkOrange
-    val proteinColor = CalorieKoGreen
+    val carbsColor = MacroCarbs
+    val fatColor = MacroFat
+    val proteinColor = MacroProtein
 
     Column(
         modifier = Modifier
@@ -315,7 +315,7 @@ private fun MacrosWeekView(
 
                             if (value > 0) {
                                 drawRect(
-                                    color = CalorieKoGreen,
+                                    color = MacroCarbs,
                                     topLeft = Offset(x, yTop),
                                     size = Size(barWidth, barHeight)
                                 )
@@ -368,7 +368,7 @@ private fun MacrosWeekView(
 
                 // --- Macro Rows ---
                 MacroLegendRow(
-                    color = CalorieKoOrange,
+                    color = MacroCarbs,
                     name = "Carbohydrates",
                     grams = carbsGrams,
                     valuePct = carbsAvgPct,
@@ -376,7 +376,7 @@ private fun MacrosWeekView(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = CalorieKoDarkOrange,
+                    color = MacroFat,
                     name = "Fat",
                     grams = fatGrams,
                     valuePct = fatAvgPct,
@@ -384,7 +384,7 @@ private fun MacrosWeekView(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 MacroLegendRow(
-                    color = CalorieKoGreen,
+                    color = MacroProtein,
                     name = "Protein",
                     grams = proteinGrams,
                     valuePct = proteinAvgPct,
@@ -438,7 +438,7 @@ private fun MacroLegendRow(
             text = "$goalPct%",
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = CalorieKoGreen,
+            color = MacroProtein,
             modifier = Modifier.width(60.dp)
         )
     }

@@ -578,6 +578,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
 
+    // State to hold the final camera center in case the user saves a 0.0km run
+    var fallbackMapCenter by remember { mutableStateOf<Point?>(null) }
+
     // POST_NOTIFICATIONS runtime permission (required on Android 13+ / API 33+).
     // Without this, the foreground service notification is completely invisible.
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -937,7 +940,16 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     onClick = {
                         isSaving = true
                         val finalTitle = if (activityTitle.isNotBlank()) activityTitle else selectedActivity.name
-                        val pathString = pathPoints.joinToString("|") { "${it.latitude()},${it.longitude()}" }
+                        
+                        // Fallback to the point we captured when the user clicked 'Stop'
+                        val pathString = if (pathPoints.isNotEmpty()) {
+                            pathPoints.joinToString("|") { "${it.latitude()},${it.longitude()}" }
+                        } else if (fallbackMapCenter != null) {
+                            "${fallbackMapCenter!!.latitude()},${fallbackMapCenter!!.longitude()}"
+                        } else {
+                            ""
+                        }
+                        
                         val permanentPhotoPath = saveImageToInternalStorage(context, selectedPhotoUri)
                         val safeDistance = if (distanceKm.isNaN()) 0.0 else distanceKm
 
@@ -1021,10 +1033,14 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         mapboxMap.setCamera(CameraOptions.Builder().zoom(16.0).pitch(0.0).build())
                         scalebar.enabled = false
 
-                        // Disable Mapbox native location puck so we can draw our own filtered dot.
-                        // The native puck listens directly to raw GPS, bypassing our jitter filter.
+                        // Enable the native location puck initially so the user
+                        // sees a blue dot on the map before tracking starts.
+                        // Once tracking begins, we disable it and draw our own
+                        // filtered CircleAnnotation puck instead.
                         location.updateSettings {
-                            enabled = false
+                            enabled = true
+                            pulsingEnabled = true
+                            puckBearingEnabled = false
                         }
 
                         // Get initial GPS fix to center camera on user's location immediately
@@ -1051,12 +1067,21 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     }
                 },
                 update = { mapView ->
-                    if (followUser && currentPoint != null) {
-                        val cameraBuilder = CameraOptions.Builder().center(currentPoint)
+                    // Once tracking starts and we have a filtered point, disable the
+                    // native puck and use our custom filtered dot instead.
+                    if (isTracking && currentPoint != null) {
+                        mapView.location.updateSettings { enabled = false }
+                    }
+
+                    if (followUser) {
+                        val currentCamera = mapView.mapboxMap.cameraState
+                        val cameraCenter = currentPoint ?: currentCamera.center
+                        
+                        val cameraBuilder = CameraOptions.Builder().center(cameraCenter)
                         if (isCompassMode && lastLocation?.hasBearing() == true) {
                             cameraBuilder.bearing(lastLocation!!.bearing.toDouble()).pitch(60.0).zoom(17.5)
                         } else {
-                            cameraBuilder.bearing(0.0).pitch(0.0).zoom(16.0)
+                            cameraBuilder.bearing(0.0).pitch(if (is3DMode) 60.0 else 0.0).zoom(16.0)
                         }
                         mapView.camera.easeTo(cameraBuilder.build(), MapAnimationOptions.Builder().duration(800L).build())
                     }
@@ -1132,7 +1157,27 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
 
                 Box(
                     modifier = Modifier.size(48.dp).background(if (is3DMode) CalorieKoOrange else Color(0xFF2A2A3E).copy(alpha = 0.92f), CircleShape)
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape).clickable { is3DMode = !is3DMode; isCompassMode = is3DMode; followUser = true },
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape).clickable {
+                            is3DMode = !is3DMode
+                            isCompassMode = is3DMode
+                            followUser = true
+                            // Immediately animate camera tilt so 3D button is responsive
+                            // even before tracking starts or when currentPoint is null
+                            val currentCamera = mapViewRef.value?.mapboxMap?.cameraState
+                            val targetPoint = currentPoint ?: lastLocation?.let { Point.fromLngLat(it.longitude, it.latitude) } ?: currentCamera?.center
+                            
+                            if (targetPoint != null) {
+                                val cameraBuilder = CameraOptions.Builder().center(targetPoint)
+                                if (is3DMode && lastLocation?.hasBearing() == true) {
+                                    cameraBuilder.bearing(lastLocation!!.bearing.toDouble()).pitch(60.0).zoom(17.5)
+                                } else if (is3DMode) {
+                                    cameraBuilder.pitch(60.0).zoom(17.0)
+                                } else {
+                                    cameraBuilder.bearing(0.0).pitch(0.0).zoom(16.0)
+                                }
+                                mapViewRef.value?.camera?.easeTo(cameraBuilder.build(), MapAnimationOptions.Builder().duration(600L).build())
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) { Text("3D", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold) }
 
@@ -1274,6 +1319,12 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                                 Button(
                                     onClick = {
                                         viewModel.pauseTracking()
+                                        // Capture the exact map center right before we destroy the map view
+                                        // so we have a reliable fallback point to save if pathPoints is empty
+                                        fallbackMapCenter = currentPoint 
+                                            ?: lastLocation?.let { Point.fromLngLat(it.longitude, it.latitude) } 
+                                            ?: mapViewRef.value?.mapboxMap?.cameraState?.center
+                                        
                                         showSummary = true
                                         val cal = java.util.Calendar.getInstance()
                                         val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)

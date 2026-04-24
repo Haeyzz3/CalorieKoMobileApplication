@@ -54,6 +54,9 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
         } ?: emptyList()
     }
 
+    // Determine if we have at least one coordinate to center the map on
+    val hasMapData = points.isNotEmpty()
+
     // Format Time Duration — uses the shared utility for consistency
     val formatDuration = { seconds: Long ->
         DurationFormatter.formatDigital(seconds)
@@ -198,7 +201,9 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
             }
 
             // Map View - Edge to Edge
-            if (points.isNotEmpty()) {
+            // Show the map for ALL GPS-tracked activities (indicated by a non-null distanceKm),
+            // even if no GPS points were successfully recorded.
+            if (activity.distanceKm != null) {
                 item {
                     Box(
                         modifier = Modifier
@@ -216,25 +221,56 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                                             "Terrain" -> Style.OUTDOORS
                                             else -> Style.DARK
                                         }
-                                    )
-                                    val polylineManager = annotations.createPolylineAnnotationManager()
-                                    polylineManager.create(
-                                        PolylineAnnotationOptions()
-                                            .withPoints(points)
-                                            .withLineColor("#F97316") // CalorieKo Orange
-                                            .withLineWidth(6.0)
-                                    )
+                                    ) {
+                                        // Only draw polyline if we have 2+ points
+                                        if (points.size >= 2) {
+                                            val polylineManager = annotations.createPolylineAnnotationManager()
+                                            polylineManager.create(
+                                                PolylineAnnotationOptions()
+                                                    .withPoints(points)
+                                                    .withLineColor("#F97316") // CalorieKo Orange
+                                                    .withLineWidth(6.0)
+                                            )
+                                        }
+                                    }
 
-                                    if (points.isNotEmpty()) {
+                                    // Center on the midpoint of the route, or the single point
+                                    val centerPoint = if (points.isNotEmpty()) points[points.size / 2] else null
+                                    if (centerPoint != null) {
                                         mapboxMap.setCamera(
                                             CameraOptions.Builder()
-                                                .center(points[points.size / 2])
-                                                .zoom(13.5)
+                                                .center(centerPoint)
+                                                .zoom(if (points.size < 2) 16.0 else 13.5)
                                                 .build()
                                         )
                                     }
-                                    // Disable interactions for the static post look
-                                    setGesturesEnabled(false)
+
+                                    // Enable zoom/pinch for exploring the route, disable scroll/tilt for stability
+                                    gestures.apply {
+                                        pinchToZoomEnabled = true
+                                        doubleTapToZoomInEnabled = true
+                                        scrollEnabled = true
+                                        pitchEnabled = false
+                                    }
+                                    
+                                    // CRITICAL FIX: The MapView is inside a Compose LazyColumn.
+                                    // When the user pinches to zoom, the vertical movement causes the LazyColumn 
+                                    // to steal the touch event, making the zoom feel extremely jittery/broken.
+                                    // This tells the parent to NEVER intercept touches that land on the map.
+                                    setOnTouchListener { view, event ->
+                                        when (event.actionMasked) {
+                                            android.view.MotionEvent.ACTION_DOWN,
+                                            android.view.MotionEvent.ACTION_POINTER_DOWN -> {
+                                                view.parent.requestDisallowInterceptTouchEvent(true)
+                                            }
+                                            android.view.MotionEvent.ACTION_UP,
+                                            android.view.MotionEvent.ACTION_CANCEL -> {
+                                                view.parent.requestDisallowInterceptTouchEvent(false)
+                                            }
+                                        }
+                                        // Return false so Mapbox still receives and processes the event
+                                        false
+                                    }
                                 }
                             }
                         )
@@ -307,13 +343,5 @@ fun StatBlock(label: String, value: String, unit: String) {
     }
 }
 
-// Extension to disable gestures easily
-fun com.mapbox.maps.MapView.setGesturesEnabled(enabled: Boolean) {
-    this.gestures.apply {
-        pitchEnabled = enabled
-        scrollEnabled = enabled
-        doubleTapToZoomInEnabled = enabled
-        pinchToZoomEnabled = enabled
-    }
-}
+
 
