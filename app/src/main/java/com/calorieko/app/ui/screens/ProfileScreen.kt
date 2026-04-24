@@ -265,7 +265,7 @@ fun ProfileScreen(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
-            ProfileHeader(user = userData, profileImageUrl = profileImageUrl)
+            ProfileHeader(user = userData, profileImageUrl = profileImageUrl, onEditProfile = onEditProfile)
 
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -286,7 +286,7 @@ fun ProfileScreen(
 
 // --- 1. Header with Animated Streak Ring ---
 @Composable
-fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
+fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null, onEditProfile: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -394,6 +394,23 @@ fun ProfileHeader(user: UserData, profileImageUrl: android.net.Uri? = null) {
                     Icon(Icons.Default.LocalFireDepartment, null, tint = Color(0xFFFFD54F), modifier = Modifier.size(16.dp))
                     Text("${user.streak} Day Streak!", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 }
+            }
+
+            // Edit Profile Button
+            Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.material3.Button(
+                onClick = onEditProfile,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = CalorieKoGreen
+                ),
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                modifier = Modifier.padding(horizontal = 32.dp)
+            ) {
+                Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Edit Profile", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }
@@ -523,15 +540,6 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Surface(color = Color(0xFFF9FAFB), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Text(text = description, fontSize = 14.sp, color = Color(0xFF374151), modifier = Modifier.padding(16.dp), lineHeight = 20.sp)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = { onEditProfile() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(2.dp, CalorieKoGreen), colors = ButtonDefaults.outlinedButtonColors(contentColor = CalorieKoGreen)
-                ) {
-                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Edit Profile", fontWeight = FontWeight.Bold)
                 }
             }
         }
