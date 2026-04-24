@@ -118,7 +118,7 @@ fun IntroScreen(onNavigate: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Automated nutrition tracking through\nAI and Smart Scale integration",
+                    text = "Automated Filipino nutrition tracking through\nAI and Smart Scale integration",
                     fontSize = 15.sp,
                     color = Color.White.copy(alpha = 0.9f),
                     textAlign = TextAlign.Center,
@@ -136,7 +136,7 @@ fun IntroScreen(onNavigate: (String) -> Unit) {
             FeatureItem(
                 icon = Icons.Default.Psychology,
                 title = "AI-Powered Tracking",
-                description = "Smart food recognition and automatic logging"
+                description = "Smart Filipino food recognition and automatic logging"
             )
             FeatureItem(
                 icon = Icons.Default.MonitorWeight,
