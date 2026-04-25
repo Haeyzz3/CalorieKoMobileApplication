@@ -50,7 +50,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -123,11 +127,16 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     val weeklyCalories by viewModel.weeklyCalories.collectAsState()
     val avgDailySodium by viewModel.avgDailySodium.collectAsState()
     val pantryByCategory by viewModel.pantryItemsByCategory.collectAsState()
+    val allBrowsableIngredients by viewModel.allBrowsableIngredients.collectAsState()
 
     // Bottom Sheet State for Recipe Details
     val selectedRecipe = remember { mutableStateOf<DishResult?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+
+    // Ingredient Browser Sheet state
+    val showIngredientBrowser = remember { mutableStateOf(false) }
+    val browserSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Keyboard Controller
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -265,6 +274,54 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Browse All Ingredients CTA
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showIngredientBrowser.value = true },
+                        border = BorderStroke(1.dp, CalorieKoGreen.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(CalorieKoGreen.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("\uD83E\uDDFE", fontSize = 22.sp)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Browse All Ingredients",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF166534)
+                                )
+                                Text(
+                                    "View categories, nutrition info & batch-add to pantry",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF16A34A),
+                                    lineHeight = 16.sp
+                                )
+                            }
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Browse",
+                                tint = CalorieKoGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -483,6 +540,26 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
             },
             dismissButton = { TextButton(onClick = { showClearPantryDialog.value = false }) { Text("Cancel") } }
         )
+    }
+
+    // Ingredient Browser Bottom Sheet
+    if (showIngredientBrowser.value) {
+        ModalBottomSheet(
+            onDismissRequest = { showIngredientBrowser.value = false },
+            sheetState = browserSheetState,
+            containerColor = Color.White
+        ) {
+            IngredientBrowserSheet(
+                allIngredients = allBrowsableIngredients,
+                currentPantryItems = pantryIngredients,
+                formatName = { viewModel.formatIngredientName(it) },
+                onApply = { selectedKeys ->
+                    viewModel.batchUpdatePantry(selectedKeys)
+                    showIngredientBrowser.value = false
+                },
+                onDismiss = { showIngredientBrowser.value = false }
+            )
+        }
     }
 }
 
@@ -2273,5 +2350,502 @@ private fun openPdfFromAssets(context: android.content.Context, assetPath: Strin
         context.startActivity(intent)
     } catch (e: Exception) {
         e.printStackTrace()
+    }
+}
+
+// ============================================================
+// Ingredient Browser — Category metadata
+// ============================================================
+
+private val INGREDIENT_CATEGORY_ORDER = listOf(
+    "all" to Pair("All", "\uD83D\uDCCB"),
+    "protein" to Pair("Protein", "\uD83E\uDD69"),
+    "produce" to Pair("Produce", "\uD83E\uDD6C"),
+    "seasoning" to Pair("Seasonings & Sauces", "\uD83E\uDDC2"),
+    "pantry_staple" to Pair("Pantry Staples", "\uD83C\uDFE1"),
+    "grain_starch" to Pair("Grains & Starches", "\uD83C\uDF3E")
+)
+
+private val INGREDIENT_CATEGORY_COLORS = mapOf(
+    "protein" to Color(0xFFFEE2E2),
+    "produce" to Color(0xFFDCFCE7),
+    "seasoning" to Color(0xFFFEF9C3),
+    "pantry_staple" to Color(0xFFDBEAFE),
+    "grain_starch" to Color(0xFFFFF7ED)
+)
+
+// ============================================================
+// Ingredient Browser Sheet
+// ============================================================
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@Composable
+fun IngredientBrowserSheet(
+    allIngredients: List<RawIngredientEntity>,
+    currentPantryItems: List<String>,
+    formatName: (String) -> String,
+    onApply: (Set<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Local mutable selection state — initialized from current pantry
+    var selectedKeys by remember(currentPantryItems) {
+        mutableStateOf(currentPantryItems.toSet())
+    }
+
+    var selectedCategory by remember { mutableStateOf("all") }
+    var browserSearchQuery by remember { mutableStateOf("") }
+
+    // Compute filtered list
+    val filteredIngredients = remember(allIngredients, selectedCategory, browserSearchQuery) {
+        allIngredients.filter { ingredient ->
+            val matchesCategory = selectedCategory == "all" || ingredient.category == selectedCategory
+            val matchesSearch = browserSearchQuery.isBlank() ||
+                ingredient.displayName.contains(browserSearchQuery, ignoreCase = true) ||
+                ingredient.ingredientKey.contains(browserSearchQuery, ignoreCase = true)
+            matchesCategory && matchesSearch
+        }
+    }
+
+    // Compute diff for the bottom action bar
+    val currentPantrySet = remember(currentPantryItems) { currentPantryItems.toSet() }
+    val toAddCount = selectedKeys.count { it !in currentPantrySet }
+    val toRemoveCount = currentPantrySet.count { it !in selectedKeys }
+    val hasChanges = toAddCount > 0 || toRemoveCount > 0
+
+    // Expanded nutrition detail state
+    var expandedIngredientKey by remember { mutableStateOf<String?>(null) }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp)
+    ) {
+        // ── Header ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    "Browse Ingredients",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    "${allIngredients.size} ingredients available · Nutrition per 100g",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color(0xFFF3F4F6), CircleShape)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray, modifier = Modifier.size(18.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ── Search Bar ──
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFFF9FAFB),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .height(48.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 14.dp)
+            ) {
+                Icon(Icons.Default.Search, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+                TextField(
+                    value = browserSearchQuery,
+                    onValueChange = { browserSearchQuery = it },
+                    placeholder = { Text("Search ingredients...", color = Color(0xFF9CA3AF), fontSize = 14.sp) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                    modifier = Modifier.weight(1f)
+                )
+                if (browserSearchQuery.isNotBlank()) {
+                    IconButton(
+                        onClick = { browserSearchQuery = "" },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(Icons.Default.Close, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ── Category Filter Chips ──
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(INGREDIENT_CATEGORY_ORDER) { (categoryKey, labelAndEmoji) ->
+                val (label, emoji) = labelAndEmoji
+                val isSelected = selectedCategory == categoryKey
+                val count = if (categoryKey == "all") allIngredients.size
+                    else allIngredients.count { it.category == categoryKey }
+
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedCategory = categoryKey },
+                    label = {
+                        Text(
+                            "$emoji $label ($count)",
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = CalorieKoGreen.copy(alpha = 0.15f),
+                        selectedLabelColor = CalorieKoGreen,
+                        containerColor = Color.White,
+                        labelColor = Color(0xFF6B7280)
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = Color(0xFFE5E7EB),
+                        selectedBorderColor = CalorieKoGreen.copy(alpha = 0.5f)
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ── Ingredient List ──
+        if (filteredIngredients.isEmpty()) {
+            // Empty state
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("\uD83D\uDD0D", fontSize = 40.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "No ingredients match your search",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF374151)
+                )
+                Text(
+                    "Try adjusting your search or category filter",
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                items(filteredIngredients, key = { it.ingredientKey }) { ingredient ->
+                    val isChecked = ingredient.ingredientKey in selectedKeys
+                    val isInPantry = ingredient.ingredientKey in currentPantrySet
+                    val isExpanded = expandedIngredientKey == ingredient.ingredientKey
+
+                    IngredientBrowserRow(
+                        ingredient = ingredient,
+                        isChecked = isChecked,
+                        isInPantry = isInPantry,
+                        isExpanded = isExpanded,
+                        formatName = formatName,
+                        onToggle = {
+                            selectedKeys = if (isChecked) selectedKeys - ingredient.ingredientKey
+                                           else selectedKeys + ingredient.ingredientKey
+                        },
+                        onExpandToggle = {
+                            expandedIngredientKey = if (isExpanded) null else ingredient.ingredientKey
+                        }
+                    )
+                }
+            }
+        }
+
+        // ── Sticky Bottom Action Bar ──
+        Surface(
+            color = Color.White,
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Diff summary
+                Column {
+                    Text(
+                        "${selectedKeys.size} selected",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF374151)
+                    )
+                    if (hasChanges) {
+                        val parts = mutableListOf<String>()
+                        if (toAddCount > 0) parts.add("$toAddCount to add")
+                        if (toRemoveCount > 0) parts.add("$toRemoveCount to remove")
+                        Text(
+                            parts.joinToString(" · "),
+                            fontSize = 12.sp,
+                            color = if (toRemoveCount > 0) CalorieKoOrange else CalorieKoGreen,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Text(
+                            "No changes",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                }
+
+                // Apply button
+                Button(
+                    onClick = { onApply(selectedKeys) },
+                    enabled = hasChanges,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CalorieKoGreen,
+                        disabledContainerColor = Color(0xFFE5E7EB)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(44.dp)
+                ) {
+                    Text(
+                        if (hasChanges) "Apply Changes" else "No Changes",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ============================================================
+// Ingredient Browser — Single Row
+// ============================================================
+
+@Composable
+private fun IngredientBrowserRow(
+    ingredient: RawIngredientEntity,
+    isChecked: Boolean,
+    isInPantry: Boolean,
+    isExpanded: Boolean,
+    formatName: (String) -> String,
+    onToggle: () -> Unit,
+    onExpandToggle: () -> Unit
+) {
+    val categoryColor = INGREDIENT_CATEGORY_COLORS[ingredient.category] ?: Color(0xFFF3F4F6)
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isChecked) categoryColor.copy(alpha = 0.5f) else Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isChecked) 0.dp else 0.5.dp),
+        border = if (isChecked) BorderStroke(1.dp, CalorieKoGreen.copy(alpha = 0.4f))
+                 else BorderStroke(0.5.dp, Color(0xFFE5E7EB)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .clickable { onToggle() }
+    ) {
+        Column {
+            // Main row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Checkbox
+                Checkbox(
+                    checked = isChecked,
+                    onCheckedChange = { onToggle() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = CalorieKoGreen,
+                        uncheckedColor = Color(0xFFD1D5DB),
+                        checkmarkColor = Color.White
+                    ),
+                    modifier = Modifier.size(40.dp)
+                )
+
+                // Name + category badge
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            ingredient.displayName,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1F2937),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (isInPantry && isChecked) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                color = Color(0xFFDCFCE7),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    "In Pantry",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CalorieKoGreen,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Compact nutrition summary
+                    Text(
+                        "${ingredient.calories.toInt()} kcal · " +
+                        "${ingredient.protein.toInt()}g P · " +
+                        "${ingredient.carbs.toInt()}g C · " +
+                        "${ingredient.fat.toInt()}g F · " +
+                        "${ingredient.sodium.toInt()}mg Na",
+                        fontSize = 11.sp,
+                        color = Color(0xFF6B7280),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Expand/collapse button
+                IconButton(
+                    onClick = onExpandToggle,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Expanded nutrition detail
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Surface(
+                    color = Color(0xFFF9FAFB),
+                    shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            "Nutritional Values per 100g",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF374151),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        // Nutrient grid — 3 columns
+                        val nutrients = listOf(
+                            "Calories" to "${ingredient.calories.toInt()} kcal",
+                            "Protein" to "${String.format("%.1f", ingredient.protein)}g",
+                            "Carbs" to "${String.format("%.1f", ingredient.carbs)}g",
+                            "Fat" to "${String.format("%.1f", ingredient.fat)}g",
+                            "Fiber" to "${String.format("%.1f", ingredient.fiber)}g",
+                            "Sugar" to "${String.format("%.1f", ingredient.sugar)}g",
+                            "Sodium" to "${String.format("%.0f", ingredient.sodium)}mg",
+                            "Potassium" to "${String.format("%.0f", ingredient.potassium)}mg",
+                            "Vitamin A" to "${String.format("%.0f", ingredient.vitaminA)} IU",
+                            "Vitamin C" to "${String.format("%.1f", ingredient.vitaminC)}mg",
+                            "Calcium" to "${String.format("%.0f", ingredient.calcium)}mg",
+                            "Iron" to "${String.format("%.2f", ingredient.iron)}mg"
+                        )
+
+                        // Display in rows of 3
+                        nutrients.chunked(3).forEach { row ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                row.forEach { (label, value) ->
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(label, fontSize = 10.sp, color = Color(0xFF9CA3AF), fontWeight = FontWeight.Medium)
+                                        Text(value, fontSize = 12.sp, color = Color(0xFF374151), fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                                // Fill remaining columns if row has < 3 items
+                                repeat(3 - row.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+
+                        // Data source badge
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                color = Color(0xFFE8F5E9),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    "USDA FDC",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            if (ingredient.fdcId > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "FDC ID: ${ingredient.fdcId}",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

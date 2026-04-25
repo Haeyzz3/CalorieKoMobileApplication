@@ -39,6 +39,13 @@ interface RawIngredientDao {
         excludeKey: String
     ): List<RawIngredientEntity>
 
+    /**
+     * Returns all ingredients except store_bought (synthetic entries).
+     * Used by the Ingredient Browser to show only user-addable items.
+     */
+    @Query("SELECT * FROM RAW_INGREDIENTS_TABLE WHERE category != 'store_bought' ORDER BY display_name ASC")
+    suspend fun getAllBrowsable(): List<RawIngredientEntity>
+
     /** Clears all rows. Used before re-seeding from JSON. */
     @Query("DELETE FROM RAW_INGREDIENTS_TABLE")
     suspend fun deleteAll()

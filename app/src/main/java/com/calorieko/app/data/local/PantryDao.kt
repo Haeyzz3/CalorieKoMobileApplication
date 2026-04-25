@@ -57,8 +57,16 @@ interface PantryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItem(item: PantryItem)
 
+    /** Batch insert multiple pantry items (ignores duplicates). */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(items: List<PantryItem>)
+
     @Query("DELETE FROM PANTRY_TABLE WHERE ingredient_name = :name")
     suspend fun deleteItem(name: String)
+
+    /** Batch delete multiple pantry items by name. */
+    @Query("DELETE FROM PANTRY_TABLE WHERE ingredient_name IN (:names)")
+    suspend fun deleteItems(names: List<String>)
 
     /** Removes all items from the pantry inventory. */
     @Query("DELETE FROM PANTRY_TABLE")

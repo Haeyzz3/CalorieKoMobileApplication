@@ -178,6 +178,10 @@ class PantryViewModel(
     private val _pantryItemsByCategory = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val pantryItemsByCategory: StateFlow<Map<String, List<String>>> = _pantryItemsByCategory.asStateFlow()
 
+    // --- All browsable ingredients for the Ingredient Browser ---
+    private val _allBrowsableIngredients = MutableStateFlow<List<RawIngredientEntity>>(emptyList())
+    val allBrowsableIngredients: StateFlow<List<RawIngredientEntity>> = _allBrowsableIngredients.asStateFlow()
+
     init {
         // Defense-in-depth: ensure reference data is seeded before any queries.
         // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
@@ -190,6 +194,11 @@ class PantryViewModel(
         // Load all unique ingredients for autocomplete
         viewModelScope.launch(Dispatchers.IO) {
             _allIngredients.value = pantryDao.getAllUniqueIngredients()
+        }
+
+        // Load all browsable ingredients for the Ingredient Browser (excluding store_bought)
+        viewModelScope.launch(Dispatchers.IO) {
+            _allBrowsableIngredients.value = rawIngredientDao.getAllBrowsable()
         }
 
         // Load user's actual nutritional targets
@@ -256,6 +265,43 @@ class PantryViewModel(
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try { firestoreSyncRepo.deletePantryItem(uid, name) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
+        }
+    }
+
+    /**
+     * Applies batch pantry changes from the Ingredient Browser.
+     * Computes the diff between current pantry and the selected set,
+     * then adds new items and removes deselected items in batch.
+     *
+     * @param selectedKeys The full set of ingredient_keys the user has checked
+     */
+    fun batchUpdatePantry(selectedKeys: Set<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentPantry = pantryItems.value.toSet()
+
+            val toAdd = selectedKeys - currentPantry
+            val toRemove = currentPantry - selectedKeys
+
+            // Batch insert new items
+            if (toAdd.isNotEmpty()) {
+                pantryDao.insertAll(toAdd.map { PantryItem(ingredientName = it) })
+            }
+
+            // Batch remove deselected items
+            if (toRemove.isNotEmpty()) {
+                pantryDao.deleteItems(toRemove.toList())
+            }
+
+            // Single Firestore sync pass for all changes
+            if (uid.isNotEmpty() && (toAdd.isNotEmpty() || toRemove.isNotEmpty())) {
+                withTimeoutOrNull(5_000L) {
+                    try {
+                        toAdd.forEach { firestoreSyncRepo.syncPantryItem(uid, it) }
+                        toRemove.forEach { firestoreSyncRepo.deletePantryItem(uid, it) }
+                    } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
