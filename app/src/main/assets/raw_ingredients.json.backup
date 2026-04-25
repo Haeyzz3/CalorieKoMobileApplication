@@ -15,7 +15,7 @@
       "sugar": 0.37,
       "sodium": 142.0,
       "potassium": 138.0,
-      "vitamin_a": 540.0,
+      "vitamin_a": 160.0,
       "vitamin_c": 0.0,
       "calcium": 56.0,
       "iron": 1.75
@@ -63,7 +63,7 @@
       "sugar": 0.0,
       "sodium": 45.0,
       "potassium": 441.0,
-      "vitamin_a": 60.0,
+      "vitamin_a": 18.0,
       "vitamin_c": 0.0,
       "calcium": 4.0,
       "iron": 0.77
@@ -74,7 +74,7 @@
         "grams": 16.0
       },
       {
-        "description": "oz",
+        "description": "3.0 oz",
         "grams": 85.0
       },
       {
@@ -88,21 +88,21 @@
     "display_name": "Tinapa (Smoked Fish)",
     "category": "protein",
     "sub_category": "fish_smoked",
-    "fdc_id": 175116,
+    "fdc_id": 174183,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 158.0,
-      "protein": 17.96,
+      "calories": 210.0,
+      "protein": 28.89,
       "carbs": 0.0,
-      "fat": 9.04,
+      "fat": 9.71,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 90.0,
-      "potassium": 327.0,
-      "vitamin_a": 93.0,
-      "vitamin_c": 0.7,
-      "calcium": 57.0,
-      "iron": 1.1
+      "sodium": 3668.0,
+      "potassium": 544.0,
+      "vitamin_a": 12.0,
+      "vitamin_c": 0.0,
+      "calcium": 232.0,
+      "iron": 4.63
     },
     "portions": [
       {
@@ -110,12 +110,16 @@
         "grams": 28.4
       },
       {
-        "description": "oz",
-        "grams": 85.0
+        "description": "5.0 anchovies",
+        "grams": 20.0
       },
       {
-        "description": "fillet",
-        "grams": 184.0
+        "description": "anchovy",
+        "grams": 4.0
+      },
+      {
+        "description": "can (2 oz)",
+        "grams": 45.0
       }
     ]
   },
@@ -124,30 +128,30 @@
     "display_name": "Pork Liempo (Belly)",
     "category": "protein",
     "sub_category": "pork",
-    "fdc_id": 167812,
+    "fdc_id": 167902,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 518.0,
-      "protein": 9.34,
+      "calories": 263.0,
+      "protein": 16.88,
       "carbs": 0.0,
-      "fat": 53.01,
+      "fat": 21.19,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 32.0,
-      "potassium": 185.0,
-      "vitamin_a": 10.0,
-      "vitamin_c": 0.3,
-      "calcium": 5.0,
-      "iron": 0.52
+      "sodium": 56.0,
+      "potassium": 287.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 0.7,
+      "calcium": 14.0,
+      "iron": 0.88
     },
     "portions": [
       {
-        "description": "lb",
-        "grams": 453.6
+        "description": "4.0 oz",
+        "grams": 113.0
       },
       {
         "description": "oz",
-        "grams": 113.0
+        "grams": 28.4
       }
     ]
   },
@@ -156,25 +160,29 @@
     "display_name": "Bangus (Milkfish)",
     "category": "protein",
     "sub_category": "fish_freshwater",
-    "fdc_id": 173675,
+    "fdc_id": 173693,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 148.0,
-      "protein": 20.53,
+      "calories": 167.0,
+      "protein": 23.59,
       "carbs": 0.0,
-      "fat": 6.73,
+      "fat": 7.39,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 72.0,
-      "potassium": 292.0,
-      "vitamin_a": 100.0,
+      "sodium": 408.0,
+      "potassium": 314.0,
+      "vitamin_a": 55.0,
       "vitamin_c": 0.0,
-      "calcium": 51.0,
-      "iron": 0.32
+      "calcium": 232.0,
+      "iron": 0.65
     },
     "portions": [
       {
-        "description": "oz",
+        "description": "can",
+        "grams": 337.0
+      },
+      {
+        "description": "3.0 oz",
         "grams": 85.0
       }
     ]
@@ -184,30 +192,30 @@
     "display_name": "Galunggong (Round Scad)",
     "category": "protein",
     "sub_category": "fish_saltwater",
-    "fdc_id": 175119,
+    "fdc_id": 174201,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 205.0,
-      "protein": 18.6,
+      "calories": 111.0,
+      "protein": 22.54,
       "carbs": 0.0,
-      "fat": 13.89,
+      "fat": 1.61,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 90.0,
-      "potassium": 314.0,
-      "vitamin_a": 167.0,
-      "vitamin_c": 0.4,
-      "calcium": 12.0,
-      "iron": 1.63
+      "sodium": 82.0,
+      "potassium": 528.0,
+      "vitamin_a": 24.0,
+      "vitamin_c": 0.0,
+      "calcium": 9.0,
+      "iron": 0.2
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 85.0
+        "description": "0.5 fillet",
+        "grams": 159.0
       },
       {
-        "description": "fillet",
-        "grams": 112.0
+        "description": "3.0 oz",
+        "grams": 85.0
       }
     ]
   },
@@ -216,26 +224,26 @@
     "display_name": "Tilapia",
     "category": "protein",
     "sub_category": "fish_freshwater",
-    "fdc_id": 175176,
+    "fdc_id": 175177,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 96.0,
-      "protein": 20.08,
+      "calories": 128.0,
+      "protein": 26.15,
       "carbs": 0.0,
-      "fat": 1.7,
+      "fat": 2.65,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 52.0,
-      "potassium": 302.0,
+      "sodium": 56.0,
+      "potassium": 380.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 10.0,
-      "iron": 0.56
+      "calcium": 14.0,
+      "iron": 0.69
     },
     "portions": [
       {
         "description": "fillet",
-        "grams": 116.0
+        "grams": 87.0
       }
     ]
   },
@@ -255,14 +263,14 @@
       "sugar": 0.0,
       "sodium": 45.0,
       "potassium": 334.0,
-      "vitamin_a": 30.0,
+      "vitamin_a": 9.0,
       "vitamin_c": 0.0,
       "calcium": 5.0,
       "iron": 0.37
     },
     "portions": [
       {
-        "description": "oz",
+        "description": "4.0 oz",
         "grams": 113.0
       },
       {
@@ -302,7 +310,7 @@
         "grams": 505.0
       },
       {
-        "description": "oz",
+        "description": "4.0 oz",
         "grams": 113.0
       },
       {
@@ -316,25 +324,29 @@
     "display_name": "Milkfish",
     "category": "protein",
     "sub_category": "fish_freshwater",
-    "fdc_id": 173675,
+    "fdc_id": 173693,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 148.0,
-      "protein": 20.53,
+      "calories": 167.0,
+      "protein": 23.59,
       "carbs": 0.0,
-      "fat": 6.73,
+      "fat": 7.39,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 72.0,
-      "potassium": 292.0,
-      "vitamin_a": 100.0,
+      "sodium": 408.0,
+      "potassium": 314.0,
+      "vitamin_a": 55.0,
       "vitamin_c": 0.0,
-      "calcium": 51.0,
-      "iron": 0.32
+      "calcium": 232.0,
+      "iron": 0.65
     },
     "portions": [
       {
-        "description": "oz",
+        "description": "can",
+        "grams": 337.0
+      },
+      {
+        "description": "3.0 oz",
         "grams": 85.0
       }
     ]
@@ -344,30 +356,30 @@
     "display_name": "Mackerel Fish",
     "category": "protein",
     "sub_category": "fish_saltwater",
-    "fdc_id": 175119,
+    "fdc_id": 174201,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 205.0,
-      "protein": 18.6,
+      "calories": 111.0,
+      "protein": 22.54,
       "carbs": 0.0,
-      "fat": 13.89,
+      "fat": 1.61,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 90.0,
-      "potassium": 314.0,
-      "vitamin_a": 167.0,
-      "vitamin_c": 0.4,
-      "calcium": 12.0,
-      "iron": 1.63
+      "sodium": 82.0,
+      "potassium": 528.0,
+      "vitamin_a": 24.0,
+      "vitamin_c": 0.0,
+      "calcium": 9.0,
+      "iron": 0.2
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 85.0
+        "description": "0.5 fillet",
+        "grams": 159.0
       },
       {
-        "description": "fillet",
-        "grams": 112.0
+        "description": "3.0 oz",
+        "grams": 85.0
       }
     ]
   },
@@ -387,7 +399,7 @@
       "sugar": 4.24,
       "sodium": 4.0,
       "potassium": 146.0,
-      "vitamin_a": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 7.4,
       "calcium": 23.0,
       "iron": 0.21
@@ -410,7 +422,7 @@
         "grams": 150.0
       },
       {
-        "description": "rings",
+        "description": "10.0 rings",
         "grams": 60.0
       },
       {
@@ -451,7 +463,7 @@
       "sugar": 4.24,
       "sodium": 4.0,
       "potassium": 146.0,
-      "vitamin_a": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 7.4,
       "calcium": 23.0,
       "iron": 0.21
@@ -474,7 +486,7 @@
         "grams": 150.0
       },
       {
-        "description": "rings",
+        "description": "10.0 rings",
         "grams": 60.0
       },
       {
@@ -515,7 +527,7 @@
       "sugar": 4.24,
       "sodium": 4.0,
       "potassium": 146.0,
-      "vitamin_a": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 7.4,
       "calcium": 23.0,
       "iron": 0.21
@@ -538,7 +550,7 @@
         "grams": 150.0
       },
       {
-        "description": "rings",
+        "description": "10.0 rings",
         "grams": 60.0
       },
       {
@@ -579,7 +591,7 @@
       "sugar": 1.0,
       "sodium": 17.0,
       "potassium": 401.0,
-      "vitamin_a": 9.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 31.2,
       "calcium": 181.0,
       "iron": 1.7
@@ -594,7 +606,7 @@
         "grams": 3.0
       },
       {
-        "description": "cloves",
+        "description": "3.0 cloves",
         "grams": 9.0
       },
       {
@@ -619,7 +631,7 @@
       "sugar": 2.63,
       "sodium": 5.0,
       "potassium": 237.0,
-      "vitamin_a": 833.0,
+      "vitamin_a": 42.0,
       "vitamin_c": 13.7,
       "calcium": 10.0,
       "iron": 0.27
@@ -695,7 +707,7 @@
       "sugar": 2.63,
       "sodium": 5.0,
       "potassium": 237.0,
-      "vitamin_a": 833.0,
+      "vitamin_a": 42.0,
       "vitamin_c": 13.7,
       "calcium": 10.0,
       "iron": 0.27
@@ -778,11 +790,11 @@
     },
     "portions": [
       {
-        "description": "slices (1\" dia)",
+        "description": "5.0 slices (1\" dia)",
         "grams": 11.0
       },
       {
-        "description": "cup slices (1\" dia)",
+        "description": "0.25 cup slices (1\" dia)",
         "grams": 24.0
       },
       {
@@ -807,7 +819,7 @@
       "sugar": 1.67,
       "sodium": 2.0,
       "potassium": 147.0,
-      "vitamin_a": 105.0,
+      "vitamin_a": 5.0,
       "vitamin_c": 2.8,
       "calcium": 16.0,
       "iron": 0.28
@@ -818,7 +830,7 @@
         "grams": 301.0
       },
       {
-        "description": "cup slices",
+        "description": "0.5 cup slices",
         "grams": 52.0
       }
     ]
@@ -828,26 +840,30 @@
     "display_name": "Lato (Sea Grapes)",
     "category": "produce",
     "sub_category": "seaweed",
-    "fdc_id": 169280,
+    "fdc_id": 170495,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 26.0,
-      "protein": 0.54,
-      "carbs": 6.75,
-      "fat": 0.03,
-      "fiber": 0.5,
-      "sugar": 0.28,
-      "sodium": 9.0,
-      "potassium": 226.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 54.0,
-      "iron": 1.86
+      "calories": 290.0,
+      "protein": 57.47,
+      "carbs": 23.9,
+      "fat": 7.72,
+      "fiber": 3.6,
+      "sugar": 3.1,
+      "sodium": 1048.0,
+      "potassium": 1363.0,
+      "vitamin_a": 29.0,
+      "vitamin_c": 10.1,
+      "calcium": 120.0,
+      "iron": 28.5
     },
     "portions": [
       {
-        "description": "tbsp (1/8 cup)",
-        "grams": 10.0
+        "description": "cup",
+        "grams": 112.0
+      },
+      {
+        "description": "tablespoon",
+        "grams": 7.0
       }
     ]
   },
@@ -856,6 +872,66 @@
     "display_name": "Guso Seaweed",
     "category": "produce",
     "sub_category": "seaweed",
+    "fdc_id": 170495,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 290.0,
+      "protein": 57.47,
+      "carbs": 23.9,
+      "fat": 7.72,
+      "fiber": 3.6,
+      "sugar": 3.1,
+      "sodium": 1048.0,
+      "potassium": 1363.0,
+      "vitamin_a": 29.0,
+      "vitamin_c": 10.1,
+      "calcium": 120.0,
+      "iron": 28.5
+    },
+    "portions": [
+      {
+        "description": "cup",
+        "grams": 112.0
+      },
+      {
+        "description": "tablespoon",
+        "grams": 7.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "ampalaya",
+    "display_name": "Ampalaya (Bitter Gourd)",
+    "category": "produce",
+    "sub_category": "gourd",
+    "fdc_id": 169226,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 45.0,
+      "protein": 2.7,
+      "carbs": 9.2,
+      "fat": 0.7,
+      "fiber": 3.5,
+      "sugar": 0.71,
+      "sodium": 76.0,
+      "potassium": 397.0,
+      "vitamin_a": 508.0,
+      "vitamin_c": 35.0,
+      "calcium": 187.0,
+      "iron": 3.1
+    },
+    "portions": [
+      {
+        "description": "cup, chopped",
+        "grams": 55.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "malunggay_leaves",
+    "display_name": "Malunggay Leaves",
+    "category": "produce",
+    "sub_category": "leafy_green",
     "fdc_id": 168456,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
@@ -867,75 +943,15 @@
       "sugar": 0.61,
       "sodium": 67.0,
       "potassium": 63.0,
-      "vitamin_a": 118.0,
+      "vitamin_a": 6.0,
       "vitamin_c": 3.0,
       "calcium": 72.0,
       "iron": 8.9
     },
     "portions": [
       {
-        "description": "tbsp (1/8 cup)",
+        "description": "2.0 tbsp (1/8 cup)",
         "grams": 10.0
-      }
-    ]
-  },
-  {
-    "ingredient_key": "ampalaya",
-    "display_name": "Ampalaya (Bitter Gourd)",
-    "category": "produce",
-    "sub_category": "gourd",
-    "fdc_id": 168393,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 17.0,
-      "protein": 1.0,
-      "carbs": 3.7,
-      "fat": 0.17,
-      "fiber": 2.8,
-      "sugar": 0.0,
-      "sodium": 5.0,
-      "potassium": 296.0,
-      "vitamin_a": 471.0,
-      "vitamin_c": 84.0,
-      "calcium": 19.0,
-      "iron": 0.43
-    },
-    "portions": [
-      {
-        "description": "cup (1/2\" pieces)",
-        "grams": 93.0
-      },
-      {
-        "description": "balsam-pear",
-        "grams": 124.0
-      }
-    ]
-  },
-  {
-    "ingredient_key": "malunggay_leaves",
-    "display_name": "Malunggay Leaves",
-    "category": "produce",
-    "sub_category": "leafy_green",
-    "fdc_id": 168416,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 64.0,
-      "protein": 9.4,
-      "carbs": 8.28,
-      "fat": 1.4,
-      "fiber": 2.0,
-      "sugar": 0.0,
-      "sodium": 9.0,
-      "potassium": 337.0,
-      "vitamin_a": 7564.0,
-      "vitamin_c": 51.7,
-      "calcium": 185.0,
-      "iron": 4.0
-    },
-    "portions": [
-      {
-        "description": "cup, chopped",
-        "grams": 21.0
       }
     ]
   },
@@ -944,26 +960,34 @@
     "display_name": "Gabi (Taro)",
     "category": "produce",
     "sub_category": "root",
-    "fdc_id": 169308,
+    "fdc_id": 170434,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 112.0,
-      "protein": 1.5,
-      "carbs": 26.46,
-      "fat": 0.2,
-      "fiber": 4.1,
-      "sugar": 0.4,
-      "sodium": 11.0,
-      "potassium": 591.0,
-      "vitamin_a": 76.0,
-      "vitamin_c": 4.5,
-      "calcium": 43.0,
-      "iron": 0.55
+      "calories": 92.0,
+      "protein": 2.1,
+      "carbs": 21.08,
+      "fat": 0.15,
+      "fiber": 2.1,
+      "sugar": 1.53,
+      "sodium": 7.0,
+      "potassium": 544.0,
+      "vitamin_a": 1.0,
+      "vitamin_c": 12.6,
+      "calcium": 10.0,
+      "iron": 0.64
     },
     "portions": [
       {
-        "description": "cup, sliced",
-        "grams": 104.0
+        "description": "potato medium (2-1/4\" to 3-1/4\" dia)",
+        "grams": 173.0
+      },
+      {
+        "description": "potato large (3\" to 4-1/4\" dia)",
+        "grams": 299.0
+      },
+      {
+        "description": "potato small (1-3/4\" to 2-1/2\" dia)",
+        "grams": 138.0
       }
     ]
   },
@@ -972,62 +996,49 @@
     "display_name": "Sitaw (Yard-long Bean)",
     "category": "produce",
     "sub_category": "legume_veg",
-    "fdc_id": 169222,
+    "fdc_id": 170378,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 47.0,
-      "protein": 2.8,
-      "carbs": 8.35,
-      "fat": 0.4,
-      "fiber": 0.0,
+      "calories": 62.0,
+      "protein": 4.8,
+      "carbs": 10.1,
+      "fat": 0.5,
+      "fiber": 3.6,
       "sugar": 0.0,
-      "sodium": 4.0,
-      "potassium": 240.0,
-      "vitamin_a": 865.0,
-      "vitamin_c": 18.8,
-      "calcium": 50.0,
-      "iron": 0.47
+      "sodium": 41.0,
+      "potassium": 193.0,
+      "vitamin_a": 14.0,
+      "vitamin_c": 19.8,
+      "calcium": 18.0,
+      "iron": 1.5
     },
-    "portions": [
-      {
-        "description": "cup slices",
-        "grams": 91.0
-      },
-      {
-        "description": "pod",
-        "grams": 12.0
-      }
-    ]
+    "portions": []
   },
   {
     "ingredient_key": "kangkong_leaves",
     "display_name": "Kangkong (Water Spinach)",
     "category": "produce",
     "sub_category": "leafy_green",
-    "fdc_id": 169301,
+    "fdc_id": 169297,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 19.0,
-      "protein": 2.6,
-      "carbs": 3.13,
-      "fat": 0.2,
-      "fiber": 2.1,
-      "sugar": 0.0,
-      "sodium": 113.0,
-      "potassium": 312.0,
-      "vitamin_a": 6300.0,
-      "vitamin_c": 55.0,
-      "calcium": 77.0,
-      "iron": 1.67
+      "calories": 30.0,
+      "protein": 1.48,
+      "carbs": 6.46,
+      "fat": 0.37,
+      "fiber": 2.9,
+      "sugar": 2.93,
+      "sodium": 5.0,
+      "potassium": 214.0,
+      "vitamin_a": 200.0,
+      "vitamin_c": 6.5,
+      "calcium": 10.0,
+      "iron": 0.28
     },
     "portions": [
       {
-        "description": "shoot",
-        "grams": 13.0
-      },
-      {
-        "description": "cup, chopped",
-        "grams": 56.0
+        "description": "cup, mashed",
+        "grams": 236.0
       }
     ]
   },
@@ -1047,7 +1058,7 @@
       "sugar": 0.0,
       "sodium": 2.0,
       "potassium": 150.0,
-      "vitamin_a": 16.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 10.1,
       "calcium": 26.0,
       "iron": 0.2
@@ -1058,7 +1069,7 @@
         "grams": 771.0
       },
       {
-        "description": "cup (1\" pieces)",
+        "description": "0.5 cup (1\" pieces)",
         "grams": 58.0
       }
     ]
@@ -1068,30 +1079,26 @@
     "display_name": "Kamote Tops",
     "category": "produce",
     "sub_category": "leafy_green",
-    "fdc_id": 169303,
+    "fdc_id": 170071,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 42.0,
-      "protein": 2.49,
-      "carbs": 8.82,
-      "fat": 0.51,
-      "fiber": 5.3,
-      "sugar": 0.0,
-      "sodium": 6.0,
-      "potassium": 508.0,
-      "vitamin_a": 3778.0,
-      "vitamin_c": 11.0,
-      "calcium": 78.0,
-      "iron": 0.97
+      "calories": 118.0,
+      "protein": 1.53,
+      "carbs": 27.88,
+      "fat": 0.17,
+      "fiber": 4.1,
+      "sugar": 0.5,
+      "sodium": 9.0,
+      "potassium": 816.0,
+      "vitamin_a": 7.0,
+      "vitamin_c": 17.1,
+      "calcium": 17.0,
+      "iron": 0.54
     },
     "portions": [
       {
-        "description": "cup, chopped",
-        "grams": 35.0
-      },
-      {
-        "description": "leaf (12-1/4\" long)",
-        "grams": 16.0
+        "description": "cup, cubes",
+        "grams": 150.0
       }
     ]
   },
@@ -1100,30 +1107,26 @@
     "display_name": "Sayote (Chayote)",
     "category": "produce",
     "sub_category": "gourd",
-    "fdc_id": 170402,
+    "fdc_id": 169343,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 19.0,
-      "protein": 0.82,
-      "carbs": 4.51,
-      "fat": 0.13,
-      "fiber": 1.7,
-      "sugar": 1.66,
-      "sodium": 2.0,
-      "potassium": 125.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 7.7,
-      "calcium": 17.0,
-      "iron": 0.34
+      "calories": 20.0,
+      "protein": 1.88,
+      "carbs": 4.13,
+      "fat": 0.08,
+      "fiber": 2.1,
+      "sugar": 1.1,
+      "sodium": 415.0,
+      "potassium": 549.0,
+      "vitamin_a": 306.0,
+      "vitamin_c": 18.0,
+      "calcium": 58.0,
+      "iron": 2.26
     },
     "portions": [
       {
-        "description": "cup (1\" pieces)",
-        "grams": 132.0
-      },
-      {
-        "description": "chayote (5-3/4\")",
-        "grams": 203.0
+        "description": "cup, chopped",
+        "grams": 175.0
       }
     ]
   },
@@ -1132,34 +1135,30 @@
     "display_name": "Pechay (Bok Choy)",
     "category": "produce",
     "sub_category": "leafy_green",
-    "fdc_id": 170390,
+    "fdc_id": 169406,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 13.0,
-      "protein": 1.5,
-      "carbs": 2.18,
-      "fat": 0.2,
-      "fiber": 1.0,
-      "sugar": 1.18,
-      "sodium": 65.0,
-      "potassium": 252.0,
-      "vitamin_a": 4468.0,
-      "vitamin_c": 45.0,
-      "calcium": 105.0,
-      "iron": 0.8
+      "calories": 607.0,
+      "protein": 17.95,
+      "carbs": 17.89,
+      "fat": 56.44,
+      "fiber": 9.3,
+      "sugar": 0.0,
+      "sodium": 1.0,
+      "potassium": 459.0,
+      "vitamin_a": 3.0,
+      "vitamin_c": 0.0,
+      "calcium": 141.0,
+      "iron": 6.35
     },
     "portions": [
       {
-        "description": "head",
-        "grams": 840.0
+        "description": "oz",
+        "grams": 28.4
       },
       {
-        "description": "leaf",
+        "description": "tbsp",
         "grams": 14.0
-      },
-      {
-        "description": "cup, shredded",
-        "grams": 70.0
       }
     ]
   },
@@ -1168,26 +1167,42 @@
     "display_name": "Squash (Kalabasa)",
     "category": "produce",
     "sub_category": "gourd",
-    "fdc_id": 169295,
+    "fdc_id": 170487,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 45.0,
-      "protein": 1.0,
-      "carbs": 11.69,
-      "fat": 0.1,
-      "fiber": 2.0,
+      "calories": 16.0,
+      "protein": 1.21,
+      "carbs": 3.35,
+      "fat": 0.18,
+      "fiber": 1.1,
       "sugar": 2.2,
-      "sodium": 4.0,
-      "potassium": 352.0,
-      "vitamin_a": 10630.0,
-      "vitamin_c": 21.0,
-      "calcium": 48.0,
-      "iron": 0.7
+      "sodium": 2.0,
+      "potassium": 262.0,
+      "vitamin_a": 10.0,
+      "vitamin_c": 17.0,
+      "calcium": 15.0,
+      "iron": 0.35
     },
     "portions": [
       {
-        "description": "cup, cubes",
-        "grams": 140.0
+        "description": "slice",
+        "grams": 9.9
+      },
+      {
+        "description": "cup, sliced",
+        "grams": 113.0
+      },
+      {
+        "description": "small",
+        "grams": 118.0
+      },
+      {
+        "description": "medium",
+        "grams": 196.0
+      },
+      {
+        "description": "large",
+        "grams": 323.0
       }
     ]
   },
@@ -1207,14 +1222,14 @@
       "sugar": 1.48,
       "sodium": 7.0,
       "potassium": 299.0,
-      "vitamin_a": 716.0,
+      "vitamin_a": 36.0,
       "vitamin_c": 23.0,
       "calcium": 82.0,
       "iron": 0.62
     },
     "portions": [
       {
-        "description": "pods (3\" long)",
+        "description": "8.0 pods (3\" long)",
         "grams": 95.0
       },
       {
@@ -1239,7 +1254,7 @@
       "sugar": 3.53,
       "sodium": 2.0,
       "potassium": 229.0,
-      "vitamin_a": 23.0,
+      "vitamin_a": 1.0,
       "vitamin_c": 2.2,
       "calcium": 9.0,
       "iron": 0.23
@@ -1319,7 +1334,7 @@
       "sugar": 4.74,
       "sodium": 69.0,
       "potassium": 320.0,
-      "vitamin_a": 16706.0,
+      "vitamin_a": 835.0,
       "vitamin_c": 5.9,
       "calcium": 33.0,
       "iron": 0.3
@@ -1368,32 +1383,23 @@
     "display_name": "Baguio Beans",
     "category": "produce",
     "sub_category": "legume_veg",
-    "fdc_id": 169961,
+    "fdc_id": 170378,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 31.0,
-      "protein": 1.83,
-      "carbs": 6.97,
-      "fat": 0.22,
-      "fiber": 2.7,
-      "sugar": 3.26,
-      "sodium": 6.0,
-      "potassium": 211.0,
-      "vitamin_a": 690.0,
-      "vitamin_c": 12.2,
-      "calcium": 37.0,
-      "iron": 1.03
+      "calories": 62.0,
+      "protein": 4.8,
+      "carbs": 10.1,
+      "fat": 0.5,
+      "fiber": 3.6,
+      "sugar": 0.0,
+      "sodium": 41.0,
+      "potassium": 193.0,
+      "vitamin_a": 14.0,
+      "vitamin_c": 19.8,
+      "calcium": 18.0,
+      "iron": 1.5
     },
-    "portions": [
-      {
-        "description": "beans (4\" long)",
-        "grams": 55.0
-      },
-      {
-        "description": "cup 1/2\" pieces",
-        "grams": 100.0
-      }
-    ]
+    "portions": []
   },
   {
     "ingredient_key": "bell_pepper_red",
@@ -1411,7 +1417,7 @@
       "sugar": 4.2,
       "sodium": 4.0,
       "potassium": 211.0,
-      "vitamin_a": 3131.0,
+      "vitamin_a": 157.0,
       "vitamin_c": 127.7,
       "calcium": 7.0,
       "iron": 0.43
@@ -1463,7 +1469,7 @@
       "sugar": 7.82,
       "sodium": 8.0,
       "potassium": 182.0,
-      "vitamin_a": 950.0,
+      "vitamin_a": 47.0,
       "vitamin_c": 60.9,
       "calcium": 20.0,
       "iron": 0.25
@@ -1503,7 +1509,7 @@
       "sugar": 13.66,
       "sodium": 1.0,
       "potassium": 168.0,
-      "vitamin_a": 1082.0,
+      "vitamin_a": 54.0,
       "vitamin_c": 36.4,
       "calcium": 11.0,
       "iron": 0.16
@@ -1563,7 +1569,7 @@
       "sugar": 1.86,
       "sodium": 39.0,
       "potassium": 233.0,
-      "vitamin_a": 7.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 14.8,
       "calcium": 25.0,
       "iron": 0.34
@@ -1582,7 +1588,7 @@
         "grams": 116.0
       },
       {
-        "description": "cup slices",
+        "description": "0.5 cup slices",
         "grams": 58.0
       },
       {
@@ -1611,7 +1617,7 @@
       "sugar": 0.82,
       "sodium": 6.0,
       "potassium": 425.0,
-      "vitamin_a": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 19.7,
       "calcium": 12.0,
       "iron": 0.81
@@ -1622,7 +1628,7 @@
         "grams": 170.0
       },
       {
-        "description": "cup, diced",
+        "description": "0.5 cup, diced",
         "grams": 75.0
       },
       {
@@ -1651,7 +1657,7 @@
       "sugar": 5.67,
       "sodium": 5.0,
       "potassium": 244.0,
-      "vitamin_a": 765.0,
+      "vitamin_a": 38.0,
       "vitamin_c": 40.0,
       "calcium": 25.0,
       "iron": 1.47
@@ -1668,38 +1674,26 @@
     "display_name": "Iodized Salt",
     "category": "seasoning",
     "sub_category": "salt",
-    "fdc_id": 173468,
+    "fdc_id": 170723,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 0.0,
-      "protein": 0.0,
-      "carbs": 0.0,
-      "fat": 0.0,
-      "fiber": 0.0,
+      "calories": 214.0,
+      "protein": 13.78,
+      "carbs": 21.55,
+      "fat": 8.1,
+      "fiber": 1.3,
       "sugar": 0.0,
-      "sodium": 38758.0,
-      "potassium": 8.0,
+      "sodium": 401.0,
+      "potassium": 228.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 24.0,
-      "iron": 0.33
+      "vitamin_c": 0.3,
+      "calcium": 23.0,
+      "iron": 1.5
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 292.0
-      },
-      {
-        "description": "tsp",
-        "grams": 6.0
-      },
-      {
-        "description": "tbsp",
-        "grams": 18.0
-      },
-      {
-        "description": "dash",
-        "grams": 0.4
+        "description": "item",
+        "grams": 230.0
       }
     ]
   },
@@ -1719,7 +1713,7 @@
       "sugar": 0.64,
       "sodium": 20.0,
       "potassium": 1329.0,
-      "vitamin_a": 547.0,
+      "vitamin_a": 27.0,
       "vitamin_c": 0.0,
       "calcium": 443.0,
       "iron": 9.71
@@ -1748,34 +1742,26 @@
     "display_name": "Cane Vinegar",
     "category": "seasoning",
     "sub_category": "acid",
-    "fdc_id": 172237,
+    "fdc_id": 173467,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 18.0,
-      "protein": 0.0,
-      "carbs": 0.04,
+      "calories": 133.0,
+      "protein": 4.41,
+      "carbs": 28.86,
       "fat": 0.0,
-      "fiber": 0.0,
-      "sugar": 0.04,
-      "sodium": 2.0,
-      "potassium": 2.0,
-      "vitamin_a": 0.0,
+      "fiber": 7.4,
+      "sugar": 8.82,
+      "sodium": 110.0,
+      "potassium": 196.0,
+      "vitamin_a": 133.0,
       "vitamin_c": 0.0,
-      "calcium": 6.0,
-      "iron": 0.03
+      "calcium": 147.0,
+      "iron": 0.0
     },
     "portions": [
       {
-        "description": "tbsp",
-        "grams": 14.9
-      },
-      {
-        "description": "tsp",
-        "grams": 5.0
-      },
-      {
-        "description": "cup",
-        "grams": 238.0
+        "description": "0.5 cup",
+        "grams": 68.0
       }
     ]
   },
@@ -1784,34 +1770,26 @@
     "display_name": "White Vinegar",
     "category": "seasoning",
     "sub_category": "acid",
-    "fdc_id": 172237,
+    "fdc_id": 173467,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 18.0,
-      "protein": 0.0,
-      "carbs": 0.04,
+      "calories": 133.0,
+      "protein": 4.41,
+      "carbs": 28.86,
       "fat": 0.0,
-      "fiber": 0.0,
-      "sugar": 0.04,
-      "sodium": 2.0,
-      "potassium": 2.0,
-      "vitamin_a": 0.0,
+      "fiber": 7.4,
+      "sugar": 8.82,
+      "sodium": 110.0,
+      "potassium": 196.0,
+      "vitamin_a": 133.0,
       "vitamin_c": 0.0,
-      "calcium": 6.0,
-      "iron": 0.03
+      "calcium": 147.0,
+      "iron": 0.0
     },
     "portions": [
       {
-        "description": "tbsp",
-        "grams": 14.9
-      },
-      {
-        "description": "tsp",
-        "grams": 5.0
-      },
-      {
-        "description": "cup",
-        "grams": 238.0
+        "description": "0.5 cup",
+        "grams": 68.0
       }
     ]
   },
@@ -1820,34 +1798,30 @@
     "display_name": "Calamansi Juice",
     "category": "seasoning",
     "sub_category": "citrus_juice",
-    "fdc_id": 168156,
+    "fdc_id": 168155,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 25.0,
-      "protein": 0.42,
-      "carbs": 8.42,
-      "fat": 0.07,
-      "fiber": 0.4,
+      "calories": 30.0,
+      "protein": 0.7,
+      "carbs": 10.54,
+      "fat": 0.2,
+      "fiber": 2.8,
       "sugar": 1.69,
       "sodium": 2.0,
-      "potassium": 117.0,
-      "vitamin_a": 50.0,
-      "vitamin_c": 30.0,
-      "calcium": 14.0,
-      "iron": 0.09
+      "potassium": 102.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 29.1,
+      "calcium": 33.0,
+      "iron": 0.6
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 242.0
+        "description": "fruit (2\" dia)",
+        "grams": 67.0
       },
       {
-        "description": "fl oz",
-        "grams": 30.8
-      },
-      {
-        "description": "lime yields",
-        "grams": 44.0
+        "description": "NLEA serving",
+        "grams": 67.0
       }
     ]
   },
@@ -1884,26 +1858,26 @@
     "display_name": "Patis (Fish Sauce)",
     "category": "seasoning",
     "sub_category": "fermented",
-    "fdc_id": 174531,
+    "fdc_id": 173741,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 35.0,
-      "protein": 5.06,
-      "carbs": 3.64,
-      "fat": 0.01,
-      "fiber": 0.0,
-      "sugar": 3.64,
-      "sodium": 7851.0,
-      "potassium": 288.0,
-      "vitamin_a": 12.0,
-      "vitamin_c": 0.5,
-      "calcium": 43.0,
-      "iron": 0.78
+      "calories": 84.0,
+      "protein": 5.22,
+      "carbs": 14.5,
+      "fat": 0.6,
+      "fiber": 4.3,
+      "sugar": 1.85,
+      "sodium": 296.0,
+      "potassium": 237.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 1.2,
+      "calcium": 34.0,
+      "iron": 1.17
     },
     "portions": [
       {
-        "description": "tbsp",
-        "grams": 18.0
+        "description": "cup",
+        "grams": 256.0
       }
     ]
   },
@@ -1913,7 +1887,7 @@
     "category": "seasoning",
     "sub_category": "fermented",
     "fdc_id": 391912,
-    "data_source": "USDA_SR_LEGACY",
+    "data_source": "USDA_BRANDED",
     "nutrients_per_100g": {
       "calories": 467.0,
       "protein": 13.33,
@@ -1935,38 +1909,30 @@
     "display_name": "Soy Sauce",
     "category": "seasoning",
     "sub_category": "fermented",
-    "fdc_id": 174277,
+    "fdc_id": 174714,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 53.0,
-      "protein": 8.14,
-      "carbs": 4.93,
-      "fat": 0.57,
-      "fiber": 0.8,
-      "sugar": 0.4,
-      "sodium": 5493.0,
-      "potassium": 435.0,
+      "calories": 264.0,
+      "protein": 26.18,
+      "carbs": 0.0,
+      "fat": 17.69,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 52.0,
+      "potassium": 265.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 33.0,
-      "iron": 1.45
+      "calcium": 14.0,
+      "iron": 2.48
     },
     "portions": [
       {
-        "description": "individual packet",
-        "grams": 8.9
+        "description": "3.0 oz",
+        "grams": 85.0
       },
       {
-        "description": "tbsp",
-        "grams": 16.0
-      },
-      {
-        "description": "tsp",
-        "grams": 5.3
-      },
-      {
-        "description": "cup",
-        "grams": 255.0
+        "description": "steak",
+        "grams": 235.0
       }
     ]
   },
@@ -1975,38 +1941,30 @@
     "display_name": "Thyme (Dried)",
     "category": "seasoning",
     "sub_category": "spice",
-    "fdc_id": 170938,
+    "fdc_id": 170930,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 276.0,
-      "protein": 9.11,
-      "carbs": 63.94,
-      "fat": 7.43,
-      "fiber": 37.0,
-      "sugar": 1.71,
-      "sodium": 55.0,
-      "potassium": 814.0,
-      "vitamin_a": 3800.0,
-      "vitamin_c": 50.0,
-      "calcium": 1890.0,
-      "iron": 123.6
+      "calories": 292.0,
+      "protein": 26.63,
+      "carbs": 50.64,
+      "fat": 5.48,
+      "fiber": 26.7,
+      "sugar": 7.27,
+      "sodium": 452.0,
+      "potassium": 2683.0,
+      "vitamin_a": 97.0,
+      "vitamin_c": 125.0,
+      "calcium": 1140.0,
+      "iron": 22.04
     },
     "portions": [
       {
-        "description": "tsp, leaves",
-        "grams": 1.0
+        "description": "tsp",
+        "grams": 0.5
       },
       {
-        "description": "tbsp, ground",
-        "grams": 4.3
-      },
-      {
-        "description": "tbsp, leaves",
-        "grams": 2.7
-      },
-      {
-        "description": "tsp, ground",
-        "grams": 1.4
+        "description": "tbsp",
+        "grams": 1.6
       }
     ]
   },
@@ -2099,26 +2057,34 @@
     "display_name": "Cornstarch",
     "category": "pantry_staple",
     "sub_category": "starch",
-    "fdc_id": 169698,
+    "fdc_id": 170569,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 381.0,
-      "protein": 0.26,
-      "carbs": 91.27,
-      "fat": 0.05,
-      "fiber": 0.9,
-      "sugar": 0.0,
-      "sodium": 9.0,
-      "potassium": 3.0,
+      "calories": 659.0,
+      "protein": 14.32,
+      "carbs": 11.74,
+      "fat": 67.1,
+      "fiber": 7.5,
+      "sugar": 2.33,
+      "sodium": 3.0,
+      "potassium": 659.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 2.0,
-      "iron": 0.47
+      "vitamin_c": 0.7,
+      "calcium": 160.0,
+      "iron": 2.43
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 128.0
+        "description": "kernel",
+        "grams": 5.0
+      },
+      {
+        "description": "oz (6 kernels)",
+        "grams": 28.4
+      },
+      {
+        "description": "cup, whole",
+        "grams": 133.0
       }
     ]
   },
@@ -2178,7 +2144,7 @@
     "display_name": "Cooking Oil (Soybean)",
     "category": "pantry_staple",
     "sub_category": "oil",
-    "fdc_id": 171411,
+    "fdc_id": 171028,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
       "calories": 884.0,
@@ -2192,20 +2158,20 @@
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
       "calcium": 0.0,
-      "iron": 0.05
+      "iron": 0.0
     },
     "portions": [
       {
-        "description": "tbsp",
+        "description": "cup",
+        "grams": 218.0
+      },
+      {
+        "description": "tablespoon",
         "grams": 13.6
       },
       {
         "description": "tsp",
         "grams": 4.5
-      },
-      {
-        "description": "cup",
-        "grams": 218.0
       }
     ]
   },
@@ -2237,26 +2203,26 @@
     "display_name": "Tomato Sauce",
     "category": "pantry_staple",
     "sub_category": "canned_good",
-    "fdc_id": 170054,
+    "fdc_id": 170466,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 24.0,
-      "protein": 1.2,
-      "carbs": 5.31,
-      "fat": 0.3,
-      "fiber": 1.5,
-      "sugar": 3.56,
-      "sodium": 474.0,
-      "potassium": 297.0,
-      "vitamin_a": 435.0,
-      "vitamin_c": 7.0,
-      "calcium": 14.0,
-      "iron": 0.96
+      "calories": 20.0,
+      "protein": 1.14,
+      "carbs": 4.36,
+      "fat": 0.23,
+      "fiber": 3.5,
+      "sugar": 0.53,
+      "sodium": 29.0,
+      "potassium": 203.0,
+      "vitamin_a": 381.0,
+      "vitamin_c": 27.4,
+      "calcium": 137.0,
+      "iron": 0.8
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 245.0
+        "description": "cup, chopped",
+        "grams": 144.0
       }
     ]
   },
@@ -2295,7 +2261,7 @@
         "grams": 43.0
       },
       {
-        "description": "raisins",
+        "description": "50.0 raisins",
         "grams": 26.0
       },
       {
@@ -2313,26 +2279,26 @@
     "display_name": "Odong Noodles",
     "category": "pantry_staple",
     "sub_category": "noodle",
-    "fdc_id": 168908,
+    "fdc_id": 169741,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 356.0,
-      "protein": 11.35,
-      "carbs": 74.1,
-      "fat": 0.81,
-      "fiber": 4.3,
-      "sugar": 0.0,
-      "sodium": 1840.0,
-      "potassium": 164.0,
+      "calories": 404.0,
+      "protein": 14.66,
+      "carbs": 65.7,
+      "fat": 9.12,
+      "fiber": 6.5,
+      "sugar": 0.8,
+      "sodium": 19.0,
+      "potassium": 371.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 23.0,
-      "iron": 1.32
+      "calcium": 55.0,
+      "iron": 4.0
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 57.0
+        "description": "cup",
+        "grams": 104.0
       }
     ]
   },
@@ -2341,34 +2307,46 @@
     "display_name": "Sardines in Tomato Sauce",
     "category": "pantry_staple",
     "sub_category": "canned_good",
-    "fdc_id": 175140,
+    "fdc_id": 175139,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 185.0,
-      "protein": 20.86,
-      "carbs": 0.54,
-      "fat": 10.45,
-      "fiber": 0.1,
-      "sugar": 0.43,
-      "sodium": 414.0,
-      "potassium": 341.0,
-      "vitamin_a": 151.0,
-      "vitamin_c": 1.0,
-      "calcium": 240.0,
-      "iron": 2.3
+      "calories": 208.0,
+      "protein": 24.62,
+      "carbs": 0.0,
+      "fat": 11.45,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 307.0,
+      "potassium": 397.0,
+      "vitamin_a": 32.0,
+      "vitamin_c": 0.0,
+      "calcium": 382.0,
+      "iron": 2.92
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 89.0
+        "description": "small (2-2/3\" x 1/2\" x 1/4\")",
+        "grams": 12.0
       },
       {
-        "description": "sardine",
-        "grams": 38.0
+        "description": "can (3.75 oz)",
+        "grams": 92.0
       },
       {
-        "description": "can",
-        "grams": 370.0
+        "description": "cup, drained",
+        "grams": 149.0
+      },
+      {
+        "description": "2.0 sardines",
+        "grams": 24.0
+      },
+      {
+        "description": "cubic inch",
+        "grams": 16.0
+      },
+      {
+        "description": "oz",
+        "grams": 28.4
       }
     ]
   },
@@ -2518,7 +2496,7 @@
     "category": "pantry_staple",
     "sub_category": "oil",
     "fdc_id": 171413,
-    "data_source": "USDA_SR_LEGACY",
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
       "calories": 884.0,
       "protein": 0.0,
@@ -2535,15 +2513,15 @@
     },
     "portions": [
       {
-        "description": "tablespoon",
+        "description": "undetermined",
         "grams": 13.5
       },
       {
-        "description": "tsp",
+        "description": "undetermined",
         "grams": 4.5
       },
       {
-        "description": "cup",
+        "description": "undetermined",
         "grams": 216.0
       }
     ]
@@ -2554,7 +2532,7 @@
     "category": "pantry_staple",
     "sub_category": "oil",
     "fdc_id": 171412,
-    "data_source": "USDA_SR_LEGACY",
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
       "calories": 892.0,
       "protein": 0.0,
@@ -2571,15 +2549,15 @@
     },
     "portions": [
       {
-        "description": "cup",
+        "description": "undetermined",
         "grams": 218.0
       },
       {
-        "description": "tsp",
+        "description": "undetermined",
         "grams": 4.5
       },
       {
-        "description": "tbsp",
+        "description": "undetermined",
         "grams": 13.6
       }
     ]
@@ -2590,7 +2568,7 @@
     "category": "pantry_staple",
     "sub_category": "oil",
     "fdc_id": 172336,
-    "data_source": "USDA_SR_LEGACY",
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
       "calories": 884.0,
       "protein": 0.0,
@@ -2607,15 +2585,15 @@
     },
     "portions": [
       {
-        "description": "tsp",
+        "description": "undetermined",
         "grams": 4.5
       },
       {
-        "description": "cup",
+        "description": "undetermined",
         "grams": 218.0
       },
       {
-        "description": "tbsp",
+        "description": "undetermined",
         "grams": 14.0
       }
     ]
@@ -2625,30 +2603,30 @@
     "display_name": "Chicken Thigh (raw)",
     "category": "protein",
     "sub_category": "poultry",
-    "fdc_id": 173627,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 171474,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 121.0,
-      "protein": 19.66,
+      "calories": 172.0,
+      "protein": 20.85,
       "carbs": 0.0,
-      "fat": 4.12,
+      "fat": 9.25,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 95.0,
-      "potassium": 242.0,
+      "sodium": 63.0,
+      "potassium": 220.0,
       "vitamin_a": 24.0,
       "vitamin_c": 0.0,
-      "calcium": 7.0,
-      "iron": 0.81
+      "calcium": 11.0,
+      "iron": 0.74
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 113.0
+        "description": "undetermined",
+        "grams": 87.0
       },
       {
-        "description": "thigh without skin",
-        "grams": 149.0
+        "description": "undetermined",
+        "grams": 145.0
       }
     ]
   },
@@ -2657,34 +2635,34 @@
     "display_name": "Chicken Drumstick (raw)",
     "category": "protein",
     "sub_category": "poultry",
-    "fdc_id": 173614,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 171466,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 116.0,
-      "protein": 19.41,
+      "calories": 173.0,
+      "protein": 30.91,
       "carbs": 0.0,
-      "fat": 3.71,
+      "fat": 4.51,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 114.0,
-      "potassium": 225.0,
-      "vitamin_a": 22.0,
+      "sodium": 77.0,
+      "potassium": 247.0,
+      "vitamin_a": 9.0,
       "vitamin_c": 0.0,
-      "calcium": 9.0,
-      "iron": 0.76
+      "calcium": 15.0,
+      "iron": 1.06
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 113.0
+        "description": "undetermined",
+        "grams": 107.0
       },
       {
-        "description": "drumstick without skin",
-        "grams": 122.0
+        "description": "undetermined",
+        "grams": 140.0
       },
       {
-        "description": "drumstick  with skin",
-        "grams": 130.0
+        "description": "undetermined",
+        "grams": 64.0
       }
     ]
   },
@@ -2693,30 +2671,30 @@
     "display_name": "Pork Shoulder (raw)",
     "category": "protein",
     "sub_category": "pork",
-    "fdc_id": 167843,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 167820,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 236.0,
-      "protein": 17.18,
+      "calories": 242.0,
+      "protein": 27.32,
       "carbs": 0.0,
-      "fat": 17.99,
+      "fat": 13.92,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 65.0,
-      "potassium": 302.0,
-      "vitamin_a": 7.0,
-      "vitamin_c": 0.7,
-      "calcium": 15.0,
-      "iron": 1.05
+      "sodium": 62.0,
+      "potassium": 423.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 0.6,
+      "calcium": 19.0,
+      "iron": 0.87
     },
     "portions": [
       {
-        "description": "lb",
-        "grams": 453.6
+        "description": "undetermined",
+        "grams": 87.0
       },
       {
-        "description": "oz",
-        "grams": 113.0
+        "description": "undetermined",
+        "grams": 85.0
       }
     ]
   },
@@ -2725,30 +2703,30 @@
     "display_name": "Ground Pork (raw)",
     "category": "protein",
     "sub_category": "pork",
-    "fdc_id": 167902,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 167904,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 263.0,
-      "protein": 16.88,
+      "calories": 201.0,
+      "protein": 29.86,
       "carbs": 0.0,
-      "fat": 21.19,
+      "fat": 8.11,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 56.0,
-      "potassium": 287.0,
-      "vitamin_a": 7.0,
-      "vitamin_c": 0.7,
-      "calcium": 14.0,
-      "iron": 0.88
+      "sodium": 64.0,
+      "potassium": 444.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 1.0,
+      "calcium": 5.0,
+      "iron": 1.39
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 113.0
+        "description": "undetermined",
+        "grams": 76.0
       },
       {
-        "description": "oz",
-        "grams": 28.4
+        "description": "undetermined",
+        "grams": 85.0
       }
     ]
   },
@@ -2757,26 +2735,34 @@
     "display_name": "Bihon (Rice Noodles)",
     "category": "grain_starch",
     "sub_category": "noodle",
-    "fdc_id": 169742,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 168916,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 364.0,
-      "protein": 5.95,
-      "carbs": 80.18,
-      "fat": 0.56,
-      "fiber": 1.6,
-      "sugar": 0.12,
-      "sodium": 182.0,
-      "potassium": 30.0,
+      "calories": 159.0,
+      "protein": 5.82,
+      "carbs": 31.51,
+      "fat": 1.5,
+      "fiber": 4.6,
+      "sugar": 0.85,
+      "sodium": 6.0,
+      "potassium": 77.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 18.0,
-      "iron": 0.7
+      "calcium": 12.0,
+      "iron": 1.65
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 57.0
+        "description": "undetermined",
+        "grams": 107.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 107.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 117.0
       }
     ]
   },
@@ -2785,30 +2771,26 @@
     "display_name": "Canton (Egg Noodles)",
     "category": "grain_starch",
     "sub_category": "noodle",
-    "fdc_id": 169731,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 168919,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 384.0,
-      "protein": 14.16,
-      "carbs": 71.27,
-      "fat": 4.44,
-      "fiber": 3.3,
-      "sugar": 1.88,
-      "sodium": 21.0,
-      "potassium": 244.0,
-      "vitamin_a": 62.0,
+      "calories": 138.0,
+      "protein": 4.54,
+      "carbs": 25.16,
+      "fat": 2.07,
+      "fiber": 1.2,
+      "sugar": 0.4,
+      "sodium": 165.0,
+      "potassium": 38.0,
+      "vitamin_a": 6.0,
       "vitamin_c": 0.0,
-      "calcium": 35.0,
-      "iron": 4.01
+      "calcium": 12.0,
+      "iron": 1.47
     },
     "portions": [
       {
-        "description": "oz",
-        "grams": 57.0
-      },
-      {
-        "description": "cup",
-        "grams": 38.0
+        "description": "undetermined",
+        "grams": 160.0
       }
     ]
   },
@@ -2817,26 +2799,26 @@
     "display_name": "Brown Rice (raw)",
     "category": "grain_starch",
     "sub_category": "grain",
-    "fdc_id": 169703,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 169704,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 367.0,
-      "protein": 7.54,
-      "carbs": 76.25,
-      "fat": 3.2,
-      "fiber": 3.6,
-      "sugar": 0.66,
-      "sodium": 5.0,
-      "potassium": 250.0,
+      "calories": 123.0,
+      "protein": 2.74,
+      "carbs": 25.58,
+      "fat": 0.97,
+      "fiber": 1.6,
+      "sugar": 0.24,
+      "sodium": 4.0,
+      "potassium": 86.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 9.0,
-      "iron": 1.29
+      "calcium": 3.0,
+      "iron": 0.56
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 185.0
+        "description": "undetermined",
+        "grams": 202.0
       }
     ]
   },
@@ -2846,7 +2828,7 @@
     "category": "pantry_staple",
     "sub_category": "citrus_juice",
     "fdc_id": 167747,
-    "data_source": "USDA_SR_LEGACY",
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
       "calories": 22.0,
       "protein": 0.35,
@@ -2856,27 +2838,23 @@
       "sugar": 2.52,
       "sodium": 1.0,
       "potassium": 103.0,
-      "vitamin_a": 6.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 38.7,
       "calcium": 6.0,
       "iron": 0.08
     },
     "portions": [
       {
-        "description": "wedge yields",
+        "description": "undetermined",
         "grams": 5.9
       },
       {
-        "description": "lemon yields",
+        "description": "undetermined",
         "grams": 48.0
       },
       {
-        "description": "cup",
+        "description": "undetermined",
         "grams": 244.0
-      },
-      {
-        "description": "fl oz",
-        "grams": 30.5
       }
     ]
   },
@@ -2885,34 +2863,66 @@
     "display_name": "Lime Juice (fresh)",
     "category": "pantry_staple",
     "sub_category": "citrus_juice",
-    "fdc_id": 168156,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 167748,
+    "data_source": "USDA_FDC",
     "nutrients_per_100g": {
-      "calories": 25.0,
-      "protein": 0.42,
-      "carbs": 8.42,
+      "calories": 17.0,
+      "protein": 0.45,
+      "carbs": 5.62,
       "fat": 0.07,
-      "fiber": 0.4,
-      "sugar": 1.69,
-      "sodium": 2.0,
-      "potassium": 117.0,
-      "vitamin_a": 50.0,
-      "vitamin_c": 30.0,
-      "calcium": 14.0,
-      "iron": 0.09
+      "fiber": 0.7,
+      "sugar": 1.53,
+      "sodium": 24.0,
+      "potassium": 109.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 14.3,
+      "calcium": 10.0,
+      "iron": 0.06
     },
     "portions": [
       {
-        "description": "cup",
-        "grams": 242.0
+        "description": "undetermined",
+        "grams": 5.0
       },
       {
-        "description": "fl oz",
-        "grams": 30.8
+        "description": "undetermined",
+        "grams": 244.0
       },
       {
-        "description": "lime yields",
-        "grams": 44.0
+        "description": "undetermined",
+        "grams": 30.5
+      }
+    ]
+  },
+  {
+    "ingredient_key": "tuyo_fish",
+    "display_name": "Tuyo (Dried Salted Fish)",
+    "category": "protein",
+    "sub_category": "fish_smoked",
+    "fdc_id": 175154,
+    "data_source": "USDA_FDC",
+    "nutrients_per_100g": {
+      "calories": 119.0,
+      "protein": 20.48,
+      "carbs": 0.0,
+      "fat": 3.46,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 31.0,
+      "potassium": 481.0,
+      "vitamin_a": 19.0,
+      "vitamin_c": 2.4,
+      "calcium": 67.0,
+      "iron": 0.7
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 159.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 85.0
       }
     ]
   }
