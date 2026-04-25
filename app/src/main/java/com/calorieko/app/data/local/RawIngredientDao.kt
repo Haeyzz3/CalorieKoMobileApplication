@@ -46,7 +46,22 @@ interface RawIngredientDao {
     @Query("SELECT * FROM RAW_INGREDIENTS_TABLE WHERE category != 'store_bought' ORDER BY display_name ASC")
     suspend fun getAllBrowsable(): List<RawIngredientEntity>
 
+    /**
+     * Returns ingredient_key and category for a list of keys.
+     * Used by the pantry to group items by their authoritative category.
+     */
+    @Query("SELECT ingredient_key, category FROM RAW_INGREDIENTS_TABLE WHERE ingredient_key IN (:keys)")
+    suspend fun getCategoriesForKeys(keys: List<String>): List<IngredientKeyCategory>
+
     /** Clears all rows. Used before re-seeding from JSON. */
     @Query("DELETE FROM RAW_INGREDIENTS_TABLE")
     suspend fun deleteAll()
 }
+
+/**
+ * Lightweight pair of ingredient_key + category, used for pantry UI grouping.
+ */
+data class IngredientKeyCategory(
+    val ingredient_key: String,
+    val category: String
+)

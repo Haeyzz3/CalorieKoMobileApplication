@@ -192,8 +192,11 @@ class PantryViewModel(
         }
 
         // Load all unique ingredients for autocomplete
+        // Merge recipe ingredients + raw ingredient keys to cover all browsable items
         viewModelScope.launch(Dispatchers.IO) {
-            _allIngredients.value = pantryDao.getAllUniqueIngredients()
+            val recipeIngredients = pantryDao.getAllUniqueIngredients()
+            val rawKeys = rawIngredientDao.getAllBrowsable().map { it.ingredientKey }
+            _allIngredients.value = (recipeIngredients + rawKeys).distinct().sorted()
         }
 
         // Load all browsable ingredients for the Ingredient Browser (excluding store_bought)
@@ -415,7 +418,9 @@ class PantryViewModel(
     }
 
     /**
-     * Groups pantry items by their ingredient category from the dish_ingredients table.
+     * Groups pantry items by their ingredient category from the raw ingredients table.
+     * Uses RAW_INGREDIENTS_TABLE as the authoritative source for category data,
+     * ensuring all 78 browsable ingredients are correctly categorized.
      * Items not found in the table are placed in "pantry_staple" by default.
      */
     private suspend fun recomputePantryCategories(items: List<String>) {
@@ -424,8 +429,8 @@ class PantryViewModel(
             return
         }
 
-        val categoryMappings = pantryDao.getCategoriesForIngredients(items)
-        val categoryMap = categoryMappings.associate { it.ingredient_name to it.ingredient_category }
+        val categoryMappings = rawIngredientDao.getCategoriesForKeys(items)
+        val categoryMap = categoryMappings.associate { it.ingredient_key to it.category }
 
         val grouped = items.groupBy { ingredient ->
             categoryMap[ingredient] ?: "pantry_staple"
