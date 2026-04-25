@@ -144,6 +144,19 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     // Clear Pantry Confirmation Dialog state
     val showClearPantryDialog = remember { mutableStateOf(false) }
 
+    // Collapsible pantry categories — tracks which categories are expanded
+    val allPantryCategoryKeys = listOf("protein", "produce", "seasoning", "pantry_staple", "grain_starch")
+    var expandedPantryCategories by remember { mutableStateOf(allPantryCategoryKeys.toSet()) }
+
+    // Auto-expand/collapse based on item count threshold
+    LaunchedEffect(pantryIngredients.size) {
+        expandedPantryCategories = if (pantryIngredients.size <= 12) {
+            allPantryCategoryKeys.toSet()
+        } else {
+            emptySet()
+        }
+    }
+
     fun handleAddIngredient() {
         if (searchQuery.isNotBlank()) {
             viewModel.addIngredient(searchQuery)
@@ -368,50 +381,99 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                                     "protein" to Pair("\uD83E\uDD69 Protein", Color(0xFFFEE2E2)),
                                     "produce" to Pair("\uD83E\uDD6C Produce", Color(0xFFDCFCE7)),
                                     "seasoning" to Pair("\uD83E\uDDC2 Seasonings & Sauces", Color(0xFFFEF9C3)),
-                                    "pantry_staple" to Pair("\uD83C\uDFE1 Pantry Staples", Color(0xFFDBEAFE))
+                                    "pantry_staple" to Pair("\uD83C\uDFE1 Pantry Staples", Color(0xFFDBEAFE)),
+                                    "grain_starch" to Pair("\uD83C\uDF3E Grains & Starches", Color(0xFFFFF7ED))
                                 )
 
                                 categoryOrder.forEach { (categoryKey, labelAndColor) ->
                                     val (label, chipBgColor) = labelAndColor
                                     val items = pantryByCategory[categoryKey] ?: emptyList()
                                     if (items.isNotEmpty()) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        val isExpanded = categoryKey in expandedPantryCategories
+
+                                        // Clickable category header row
+                                        Surface(
+                                            color = chipBgColor.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    expandedPantryCategories = if (isExpanded) {
+                                                        expandedPantryCategories - categoryKey
+                                                    } else {
+                                                        expandedPantryCategories + categoryKey
+                                                    }
+                                                }
                                         ) {
-                                            Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("(${items.size})", fontSize = 11.sp, color = Color.Gray)
-                                        }
-                                        SimpleFlowRow(
-                                            horizontalGap = 8.dp,
-                                            verticalGap = 8.dp
-                                        ) {
-                                            items.forEach { ingredient ->
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                                            ) {
+                                                Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                                                Spacer(modifier = Modifier.width(6.dp))
                                                 Surface(
-                                                    color = chipBgColor,
-                                                    shape = RoundedCornerShape(50),
-                                                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                                                    color = Color.White.copy(alpha = 0.7f),
+                                                    shape = RoundedCornerShape(50)
                                                 ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(viewModel.formatIngredientName(ingredient), fontSize = 13.sp, color = Color(0xFF374151))
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Icon(
-                                                            Icons.Default.Close,
-                                                            null,
-                                                            tint = Color(0xFF9CA3AF),
-                                                            modifier = Modifier.size(14.dp).clickable {
-                                                                viewModel.removeIngredient(ingredient)
+                                                    Text(
+                                                        "${items.size}",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF6B7280),
+                                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.weight(1f))
+                                                Icon(
+                                                    if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                                    tint = Color(0xFF9CA3AF),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // Expandable chip area
+                                        AnimatedVisibility(
+                                            visible = isExpanded,
+                                            enter = expandVertically(),
+                                            exit = shrinkVertically()
+                                        ) {
+                                            Column(modifier = Modifier.padding(top = 8.dp)) {
+                                                SimpleFlowRow(
+                                                    horizontalGap = 8.dp,
+                                                    verticalGap = 8.dp
+                                                ) {
+                                                    items.forEach { ingredient ->
+                                                        Surface(
+                                                            color = chipBgColor,
+                                                            shape = RoundedCornerShape(50),
+                                                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Text(viewModel.formatIngredientName(ingredient), fontSize = 13.sp, color = Color(0xFF374151))
+                                                                Spacer(modifier = Modifier.width(6.dp))
+                                                                Icon(
+                                                                    Icons.Default.Close,
+                                                                    null,
+                                                                    tint = Color(0xFF9CA3AF),
+                                                                    modifier = Modifier.size(14.dp).clickable {
+                                                                        viewModel.removeIngredient(ingredient)
+                                                                    }
+                                                                )
                                                             }
-                                                        )
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        Spacer(modifier = Modifier.height(8.dp))
                                     }
                                 }
                             }
