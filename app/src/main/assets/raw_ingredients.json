@@ -2915,5 +2915,228 @@
         "grams": 44.0
       }
     ]
+  },
+  {
+    "ingredient_key": "oregano_leaves",
+    "display_name": "Oregano Leaves (Dried)",
+    "category": "seasoning",
+    "sub_category": "herb",
+    "fdc_id": 171328,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 265.0,
+      "protein": 9.0,
+      "carbs": 68.92,
+      "fat": 4.28,
+      "fiber": 42.5,
+      "sugar": 4.09,
+      "sodium": 25.0,
+      "potassium": 1260.0,
+      "vitamin_a": 1701.0,
+      "vitamin_c": 2.3,
+      "calcium": 1597.0,
+      "iron": 36.8
+    },
+    "portions": [
+      {
+        "description": "tsp, leaves",
+        "grams": 1.0
+      },
+      {
+        "description": "tsp, ground",
+        "grams": 1.8
+      }
+    ]
+  },
+  {
+    "ingredient_key": "tanglad",
+    "display_name": "Tanglad (Lemongrass)",
+    "category": "produce",
+    "sub_category": "herb",
+    "fdc_id": 168573,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 99.0,
+      "protein": 1.82,
+      "carbs": 25.31,
+      "fat": 0.49,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 6.0,
+      "potassium": 723.0,
+      "vitamin_a": 6.0,
+      "vitamin_c": 2.6,
+      "calcium": 65.0,
+      "iron": 8.17
+    },
+    "portions": [
+      {
+        "description": "cup",
+        "grams": 67.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 4.8
+      }
+    ]
+  },
+  {
+    "ingredient_key": "spring_onion",
+    "display_name": "Spring Onion (Scallion)",
+    "category": "produce",
+    "sub_category": "allium",
+    "fdc_id": 170005,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 32.0,
+      "protein": 1.83,
+      "carbs": 7.34,
+      "fat": 0.19,
+      "fiber": 2.6,
+      "sugar": 2.33,
+      "sodium": 16.0,
+      "potassium": 276.0,
+      "vitamin_a": 997.0,
+      "vitamin_c": 18.8,
+      "calcium": 72.0,
+      "iron": 1.48
+    },
+    "portions": [
+      {
+        "description": "small (3\" long)",
+        "grams": 5.0
+      },
+      {
+        "description": "tbsp chopped",
+        "grams": 6.0
+      },
+      {
+        "description": "cup, chopped",
+        "grams": 100.0
+      },
+      {
+        "description": "medium (4-1/8\" long)",
+        "grams": 15.0
+      },
+      {
+        "description": "large",
+        "grams": 25.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "pork_belly",
+    "display_name": "Pork Belly (raw)",
+    "category": "protein",
+    "sub_category": "pork",
+    "fdc_id": 167812,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 518.0,
+      "protein": 9.34,
+      "carbs": 0.0,
+      "fat": 53.01,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 32.0,
+      "potassium": 185.0,
+      "vitamin_a": 10.0,
+      "vitamin_c": 0.3,
+      "calcium": 5.0,
+      "iron": 0.52
+    },
+    "portions": [
+      {
+        "description": "lb",
+        "grams": 453.6
+      },
+      {
+        "description": "oz",
+        "grams": 113.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "laurel_leaves",
+    "display_name": "Laurel (Bay) Leaves",
+    "category": "seasoning",
+    "sub_category": "herb",
+    "fdc_id": 170917,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 313.0,
+      "protein": 7.61,
+      "carbs": 74.97,
+      "fat": 8.36,
+      "fiber": 26.3,
+      "sugar": 0.0,
+      "sodium": 23.0,
+      "potassium": 529.0,
+      "vitamin_a": 6185.0,
+      "vitamin_c": 46.5,
+      "calcium": 834.0,
+      "iron": 43.0
+    },
+    "portions": [
+      {
+        "description": "tbsp, crumbled",
+        "grams": 1.8
+      },
+      {
+        "description": "tsp, crumbled",
+        "grams": 0.6
+      }
+    ]
+  },
+  {
+    "ingredient_key": "black_beans",
+    "display_name": "Black Beans (Canned)",
+    "category": "seasoning",
+    "sub_category": "legume",
+    "fdc_id": 175188,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 91.0,
+      "protein": 6.03,
+      "carbs": 16.55,
+      "fat": 0.29,
+      "fiber": 6.9,
+      "sugar": 0.23,
+      "sodium": 384.0,
+      "potassium": 308.0,
+      "vitamin_a": 4.0,
+      "vitamin_c": 2.7,
+      "calcium": 35.0,
+      "iron": 1.9
+    },
+    "portions": [
+      {
+        "description": "cup",
+        "grams": 240.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "alugbati",
+    "display_name": "Alugbati (Malabar Spinach)",
+    "category": "produce",
+    "sub_category": "leafy_green",
+    "fdc_id": 170474,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 19.0,
+      "protein": 1.8,
+      "carbs": 3.4,
+      "fat": 0.3,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 24.0,
+      "potassium": 510.0,
+      "vitamin_a": 8000.0,
+      "vitamin_c": 102.0,
+      "calcium": 109.0,
+      "iron": 1.2
+    },
+    "portions": []
   }
 ]

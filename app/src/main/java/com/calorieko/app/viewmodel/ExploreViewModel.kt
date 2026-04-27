@@ -274,10 +274,11 @@ class ExploreViewModel(
         val usdaUrls = mapOf(
             "egg_sunny" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
             "egg_boiled" to "https://fdc.nal.usda.gov/food-details/173424/nutrients",
-            "egg_fried" to "https://fdc.nal.usda.gov/food-details/2707200/nutrients",
+            "egg_omelette" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
+            "egg_scrambled" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
             "chicken_drumstick" to "https://fdc.nal.usda.gov/food-details/171126/nutrients",
             "chicken_thigh" to "https://fdc.nal.usda.gov/food-details/171127/nutrients",
-            "chicken_wings" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
+            "chicken_wing" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
             "chicken_breast" to "https://fdc.nal.usda.gov/food-details/171125/nutrients"
         )
 
@@ -299,9 +300,9 @@ class ExploreViewModel(
         val fnriDishes = setOf(
             "chicken_tinola", "chopseuy", "egg_ampalaya",
             "galunggong_grilled", "kinilaw_tuna", "mackerel_fried",
-            "menudo", "milkfish_fried", "pesang_bangus", "pinakbet",
+            "menudo", "milkfish_fried", "sinabawang_bangus", "pinakbet",
             "rice_well_milled", "sinigang_pork", "sinuglaw_pork",
-            "tilapya_fried", "tinapa_ginisa", "tokneneng_salad", "udong"
+            "tilapia_fried", "tinapa_ginisa", "kwekwek", "udong"
         )
 
         return if (mlLabel in fnriDishes) {
