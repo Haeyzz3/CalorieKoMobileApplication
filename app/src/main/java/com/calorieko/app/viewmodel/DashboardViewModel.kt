@@ -160,7 +160,7 @@ class DashboardViewModel(
             withContext(Dispatchers.IO) {
                 val allRecipes = dishRecipeDao.getAllDishRecipes()
                 allRecipes.forEach { recipe ->
-                    _dishNameCache[recipe.dishLabel] = recipe.nameEn
+                    _dishNameCache[recipe.dishLabel] = recipe.namePh
                 }
             }
         }

@@ -634,7 +634,7 @@ private fun AiScaleMealContent(
             }
 
             // AI badge
-            val displayLabel = currentDetectedFood?.nameEn ?: topLabel
+            val displayLabel = currentDetectedFood?.namePh ?: topLabel
             val confPercent = (topConfidence * 100).toInt()
             val aiReady = currentDetectedFood != null && topConfidence >= LogMealViewModel.CONFIDENCE_THRESHOLD
             val aiBadgeColor = when {
@@ -1053,14 +1053,14 @@ private fun DishSelectionContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                dish.nameEn,
+                                dish.namePh,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 15.sp,
                                 color = Color(0xFF1F2937)
                             )
-                            if (dish.namePh != dish.nameEn && dish.namePh.isNotBlank()) {
+                            if (dish.nameEn != dish.namePh && dish.nameEn.isNotBlank()) {
                                 Text(
-                                    dish.namePh,
+                                    dish.nameEn,
                                     fontSize = 12.sp,
                                     color = Color(0xFF9CA3AF)
                                 )
@@ -1132,14 +1132,14 @@ private fun WeightInputContent(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            dish.nameEn,
+                            dish.namePh,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F2937)
                         )
-                        if (dish.namePh != dish.nameEn && dish.namePh.isNotBlank()) {
+                        if (dish.nameEn != dish.namePh && dish.nameEn.isNotBlank()) {
                             Text(
-                                dish.namePh,
+                                dish.nameEn,
                                 fontSize = 13.sp,
                                 color = Color(0xFF9CA3AF)
                             )
@@ -1240,7 +1240,7 @@ private fun WeightInputContent(
                         color = Color.White
                     )
                     Text(
-                        "kcal  •  ${parsedWeight.toInt()}g of ${dish.nameEn}",
+                        "kcal  •  ${parsedWeight.toInt()}g of ${dish.namePh}",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
@@ -1377,7 +1377,7 @@ private fun ManualMealSummaryOverlay(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                                    Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         "${dish.weightGrams.roundToInt()}g  •  ~${dish.calories.fmt()} kcal",
@@ -1581,7 +1581,7 @@ private fun ManualMealSummaryOverlay(
                 ) {
                     // Header
                     Text(
-                        dish.dishNameEn,
+                        dish.dishNamePh.ifBlank { dish.dishNameEn },
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = Color(0xFF1F2937)
@@ -1806,7 +1806,7 @@ private fun CandidateSelectionSheet(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
-                    Text("${candidate1.first.nameEn} (${(candidate1.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("${candidate1.first.namePh} (${(candidate1.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(
@@ -1815,7 +1815,7 @@ private fun CandidateSelectionSheet(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
-                    Text("${candidate2.first.nameEn} (${(candidate2.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("${candidate2.first.namePh} (${(candidate2.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(Modifier.height(16.dp))
                 Button(
@@ -2035,7 +2035,7 @@ private fun MealSummaryOverlay(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(dish.dishNameEn, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
+                                    Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         "${dish.weightGrams.roundToInt()}g  •  ~${dish.calories.fmt()} kcal",
@@ -2236,7 +2236,7 @@ private fun MealSummaryOverlay(
                         .padding(bottom = 32.dp)
                 ) {
                     // Header
-                    Text(dish.dishNameEn, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                     Text("${dish.weightGrams.roundToInt()}g cooked portion", fontSize = 13.sp, color = Color(0xFF6B7280))
                     Spacer(Modifier.height(16.dp))
 

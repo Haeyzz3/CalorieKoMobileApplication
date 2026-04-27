@@ -474,9 +474,9 @@ private fun ExploreDishCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Dish Name
+            // Dish Name (Filipino — primary)
             Text(
-                dish.nameEn,
+                dish.namePh,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F2937),
@@ -487,9 +487,9 @@ private fun ExploreDishCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Filipino name
+            // English name
             Text(
-                dish.namePh,
+                dish.nameEn,
                 fontSize = 11.sp,
                 color = Color(0xFF9CA3AF),
                 maxLines = 1,
@@ -599,8 +599,8 @@ private fun ExploreDishDetailContent(
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(dish.nameEn, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                    Text(dish.namePh, fontSize = 13.sp, color = Color(0xFF9CA3AF), fontStyle = FontStyle.Italic)
+                    Text(dish.namePh, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text(dish.nameEn, fontSize = 13.sp, color = Color(0xFF9CA3AF), fontStyle = FontStyle.Italic)
                     Spacer(modifier = Modifier.height(4.dp))
                     Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(50)) {
                         Text(

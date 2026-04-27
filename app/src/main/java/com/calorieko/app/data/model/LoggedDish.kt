@@ -3,6 +3,7 @@ package com.calorieko.app.data.model
 /** A dish that has been recognized and queued for logging. */
 data class LoggedDish(
     val dishNameEn: String,
+    val dishNamePh: String = "",
     val weightGrams: Float,
     val confidence: Float,
     val foodId: Int,

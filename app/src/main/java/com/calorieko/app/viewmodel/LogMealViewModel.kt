@@ -91,6 +91,8 @@ class LogMealViewModel(
     private val _pendingDishName = MutableStateFlow("")
     val pendingDishName: StateFlow<String> = _pendingDishName.asStateFlow()
 
+    private val _pendingDishNameEn = MutableStateFlow("")
+
     private val _pendingConfidence = MutableStateFlow(0f)
     val pendingConfidence: StateFlow<Float> = _pendingConfidence.asStateFlow()
 
@@ -219,7 +221,7 @@ class LogMealViewModel(
                     _candidate2.value = Pair(food2, top2.second)
                     _showCandidateSelection.value = true
                 } else {
-                    setDishReady(food1.foodId, food1.nameEn, top1.second, calEst)
+                    setDishReady(food1.foodId, food1.namePh, food1.nameEn, top1.second, calEst)
                 }
             } else {
                 triggerUnsupportedBanner()
@@ -236,9 +238,10 @@ class LogMealViewModel(
         }
     }
 
-    private fun setDishReady(foodId: Int, name: String, confidence: Float, calEst: Float) {
+    private fun setDishReady(foodId: Int, namePh: String, nameEn: String, confidence: Float, calEst: Float) {
         _pendingFoodId.value = foodId
-        _pendingDishName.value = name
+        _pendingDishName.value = namePh
+        _pendingDishNameEn.value = nameEn
         _pendingConfidence.value = confidence
         _pendingCaloriesEst.value = calEst
         _phase.value = LogMealPhase.DISH_READY
@@ -249,7 +252,7 @@ class LogMealViewModel(
             val calEst = withContext(Dispatchers.IO) {
                 calculator.calculatePortionNutrition(food.mlLabel, _weight.value).calories
             }
-            setDishReady(food.foodId, food.nameEn, confidence, calEst)
+            setDishReady(food.foodId, food.namePh, food.nameEn, confidence, calEst)
             _showCandidateSelection.value = false
         }
     }
@@ -274,7 +277,8 @@ class LogMealViewModel(
                     calculator.calculatePortionNutrition(food.mlLabel, w)
                 }
                 val dish = LoggedDish(
-                    dishNameEn = dishName,
+                    dishNameEn = _pendingDishNameEn.value,
+                    dishNamePh = dishName,
                     weightGrams = w,
                     confidence = confidence,
                     foodId = food.foodId,

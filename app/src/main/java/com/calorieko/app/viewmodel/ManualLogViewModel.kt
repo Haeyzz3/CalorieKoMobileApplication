@@ -139,6 +139,7 @@ class ManualLogViewModel(
             }
             val dish = LoggedDish(
                 dishNameEn = recipe.nameEn,
+                dishNamePh = recipe.namePh,
                 weightGrams = w,
                 confidence = 1.0f, // Manual entry = 100% confidence
                 foodId = 0,        // No legacy food_id needed for new calculator path
@@ -201,6 +202,7 @@ class ManualLogViewModel(
 
             val dish = LoggedDish(
                 dishNameEn = recipe.nameEn,
+                dishNamePh = recipe.namePh,
                 weightGrams = servingWeight,
                 confidence = 1.0f,
                 foodId = 0,

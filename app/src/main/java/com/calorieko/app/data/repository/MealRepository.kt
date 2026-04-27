@@ -53,7 +53,7 @@ class MealRepository(
             MealLogItemEntity(
                 mealLogId = mealLogId,
                 foodId = d.foodId,
-                dishName = d.dishNameEn,
+                dishName = d.dishNamePh.ifBlank { d.dishNameEn },
                 weightGrams = d.weightGrams,
                 calories = d.calories,
                 protein = d.protein,
