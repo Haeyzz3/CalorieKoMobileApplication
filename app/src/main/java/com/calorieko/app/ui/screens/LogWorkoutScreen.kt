@@ -2,6 +2,7 @@ package com.calorieko.app.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.animation.ValueAnimator
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
@@ -1005,6 +1006,7 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         
         var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
         var currentPuck by remember { mutableStateOf<CircleAnnotation?>(null) }
+        val puckAnimator = remember { mutableStateOf<ValueAnimator?>(null) }
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
@@ -1102,6 +1104,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                                 polylineManager!!.update(it)
                             }
                         }
+                    } else if (pathPoints.isEmpty() && activePolylines.isNotEmpty() && polylineManager != null) {
+                        polylineManager!!.deleteAll()
+                        activePolylines.clear()
                     }
 
                     // Draw the custom location puck (blue dot) that strictly follows our filtered currentPoint
@@ -1114,9 +1119,23 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                                 .withCircleStrokeWidth(3.0)
                                 .withCircleStrokeColor("#FFFFFF")
                             currentPuck = circleManager!!.create(options)
-                        } else {
-                            currentPuck!!.point = currentPoint
-                            circleManager!!.update(currentPuck!!)
+                        } else if (currentPuck!!.point != currentPoint) {
+                            puckAnimator.value?.cancel()
+                            val startPoint = currentPuck!!.point
+                            val endPoint = currentPoint
+                            
+                            val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+                                duration = 1000L
+                                addUpdateListener { anim ->
+                                    val fraction = anim.animatedFraction
+                                    val lng = startPoint.longitude() + (endPoint.longitude() - startPoint.longitude()) * fraction
+                                    val lat = startPoint.latitude() + (endPoint.latitude() - startPoint.latitude()) * fraction
+                                    currentPuck!!.point = Point.fromLngLat(lng, lat)
+                                    circleManager!!.update(currentPuck!!)
+                                }
+                                start()
+                            }
+                            puckAnimator.value = animator
                         }
                     }
                 }

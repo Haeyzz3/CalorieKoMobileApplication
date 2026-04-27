@@ -30,7 +30,12 @@ import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.maps.plugin.attribution.attribution
+import com.mapbox.maps.plugin.logo.logo
+import com.mapbox.maps.plugin.scalebar.scalebar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -254,6 +259,29 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                                                     .withLineColor("#F97316") // CalorieKo Orange
                                                     .withLineWidth(6.0)
                                             )
+                                            
+                                            // Add Start and Finish Line Markers
+                                            val circleManager = annotations.createCircleAnnotationManager()
+                                            
+                                            // Start Marker (Green Dot)
+                                            circleManager.create(
+                                                CircleAnnotationOptions()
+                                                    .withPoint(points.first())
+                                                    .withCircleRadius(8.0)
+                                                    .withCircleColor("#16C556")
+                                                    .withCircleStrokeWidth(2.0)
+                                                    .withCircleStrokeColor("#FFFFFF")
+                                            )
+                                            
+                                            // Finish Marker (Checkered/Black Dot)
+                                            circleManager.create(
+                                                CircleAnnotationOptions()
+                                                    .withPoint(points.last())
+                                                    .withCircleRadius(8.0)
+                                                    .withCircleColor("#1A1A2E")
+                                                    .withCircleStrokeWidth(3.0)
+                                                    .withCircleStrokeColor("#FFFFFF")
+                                            )
                                         }
                                     }
 
@@ -275,6 +303,11 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                                         scrollEnabled = true
                                         pitchEnabled = false
                                     }
+                                    
+                                    // Hide Mapbox UI elements (logo, info icon, scale bar)
+                                    logo.updateSettings { enabled = false }
+                                    attribution.updateSettings { enabled = false }
+                                    scalebar.updateSettings { enabled = false }
                                     
                                     // CRITICAL FIX: The MapView is inside a Compose LazyColumn.
                                     // When the user pinches to zoom, the vertical movement causes the LazyColumn 
