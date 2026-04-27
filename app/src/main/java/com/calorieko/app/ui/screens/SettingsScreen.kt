@@ -409,43 +409,53 @@ fun SettingsScreen(
                 // --- ABOUT & LEGAL SECTION ---
                 Text("About", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Surface(
-                            color = CalorieKoGreen.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(50)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PrivacyTip,
-                                    contentDescription = null,
-                                    tint = CalorieKoGreen,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Privacy notice",
-                                    color = CalorieKoGreen,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Text(
-                            text = "Your health data stays on this device by default. If you choose to sign in and back up to CalorieKo Cloud, your fitness profile, meals, and workout logs are sent to our server so sync can work across devices.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF4B5563),
-                            lineHeight = 20.sp
+                    Column {
+                        SettingsRow(
+                            icon = Icons.Default.Info,
+                            title = "How We Calculate",
+                            subtitle = "Learn how nutritional values are computed",
+                            iconColor = CalorieKoGreen,
+                            onClick = { onNavigate("howWeCalculate") }
                         )
+                        SettingsDivider()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Surface(
+                                color = CalorieKoGreen.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(50)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PrivacyTip,
+                                        contentDescription = null,
+                                        tint = CalorieKoGreen,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Privacy notice",
+                                        color = CalorieKoGreen,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        
+                            Spacer(modifier = Modifier.height(12.dp))
+                        
+                            Text(
+                                text = "Your health data stays on this device by default. If you choose to sign in and back up to CalorieKo Cloud, your fitness profile, meals, and workout logs are sent to our server so sync can work across devices.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF4B5563),
+                                lineHeight = 20.sp
+                            )
+                        }
                     }
                 }
 

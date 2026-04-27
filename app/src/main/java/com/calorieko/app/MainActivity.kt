@@ -605,6 +605,13 @@ fun AppNavigation() {
             )
         }
 
+        // --- How We Calculate Screen ---
+        composable("howWeCalculate") {
+            HowWeCalculateScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         // --- NEW: Pantry Screen ---
         composable("pantry") {
             val pantryCalculator = remember {

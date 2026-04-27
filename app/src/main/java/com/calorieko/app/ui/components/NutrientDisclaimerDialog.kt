@@ -14,7 +14,8 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 
 @Composable
 fun NutrientDisclaimerDialog(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLearnMore: (() -> Unit)? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -26,11 +27,31 @@ fun NutrientDisclaimerDialog(
             )
         },
         text = {
-            Text(
-                text = "Nutritional values are calculated using USDA FoodData Central data, based on the raw weight of each ingredient before cooking. Actual nutrient content may vary due to cooking method, temperature, and natural ingredient differences. These figures should be used as a reliable guide for your daily intake.",
-                fontSize = 15.sp,
-                lineHeight = 22.sp
-            )
+            Column {
+                Text(
+                    text = "Nutritional values shown are approximate estimates derived from USDA FoodData Central, calculated from raw ingredient weights before cooking. Actual nutrient content may vary based on cooking method, local ingredient varieties, and natural differences between individual ingredients.",
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    color = Color.DarkGray
+                )
+                if (onLearnMore != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = {
+                            onDismiss()
+                            onLearnMore()
+                        },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            "Learn how we calculate →",
+                            color = CalorieKoGreen,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
