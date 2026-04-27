@@ -159,44 +159,67 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
             }
 
             item {
-                // Main Stats Row (Clean, whitespace-driven layout)
-                Row(
+                // Main Stats Grid (Clean, whitespace-driven layout)
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 16.dp, vertical = 20.dp)
                 ) {
-                    // Distance
-                    StatBlock(
-                        label = "Distance",
-                        value = String.format(Locale.US, "%.2f", activity.distanceKm ?: 0.0),
-                        unit = "km"
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Distance
+                        StatBlock(
+                            label = "Distance",
+                            value = String.format(Locale.US, "%.2f", activity.distanceKm ?: 0.0),
+                            unit = "km"
+                        )
 
-                    // Pace
-                    val p = activity.pace ?: 0.0
-                    val paceStr = if (p > 0 && p < 60) {
-                        val pMin = p.toInt()
-                        val pSec = ((p - pMin) * 60).toInt()
-                        String.format(Locale.US, "%d:%02d", pMin, pSec)
-                    } else "-:--"
+                        // Pace
+                        val p = activity.pace ?: 0.0
+                        val paceStr = if (p > 0 && p < 999) {
+                            val pMin = p.toInt()
+                            val pSec = ((p - pMin) * 60).toInt()
+                            String.format(Locale.US, "%d:%02d", pMin, pSec)
+                        } else "-:--"
 
-                    StatBlock(
-                        label = "Pace",
-                        value = paceStr,
-                        unit = "/km"
-                    )
+                        StatBlock(
+                            label = "Pace",
+                            value = paceStr,
+                            unit = "/km"
+                        )
+                    }
 
-                    // Time — uses weightOrDuration (total elapsed time) for consistency
-                    // with Dashboard and Diary. movingTimeSeconds is GPS-moving-only time.
-                    StatBlock(
-                        label = "Time",
-                        value = DurationFormatter.formatDigital(
-                            DurationFormatter.parseToSeconds(activity.weightOrDuration)
-                                ?: (activity.movingTimeSeconds ?: 0L)
-                        ),
-                        unit = ""
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Time — uses weightOrDuration (total elapsed time) for consistency
+                        // with Dashboard and Diary. movingTimeSeconds is GPS-moving-only time.
+                        StatBlock(
+                            label = "Time",
+                            value = DurationFormatter.formatDigital(
+                                DurationFormatter.parseToSeconds(activity.weightOrDuration)
+                                    ?: (activity.movingTimeSeconds ?: 0L)
+                            ),
+                            unit = ""
+                        )
+
+                        // Steps
+                        if (activity.steps != null) {
+                            StatBlock(
+                                label = "Steps",
+                                value = activity.steps.toString(),
+                                unit = ""
+                            )
+                        } else {
+                            // Empty box to keep 'Time' aligned to the left when steps are null
+                            Box(modifier = Modifier.width(50.dp))
+                        }
+                    }
                 }
             }
 

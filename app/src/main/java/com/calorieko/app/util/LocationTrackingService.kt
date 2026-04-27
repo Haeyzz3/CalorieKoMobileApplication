@@ -8,6 +8,10 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Binder
 import android.os.Build
@@ -54,7 +58,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * reading as the route anchor point. This prevents stale cell-tower or cached locations
  * from causing coordinate displacement (e.g., plotting the route at the wrong location).
  */
-class LocationTrackingService : Service() {
+class LocationTrackingService : Service(), SensorEventListener {
 
     companion object {
         private const val TAG = "LocationTrackingService"
@@ -141,6 +145,9 @@ class LocationTrackingService : Service() {
     /** Accumulated route points as (lat, lng) pairs. */
     private val _pathPoints = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
     val pathPoints: StateFlow<List<Pair<Double, Double>>> = _pathPoints.asStateFlow()
+    
+    private val _steps = MutableStateFlow(0)
+    val steps: StateFlow<Int> = _steps.asStateFlow()
 
     // ── Metrics ──
     private val _timeSeconds = MutableStateFlow(0L)
@@ -163,6 +170,13 @@ class LocationTrackingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var timerThread: Thread? = null
     private var isTimerRunning = false
+    
+    private var sensorManager: SensorManager? = null
+    private var stepSensor: Sensor? = null
+    private var initialStepCount = -1
+    private var pausedStepsToSubtract = 0
+    private var stepsAtPause = 0
+    private var lastRecordedTotalSteps = 0
 
     // ── Wall-Clock Timer Anchors ──
     // Using SystemClock.elapsedRealtime() ensures the timer is immune to
@@ -211,6 +225,8 @@ class LocationTrackingService : Service() {
         super.onCreate()
         isServiceRunning = true
         createNotificationChannel()
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -255,6 +271,12 @@ class LocationTrackingService : Service() {
         isInJitterState = true
         lastUpdateWallClockMs = 0L
 
+        _steps.value = 0
+        initialStepCount = -1
+        pausedStepsToSubtract = 0
+        stepsAtPause = 0
+        lastRecordedTotalSteps = 0
+
         // Anchor wall-clock for accurate duration tracking
         trackingStartRealtimeMs = SystemClock.elapsedRealtime()
         accumulatedPauseMs = 0L
@@ -269,18 +291,23 @@ class LocationTrackingService : Service() {
         startForegroundWithNotification()
         startLocationUpdates()
         startTimer()
+        
+        stepSensor?.let {
+            sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+        }
     }
 
     fun pauseTracking() {
         _isPaused.value = true
         // Record when this pause started so we can subtract it from elapsed time
         pauseStartRealtimeMs = SystemClock.elapsedRealtime()
+        stepsAtPause = lastRecordedTotalSteps
         // Timer thread stays alive — it computes time from wall-clock,
         // so _timeSeconds naturally freezes while paused.
         val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
         val dist = "%.2f km".format(_distanceKm.value)
         val pace = _currentPace.value
-        val paceStr = if (pace > 0.0 && pace <= 60.0) {
+        val paceStr = if (pace > 0.0 && pace <= 999.0) {
             val pMin = pace.toInt()
             val pSec = ((pace - pMin) * 60).toInt()
             "%d:%02d /km".format(pMin, pSec)
@@ -296,6 +323,10 @@ class LocationTrackingService : Service() {
             accumulatedPauseMs += SystemClock.elapsedRealtime() - pauseStartRealtimeMs
             pauseStartRealtimeMs = 0L
         }
+        if (stepsAtPause > 0 && lastRecordedTotalSteps >= stepsAtPause) {
+            pausedStepsToSubtract += (lastRecordedTotalSteps - stepsAtPause)
+        }
+        stepsAtPause = 0
         _isPaused.value = false
         lastMovementTimeMs = System.currentTimeMillis()
         updateNotificationWithStats(
@@ -321,6 +352,7 @@ class LocationTrackingService : Service() {
         _isPaused.value = false
         stopTimer()
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        sensorManager?.unregisterListener(this)
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
@@ -493,8 +525,13 @@ class LocationTrackingService : Service() {
                     val timeInMinutes = _timeSeconds.value / 60.0
                     if (timeInMinutes > 0) {
                         val rawPace = timeInMinutes / _distanceKm.value
-                        _currentPace.value = rawPace.coerceIn(1.0, 60.0)
+                        _currentPace.value = rawPace.coerceIn(1.0, 999.0)
                     }
+                }
+                
+                // Fallback for steps if hardware sensor hasn't fired yet
+                if (initialStepCount == -1) {
+                    _steps.value = (_distanceKm.value * 1312.33).toInt()
                 }
             } else if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE) {
                 // Teleport/glitch — re-anchor without adding distance
@@ -576,7 +613,7 @@ class LocationTrackingService : Service() {
                 val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
                 val dist = "%.2f km".format(_distanceKm.value)
                 val pace = _currentPace.value
-                val paceStr = if (pace > 0.0 && pace <= 60.0) {
+                val paceStr = if (pace > 0.0 && pace <= 999.0) {
                     val pMin = pace.toInt()
                     val pSec = ((pace - pMin) * 60).toInt()
                     "%d:%02d /km".format(pMin, pSec)
@@ -736,5 +773,24 @@ class LocationTrackingService : Service() {
             if (it.isHeld) it.release()
         }
         wakeLock = null
+    }
+
+    // ── SensorEventListener ──
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+            val totalSteps = event.values[0].toInt()
+            lastRecordedTotalSteps = totalSteps
+            if (initialStepCount == -1) {
+                // If we already accumulated some steps via GPS fallback, subtract them so we don't reset to 0
+                initialStepCount = totalSteps - _steps.value
+            }
+            if (_isTracking.value && !_isPaused.value) {
+                _steps.value = totalSteps - initialStepCount - pausedStepsToSubtract
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        // Not needed for step counter
     }
 }

@@ -111,6 +111,9 @@ class LogWorkoutViewModel(
 
     private val _distanceKm = MutableStateFlow(0.0)
     val distanceKm: StateFlow<Double> = _distanceKm.asStateFlow()
+    
+    private val _steps = MutableStateFlow(0)
+    val steps: StateFlow<Int> = _steps.asStateFlow()
 
     private val _currentPace = MutableStateFlow(0.0)
     val currentPace: StateFlow<Double> = _currentPace.asStateFlow()
@@ -206,6 +209,7 @@ class LogWorkoutViewModel(
             launch { svc.timeSeconds.collect { _timeSeconds.value = it } }
             launch { svc.movingTimeSeconds.collect { _movingTimeSeconds.value = it } }
             launch { svc.distanceKm.collect { _distanceKm.value = it } }
+            launch { svc.steps.collect { _steps.value = it } }
             launch { svc.currentPace.collect { _currentPace.value = it } }
             launch { svc.isMoving.collect { _isMoving.value = it } }
             launch { svc.lastLocation.collect { _lastLocation.value = it } }
@@ -231,6 +235,7 @@ class LogWorkoutViewModel(
     fun snapshotTimeSeconds(): Long = _service?.timeSeconds?.value ?: _timeSeconds.value
     fun snapshotPace(): Double = _service?.currentPace?.value ?: _currentPace.value
     fun snapshotMovingTime(): Long = _service?.movingTimeSeconds?.value ?: _movingTimeSeconds.value
+    fun snapshotSteps(): Int = _service?.steps?.value ?: _steps.value
 
     private fun loadUserWeight() {
         val currentUid = uid
@@ -265,6 +270,7 @@ class LogWorkoutViewModel(
         dist: Double?,
         pace: Double?,
         movTime: Long?,
+        steps: Int?,
         path: String?,
         mType: String?,
         photoUri: String?,
@@ -297,6 +303,7 @@ class LogWorkoutViewModel(
                         distanceKm = dist,
                         pace = pace,
                         movingTimeSeconds = movTime,
+                        steps = steps,
                         encodedPath = path,
                         mapType = mType,
                         photoUri = finalPhotoUri,

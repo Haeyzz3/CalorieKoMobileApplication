@@ -26,6 +26,7 @@ data class ActivityLogEntity(
     val distanceKm: Double? = null,
     val pace: Double? = null,
     val movingTimeSeconds: Long? = null,
+    val steps: Int? = null,
     val encodedPath: String? = null, // Coordinate string: "lat,lng|lat,lng"
     val mapType: String? = null,
     val photoUri: String? = null,

@@ -63,6 +63,7 @@ import kotlin.math.roundToInt
 
 private data class DayCalorieData(val dayLabel: String, val intake: Int, val burned: Int)
 private data class DaySodiumData(val dayLabel: String, val sodium: Int)
+private data class DayStepsData(val dayLabel: String, val steps: Int)
 private data class DayWeightData(val dayLabel: String, val weight: Double)
 private data class TopFoodItem(val name: String, val frequency: Int, val avgCalories: Int, val avgSodium: Int)
 
@@ -75,7 +76,8 @@ private data class DayEntry(
     val dayName: String,          // e.g. "Monday"
     val intakeCalories: Int,
     val burnedCalories: Int,
-    val sodium: Int
+    val sodium: Int,
+    val steps: Int
 )
 
 // ==================== CHART DATA BUILDERS ====================
@@ -188,6 +190,51 @@ private fun buildSodiumChartData(
     else -> emptyList()
 }
 
+private fun buildStepsChartData(
+    logs: List<ActivityLogEntity>,
+    viewMode: String
+): List<DayStepsData> = when (viewMode) {
+    "7_days" -> (6 downTo 0).map { daysAgo ->
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        val dayStart = cal.timeInMillis
+        val dayEnd = dayStart + 86_400_000L
+        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+        val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
+        DayStepsData(label, dayLogs.sumOf { it.steps ?: 0 })
+    }
+    "30_days" -> (3 downTo 0).map { weeksAgo ->
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+        val weekStart = cal.timeInMillis
+        val weekEnd = weekStart + 7 * 86_400_000L
+        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+        val weekLogs = logs.filter { it.timestamp in weekStart until weekEnd }
+        DayStepsData(label, weekLogs.sumOf { it.steps ?: 0 } / 7)
+    }
+    "90_days" -> (2 downTo 0).map { monthsAgo ->
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        cal.add(Calendar.MONTH, -monthsAgo)
+        val monthStart = cal.timeInMillis
+        val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
+        val nextCal = cal.clone() as Calendar
+        nextCal.add(Calendar.MONTH, 1)
+        val monthEnd = nextCal.timeInMillis
+        val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
+        val monthLogs = logs.filter { it.timestamp in monthStart until monthEnd }
+        DayStepsData(label, monthLogs.sumOf { it.steps ?: 0 } / daysInMonth)
+    }
+    else -> emptyList()
+}
+
 private fun buildWeightChartData(
     userWeight: Double,
     viewMode: String
@@ -239,7 +286,8 @@ private fun buildDayEntries(logs: List<ActivityLogEntity>): List<DayEntry> {
                 dayName = dayNameFmt.format(Date(dayTs)),
                 intakeCalories = dayLogs.filter { it.type == "meal" }.sumOf { it.calories },
                 burnedCalories = dayLogs.filter { it.type == "workout" }.sumOf { it.calories },
-                sodium = dayLogs.filter { it.type == "meal" }.sumOf { it.sodium }
+                sodium = dayLogs.filter { it.type == "meal" }.sumOf { it.sodium },
+                steps = dayLogs.sumOf { it.steps ?: 0 }
             )
         }
         .sortedByDescending { it.timestamp }
@@ -261,6 +309,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     // ── Chart data — keyed on both logs AND viewMode so graph updates on range change ──
     val calorieData = remember(weeklyLogs, viewMode) { buildCalorieChartData(weeklyLogs, viewMode) }
     val sodiumData = remember(weeklyLogs, viewMode) { buildSodiumChartData(weeklyLogs, viewMode) }
+    val stepsData = remember(weeklyLogs, viewMode) { buildStepsChartData(weeklyLogs, viewMode) }
     val weightData = remember(userWeight, viewMode) { buildWeightChartData(userWeight, viewMode) }
     val topFoods = remember(weeklyLogs) {
         weeklyLogs.filter { it.type == "meal" }
@@ -318,6 +367,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
                         when (selectedMetric) {
                             "Calorie Balance" -> CalorieBalanceCard(data = calorieData, viewMode = viewMode)
                             "Sodium Trend" -> SodiumTrendCard(data = sodiumData, dailyLimit = 2300, viewMode = viewMode)
+                            "Daily Steps" -> DailyStepsCard(data = stepsData, viewMode = viewMode)
                             "Weight & Body Metrics" -> WeightTrackingCard(data = weightData)
                             "Dietary Insights" -> DietaryInsightsCard(foods = topFoods)
                         }
@@ -384,6 +434,7 @@ private fun ProgressHeaderSection(
                     options = listOf(
                         "Calorie Balance" to "Calorie Balance",
                         "Sodium Trend" to "Sodium Trend",
+                        "Daily Steps" to "Daily Steps",
                         "Weight & Body Metrics" to "Weight & Body",
                         "Dietary Insights" to "Dietary Insights"
                     ),
@@ -1152,6 +1203,7 @@ private fun EntriesHistorySection(
         val filteredEntries = when (selectedMetric) {
             "Calorie Balance" -> entries.filter { it.intakeCalories > 0 || it.burnedCalories > 0 }
             "Sodium Trend"    -> entries.filter { it.sodium > 0 }
+            "Daily Steps"     -> entries.filter { it.steps > 0 }
             else              -> entries
         }
 
@@ -1241,6 +1293,12 @@ private fun EntryRow(
             )
             else -> Triple("\u2014", "", Color(0xFF94A3B8))
         }
+        "Daily Steps" -> when {
+            entry.steps > 0 -> Triple(
+                "%,d".format(entry.steps), "steps", Color(0xFF0F172A)
+            )
+            else -> Triple("\u2014", "", Color(0xFF94A3B8))
+        }
         "Weight & Body Metrics" -> Triple(
             String.format("%.1f", userWeight), "kg", Color(0xFF0F172A)
         )
@@ -1286,6 +1344,133 @@ private fun EntryRow(
                     color = Color(0xFF94A3B8),
                     textAlign = TextAlign.End
                 )
+            }
+        }
+    }
+}
+
+// ==================== DAILY STEPS CHART ====================
+
+@Composable
+private fun DailyStepsCard(data: List<DayStepsData>, viewMode: String) {
+    val maxDataValue = data.maxOfOrNull { it.steps } ?: 0
+    val averageSteps = if (data.isNotEmpty()) data.sumOf { it.steps } / data.size else 0
+    val allStepsDataEmpty = maxDataValue == 0
+    val yMax = if (allStepsDataEmpty) 10000 else ((maxDataValue / 2000) + 1) * 2000
+
+    val subtitleText = when (viewMode) {
+        "30_days" -> "Weekly Average Steps"
+        "90_days" -> "Monthly Average Steps"
+        else -> "Daily Steps"
+    }
+
+    val footerLabel = when (viewMode) {
+        "30_days" -> "Weekly Average"
+        "90_days" -> "Monthly Average"
+        else -> "Daily Average"
+    }
+
+    val animProgress = remember { Animatable(0f) }
+    LaunchedEffect(data) {
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
+    }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Daily Steps",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0F172A)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (allStepsDataEmpty) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🚶", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "No steps logged yet",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                val density = LocalDensity.current
+                Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+                    val chartW = size.width; val chartH = size.height
+                    val leftPad = with(density) { 36.dp.toPx() }
+                    val bottomPad = with(density) { 24.dp.toPx() }
+                    val drawW = chartW - leftPad; val drawH = chartH - bottomPad
+                    val progress = animProgress.value
+
+                    val labelPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.parseColor("#94A3B8")
+                        textSize = with(density) { 10.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
+                    }
+                    val yLabelPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.parseColor("#94A3B8")
+                        textSize = with(density) { 10.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.RIGHT; isAntiAlias = true
+                    }
+
+                    val ySteps = 4
+                    for (i in 0..ySteps) {
+                        val value = (yMax.toFloat() / ySteps) * i
+                        val y = drawH - (drawH * (value / yMax.toFloat()))
+                        drawLine(Color(0xFFF1F5F9), Offset(leftPad, y), Offset(chartW, y), 1.5f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
+                        drawContext.canvas.nativeCanvas.drawText(
+                            value.roundToInt().toString(),
+                            leftPad - with(density) { 8.dp.toPx() },
+                            y + with(density) { 4.dp.toPx() },
+                            yLabelPaint
+                        )
+                    }
+
+                    val barGroupW = drawW / data.size
+                    val barW = barGroupW * 0.4f
+                    val cornerR = with(density) { 4.dp.toPx() }
+
+                    data.forEachIndexed { index, day ->
+                        val cx = leftPad + barGroupW * (index + 0.5f)
+                        val stepH = (day.steps.toFloat() / yMax) * drawH * progress
+                        if (stepH > 0) drawRoundRect(Color(0xFF6C63FF),
+                            Offset(cx - barW / 2, drawH - stepH), Size(barW, stepH),
+                            CornerRadius(cornerR, cornerR))
+                        drawContext.canvas.nativeCanvas.drawText(
+                            day.dayLabel, cx, chartH - with(density) { 4.dp.toPx() }, labelPaint)
+                    }
+                } // end Canvas
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(footerLabel, fontSize = 13.sp, color = Color(0xFF94A3B8))
+                    Text("$averageSteps steps", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A))
+                }
             }
         }
     }

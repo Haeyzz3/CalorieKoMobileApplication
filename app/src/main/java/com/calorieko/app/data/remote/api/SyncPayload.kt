@@ -88,6 +88,7 @@ data class SyncActivity(
     @SerializedName("distanceKm") val distanceKm: Double?,
     @SerializedName("pace") val pace: Double?,
     @SerializedName("movingTimeSeconds") val movingTimeSeconds: Long?,
+    @SerializedName("steps") val steps: Int?,
     @SerializedName("mapType") val mapType: String?,
     @SerializedName("notes") val notes: String?,
     @SerializedName("activityTag") val activityTag: String?,

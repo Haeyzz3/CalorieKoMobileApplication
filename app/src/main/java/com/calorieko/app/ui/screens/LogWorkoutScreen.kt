@@ -203,8 +203,8 @@ fun LogWorkoutScreen(
         }
     }
 
-    val saveWorkout: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag ->
-        viewModel.saveWorkout(context, name, calories, duration, dist, pace, movTime, path, mType, pUri, note, tag)
+    val saveWorkout: (String, Int, String, Double?, Double?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, steps, path, mType, pUri, note, tag ->
+        viewModel.saveWorkout(context, name, calories, duration, dist, pace, movTime, steps, path, mType, pUri, note, tag)
     }
 
     fun handleBack() {
@@ -233,7 +233,7 @@ fun LogWorkoutScreen(
             AnimatedContent(targetState = mode, label = "ModeTransition") { targetMode ->
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
-                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null) })
+                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null, null) })
                     WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, viewModel = viewModel, onSave = saveWorkout, onBack = { mode = WorkoutMode.SELECTION }, onBackToDashboard = onBack)
                 }
             }
@@ -501,7 +501,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 // --- 3. ADVANCED GPS TRACKER (backed by Foreground Service) ---
 
 @Composable
-fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave: (String, Int, String, Double?, Double?, Long?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit, onBackToDashboard: () -> Unit) {
+fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave: (String, Int, String, Double?, Double?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit, onBackToDashboard: () -> Unit) {
     val context = LocalContext.current
 
     // ── Service Binding via ViewModel ──
@@ -960,10 +960,11 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         val snapshotTime = viewModel.snapshotTimeSeconds()
                         val snapshotPace = viewModel.snapshotPace()
                         val snapshotMovingTime = viewModel.snapshotMovingTime()
+                        val snapshotSteps = viewModel.snapshotSteps()
 
                         onSave(
                             finalTitle, caloriesBurned, formatTime(snapshotTime), safeDistance, snapshotPace,
-                            snapshotMovingTime, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
+                            snapshotMovingTime, snapshotSteps, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
                         )
 
                         // Stop the foreground service after saving
@@ -1067,10 +1068,11 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     }
                 },
                 update = { mapView ->
-                    // Once tracking starts and we have a filtered point, disable the
-                    // native puck and use our custom filtered dot instead.
-                    if (isTracking && currentPoint != null) {
+                    // Disable native puck if we're rendering our custom one to prevent two blue dots
+                    if (currentPoint != null) {
                         mapView.location.updateSettings { enabled = false }
+                    } else {
+                        mapView.location.updateSettings { enabled = true }
                     }
 
                     if (followUser) {
@@ -1235,7 +1237,7 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            val paceDisplay = if (currentPace > 0.0 && currentPace <= 60.0) {
+                            val paceDisplay = if (currentPace > 0.0 && currentPace <= 999.0) {
                                 val pMin = currentPace.toInt()
                                 val pSec = ((currentPace - pMin) * 60).toInt()
                                 String.format(java.util.Locale.US, "%d:%02d", pMin, pSec)
@@ -1296,7 +1298,11 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                                             }
                                         }
                                     } else {
-                                        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                                        val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                            perms.add(Manifest.permission.ACTIVITY_RECOGNITION)
+                                        }
+                                        permissionLauncher.launch(perms.toTypedArray())
                                     }
                                 },
                                 modifier = Modifier.size(72.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange), elevation = ButtonDefaults.buttonElevation(defaultElevation = 12.dp)
