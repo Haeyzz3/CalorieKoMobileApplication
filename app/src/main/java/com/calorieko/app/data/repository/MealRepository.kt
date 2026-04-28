@@ -8,9 +8,7 @@ import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
-import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 
 /**
@@ -28,7 +26,6 @@ class MealRepository(
     private val mealLogDao: MealLogDao,
     private val mealLogItemDao: MealLogItemDao,
     private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) {
 
@@ -110,41 +107,28 @@ class MealRepository(
         }
         dailyNutritionSummaryDao.upsertSummary(updated)
 
-        // 4. Sync to Firestore (with timeout — avoids blocking indefinitely when offline)
-        //    Online:  batch.commit().await() completes in milliseconds.
-        //    Offline: times out after 5 s, saveMeal() returns, navigation fires.
-        //    If sync succeeds, mark as synced (status=1). If timeout/failure,
-        //    status stays 0 → SyncWorker picks it up via WorkManager on reconnect.
-        val mealLogEntity = MealLogEntity(mealLogId = mealLogId, uid = uid, mealType = mealType, timestamp = now)
-        val synced = withTimeoutOrNull(5_000L) {
-            try {
-                firestoreSyncRepo.syncMealLog(uid, mealLogEntity, items)
-                firestoreSyncRepo.syncDailyNutritionSummary(uid, updated)
-                true
-            } catch (_: Exception) {
-                false
-            }
-        }
-        if (synced == true) {
-            mealLogDao.markMealLogsAsSynced(listOf(mealLogId))
-        }
+        // 4. Skip foreground Firestore sync — let WorkManager handle it in the background.
+        //    The meal stays marked as unsynced (sync_status = 0) by default.
+        //    This allows confirmMeal() to return immediately without waiting for
+        //    network I/O, even if connectivity is available.
 
-        // 5. Always trigger WorkManager sync (survives process death,
+        // 5. Trigger WorkManager sync (survives process death,
         //    only runs when network is available via CONNECTED constraint)
         AutoSyncManager.triggerSync(appContext, uid)
     }
 
     /**
-     * Fully deletes a meal log from Room (local DB), recalculates the
-     * daily nutrition summary, syncs the deletion to Firestore, and
-     * triggers WorkManager for background sync.
+     * Deletes a meal log from Room (local DB) and recalculates the daily
+     * nutrition summary. DOES NOT sync to Firestore—that is handled separately
+     * by the caller to avoid blocking the UI.
      *
      * Steps:
      * 1. Fetch the meal + items so we know what nutrients to subtract
      * 2. Subtract those nutrients from the DailyNutritionSummaryEntity
      * 3. Delete from Room (CASCADE deletes child MealLogItemEntity rows)
-     * 4. Sync deletion to Firestore (with timeout for offline resilience)
-     * 5. Trigger AutoSyncManager via WorkManager
+     *
+     * ⚠️ Firestore sync is handled by the ViewModel after UI reload to keep
+     * this operation fast and responsive, especially offline.
      */
     suspend fun deleteMealLogLocally(uid: String, mealLogId: Long) {
         // 1. Fetch the meal with items before deleting
@@ -187,22 +171,9 @@ class MealRepository(
                 snacksCalories = if (mealType == "Snacks") (existing.snacksCalories - deletedCalories).coerceAtLeast(0f) else existing.snacksCalories
             )
             dailyNutritionSummaryDao.upsertSummary(updated)
-
-            // Sync updated summary to Firestore (best-effort with timeout)
-            withTimeoutOrNull(5_000L) {
-                try { firestoreSyncRepo.syncDailyNutritionSummary(uid, updated) } catch (_: Exception) {}
-            }
         }
 
         // 3. Delete from Room (CASCADE deletes child items automatically)
         mealLogDao.deleteMealLog(mealLogId)
-
-        // 4. Sync deletion to Firestore (best-effort with timeout)
-        withTimeoutOrNull(5_000L) {
-            try { firestoreSyncRepo.deleteMealLog(uid, mealLogId) } catch (_: Exception) {}
-        }
-
-        // 5. Always trigger WorkManager sync
-        AutoSyncManager.triggerSync(appContext, uid)
     }
 }

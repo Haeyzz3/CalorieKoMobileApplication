@@ -472,7 +472,6 @@ fun AppNavigation() {
                 mealLogDao = db.mealLogDao(),
                 mealLogItemDao = db.mealLogItemDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
             val diaryViewModel: com.calorieko.app.viewmodel.DiaryViewModel = viewModel(
@@ -481,7 +480,8 @@ fun AppNavigation() {
                     dashboardRepository = dashboardRepo,
                     activityLogDao = db.activityLogDao(),
                     mealLogDao = db.mealLogDao(),
-                    mealRepository = mealRepo
+                    mealRepository = mealRepo,
+                    appContext = context.applicationContext
                 )
             )
             DiaryScreen(
@@ -671,7 +671,6 @@ fun AppNavigation() {
                 mealLogDao = db.mealLogDao(),
                 mealLogItemDao = db.mealLogItemDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
             val calculator = remember {
@@ -716,7 +715,6 @@ fun AppNavigation() {
                 mealLogDao = db.mealLogDao(),
                 mealLogItemDao = db.mealLogItemDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
             val calculator = remember {
