@@ -1649,7 +1649,6 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
     val showPlanDialog = remember { mutableStateOf(false) }
     val selectedDayForPlan = remember { mutableIntStateOf(-1) }
     val showSlotPickerForPlan = remember { mutableStateOf(false) }
-    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
     val slotEmojis = mapOf("Breakfast" to "☀️", "Lunch" to "🌤️", "Dinner" to "🌙", "Snack" to "🍿")
     val slotColors = mapOf(
@@ -1658,6 +1657,32 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         "Dinner" to Color(0xFFEDE9FE),
         "Snack" to Color(0xFFFEF9C3)
     )
+
+    // --- Target week for planning (may differ from calendar's selected week) ---
+    val calendarWeekStart by viewModel.currentWeekStart.collectAsState()
+    var targetWeekStart by remember { mutableStateOf(calendarWeekStart) }
+    var targetWeekDayDates by remember { mutableStateOf(viewModel.computeWeekDayDatesPublic(calendarWeekStart)) }
+    var targetWeekMeals by remember { mutableStateOf(plannedMeals) }
+
+    // Refresh day dates and meals when target week changes
+    LaunchedEffect(targetWeekStart) {
+        targetWeekDayDates = viewModel.computeWeekDayDatesPublic(targetWeekStart)
+        targetWeekMeals = if (targetWeekStart == calendarWeekStart) {
+            plannedMeals
+        } else {
+            withContext(Dispatchers.IO) {
+                viewModel.getPlannedMealsForWeekSnapshot(targetWeekStart)
+            }
+        }
+    }
+
+    // Format target week range label for display
+    val targetWeekLabel = remember(targetWeekStart) {
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM d")
+        val start = java.time.LocalDate.parse(targetWeekStart)
+        val end = start.plusDays(6)
+        "${start.format(formatter)} \u2013 ${end.format(formatter)}"
+    }
 
     Column(
         modifier = Modifier
@@ -2245,38 +2270,145 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { showPlanDialog.value = true },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = {
+                targetWeekStart = calendarWeekStart // reset to calendar's selected week on each open
+                showPlanDialog.value = true
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Add to Meal Plan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Add to Meal Plan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Planning: $targetWeekLabel",
+                    fontSize = 10.sp,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 
-    // Step 1: Add to Plan — Pick a day (from Detail Sheet)
+    // Step 1: Add to Plan — Pick a day with week navigator (from Detail Sheet)
     if (showPlanDialog.value) {
+        val todayWeek = viewModel.getCurrentWeekStartDate()
+        val maxWeek = viewModel.getMaxPlanningWeekStartPublic()
+        val canGoBack = targetWeekStart > todayWeek
+        val canGoForward = run {
+            val nextWeek = java.time.LocalDate.parse(targetWeekStart)
+                .plusWeeks(1).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+            nextWeek <= maxWeek
+        }
+
         AlertDialog(
             onDismissRequest = { showPlanDialog.value = false },
             title = { Text("Plan Meal") },
             text = {
                 Column {
-                    Text("Select a day to cook ${recipe.dishName}:")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        days.forEachIndexed { index, day ->
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(CalorieKoGreen.copy(alpha = 0.1f), CircleShape)
-                                    .clickable {
-                                        selectedDayForPlan.intValue = index
-                                        showPlanDialog.value = false
-                                        showSlotPickerForPlan.value = true
-                                    },
-                                contentAlignment = Alignment.Center
+                    // Week navigator: ◀ Apr 28 – May 4 ▶
+                    Surface(
+                        color = Color(0xFFF9FAFB),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val prev = java.time.LocalDate.parse(targetWeekStart)
+                                        .minusWeeks(1).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                                    if (prev >= todayWeek) targetWeekStart = prev
+                                },
+                                enabled = canGoBack,
+                                modifier = Modifier.size(32.dp)
                             ) {
-                                Text(day.first().toString(), fontWeight = FontWeight.Bold, color = CalorieKoGreen)
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                    contentDescription = "Previous week",
+                                    tint = if (canGoBack) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                )
+                            }
+                            Text(
+                                targetWeekLabel,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF374151),
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            IconButton(
+                                onClick = {
+                                    val next = java.time.LocalDate.parse(targetWeekStart)
+                                        .plusWeeks(1).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                                    if (next <= maxWeek) targetWeekStart = next
+                                },
+                                enabled = canGoForward,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "Next week",
+                                    tint = if (canGoForward) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                )
+                            }
+                        }
+                    }
+
+                    Text("Select a day for ${recipe.dishName}:")
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Day circles with date numbers + editability
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        targetWeekDayDates.forEachIndexed { index, (dayName, dateNum) ->
+                            val editable = viewModel.isDayEditableForWeek(index, targetWeekStart)
+                            val isToday = run {
+                                val dayDate = java.time.LocalDate.parse(targetWeekStart).plusDays(index.toLong())
+                                dayDate == java.time.LocalDate.now()
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.alpha(if (editable) 1f else 0.4f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(
+                                            when {
+                                                isToday -> CalorieKoGreen
+                                                editable -> CalorieKoGreen.copy(alpha = 0.1f)
+                                                else -> Color(0xFFF3F4F6)
+                                            },
+                                            CircleShape
+                                        )
+                                        .clickable {
+                                            if (editable) {
+                                                selectedDayForPlan.intValue = index
+                                                showPlanDialog.value = false
+                                                showSlotPickerForPlan.value = true
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        dayName.first().toString(),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = when {
+                                            isToday -> Color.White
+                                            editable -> CalorieKoGreen
+                                            else -> Color.Gray
+                                        }
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    "$dateNum",
+                                    fontSize = 9.sp,
+                                    color = if (isToday) CalorieKoGreen else Color(0xFF9CA3AF),
+                                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
                         }
                     }
@@ -2287,18 +2419,23 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         )
     }
 
-    // Step 2: Pick a meal slot (from Detail Sheet)
+    // Step 2: Pick a meal slot (from Detail Sheet) — uses target week meals for duplicate check
     if (showSlotPickerForPlan.value) {
+        val dayIdx = selectedDayForPlan.intValue
+        val (selectedDayName, selectedDateNum) = if (dayIdx in targetWeekDayDates.indices) {
+            targetWeekDayDates[dayIdx]
+        } else "Day" to 0
+
         AlertDialog(
             onDismissRequest = { showSlotPickerForPlan.value = false },
             title = { Text("Choose Meal Slot") },
             text = {
                 Column {
-                    Text("Add ${recipe.dishName} on ${days[selectedDayForPlan.intValue]} as:")
+                    Text("Add ${recipe.dishName} on $selectedDayName $selectedDateNum as:")
                     Spacer(modifier = Modifier.height(16.dp))
                     mealSlots.forEach { slot ->
-                        val alreadyInSlot = plannedMeals.any {
-                            it.dayIndex == selectedDayForPlan.intValue && it.mealSlot == slot && it.dishLabel == recipe.dishLabel
+                        val alreadyInSlot = targetWeekMeals.any {
+                            it.dayIndex == dayIdx && it.mealSlot == slot && it.dishLabel == recipe.dishLabel
                         }
                         Surface(
                             modifier = Modifier
@@ -2307,9 +2444,10 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 .clickable {
                                     if (!alreadyInSlot) {
                                         viewModel.addMealToPlan(
-                                            selectedDayForPlan.intValue,
+                                            dayIdx,
                                             recipe.dishLabel,
-                                            slot
+                                            slot,
+                                            targetWeekStart
                                         )
                                     }
                                     showSlotPickerForPlan.value = false

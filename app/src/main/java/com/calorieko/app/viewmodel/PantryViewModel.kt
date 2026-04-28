@@ -492,12 +492,17 @@ class PantryViewModel(
     // Meal Plan Actions
     // ============================================================
 
-    fun addMealToPlan(dayIndex: Int, dishLabel: String, mealSlot: String) {
+    fun addMealToPlan(
+        dayIndex: Int,
+        dishLabel: String,
+        mealSlot: String,
+        weekStartDate: String = _currentWeekStart.value
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val meal = PlannedMealEntity(
                 dayIndex = dayIndex,
                 dishLabel = dishLabel,
-                weekStartDate = _currentWeekStart.value,
+                weekStartDate = weekStartDate,
                 mealSlot = mealSlot
             )
             mealPlanDao.insertMeal(meal)
@@ -652,6 +657,48 @@ class PantryViewModel(
             recomputeWeekScrubberData()
         }
     }
+
+    // ============================================================
+    // Public Helpers for Recipe Card "Add to Meal Plan" Dialog
+    // ============================================================
+
+    /**
+     * One-shot fetch of meals for a specific week.
+     * Used by the Recipe Card dialog for accurate duplicate detection.
+     */
+    suspend fun getPlannedMealsForWeekSnapshot(weekStartDate: String): List<PlannedMealEntity> {
+        return mealPlanDao.getMealsForWeekOneShot(weekStartDate)
+    }
+
+    /**
+     * Returns whether a specific day in a given week is editable (today or future).
+     * Used by the Recipe Card dialog which may target a different week.
+     */
+    fun isDayEditableForWeek(dayIndex: Int, weekStartDate: String): Boolean {
+        val weekStart = LocalDate.parse(weekStartDate)
+        val dayDate = weekStart.plusDays(dayIndex.toLong())
+        return !dayDate.isBefore(LocalDate.now())
+    }
+
+    /**
+     * Computes day-of-month values for a given week start date.
+     * Public wrapper for use by the Recipe Card dialog.
+     */
+    fun computeWeekDayDatesPublic(weekStart: String): List<Pair<String, Int>> {
+        return computeWeekDayDates(weekStart)
+    }
+
+    /**
+     * Returns the furthest Monday users can plan ahead to.
+     * Public wrapper for use by the Recipe Card dialog's week navigator.
+     */
+    fun getMaxPlanningWeekStartPublic(): String = getMaxPlanningWeekStart()
+
+    /**
+     * Returns the Monday of the current (real-world) week.
+     * Public wrapper for use by the Recipe Card dialog's week navigator boundary.
+     */
+    fun getCurrentWeekStartDate(): String = getWeekStartDate()
 
     // ============================================================
     // Weekly Stats
