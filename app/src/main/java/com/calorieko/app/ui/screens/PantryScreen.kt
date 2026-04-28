@@ -818,7 +818,7 @@ fun MealPlanCalendarSection(
             val nutritionMap = mutableMapOf<String, PantryViewModel.CompactDishNutrition>()
             withContext(Dispatchers.IO) {
                 meals.forEach { meal ->
-                    nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(meal.dishLabel)
+                    nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(meal.dishLabel, meal.substitutionsJson)
                 }
             }
             slotNutritionMap.value = nutritionMap
@@ -1277,6 +1277,22 @@ fun MealPlanCalendarSection(
                                             color = Color(0xFF374151),
                                             modifier = Modifier.weight(1f)
                                         )
+                                        // Customized badge when substitutions are present
+                                        if (meal.substitutionsJson.isNotEmpty()) {
+                                            Surface(
+                                                color = Color(0xFFFEF3C7),
+                                                shape = RoundedCornerShape(4.dp),
+                                                modifier = Modifier.padding(start = 4.dp)
+                                            ) {
+                                                Text(
+                                                    "customized",
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFD97706),
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
                                         if (isEditable) {
                                             IconButton(
                                                 onClick = {
@@ -1318,7 +1334,7 @@ fun MealPlanCalendarSection(
                                             .clickable {
                                                 scope.launch {
                                                     val result = withContext(Dispatchers.IO) {
-                                                        viewModel.getDishResultByLabel(meal.dishLabel)
+                                                        viewModel.getDishResultByLabel(meal.dishLabel, meal.substitutionsJson)
                                                     }
                                                     if (result != null) {
                                                         viewRecipeDishResult.value = result
@@ -2574,7 +2590,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                             dayIdx,
                                             recipe.dishLabel,
                                             slot,
-                                            targetWeekStart
+                                            targetWeekStart,
+                                            dishSubs
                                         )
                                     }
                                     showSlotPickerForPlan.value = false

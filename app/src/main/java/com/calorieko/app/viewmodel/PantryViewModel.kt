@@ -496,14 +496,20 @@ class PantryViewModel(
         dayIndex: Int,
         dishLabel: String,
         mealSlot: String,
-        weekStartDate: String = _currentWeekStart.value
+        weekStartDate: String = _currentWeekStart.value,
+        substitutions: Map<String, String> = emptyMap()
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            val substitutionsJson = if (substitutions.isNotEmpty()) {
+                org.json.JSONObject(substitutions as Map<*, *>).toString()
+            } else ""
+
             val meal = PlannedMealEntity(
                 dayIndex = dayIndex,
                 dishLabel = dishLabel,
                 weekStartDate = weekStartDate,
-                mealSlot = mealSlot
+                mealSlot = mealSlot,
+                substitutionsJson = substitutionsJson
             )
             mealPlanDao.insertMeal(meal)
             if (uid.isNotEmpty()) {
@@ -717,27 +723,47 @@ class PantryViewModel(
     /**
      * Returns compact nutrition info for a dish.
      * Used for inline display in the Meal Detail Dialog without loading full ingredient details.
+     * When [substitutionsJson] is non-empty, nutrition is recalculated with the substitutions.
      */
-    suspend fun getCompactNutrition(dishLabel: String): CompactDishNutrition {
-        val n = getDishNutrition(dishLabel)
-        return CompactDishNutrition(n.calories, n.protein, n.carbs, n.fats)
+    suspend fun getCompactNutrition(dishLabel: String, substitutionsJson: String = ""): CompactDishNutrition {
+        val subs = parseSubstitutionsJson(substitutionsJson)
+        return if (subs.isNotEmpty()) {
+            val r = calculator.calculateWithSubstitution(dishLabel, subs)
+            CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
+        } else {
+            val n = getDishNutrition(dishLabel)
+            CompactDishNutrition(n.calories, n.protein, n.carbs, n.fats)
+        }
     }
 
     /**
      * Constructs a full DishResult for a given dish label.
      * Used to view planned dish details from the Meal Plan Calendar.
      * Returns null if the dish doesn't exist in the recipe database.
+     *
+     * When [substitutionsJson] is non-empty, ingredient names are swapped
+     * to reflect the substituted versions and nutrition is recalculated
+     * via the RecipeNutritionCalculator.
      */
-    suspend fun getDishResultByLabel(dishLabel: String): DishResult? {
+    suspend fun getDishResultByLabel(
+        dishLabel: String,
+        substitutionsJson: String = ""
+    ): DishResult? {
         val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
         if (allIngredients.isEmpty()) return null
 
         val details = pantryDao.getIngredientDetailsForDish(dishLabel)
-        val nutrition = getDishNutrition(dishLabel)
+        val subs = parseSubstitutionsJson(substitutionsJson)
+
+        // Apply substitutions to ingredient names if present
+        val finalIngredients = if (subs.isNotEmpty()) {
+            allIngredients.map { name -> subs[name] ?: name }
+        } else allIngredients
 
         val ingredientInfoList = details.map { detail ->
+            val displayName = subs[detail.ingredient_name] ?: detail.ingredient_name
             IngredientInfo(
-                name = detail.ingredient_name,
+                name = displayName,
                 type = detail.ingredient_type,
                 category = detail.ingredient_category,
                 portionQuantity = detail.portion_quantity,
@@ -746,10 +772,31 @@ class PantryViewModel(
             )
         }
 
+        // Use recalculated nutrition when substitutions are present
+        val nutrition = if (subs.isNotEmpty()) {
+            val result = calculator.calculateWithSubstitution(dishLabel, subs)
+            DishNutritionInfo(
+                calories = result.calories.toInt(),
+                protein = result.protein.toInt(),
+                carbs = result.carbs.toInt(),
+                fats = result.fat.toInt(),
+                fiber = result.fiber.toFloat(),
+                sugar = result.sugar.toFloat(),
+                sodium = result.sodium.toInt(),
+                potassium = result.potassium.toFloat(),
+                vitaminA = result.vitaminA.toFloat(),
+                vitaminC = result.vitaminC.toFloat(),
+                calcium = result.calcium.toFloat(),
+                iron = result.iron.toFloat()
+            )
+        } else {
+            getDishNutrition(dishLabel)
+        }
+
         return DishResult(
             dishLabel = dishLabel,
             dishName = formatDishName(dishLabel),
-            ingredients = allIngredients,
+            ingredients = finalIngredients,
             ingredientDetails = ingredientInfoList,
             missingCoreIngredients = emptyList(),
             missingOptionalIngredients = emptyList(),
@@ -768,6 +815,22 @@ class PantryViewModel(
             calcium = nutrition.calcium,
             iron = nutrition.iron
         )
+    }
+
+    /**
+     * Parses a substitutions JSON string into a Map<String, String>.
+     * Returns empty map if the string is blank or malformed.
+     */
+    private fun parseSubstitutionsJson(json: String): Map<String, String> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, String>()
+            obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
     }
 
     // ============================================================
