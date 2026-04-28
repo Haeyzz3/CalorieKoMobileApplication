@@ -1797,17 +1797,17 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     // Expandable per-ingredient nutrition detail
                     val breakdown = ingredientBreakdown[detail.name]
                     AnimatedVisibility(
-                        visible = expandedIngredient == detail.name && breakdown != null,
+                        visible = expandedIngredient == detail.name,
                         enter = expandVertically(),
                         exit = shrinkVertically()
                     ) {
-                        if (breakdown != null) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFFF3F4F6).copy(alpha = 0.5f))
-                                    .padding(start = 44.dp, end = 12.dp, top = 4.dp, bottom = 10.dp)
-                            ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF3F4F6).copy(alpha = 0.5f))
+                                .padding(start = 44.dp, end = 12.dp, top = 4.dp, bottom = 10.dp)
+                        ) {
+                            if (breakdown != null) {
                                 Text(
                                     "${breakdown.rawWeightGrams.toInt()}g raw",
                                     fontSize = 11.sp,
@@ -1838,33 +1838,33 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
-                                // Swap action
-                                Surface(
-                                    onClick = {
-                                        scope.launch {
-                                            isLoadingCandidates = true
-                                            substitutionTarget = detail.name
-                                            val candidates = withContext(Dispatchers.IO) {
-                                                viewModel.getSubstitutesForIngredient(detail.name)
-                                            }
-                                            substitutionCandidates = candidates
-                                            isLoadingCandidates = false
-                                            if (candidates.isEmpty()) {
-                                                substitutionTarget = null
-                                            }
+                            }
+                            // Swap action
+                            Surface(
+                                onClick = {
+                                    scope.launch {
+                                        isLoadingCandidates = true
+                                        substitutionTarget = detail.name
+                                        val candidates = withContext(Dispatchers.IO) {
+                                            viewModel.getSubstitutesForIngredient(detail.name)
                                         }
-                                    },
-                                    color = Color(0xFF0284C7).copy(alpha = 0.08f),
-                                    shape = RoundedCornerShape(6.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(14.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Swap ingredient", fontSize = 11.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.Medium)
+                                        substitutionCandidates = candidates
+                                        isLoadingCandidates = false
+                                        if (candidates.isEmpty()) {
+                                            substitutionTarget = null
+                                        }
                                     }
+                                },
+                                color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Swap ingredient", fontSize = 11.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.Medium)
                                 }
                             }
                         }

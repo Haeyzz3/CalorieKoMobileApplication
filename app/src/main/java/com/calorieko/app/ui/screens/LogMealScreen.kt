@@ -1558,11 +1558,11 @@ private fun ManualMealSummaryOverlay(
     }
 
     // ── Ingredient Bottom Sheet ──
-    if (ingredientSheetDishIndex >= 0 && ingredientBreakdown.isNotEmpty() && manualViewModel != null) {
+    val manualSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    if (ingredientSheetDishIndex >= 0 && manualViewModel != null) {
         val dish = dishes.getOrNull(ingredientSheetDishIndex)
-        val manualSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
         if (dish != null) {
-            androidx.compose.material3.ModalBottomSheet(
+            ModalBottomSheet(
                 onDismissRequest = {
                     ingredientSheetDishIndex = -1
                     ingredientBreakdown = emptyMap()
@@ -1598,6 +1598,10 @@ private fun ManualMealSummaryOverlay(
                         color = Color(0xFF9CA3AF),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
+
+                    if (ingredientBreakdown.isEmpty()) {
+                        Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                    } else {
 
                     // ── Substitution picker (shown above ingredients when active) ──
                     if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
@@ -1744,6 +1748,7 @@ private fun ManualMealSummaryOverlay(
                             }
                         }
                     }
+                    } // end else (ingredientBreakdown loaded)
                 }
             }
         }
