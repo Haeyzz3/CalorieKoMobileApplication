@@ -765,6 +765,7 @@ fun EmptyStateCard() {
 }
 
 // --- Meal Plan Calendar Section ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MealPlanCalendarSection(
     viewModel: PantryViewModel,
