@@ -707,7 +707,7 @@ fun AppNavigation() {
             )
         }
 
-        // Quick-log from planned meal
+        // Quick-log from planned meal (legacy single-dish route — kept for backward compatibility)
         composable("logMeal/quick/{dishLabel}/{mealSlot}") { backStackEntry ->
             val dishLabel = backStackEntry.arguments?.getString("dishLabel") ?: ""
             val mealSlot = backStackEntry.arguments?.getString("mealSlot") ?: "Lunch"
@@ -740,6 +740,50 @@ fun AppNavigation() {
                 viewModel = manualLogViewModel,
                 dishLabel = dishLabel,
                 mealSlot = mealSlot,
+                onBack = { navController.popBackStack() },
+                onMealConfirmed = { navController.popBackStack() }
+            )
+        }
+
+        // Quick-log entire meal slot (multi-dish, reads from QuickLogBridge)
+        composable("logMeal/quickSlot") {
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                appContext = context.applicationContext
+            )
+            val calculator = remember {
+                com.calorieko.app.data.local.RecipeNutritionCalculator(
+                    dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
+                    recipeIngredientDao = db.recipeIngredientDao()
+                )
+            }
+            val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
+                    dishRecipeDao = db.dishRecipeDao(),
+                    auth = auth,
+                    mealRepository = mealRepo,
+                    calculator = calculator
+                )
+            )
+
+            // Read bridge data and pre-load all dishes for the slot
+            val bridgeSlot = remember { com.calorieko.app.viewmodel.QuickLogBridge.pendingMealSlot }
+            val bridgeDishes = remember { com.calorieko.app.viewmodel.QuickLogBridge.pendingDishes.toList() }
+
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (bridgeSlot.isNotEmpty() && bridgeDishes.isNotEmpty()) {
+                    manualLogViewModel.quickLogSlotFromPlan(bridgeSlot, bridgeDishes)
+                }
+                com.calorieko.app.viewmodel.QuickLogBridge.clear()
+            }
+
+            QuickLogScreen(
+                viewModel = manualLogViewModel,
+                dishLabel = bridgeDishes.firstOrNull()?.dishLabel ?: "",
+                mealSlot = bridgeSlot,
                 onBack = { navController.popBackStack() },
                 onMealConfirmed = { navController.popBackStack() }
             )

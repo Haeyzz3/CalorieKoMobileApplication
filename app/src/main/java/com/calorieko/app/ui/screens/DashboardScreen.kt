@@ -93,6 +93,8 @@ import com.calorieko.app.ui.components.ProgressRings
 import com.calorieko.app.ui.theme.*
 import com.calorieko.app.viewmodel.DashboardViewModel
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.viewmodel.QuickLogBridge
+import com.calorieko.app.viewmodel.QuickLogDishEntry
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -337,8 +339,12 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         TodayPlannedMealsCard(
                             plannedMeals = todayPlannedMeals,
                             getDishName = { viewModel.getPlannedDishName(it) },
-                            onQuickLog = { dishLabel, mealSlot ->
-                                onNavigate("logMeal/quick/$dishLabel/$mealSlot")
+                            onQuickLogSlot = { meals ->
+                                QuickLogBridge.pendingMealSlot = meals.first().mealSlot
+                                QuickLogBridge.pendingDishes = meals.map {
+                                    QuickLogDishEntry(it.dishLabel, it.substitutionsJson)
+                                }
+                                onNavigate("logMeal/quickSlot")
                             }
                         )
                     }
@@ -512,11 +518,18 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
 fun TodayPlannedMealsCard(
     plannedMeals: List<PlannedMealEntity>,
     getDishName: (String) -> String,
-    onQuickLog: (dishLabel: String, mealSlot: String) -> Unit
+    onQuickLogSlot: (meals: List<PlannedMealEntity>) -> Unit
 ) {
     // Group by meal slot for organized display
     val groupedBySlot = plannedMeals.groupBy { it.mealSlot }
     val slotOrder = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+
+    val slotEmoji = mapOf(
+        "Breakfast" to "☀️",
+        "Lunch" to "🌞",
+        "Dinner" to "🌙",
+        "Snack" to "🍪"
+    )
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -534,48 +547,111 @@ fun TodayPlannedMealsCard(
                 Text("Today's Planned Meals", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
             }
 
+            var renderedSlotCount = 0
             slotOrder.forEach { slot ->
                 val dishes = groupedBySlot[slot] ?: return@forEach
 
-                // Slot label
-                Text(
-                    slot,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6B7280),
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
+                // Divider between slots (not before first)
+                if (renderedSlotCount > 0) {
+                    HorizontalDivider(
+                        color = Color(0xFFF3F4F6),
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    )
+                }
+                renderedSlotCount++
 
-                dishes.forEach { planned ->
+                // Slot header with Log Meal button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(slotEmoji[slot] ?: "🍽️", fontSize = 14.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            slot,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF374151)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            color = Color(0xFFECFDF5),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Text(
+                                "${dishes.size} dish${if (dishes.size > 1) "es" else ""}",
+                                fontSize = 10.sp,
+                                color = Color(0xFF059669),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                     Surface(
-                        color = Color(0xFFF0FDF4),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                        onClick = { onQuickLogSlot(dishes) },
+                        color = Color(0xFF16A34A),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.LocalDining, null, tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
                             Text(
-                                getDishName(planned.dishLabel),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF374151),
-                                modifier = Modifier.weight(1f)
+                                "Log Meal",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Individual dish items (no per-dish log button)
+                dishes.forEach { planned ->
+                    val hasCustomizations = planned.substitutionsJson.isNotBlank()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 8.dp, bottom = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.LocalDining,
+                            null,
+                            tint = Color(0xFF16A34A).copy(alpha = 0.7f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            getDishName(planned.dishLabel),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF374151),
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (hasCustomizations) {
                             Surface(
-                                onClick = { onQuickLog(planned.dishLabel, planned.mealSlot) },
-                                color = Color(0xFF16A34A),
-                                shape = RoundedCornerShape(6.dp)
+                                color = Color(0xFFDBEAFE),
+                                shape = RoundedCornerShape(50)
                             ) {
                                 Text(
-                                    "Quick Log",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    "Customized",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF2563EB),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }

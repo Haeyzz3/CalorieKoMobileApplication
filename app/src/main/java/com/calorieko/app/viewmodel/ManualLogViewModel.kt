@@ -26,6 +26,26 @@ sealed interface ManualLogEvent {
     data object MealConfirmed : ManualLogEvent
 }
 
+/** Data class for a planned dish to quick-log. */
+data class QuickLogDishEntry(
+    val dishLabel: String,
+    val substitutionsJson: String = ""
+)
+
+/**
+ * Shared bridge for passing multi-dish quick-log data across navigation.
+ * Set before navigating to the quick-log screen, read on arrival, then cleared.
+ */
+object QuickLogBridge {
+    var pendingMealSlot: String = ""
+    var pendingDishes: List<QuickLogDishEntry> = emptyList()
+
+    fun clear() {
+        pendingMealSlot = ""
+        pendingDishes = emptyList()
+    }
+}
+
 class ManualLogViewModel(
     private val dishRecipeDao: DishRecipeDao,
     private val auth: FirebaseAuth,
@@ -186,15 +206,22 @@ class ManualLogViewModel(
     /**
      * Quick-log shortcut from planned meals: pre-selects the dish,
      * calculates one standard serving, and shows the summary.
+     * Now supports substitutions from the meal plan.
      */
-    fun quickLogFromPlan(dishLabel: String, mealSlot: String) {
+    fun quickLogFromPlan(dishLabel: String, mealSlot: String, substitutionsJson: String = "") {
         viewModelScope.launch {
             val recipe = withContext(Dispatchers.IO) {
                 dishRecipeDao.getByDishLabel(dishLabel)
             } ?: return@launch
 
+            val subs = parseSubstitutionsJson(substitutionsJson)
+
             val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePerServingNutrition(dishLabel)
+                if (subs.isNotEmpty()) {
+                    calculator.calculateWithSubstitution(dishLabel, subs)
+                } else {
+                    calculator.calculatePerServingNutrition(dishLabel)
+                }
             }
 
             // Standard serving weight = cooked_weight / servings
@@ -223,9 +250,67 @@ class ManualLogViewModel(
                 vitaminA = nutrients.vitaminA,
                 vitaminC = nutrients.vitaminC,
                 calcium = nutrients.calcium,
-                iron = nutrients.iron
+                iron = nutrients.iron,
+                substitutionsJson = substitutionsJson
             )
             _loggedDishes.update { it + dish }
+            _mealType.value = mealSlot
+            _showSummary.value = true
+        }
+    }
+
+    /**
+     * Quick-log shortcut for an entire meal slot (multiple dishes at once).
+     * Pre-loads all dishes with substitution-aware nutrition and shows summary.
+     */
+    fun quickLogSlotFromPlan(mealSlot: String, dishEntries: List<QuickLogDishEntry>) {
+        viewModelScope.launch {
+            val loggedDishList = mutableListOf<LoggedDish>()
+            for (entry in dishEntries) {
+                val recipe = withContext(Dispatchers.IO) {
+                    dishRecipeDao.getByDishLabel(entry.dishLabel)
+                } ?: continue
+
+                val subs = parseSubstitutionsJson(entry.substitutionsJson)
+                val nutrients = withContext(Dispatchers.IO) {
+                    if (subs.isNotEmpty()) {
+                        calculator.calculateWithSubstitution(entry.dishLabel, subs)
+                    } else {
+                        calculator.calculatePerServingNutrition(entry.dishLabel)
+                    }
+                }
+
+                val servingWeight = if (recipe.servings > 0)
+                    recipe.cookedWeightG / recipe.servings else recipe.cookedWeightG
+
+                loggedDishList.add(LoggedDish(
+                    dishNameEn = recipe.nameEn,
+                    dishNamePh = recipe.namePh,
+                    weightGrams = servingWeight,
+                    confidence = 1.0f,
+                    foodId = 0,
+                    dishLabel = recipe.dishLabel,
+                    calories = nutrients.calories,
+                    protein = nutrients.protein,
+                    carbs = nutrients.carbs,
+                    fat = nutrients.fat,
+                    fiber = nutrients.fiber,
+                    sugar = nutrients.sugar,
+                    saturatedFat = 0f,
+                    polyunsaturatedFat = 0f,
+                    monounsaturatedFat = 0f,
+                    transFat = 0f,
+                    cholesterol = 0f,
+                    sodium = nutrients.sodium,
+                    potassium = nutrients.potassium,
+                    vitaminA = nutrients.vitaminA,
+                    vitaminC = nutrients.vitaminC,
+                    calcium = nutrients.calcium,
+                    iron = nutrients.iron,
+                    substitutionsJson = entry.substitutionsJson
+                ))
+            }
+            _loggedDishes.update { it + loggedDishList }
             _mealType.value = mealSlot
             _showSummary.value = true
         }
@@ -297,7 +382,28 @@ class ManualLogViewModel(
         }
     }
 
+    // ── Substitution Helpers ──
+
+    /**
+     * Parses a substitutions JSON string into a Map<String, String>.
+     * Returns empty map if the string is blank or malformed.
+     */
+    private fun parseSubstitutionsJson(json: String): Map<String, String> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, String>()
+            obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
     companion object {
+        /** Sentinel value for removed ingredients (matches PantryViewModel.REMOVED_INGREDIENT). */
+        const val REMOVED_INGREDIENT = "__REMOVED__"
+
         fun provideFactory(
             dishRecipeDao: DishRecipeDao,
             auth: FirebaseAuth,
