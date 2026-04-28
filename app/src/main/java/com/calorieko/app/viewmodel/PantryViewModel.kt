@@ -128,6 +128,9 @@ class PantryViewModel(
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
         }
+
+        /** Sentinel value in the substitution map indicating an ingredient was removed. */
+        const val REMOVED_INGREDIENT = "__REMOVED__"
     }
 
     // --- Search ---
@@ -755,15 +758,19 @@ class PantryViewModel(
         val details = pantryDao.getIngredientDetailsForDish(dishLabel)
         val subs = parseSubstitutionsJson(substitutionsJson)
 
-        // Apply substitutions to ingredient names if present
+        // Apply substitutions to ingredient names if present, filtering out removed ones
         val finalIngredients = if (subs.isNotEmpty()) {
-            allIngredients.map { name -> subs[name] ?: name }
+            allIngredients.mapNotNull { name ->
+                val mapped = subs[name] ?: name
+                if (mapped == REMOVED_INGREDIENT) null else mapped
+            }
         } else allIngredients
 
-        val ingredientInfoList = details.map { detail ->
-            val displayName = subs[detail.ingredient_name] ?: detail.ingredient_name
+        val ingredientInfoList = details.mapNotNull { detail ->
+            val mapped = subs[detail.ingredient_name] ?: detail.ingredient_name
+            if (mapped == REMOVED_INGREDIENT) return@mapNotNull null
             IngredientInfo(
-                name = displayName,
+                name = mapped,
                 type = detail.ingredient_type,
                 category = detail.ingredient_category,
                 portionQuantity = detail.portion_quantity,
@@ -1096,5 +1103,14 @@ class PantryViewModel(
         val currentNutrition = _substitutedNutrition.value.toMutableMap()
         currentNutrition.remove(dishLabel)
         _substitutedNutrition.value = currentNutrition
+    }
+
+    /**
+     * Removes an optional ingredient from the dish by marking it as [REMOVED_INGREDIENT]
+     * in the substitution map and recalculating nutrition.
+     * Undo is handled by [removeSubstitution] — same as any other substitution.
+     */
+    fun removeIngredient(dishLabel: String, ingredientKey: String) {
+        applySubstitution(dishLabel, ingredientKey, REMOVED_INGREDIENT)
     }
 }

@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -84,6 +86,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1429,7 +1432,8 @@ fun MealPlanCalendarSection(
                 onAddToPlan = {
                     showRecipeSheet.value = false
                     viewRecipeDishResult.value = null
-                }
+                },
+                isViewOnly = true
             )
         }
     }
@@ -1745,7 +1749,7 @@ fun WeekPill(
 // --- Recipe Detail Content (BottomSheet) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedMeals: List<PlannedMealEntity>, onClose: () -> Unit, onAddToPlan: () -> Unit) {
+fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedMeals: List<PlannedMealEntity>, onClose: () -> Unit, onAddToPlan: () -> Unit, isViewOnly: Boolean = false) {
     val isReady = recipe.missingCoreIngredients.isEmpty()
     val scope = rememberCoroutineScope()
 
@@ -2081,10 +2085,23 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         var ingredientBreakdown by remember { mutableStateOf<Map<String, IngredientNutritionBreakdown>>(emptyMap()) }
         var expandedIngredient by remember { mutableStateOf<String?>(null) }
 
+        // Cache whether each ingredient has substitution alternatives (loaded on expand)
+        var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+
         LaunchedEffect(recipe.dishLabel) {
             ingredientBreakdown = withContext(Dispatchers.IO) {
                 viewModel.getIngredientBreakdown(recipe.dishLabel)
             }
+        }
+
+        // Pre-check substitution candidates when an ingredient is expanded
+        LaunchedEffect(expandedIngredient) {
+            val key = expandedIngredient ?: return@LaunchedEffect
+            if (ingredientHasAlternatives.containsKey(key)) return@LaunchedEffect
+            val hasAlts = withContext(Dispatchers.IO) {
+                viewModel.getSubstitutesForIngredient(key).isNotEmpty()
+            }
+            ingredientHasAlternatives = ingredientHasAlternatives + (key to hasAlts)
         }
 
         // Ingredients List
@@ -2095,7 +2112,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         ) {
             Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             if (!hasSubstitutions) {
-                Text("Tap to swap", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -2105,24 +2122,33 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 val isMissingOptional = recipe.missingOptionalIngredients.contains(detail.name)
                 val isMissing = isMissingCore || isMissingOptional
 
-                // Check if this ingredient has been substituted
+                // Check if this ingredient has been substituted or removed
                 val substitutedWith = dishSubs[detail.name]
-                val isSubstituted = substitutedWith != null
-                val effectiveIngredientName = substitutedWith ?: detail.name
+                val isRemoved = substitutedWith == PantryViewModel.REMOVED_INGREDIENT
+                val isSubstituted = substitutedWith != null && !isRemoved
+                val effectiveIngredientName = when {
+                    isRemoved -> detail.name
+                    substitutedWith != null -> substitutedWith
+                    else -> detail.name
+                }
+                val isOptional = detail.type == "optional"
 
                 val bgColor = when {
+                    isRemoved -> Color(0xFFF9FAFB)
                     isSubstituted -> Color(0xFFF0F9FF)  // Light blue for substituted
                     isMissingCore -> Color(0xFFFFF7ED)
                     isMissingOptional -> Color(0xFFFEFCE8)
                     else -> Color(0xFFF9FAFB)
                 }
                 val borderColor = when {
+                    isRemoved -> Color(0xFFE5E7EB)
                     isSubstituted -> Color(0xFFBAE6FD)
                     isMissingCore -> Color(0xFFFFEDD5)
                     isMissingOptional -> Color(0xFFFEF9C3)
                     else -> Color.Transparent
                 }
                 val iconColor = when {
+                    isRemoved -> Color(0xFFD1D5DB)
                     isSubstituted -> Color(0xFF0284C7)
                     isMissingCore -> CalorieKoOrange
                     isMissingOptional -> Color(0xFFCA8A04)
@@ -2150,17 +2176,20 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     ) {
                         Box(modifier = Modifier.size(20.dp).background(iconColor, CircleShape), contentAlignment = Alignment.Center) {
                             Icon(
-                                if (isSubstituted) Icons.Default.SwapHoriz
-                                else if (isMissing) Icons.Rounded.Warning
-                                else Icons.Default.Check,
+                                when {
+                                    isRemoved -> Icons.Rounded.RemoveCircleOutline
+                                    isSubstituted -> Icons.Default.SwapHoriz
+                                    isMissing -> Icons.Rounded.Warning
+                                    else -> Icons.Default.Check
+                                },
                                 null, tint = Color.White, modifier = Modifier.size(12.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            // Ingredient name (show substituted name if active)
+                            // Ingredient name (show substituted name if active, strikethrough if removed)
                             val displayName = viewModel.formatIngredientName(effectiveIngredientName)
-                            val nameWithPrep = if (!isSubstituted && detail.preparationMethod.isNotBlank()) {
+                            val nameWithPrep = if (!isSubstituted && !isRemoved && detail.preparationMethod.isNotBlank()) {
                                 "$displayName, ${detail.preparationMethod}"
                             } else {
                                 displayName
@@ -2169,12 +2198,14 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 nameWithPrep,
                                 fontSize = 14.sp,
                                 color = when {
+                                    isRemoved -> Color(0xFF6B7280)
                                     isSubstituted -> Color(0xFF0C4A6E)
                                     isMissingCore -> CalorieKoOrange
                                     isMissingOptional -> Color(0xFFCA8A04)
                                     else -> Color(0xFF374151)
                                 },
-                                fontWeight = if (isSubstituted || isMissing) FontWeight.Medium else FontWeight.Normal
+                                fontWeight = if (isSubstituted || isMissing) FontWeight.Medium else FontWeight.Normal,
+                                textDecoration = if (isRemoved) TextDecoration.LineThrough else TextDecoration.None
                             )
                             // Show original ingredient name if substituted
                             if (isSubstituted) {
@@ -2182,6 +2213,12 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     "\u21a9 ${viewModel.formatIngredientName(detail.name)}",
                                     fontSize = 11.sp,
                                     color = Color(0xFF0369A1)
+                                )
+                            } else if (isRemoved) {
+                                Text(
+                                    "Removed from recipe",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF9CA3AF)
                                 )
                             } else if (detail.portionQuantity.isNotBlank()) {
                                 // Portion quantity
@@ -2193,7 +2230,15 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             }
                         }
                         // Badges
-                        if (isSubstituted) {
+                        if (isRemoved) {
+                            Surface(
+                                onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
+                                color = Color(0xFFFEE2E2),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text("Undo", fontSize = 9.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                        } else if (isSubstituted) {
                             Surface(
                                 onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
                                 color = Color(0xFFBAE6FD),
@@ -2257,32 +2302,81 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
-                            // Swap action
-                            Surface(
-                                onClick = {
-                                    scope.launch {
-                                        isLoadingCandidates = true
-                                        substitutionTarget = detail.name
-                                        val candidates = withContext(Dispatchers.IO) {
-                                            viewModel.getSubstitutesForIngredient(detail.name)
+                            // Action buttons row
+                            val hasAlts = ingredientHasAlternatives[detail.name]
+
+                            if (!isRemoved && !isSubstituted) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // Swap action (conditional on availability)
+                                    when {
+                                        hasAlts == null -> {
+                                            // Still loading
+                                            Text("Checking alternatives...", fontSize = 11.sp, color = Color(0xFF9CA3AF))
                                         }
-                                        substitutionCandidates = candidates
-                                        isLoadingCandidates = false
-                                        if (candidates.isEmpty()) {
-                                            substitutionTarget = null
+                                        hasAlts -> {
+                                            // Has alternatives — show swap button
+                                            Surface(
+                                                onClick = {
+                                                    scope.launch {
+                                                        isLoadingCandidates = true
+                                                        substitutionTarget = detail.name
+                                                        val candidates = withContext(Dispatchers.IO) {
+                                                            viewModel.getSubstitutesForIngredient(detail.name)
+                                                        }
+                                                        substitutionCandidates = candidates
+                                                        isLoadingCandidates = false
+                                                        if (candidates.isEmpty()) {
+                                                            substitutionTarget = null
+                                                        }
+                                                    }
+                                                },
+                                                color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Swap ingredient", fontSize = 11.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.Medium)
+                                                }
+                                            }
+                                        }
+                                        else -> {
+                                            // No alternatives — show disabled text
+                                            Row(
+                                                modifier = Modifier.padding(vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Rounded.Info, null, tint = Color(0xFFD1D5DB), modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("No alternatives available", fontSize = 11.sp, color = Color(0xFFD1D5DB), fontWeight = FontWeight.Medium)
+                                            }
                                         }
                                     }
-                                },
-                                color = Color(0xFF0284C7).copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.SwapHoriz, null, tint = Color(0xFF0284C7), modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Swap ingredient", fontSize = 11.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.Medium)
+                                }
+
+                                // Remove action (only for optional ingredients)
+                                if (isOptional) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Surface(
+                                        onClick = {
+                                            viewModel.removeIngredient(recipe.dishLabel, detail.name)
+                                            expandedIngredient = null
+                                        },
+                                        color = Color(0xFFEF4444).copy(alpha = 0.08f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Rounded.RemoveCircleOutline, null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Remove ingredient", fontSize = 11.sp, color = Color(0xFFEF4444), fontWeight = FontWeight.Medium)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2413,22 +2507,24 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                targetWeekStart = calendarWeekStart // reset to calendar's selected week on each open
-                showPlanDialog.value = true
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Add to Meal Plan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "Planning: $targetWeekLabel",
-                    fontSize = 10.sp,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
+        if (!isViewOnly) {
+            Button(
+                onClick = {
+                    targetWeekStart = calendarWeekStart // reset to calendar's selected week on each open
+                    showPlanDialog.value = true
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Add to Meal Plan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Planning: $targetWeekLabel",
+                        fontSize = 10.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
     }
