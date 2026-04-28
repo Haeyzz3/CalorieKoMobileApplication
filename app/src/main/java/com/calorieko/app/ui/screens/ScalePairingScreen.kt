@@ -404,6 +404,40 @@ fun ScalePairingScreen(
             }
         }
 
+        // ── Recalibration Prompt (only when connected) ──
+        AnimatedVisibility(
+            visible = status == PairingStatus.CONNECTED,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Surface(
+                color = Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, Color(0xFFDCFCE7)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(horizontal = 32.dp).padding(bottom = 24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MonitorWeight,
+                        contentDescription = null,
+                        tint = CalorieKoGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "To ensure maximum accuracy, remember to recalibrate your scale occasionally in Settings > Recalibrate Scale.",
+                        color = Color(0xFF166534),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
         // ── Connected Actions (Disconnect + Done) ──
         AnimatedVisibility(
             visible = status == PairingStatus.CONNECTED,
