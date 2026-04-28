@@ -2388,6 +2388,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 }
                             }
                             } // end !isViewOnly
+                        }
                     }
                 }
             }
