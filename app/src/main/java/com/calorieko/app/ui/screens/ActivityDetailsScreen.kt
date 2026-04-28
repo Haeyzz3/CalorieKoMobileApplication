@@ -253,11 +253,20 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                                         // Only draw polyline if we have 2+ points
                                         if (points.size >= 2) {
                                             val polylineManager = annotations.createPolylineAnnotationManager()
+                                            
+                                            // Professional Strava-like line with border effect
                                             polylineManager.create(
                                                 PolylineAnnotationOptions()
                                                     .withPoints(points)
-                                                    .withLineColor("#F97316") // CalorieKo Orange
-                                                    .withLineWidth(6.0)
+                                                    .withLineColor("#005CDE")
+                                                    .withLineWidth(8.0)
+                                                    .withLineOpacity(0.5)
+                                            )
+                                            polylineManager.create(
+                                                PolylineAnnotationOptions()
+                                                    .withPoints(points)
+                                                    .withLineColor("#1D84FF")
+                                                    .withLineWidth(5.0)
                                             )
                                             
                                             // Add Start and Finish Line Markers

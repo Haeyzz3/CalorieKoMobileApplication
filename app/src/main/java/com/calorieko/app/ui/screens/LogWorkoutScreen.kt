@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -702,10 +703,17 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
 
                         if (pathPoints.size >= 2 && polylineAnnotationManager != null) {
                             if (currentPolyline == null) {
+                                val borderOptions = PolylineAnnotationOptions()
+                                    .withPoints(pathPoints)
+                                    .withLineColor("#005CDE")
+                                    .withLineWidth(8.0)
+                                    .withLineOpacity(0.5)
+                                polylineAnnotationManager?.create(borderOptions)
+
                                 val options = PolylineAnnotationOptions()
                                     .withPoints(pathPoints)
-                                    .withLineColor("#F97316")
-                                    .withLineWidth(6.0)
+                                    .withLineColor("#1D84FF")
+                                    .withLineWidth(5.0)
                                 currentPolyline = polylineAnnotationManager?.create(options)
                             } else {
                                 currentPolyline?.points = pathPoints
@@ -1003,10 +1011,8 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         val mapViewRef = remember { mutableStateOf<com.mapbox.maps.MapView?>(null) }
         var polylineManager by remember { mutableStateOf<PolylineAnnotationManager?>(null) }
         val activePolylines = remember { mutableListOf<PolylineAnnotation>() }
-        
         var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
         var currentPuck by remember { mutableStateOf<CircleAnnotation?>(null) }
-        val puckAnimator = remember { mutableStateOf<ValueAnimator?>(null) }
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
@@ -1093,49 +1099,36 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     // Update Mapbox UI without creating thousands of duplicate markers:
                     // If managers exist, update existing annotations. If they don't yet exist in the lists, create them.
                     
-                    if (pathPoints.isNotEmpty() && polylineManager != null) {
+                    if (pathPoints.size >= 2 && polylineManager != null) {
                         if (activePolylines.isEmpty()) {
-                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00BFFF").withLineWidth(16.0).withLineOpacity(0.2)))
-                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00BFFF").withLineWidth(10.0).withLineOpacity(0.4)))
-                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#00DFFF").withLineWidth(5.0)))
+                            // Draw professional Strava-like line (Solid vibrant blue with a subtle semi-transparent border effect)
+                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#005CDE").withLineWidth(8.0).withLineOpacity(0.5)))
+                            activePolylines.add(polylineManager!!.create(PolylineAnnotationOptions().withPoints(pathPoints).withLineColor("#1D84FF").withLineWidth(5.0)))
                         } else {
                             activePolylines.forEach { 
                                 it.points = pathPoints
                                 polylineManager!!.update(it)
                             }
                         }
-                    } else if (pathPoints.isEmpty() && activePolylines.isNotEmpty() && polylineManager != null) {
+                    } else if (pathPoints.size < 2 && activePolylines.isNotEmpty() && polylineManager != null) {
                         polylineManager!!.deleteAll()
                         activePolylines.clear()
                     }
 
                     // Draw the custom location puck (blue dot) that strictly follows our filtered currentPoint
                     if (currentPoint != null && circleManager != null) {
+                        val animPoint = Point.fromLngLat(currentPoint.longitude(), currentPoint.latitude())
                         if (currentPuck == null) {
                             val options = CircleAnnotationOptions()
-                                .withPoint(currentPoint)
-                                .withCircleRadius(10.0)
-                                .withCircleColor("#4A90D9")
+                                .withPoint(animPoint)
+                                .withCircleRadius(8.0)
+                                .withCircleColor("#1D84FF")
                                 .withCircleStrokeWidth(3.0)
                                 .withCircleStrokeColor("#FFFFFF")
                             currentPuck = circleManager!!.create(options)
-                        } else if (currentPuck!!.point != currentPoint) {
-                            puckAnimator.value?.cancel()
-                            val startPoint = currentPuck!!.point
-                            val endPoint = currentPoint
-                            
-                            val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-                                duration = 1000L
-                                addUpdateListener { anim ->
-                                    val fraction = anim.animatedFraction
-                                    val lng = startPoint.longitude() + (endPoint.longitude() - startPoint.longitude()) * fraction
-                                    val lat = startPoint.latitude() + (endPoint.latitude() - startPoint.latitude()) * fraction
-                                    currentPuck!!.point = Point.fromLngLat(lng, lat)
-                                    circleManager!!.update(currentPuck!!)
-                                }
-                                start()
-                            }
-                            puckAnimator.value = animator
+                        } else {
+                            currentPuck!!.point = animPoint
+                            circleManager!!.update(currentPuck!!)
                         }
                     }
                 }

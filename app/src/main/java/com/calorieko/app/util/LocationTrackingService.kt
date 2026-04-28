@@ -70,13 +70,13 @@ class LocationTrackingService : Service(), SensorEventListener {
         // ── GPS Accuracy Thresholds ──
 
         /** Maximum accuracy (meters) for the map display dot. */
-        private const val MAP_DISPLAY_ACCURACY = 50f
+        private const val MAP_DISPLAY_ACCURACY = 25f
 
         /** Maximum accuracy (meters) for tracking distance/path points. */
-        private const val TRACKING_ACCURACY = 50f
+        private const val TRACKING_ACCURACY = 25f
 
         /** Ideal accuracy (meters) for the initial GPS anchor point. */
-        private const val ANCHOR_ACCURACY = 20f
+        private const val ANCHOR_ACCURACY = 15f
 
         /** How long (ms) to buffer GPS readings before accepting an anchor.
          *  10 seconds gives the GPS module enough time to obtain a satellite fix
@@ -103,12 +103,13 @@ class LocationTrackingService : Service(), SensorEventListener {
         private const val POSITION_WINDOW_SIZE = 5
 
         /** Minimum net displacement (meters) across the window to confirm movement.
-         *  Must exceed typical GPS jitter radius (~5-10m random walk). */
-        private const val NET_DISPLACEMENT_THRESHOLD = 12.0f
+         *  Must exceed typical GPS jitter radius (~3-5m random walk).
+         *  Lowered to 4.0f to ensure slow walkers (e.g. 0.5m/s) aren't filtered out. */
+        private const val NET_DISPLACEMENT_THRESHOLD = 4.0f
 
         /** Maximum distance (meters) that can be added from a single GPS reading.
          *  Caps teleport glitches and cell-tower jumps that slip through other checks. */
-        private const val MAX_SINGLE_READING_DISTANCE = 100.0f
+        private const val MAX_SINGLE_READING_DISTANCE = 35.0f
 
         /** Global flag so Compose can quickly check if the service is alive. */
         @Volatile
@@ -193,6 +194,7 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var isGpsWarmedUp = false
     private var gpsWarmUpStartMs = 0L
     private val warmUpLocations = mutableListOf<Location>()
+    private val recentPositions = mutableListOf<Location>()
 
     // ── Wall-Clock Timing for Speed Calculations ──
     private var lastUpdateWallClockMs = 0L
@@ -356,6 +358,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         _isMoving.value = false
         isGpsWarmedUp = false
         warmUpLocations.clear()
+        recentPositions.clear()
         lastUpdateWallClockMs = 0L
     }
 
@@ -412,6 +415,8 @@ class LocationTrackingService : Service(), SensorEventListener {
                     lastMovementTimeMs = System.currentTimeMillis()
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
+                    recentPositions.clear()
+                    recentPositions.add(bestLocation)
                     Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
                             "hasSpeed=${bestLocation.hasSpeed()} " +
                             "at (${bestLocation.latitude}, ${bestLocation.longitude})")
@@ -429,54 +434,79 @@ class LocationTrackingService : Service(), SensorEventListener {
         val prevLocation = _lastLocation.value
         if (prevLocation != null) {
             val distanceFromAnchor = prevLocation.distanceTo(location)
+            val timeDeltaSec = (location.time - prevLocation.time) / 1000.0
+            val speedMps = if (timeDeltaSec > 0) distanceFromAnchor / timeDeltaSec else 0.0
 
-            // ── Auto-Pause / Jitter Prevention ──
-            // If the Android OS hardware Doppler shift confirms the device is stopped (< 0.5 m/s),
-            // and the position jump isn't massive, ignore the coordinate.
-            // This cleanly prevents "star/spiderweb" drawings when standing still.
-            val hardwareStopped = location.hasSpeed() && location.speed < 0.5f
-            if (hardwareStopped && distanceFromAnchor < 50.0f) {
+            // Always update current point so the blue dot puck moves smoothly and follows the user
+            _currentPoint.value = Pair(location.latitude, location.longitude)
+            lastKnownPoint = _currentPoint.value
+
+            // ── 1. Teleport Glitch Prevention ──
+            // If the jump is massive (>35m) OR implies impossible running speeds (>10m/s = 36km/h), 
+            // it's a GPS glitch. Re-anchor WITHOUT adding distance.
+            if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE || speedMps > 10.0) {
+                Log.d(TAG, "Teleport detected: ${distanceFromAnchor.toInt()}m. Re-anchoring.")
+                _lastLocation.value = location
+                return
+            }
+
+            // ── 2. Movement Detection via Rolling Window (Jitter Prevention) ──
+            // GPS locations can jump 5-10m while standing still, causing a "spiderweb" trace and fake distance.
+            // A rolling window checks the net displacement over the last 10 seconds. Jitter bounces around 
+            // a central point (low net displacement), while actual walking advances forward (high net displacement).
+            recentPositions.add(location)
+            if (recentPositions.size > POSITION_WINDOW_SIZE) {
+                recentPositions.removeAt(0)
+            }
+            
+            val isWindowFull = recentPositions.size == POSITION_WINDOW_SIZE
+            val netDisplacement = if (isWindowFull) {
+                recentPositions.first().distanceTo(recentPositions.last())
+            } else {
+                distanceFromAnchor
+            }
+
+            // If the window is full and the net displacement is less than 5 meters, the device is 
+            // stationary or moving negligibly. We drop this point to prevent jitter accumulation.
+            if (isWindowFull && netDisplacement < 5.0f) {
                 _isMoving.value = false
                 return
             }
 
-            // Require at least 4 meters of movement from the last anchor to filter out micro-bounces
-            if (distanceFromAnchor < 4.0f) {
+            // Also enforce a small minimum step from the last anchor to avoid plotting hundreds 
+            // of tiny overlapping micro-segments which make the polyline look jagged.
+            if (distanceFromAnchor < 2.5f) {
+                _isMoving.value = false
                 return
             }
 
-            // ── Add Distance ──
-            // Cap single-reading distance to prevent any remaining glitch from inflating the total.
-            if (distanceFromAnchor <= MAX_SINGLE_READING_DISTANCE) {
-                _distanceKm.value += distanceFromAnchor / 1000.0
-                _isMoving.value = true
-                lastMovementTimeMs = System.currentTimeMillis()
+            // ── 3. Add Distance (Success!) ──
+            // If it passed the glitch filter and the jitter filter, this is genuine movement!
+            // We add the FULL distance from the last accepted anchor, so the user never loses distance.
+            _distanceKm.value += distanceFromAnchor / 1000.0
+            _isMoving.value = true
+            lastMovementTimeMs = System.currentTimeMillis()
 
-                _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
-                _lastLocation.value = location
-                _currentPoint.value = Pair(location.latitude, location.longitude)
-                lastKnownPoint = _currentPoint.value
-                lastUpdateWallClockMs = System.currentTimeMillis()
+            if (_pathPoints.value.isEmpty()) {
+                _pathPoints.value = listOf(Pair(prevLocation.latitude, prevLocation.longitude))
+            }
+            _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
+            
+            _lastLocation.value = location
+            lastUpdateWallClockMs = System.currentTimeMillis()
 
-                // Calculate pace using TOTAL elapsed time.
-                if (_distanceKm.value > 0.02) {
-                    val timeInMinutes = _timeSeconds.value / 60.0
-                    if (timeInMinutes > 0) {
-                        val rawPace = timeInMinutes / _distanceKm.value
-                        _currentPace.value = rawPace.coerceIn(1.0, 999.0)
-                    }
+            // Calculate pace using TOTAL elapsed time.
+            if (_distanceKm.value > 0.02) {
+                val timeInMinutes = _timeSeconds.value / 60.0
+                if (timeInMinutes > 0) {
+                    val rawPace = timeInMinutes / _distanceKm.value
+                    _currentPace.value = rawPace.coerceIn(1.0, 999.0)
                 }
-                
-                // Fallback for steps if hardware sensor hasn't fired yet
-                if (initialStepCount == -1) {
-                    _steps.value = (_distanceKm.value * 1312.33).toInt()
-                }
-            } else if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE) {
-                // Teleport/glitch — re-anchor without adding distance
-                Log.d(TAG, "Teleport detected: ${distanceFromAnchor.toInt()}m. Re-anchoring.")
-                _lastLocation.value = location
-                _currentPoint.value = Pair(location.latitude, location.longitude)
-                lastKnownPoint = _currentPoint.value
+            }
+            
+            // Fallback for steps if hardware sensor hasn't fired yet
+            if (initialStepCount == -1) {
+                _steps.value = (_distanceKm.value * 1312.33).toInt()
             }
         } else {
             // Defensive fallback — warm-up should have set _lastLocation
