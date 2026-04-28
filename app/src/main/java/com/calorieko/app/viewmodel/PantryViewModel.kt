@@ -701,6 +701,76 @@ class PantryViewModel(
     fun getCurrentWeekStartDate(): String = getWeekStartDate()
 
     // ============================================================
+    // Planned Dish Detail Lookups (for Meal Plan Calendar)
+    // ============================================================
+
+    /**
+     * Compact nutrition summary for inline display in the Meal Detail Dialog.
+     */
+    data class CompactDishNutrition(
+        val calories: Int,
+        val protein: Int,
+        val carbs: Int,
+        val fats: Int
+    )
+
+    /**
+     * Returns compact nutrition info for a dish.
+     * Used for inline display in the Meal Detail Dialog without loading full ingredient details.
+     */
+    suspend fun getCompactNutrition(dishLabel: String): CompactDishNutrition {
+        val n = getDishNutrition(dishLabel)
+        return CompactDishNutrition(n.calories, n.protein, n.carbs, n.fats)
+    }
+
+    /**
+     * Constructs a full DishResult for a given dish label.
+     * Used to view planned dish details from the Meal Plan Calendar.
+     * Returns null if the dish doesn't exist in the recipe database.
+     */
+    suspend fun getDishResultByLabel(dishLabel: String): DishResult? {
+        val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
+        if (allIngredients.isEmpty()) return null
+
+        val details = pantryDao.getIngredientDetailsForDish(dishLabel)
+        val nutrition = getDishNutrition(dishLabel)
+
+        val ingredientInfoList = details.map { detail ->
+            IngredientInfo(
+                name = detail.ingredient_name,
+                type = detail.ingredient_type,
+                category = detail.ingredient_category,
+                portionQuantity = detail.portion_quantity,
+                preparationMethod = detail.preparation_method,
+                step = detail.step
+            )
+        }
+
+        return DishResult(
+            dishLabel = dishLabel,
+            dishName = formatDishName(dishLabel),
+            ingredients = allIngredients,
+            ingredientDetails = ingredientInfoList,
+            missingCoreIngredients = emptyList(),
+            missingOptionalIngredients = emptyList(),
+            coreMatchedCount = 0,
+            coreTotalCount = 0,
+            calories = nutrition.calories,
+            protein = nutrition.protein,
+            carbs = nutrition.carbs,
+            fats = nutrition.fats,
+            fiber = nutrition.fiber,
+            sugar = nutrition.sugar,
+            sodium = nutrition.sodium,
+            potassium = nutrition.potassium,
+            vitaminA = nutrition.vitaminA,
+            vitaminC = nutrition.vitaminC,
+            calcium = nutrition.calcium,
+            iron = nutrition.iron
+        )
+    }
+
+    // ============================================================
     // Weekly Stats
     // ============================================================
 
