@@ -19,17 +19,21 @@ import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 /**
@@ -73,6 +77,18 @@ data class DishResult(
     val iron: Float = 0f,
     // Source attribution
     val dataSource: String = "USDA_FDC"
+)
+
+/**
+ * Week metadata for the scrubber pills in the Meal Plan Calendar.
+ */
+data class WeekInfo(
+    val weekStartDate: String,      // ISO date, e.g., "2026-04-13"
+    val label: String,              // "Apr 13 – 19"
+    val mealCount: Int,             // for density dots
+    val isCurrentWeek: Boolean,     // true if this is today's week
+    val isPast: Boolean,            // true if entire week is before current week
+    val isBeyondHorizon: Boolean    // true if beyond 8-week planning cap
 )
 
 class PantryViewModel(
@@ -138,9 +154,11 @@ class PantryViewModel(
 
     // --- Meal Plan ---
     private val _currentWeekStart = MutableStateFlow(getWeekStartDate())
+    val currentWeekStart: StateFlow<String> = _currentWeekStart.asStateFlow()
 
-    val plannedMeals: StateFlow<List<PlannedMealEntity>> = mealPlanDao
-        .getMealsForWeek(getWeekStartDate())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val plannedMeals: StateFlow<List<PlannedMealEntity>> = _currentWeekStart
+        .flatMapLatest { weekStart -> mealPlanDao.getMealsForWeek(weekStart) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _weeklyCalories = MutableStateFlow(0)
@@ -148,6 +166,21 @@ class PantryViewModel(
 
     private val _avgDailySodium = MutableStateFlow(0)
     val avgDailySodium: StateFlow<Int> = _avgDailySodium.asStateFlow()
+
+    // --- Month Navigation & Week Scrubber ---
+    private val _displayedMonth = MutableStateFlow(YearMonth.now())
+    val displayedMonth: StateFlow<YearMonth> = _displayedMonth.asStateFlow()
+
+    private val _weeksInMonth = MutableStateFlow<List<WeekInfo>>(emptyList())
+    val weeksInMonth: StateFlow<List<WeekInfo>> = _weeksInMonth.asStateFlow()
+
+    // --- Day Dates for Grid Column Headers ---
+    private val _weekDayDates = MutableStateFlow<List<Pair<String, Int>>>(emptyList())
+    val weekDayDates: StateFlow<List<Pair<String, Int>>> = _weekDayDates.asStateFlow()
+
+    // --- Today Indicator (null if today is not in the displayed week) ---
+    private val _todayColumnIndex = MutableStateFlow<Int?>(null)
+    val todayColumnIndex: StateFlow<Int?> = _todayColumnIndex.asStateFlow()
 
     // --- Cache for dish nutritional data ---
     private val _dishNutritionCache = mutableMapOf<String, DishNutritionInfo>()
@@ -219,12 +252,28 @@ class PantryViewModel(
             }
         }
 
-        // React to planned meals changes → recompute weekly stats
+        // React to planned meals changes → recompute weekly stats + refresh scrubber dots
         viewModelScope.launch {
             plannedMeals.collect { meals ->
                 withContext(Dispatchers.IO) {
                     recomputeWeeklyStats(meals)
+                    recomputeWeekScrubberData()
                 }
+            }
+        }
+
+        // React to current week changes → update day dates + today indicator
+        viewModelScope.launch {
+            _currentWeekStart.collect { weekStart ->
+                _weekDayDates.value = computeWeekDayDates(weekStart)
+                _todayColumnIndex.value = computeTodayColumnIndex(weekStart)
+            }
+        }
+
+        // React to displayed month changes → recompute week scrubber pills
+        viewModelScope.launch {
+            _displayedMonth.collect {
+                withContext(Dispatchers.IO) { recomputeWeekScrubberData() }
             }
         }
     }
@@ -523,6 +572,88 @@ class PantryViewModel(
     }
 
     // ============================================================
+    // Week & Month Navigation
+    // ============================================================
+
+    /**
+     * Selects a week by its start date (tapping a scrubber pill).
+     * Also updates the displayed month if the selected week is in a different month.
+     */
+    fun selectWeek(weekStartDate: String) {
+        _currentWeekStart.value = weekStartDate
+        val weekDate = LocalDate.parse(weekStartDate)
+        val weekMonth = YearMonth.from(weekDate)
+        if (weekMonth != _displayedMonth.value) {
+            _displayedMonth.value = weekMonth
+        }
+    }
+
+    /**
+     * Navigates to the previous or next month in the scrubber.
+     * Capped at the month containing the 8-week planning horizon.
+     */
+    fun navigateMonth(offset: Int) {
+        val newMonth = _displayedMonth.value.plusMonths(offset.toLong())
+        val maxWeekStart = LocalDate.parse(getMaxPlanningWeekStart())
+        val maxMonth = YearMonth.from(maxWeekStart)
+        if (newMonth <= maxMonth) {
+            _displayedMonth.value = newMonth
+        }
+    }
+
+    /**
+     * Snaps back to the current week and current month.
+     */
+    fun navigateToToday() {
+        _currentWeekStart.value = getWeekStartDate()
+        _displayedMonth.value = YearMonth.now()
+    }
+
+    /**
+     * Returns whether a specific day in the displayed week is editable.
+     * A day is editable if it is today or in the future.
+     */
+    fun isDayEditable(dayIndex: Int): Boolean {
+        val weekStart = LocalDate.parse(_currentWeekStart.value)
+        val dayDate = weekStart.plusDays(dayIndex.toLong())
+        return !dayDate.isBefore(LocalDate.now())
+    }
+
+    /**
+     * Copies all meals from the currently selected week to the next week.
+     * Uses REPLACE strategy so duplicates are overwritten, not doubled.
+     */
+    fun copyWeekToNext() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val sourceWeek = _currentWeekStart.value
+            val sourceDate = LocalDate.parse(sourceWeek)
+            val targetWeek = sourceDate.plusWeeks(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+            // Don't copy beyond the planning horizon
+            if (targetWeek > getMaxPlanningWeekStart()) return@launch
+
+            val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
+            if (sourceMeals.isEmpty()) return@launch
+
+            val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
+            mealPlanDao.insertMeals(copiedMeals)
+
+            // Sync to Firestore
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try {
+                        copiedMeals.forEach { firestoreSyncRepo.syncPlannedMeal(uid, it) }
+                    } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
+
+            // Refresh scrubber density dots
+            recomputeWeekScrubberData()
+        }
+    }
+
+    // ============================================================
     // Weekly Stats
     // ============================================================
 
@@ -599,6 +730,87 @@ class PantryViewModel(
         return LocalDate.now()
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    /**
+     * Returns the furthest Monday that users can plan ahead to (8 weeks from current week).
+     */
+    private fun getMaxPlanningWeekStart(): String {
+        return LocalDate.now()
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .plusWeeks(8)
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    /**
+     * Computes day-of-month values for the grid column headers.
+     * E.g., for week starting 2026-04-28: [("Mon", 28), ("Tue", 29), ...]
+     */
+    private fun computeWeekDayDates(weekStart: String): List<Pair<String, Int>> {
+        val startDate = LocalDate.parse(weekStart)
+        val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        return dayNames.mapIndexed { index, name ->
+            name to startDate.plusDays(index.toLong()).dayOfMonth
+        }
+    }
+
+    /**
+     * Computes which column index (0-6) is today, or null if today is not in the displayed week.
+     */
+    private fun computeTodayColumnIndex(weekStart: String): Int? {
+        val startDate = LocalDate.parse(weekStart)
+        val today = LocalDate.now()
+        val daysBetween = ChronoUnit.DAYS.between(startDate, today).toInt()
+        return if (daysBetween in 0..6) daysBetween else null
+    }
+
+    /**
+     * Computes all week-start Mondays that overlap with the given month.
+     */
+    private fun computeWeeksInMonth(yearMonth: YearMonth): List<String> {
+        val firstDayOfMonth = yearMonth.atDay(1)
+        val lastDayOfMonth = yearMonth.atEndOfMonth()
+        val firstMonday = firstDayOfMonth.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+        val weekStarts = mutableListOf<String>()
+        var current = firstMonday
+        while (!current.isAfter(lastDayOfMonth)) {
+            weekStarts.add(current.format(DateTimeFormatter.ISO_LOCAL_DATE))
+            current = current.plusWeeks(1)
+        }
+        return weekStarts
+    }
+
+    /**
+     * Recomputes the week scrubber pills with meal counts for the displayed month.
+     */
+    private suspend fun recomputeWeekScrubberData() {
+        val month = _displayedMonth.value
+        val weekStartDates = computeWeeksInMonth(month)
+        val currentWeek = getWeekStartDate()
+        val maxWeek = getMaxPlanningWeekStart()
+
+        val mealCounts = if (weekStartDates.isNotEmpty()) {
+            mealPlanDao.getMealCountsForWeeks(weekStartDates)
+                .associate { it.weekStartDate to it.count }
+        } else emptyMap()
+
+        val labelFormatter = DateTimeFormatter.ofPattern("MMM d")
+
+        _weeksInMonth.value = weekStartDates.map { weekStart ->
+            val start = LocalDate.parse(weekStart)
+            val end = start.plusDays(6)
+            val label = "${start.format(labelFormatter)} \u2013 ${end.dayOfMonth}"
+
+            WeekInfo(
+                weekStartDate = weekStart,
+                label = label,
+                mealCount = mealCounts[weekStart] ?: 0,
+                isCurrentWeek = weekStart == currentWeek,
+                isPast = weekStart < currentWeek,
+                isBeyondHorizon = weekStart > maxWeek
+            )
+        }
     }
 
     /**
