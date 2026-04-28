@@ -36,13 +36,22 @@ class FoodDatabaseCallback(
                 }
 
                 // New JSON seeding for raw ingredient tables (Phase 2)
-                // Re-seed if DB is empty OR if the asset JSON has new ingredients
+                // Re-seed if DB is empty, has new ingredients, OR if a previous
+                // seed was interrupted (recipe_ingredients is empty while raw isn't)
                 val rawCount = database.rawIngredientDao().getCount()
+                val recipeIngCount = database.recipeIngredientDao().getCount()
                 val assetIngredients = context.assets.open("raw_ingredients.json").use { stream ->
                     FoodJsonParser.parseRawIngredients(stream)
                 }
-                if (rawCount == 0 || rawCount < assetIngredients.size) {
-                    seedFromJson(context, database)
+                val needsReseed = rawCount == 0
+                        || rawCount < assetIngredients.size
+                        || recipeIngCount == 0  // Partial seed recovery
+                if (needsReseed) {
+                    try {
+                        seedFromJson(context, database)
+                    } catch (e: Exception) {
+                        Log.e("FoodDatabaseCallback", "JSON seeding failed", e)
+                    }
                 }
             }
         }

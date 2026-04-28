@@ -331,12 +331,42 @@
   },
   {
     "dish_label": "tinapa_ginisa",
-    "ingredient_key": "mixed_vegetables",
+    "ingredient_key": "eggplant",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 720.0,
-    "portion_original": "5 cups",
-    "preparation_method": "talong & okra & kalabasa & sitaw",
+    "raw_weight_grams": 180.0,
+    "portion_original": "1 1/4 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "okra",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 180.0,
+    "portion_original": "1 1/4 cups",
+    "preparation_method": "sliced",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "squash",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 180.0,
+    "portion_original": "1 1/4 cups",
+    "preparation_method": "cubed",
+    "step": 1
+  },
+  {
+    "dish_label": "tinapa_ginisa",
+    "ingredient_key": "sitaw",
+    "ingredient_type": "core",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 180.0,
+    "portion_original": "1 1/4 cups",
+    "preparation_method": "cut into 2-inch pieces",
     "step": 1
   },
   {
