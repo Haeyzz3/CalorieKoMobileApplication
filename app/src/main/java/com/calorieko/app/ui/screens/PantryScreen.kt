@@ -1852,21 +1852,28 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 Column {
                     Text(recipe.dishName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Core ingredient match info
-                    Text(
-                        "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
-                        fontSize = 12.sp,
-                        color = if (isReady) CalorieKoGreen else CalorieKoOrange,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    if (isReady) {
-                        Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
-                            Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    if (isViewOnly) {
+                        // In view-only mode (calendar), show a simple "Planned Dish" badge
+                        Surface(color = Color(0xFFEDE9FE), shape = RoundedCornerShape(50)) {
+                            Text("\uD83D\uDCC5 Planned Dish", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color(0xFF7C3AED), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
-                            Text("Missing Core Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        // Core ingredient match info (only relevant when browsing recipes)
+                        Text(
+                            "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
+                            fontSize = 12.sp,
+                            color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (isReady) {
+                            Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
+                                Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
+                                Text("Missing Core Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -1880,8 +1887,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
         // Nutrition Cards
         if (recipe.calories > 0) {
-            // Substitution Active Banner
-            if (hasSubstitutions) {
+            // Substitution Active Banner (not shown in view-only mode since subs are pre-applied)
+            if (hasSubstitutions && !isViewOnly) {
                 Surface(
                     color = Color(0xFFF0F9FF),
                     shape = RoundedCornerShape(12.dp),
@@ -2111,7 +2118,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            if (!hasSubstitutions) {
+            if (!hasSubstitutions && !isViewOnly) {
                 Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
             }
         }
@@ -2302,7 +2309,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
-                            // Action buttons row
+                            // Action buttons row (hidden in view-only mode)
+                            if (!isViewOnly) {
                             val hasAlts = ingredientHasAlternatives[detail.name]
 
                             if (!isRemoved && !isSubstituted) {
@@ -2379,7 +2387,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     }
                                 }
                             }
-                        }
+                            } // end !isViewOnly
                     }
                 }
             }
