@@ -1,5 +1,6 @@
 package com.calorieko.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -21,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -66,12 +69,15 @@ fun NavUserItem(
 ) {
     val isActive = activeTab == id
     val color = if (isActive) CalorieKoGreen else Color.Gray
+    val backgroundColor = if (isActive) Color(0xFFE8F5E9) else Color.Transparent
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp))
             .clickable { onClick(id) }
-            .padding(4.dp) // Touch target padding
+            .padding(4.dp)
     ) {
         Icon(
             imageVector = icon,
