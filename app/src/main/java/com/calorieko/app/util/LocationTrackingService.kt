@@ -96,7 +96,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         // GPS locations bounce randomly when stationary (jitter). By keeping a rolling
         // window of recent raw coordinates and calculating their average (centroid),
         // we completely neutralize the jitter. The smoothed point stays perfectly still.
-        private const val SMOOTHING_WINDOW_SIZE = 4
+        private const val SMOOTHING_WINDOW_SIZE = 6
 
         /** Maximum distance (meters) that can be added from a single GPS reading.
          *  Caps teleport glitches and cell-tower jumps that slip through other checks. */
@@ -137,6 +137,9 @@ class LocationTrackingService : Service(), SensorEventListener {
     /** Accumulated route points as (lat, lng) pairs. */
     private val _pathPoints = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
     val pathPoints: StateFlow<List<Pair<Double, Double>>> = _pathPoints.asStateFlow()
+    
+    /** The last hardware location received, used strictly to compute instantaneous speed. */
+    private var lastRawLocation: Location? = null
     
     private val _steps = MutableStateFlow(0)
     val steps: StateFlow<Int> = _steps.asStateFlow()
@@ -422,20 +425,30 @@ class LocationTrackingService : Service(), SensorEventListener {
         }
 
         // Strict accuracy gate: ignore garbage data
-        if (location.accuracy > TRACKING_ACCURACY) return
+        if (location.accuracy > TRACKING_ACCURACY) {
+            lastRawLocation = location
+            return
+        }
 
         val prevLocation = _lastLocation.value
         if (prevLocation != null) {
             val distanceFromAnchor = prevLocation.distanceTo(location)
-            val timeDeltaSec = (location.time - prevLocation.time) / 1000.0
-            val speedMps = if (timeDeltaSec > 0) distanceFromAnchor / timeDeltaSec else 0.0
+            
+            // Calculate TRUE instantaneous hardware speed to prevent jitter jumps after standing still.
+            // Using prevLocation.time was a flaw because if you stood still for 60s, a 30m jitter
+            // would calculate as 0.5m/s (valid walking) instead of the actual 15m/s jitter spike!
+            val rawPrev = lastRawLocation ?: prevLocation
+            val hardwareTimeDeltaSec = (location.time - rawPrev.time) / 1000.0
+            val hardwareDistance = rawPrev.distanceTo(location)
+            val instantaneousSpeedMps = if (hardwareTimeDeltaSec > 0) hardwareDistance / hardwareTimeDeltaSec else 0.0
 
             // ── 1. Teleport Glitch Prevention ──
-            // If the jump is massive (>35m) OR implies impossible running speeds (>10m/s = 36km/h), 
-            // it's a GPS glitch. Re-anchor WITHOUT adding distance.
-            if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE || speedMps > 10.0) {
-                Log.d(TAG, "Teleport detected: ${distanceFromAnchor.toInt()}m. Re-anchoring.")
+            // If the jump is massive (>35m) OR the instantaneous speed implies impossible 
+            // human speeds (>8m/s = 28km/h), it's a GPS glitch. Re-anchor WITHOUT adding distance.
+            if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE || instantaneousSpeedMps > 8.0) {
+                Log.d(TAG, "Teleport detected: Dist ${distanceFromAnchor.toInt()}m, Speed ${instantaneousSpeedMps.toInt()}m/s. Re-anchoring.")
                 _lastLocation.value = location
+                lastRawLocation = location
                 
                 // CRITICAL FIX: Flush the smoothing window! 
                 // If we don't flush it, the old points will mix with the new teleported point,
@@ -451,15 +464,16 @@ class LocationTrackingService : Service(), SensorEventListener {
             }
 
             // ── 2. Stationary Detection (Android Sensor) ──
-            val reportedSpeed = if (location.hasSpeed()) location.speed.toDouble() else speedMps
+            val reportedSpeed = if (location.hasSpeed()) location.speed.toDouble() else instantaneousSpeedMps
             if (reportedSpeed < 0.4 && distanceFromAnchor < 15.0f) {
                 _isMoving.value = false
+                lastRawLocation = location
                 return
             }
 
             // ── 3. GPS Smoothing (Moving Average Filter) ──
-            // Jitter bounces back and forth. By averaging the last 4 raw points,
-            // the resulting "centroid" completely stabilizes. If the user is stationary,
+            // Jitter bounces back and forth. By averaging the last raw points,
+            // the resulting "centroid" completely stabilizes.
             // the smoothed location will not move, allowing the min-step filter below to drop it!
             recentPositions.add(location)
             if (recentPositions.size > SMOOTHING_WINDOW_SIZE) {
@@ -479,9 +493,10 @@ class LocationTrackingService : Service(), SensorEventListener {
 
             // ── 4. Minimum Step Filter ──
             // Enforce a small step from the last anchor. Because the smoothed location
-            // is perfectly stable when stationary, smoothedDistanceFromAnchor will be < 2.0m.
-            if (smoothedDistanceFromAnchor < 2.5f) {
+            // is perfectly stable when stationary, smoothedDistanceFromAnchor will be < 4.0m.
+            if (smoothedDistanceFromAnchor < 4.0f) {
                 _isMoving.value = false
+                lastRawLocation = location
                 return
             }
 
@@ -516,6 +531,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             lastKnownPoint = _currentPoint.value
             lastMovementTimeMs = System.currentTimeMillis()
             lastUpdateWallClockMs = System.currentTimeMillis()
+            lastRawLocation = location
             
             recentPositions.clear()
             for (i in 0 until SMOOTHING_WINDOW_SIZE) {
