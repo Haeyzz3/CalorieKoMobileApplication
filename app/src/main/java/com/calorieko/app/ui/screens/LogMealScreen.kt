@@ -638,11 +638,10 @@ private fun AiScaleMealContent(
             val confPercent = (topConfidence * 100).toInt()
             val aiReady = currentDetectedFood != null && topConfidence >= LogMealViewModel.CONFIDENCE_THRESHOLD
             val aiBadgeColor = when {
-                topLabel.isEmpty()            -> Color.White.copy(alpha = 0.95f)
-                aiReady                       -> CalorieKoGreen.copy(alpha = 0.95f)
-                topConfidence > 0.3f          -> CalorieKoOrange.copy(alpha = 0.95f)
-                else                          -> Color.White.copy(alpha = 0.95f)
+                aiReady -> CalorieKoGreen.copy(alpha = 0.95f)
+                else    -> CalorieKoOrange.copy(alpha = 0.95f)
             }
+            val aiBadgeTextColor = Color.White
 
             Surface(
                 color = aiBadgeColor,
@@ -654,12 +653,11 @@ private fun AiScaleMealContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (topLabel.isEmpty()) {
-                        Text("Analyzing...", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF6B7280))
+                        Text("Analyzing...", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = aiBadgeTextColor)
                     } else {
-                        val textColor = if (aiReady || topConfidence > 0.3f) Color.White else Color(0xFF6B7280)
                         Text(
                             "$displayLabel ${confPercent}%",
-                            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textColor
+                            fontSize = 13.sp, fontWeight = FontWeight.Bold, color = aiBadgeTextColor
                         )
                     }
                 }

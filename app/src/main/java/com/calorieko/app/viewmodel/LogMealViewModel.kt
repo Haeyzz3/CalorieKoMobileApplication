@@ -214,7 +214,7 @@ class LogMealViewModel(
 
             if (top1.second >= 0.80f) {
                 setDishReady(food1.foodId, food1.namePh, food1.nameEn, top1.second, calEst)
-            } else if (top2 != null && (top1.second - top2.second) <= 0.30f && top1.second > 0.10f) {
+            } else if (top2 != null && (top1.second - top2.second) <= 0.40f && top1.second > 0.10f) {
                 val food2 = withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(top2.first) }
                 if (food2 != null) {
                     _candidate1.value = Pair(food1, top1.second)
