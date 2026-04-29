@@ -53,6 +53,8 @@ class AuthRepository(
                     "Your email is not yet verified. A new verification link has been sent to your inbox."
                 )
             }
+        } catch (e: com.google.firebase.FirebaseNetworkException) {
+            AuthResult.Error("No internet connection. Please check your network and try again.")
         } catch (e: Exception) {
             // For security and clarity, show a generic "Incorrect email or password" 
             // for all login failures (invalid user, wrong password, etc.)
