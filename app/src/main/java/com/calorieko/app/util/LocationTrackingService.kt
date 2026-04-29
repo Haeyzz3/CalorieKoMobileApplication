@@ -92,20 +92,11 @@ class LocationTrackingService : Service(), SensorEventListener {
         /** Number of readings after warm-up that undergo stabilization checks. */
         private const val POST_WARMUP_STABILIZATION_COUNT = 3
 
-        // ── Movement Detection via Rolling Window ──
-        // Instead of relying on GPS speed (unreliable on many devices),
-        // use NET DISPLACEMENT across a window of recent readings.
-        // Jitter = random walk (positions bounce around, net displacement ~0).
-        // Walking = directional (positions advance, net displacement grows).
-        // This approach works on ALL devices regardless of GPS implementation.
-
-        /** Size of the rolling position window for jitter detection. */
-        private const val POSITION_WINDOW_SIZE = 5
-
-        /** Minimum net displacement (meters) across the window to confirm movement.
-         *  Must exceed typical GPS jitter radius (~3-5m random walk).
-         *  Lowered to 4.0f to ensure slow walkers (e.g. 0.5m/s) aren't filtered out. */
-        private const val NET_DISPLACEMENT_THRESHOLD = 4.0f
+        // ── GPS Smoothing (Moving Average) ──
+        // GPS locations bounce randomly when stationary (jitter). By keeping a rolling
+        // window of recent raw coordinates and calculating their average (centroid),
+        // we completely neutralize the jitter. The smoothed point stays perfectly still.
+        private const val SMOOTHING_WINDOW_SIZE = 4
 
         /** Maximum distance (meters) that can be added from a single GPS reading.
          *  Caps teleport glitches and cell-tower jumps that slip through other checks. */
@@ -416,7 +407,9 @@ class LocationTrackingService : Service(), SensorEventListener {
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
                     recentPositions.clear()
-                    recentPositions.add(bestLocation)
+                    for (i in 0 until SMOOTHING_WINDOW_SIZE) {
+                        recentPositions.add(bestLocation)
+                    }
                     Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
                             "hasSpeed=${bestLocation.hasSpeed()} " +
                             "at (${bestLocation.latitude}, ${bestLocation.longitude})")
@@ -437,72 +430,78 @@ class LocationTrackingService : Service(), SensorEventListener {
             val timeDeltaSec = (location.time - prevLocation.time) / 1000.0
             val speedMps = if (timeDeltaSec > 0) distanceFromAnchor / timeDeltaSec else 0.0
 
-            // Always update current point so the blue dot puck moves smoothly and follows the user
-            _currentPoint.value = Pair(location.latitude, location.longitude)
-            lastKnownPoint = _currentPoint.value
-
             // ── 1. Teleport Glitch Prevention ──
             // If the jump is massive (>35m) OR implies impossible running speeds (>10m/s = 36km/h), 
             // it's a GPS glitch. Re-anchor WITHOUT adding distance.
             if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE || speedMps > 10.0) {
                 Log.d(TAG, "Teleport detected: ${distanceFromAnchor.toInt()}m. Re-anchoring.")
                 _lastLocation.value = location
+                
+                // CRITICAL FIX: Flush the smoothing window! 
+                // If we don't flush it, the old points will mix with the new teleported point,
+                // causing the centroid to slowly "drag" across the map. This drag looks like 
+                // valid movement and adds fake distance. By flushing it, the centroid instantly 
+                // snaps to the new anchor, and the minimum-step filter will easily drop it.
+                recentPositions.clear()
+                for (i in 0 until SMOOTHING_WINDOW_SIZE) {
+                    recentPositions.add(location)
+                }
+                
                 return
             }
 
-            // ── 2. Movement Detection via Rolling Window (Jitter Prevention) ──
-            // GPS locations can jump 5-10m while standing still, causing a "spiderweb" trace and fake distance.
-            // A rolling window checks the net displacement over the last 10 seconds. Jitter bounces around 
-            // a central point (low net displacement), while actual walking advances forward (high net displacement).
+            // ── 2. Stationary Detection (Android Sensor) ──
+            val reportedSpeed = if (location.hasSpeed()) location.speed.toDouble() else speedMps
+            if (reportedSpeed < 0.4 && distanceFromAnchor < 15.0f) {
+                _isMoving.value = false
+                return
+            }
+
+            // ── 3. GPS Smoothing (Moving Average Filter) ──
+            // Jitter bounces back and forth. By averaging the last 4 raw points,
+            // the resulting "centroid" completely stabilizes. If the user is stationary,
+            // the smoothed location will not move, allowing the min-step filter below to drop it!
             recentPositions.add(location)
-            if (recentPositions.size > POSITION_WINDOW_SIZE) {
+            if (recentPositions.size > SMOOTHING_WINDOW_SIZE) {
                 recentPositions.removeAt(0)
             }
             
-            val isWindowFull = recentPositions.size == POSITION_WINDOW_SIZE
-            val netDisplacement = if (isWindowFull) {
-                recentPositions.first().distanceTo(recentPositions.last())
-            } else {
-                distanceFromAnchor
+            val avgLat = recentPositions.map { it.latitude }.average()
+            val avgLng = recentPositions.map { it.longitude }.average()
+            
+            val smoothedLocation = Location(location).apply {
+                latitude = avgLat
+                longitude = avgLng
             }
+            
+            // Recalculate distance using the SMOOTHED location
+            val smoothedDistanceFromAnchor = prevLocation.distanceTo(smoothedLocation)
 
-            // If the window is full and the net displacement is less than 5 meters, the device is 
-            // stationary or moving negligibly. We drop this point to prevent jitter accumulation.
-            if (isWindowFull && netDisplacement < 5.0f) {
+            // ── 4. Minimum Step Filter ──
+            // Enforce a small step from the last anchor. Because the smoothed location
+            // is perfectly stable when stationary, smoothedDistanceFromAnchor will be < 2.0m.
+            if (smoothedDistanceFromAnchor < 2.5f) {
                 _isMoving.value = false
                 return
             }
 
-            // Also enforce a small minimum step from the last anchor to avoid plotting hundreds 
-            // of tiny overlapping micro-segments which make the polyline look jagged.
-            if (distanceFromAnchor < 2.5f) {
-                _isMoving.value = false
-                return
-            }
-
-            // ── 3. Add Distance (Success!) ──
-            // If it passed the glitch filter and the jitter filter, this is genuine movement!
-            // We add the FULL distance from the last accepted anchor, so the user never loses distance.
-            _distanceKm.value += distanceFromAnchor / 1000.0
+            // ── 5. Add Distance (Success!) ──
+            // Update the map and path using the beautifully smoothed curve!
+            _currentPoint.value = Pair(smoothedLocation.latitude, smoothedLocation.longitude)
+            lastKnownPoint = _currentPoint.value
+            _distanceKm.value += smoothedDistanceFromAnchor / 1000.0
             _isMoving.value = true
             lastMovementTimeMs = System.currentTimeMillis()
 
             if (_pathPoints.value.isEmpty()) {
                 _pathPoints.value = listOf(Pair(prevLocation.latitude, prevLocation.longitude))
             }
-            _pathPoints.value = _pathPoints.value + Pair(location.latitude, location.longitude)
+            _pathPoints.value = _pathPoints.value + Pair(smoothedLocation.latitude, smoothedLocation.longitude)
             
-            _lastLocation.value = location
+            _lastLocation.value = smoothedLocation
             lastUpdateWallClockMs = System.currentTimeMillis()
 
-            // Calculate pace using TOTAL elapsed time.
-            if (_distanceKm.value > 0.02) {
-                val timeInMinutes = _timeSeconds.value / 60.0
-                if (timeInMinutes > 0) {
-                    val rawPace = timeInMinutes / _distanceKm.value
-                    _currentPace.value = rawPace.coerceIn(1.0, 999.0)
-                }
-            }
+            // (Pace calculation moved to the timer thread to dynamically update using moving time)
             
             // Fallback for steps if hardware sensor hasn't fired yet
             if (initialStepCount == -1) {
@@ -517,6 +516,11 @@ class LocationTrackingService : Service(), SensorEventListener {
             lastKnownPoint = _currentPoint.value
             lastMovementTimeMs = System.currentTimeMillis()
             lastUpdateWallClockMs = System.currentTimeMillis()
+            
+            recentPositions.clear()
+            for (i in 0 until SMOOTHING_WINDOW_SIZE) {
+                recentPositions.add(location)
+            }
         }
     }
 
@@ -575,6 +579,18 @@ class LocationTrackingService : Service(), SensorEventListener {
 
                 if (_isMoving.value) {
                     _movingTimeSeconds.value++
+                }
+
+                // ── Compute Real-Time Strava-style Pace ──
+                // Strava calculates Average Pace using MOVING TIME, not total elapsed time.
+                // This prevents your pace from being ruined when waiting at a stoplight.
+                // Because _movingTimeSeconds auto-pauses, your pace accurately reflects your active speed.
+                if (_distanceKm.value > 0.01) {
+                    val movingTimeInMinutes = _movingTimeSeconds.value / 60.0
+                    if (movingTimeInMinutes > 0) {
+                        val rawPace = movingTimeInMinutes / _distanceKm.value
+                        _currentPace.value = rawPace.coerceIn(1.0, 999.0)
+                    }
                 }
 
                 // Update notification with live stats every second (visible on lock screen)
