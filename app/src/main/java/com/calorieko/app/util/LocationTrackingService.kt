@@ -514,6 +514,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             _pathPoints.value = _pathPoints.value + Pair(smoothedLocation.latitude, smoothedLocation.longitude)
             
             _lastLocation.value = smoothedLocation
+            lastRawLocation = location
             lastUpdateWallClockMs = System.currentTimeMillis()
 
             // (Pace calculation moved to the timer thread to dynamically update using moving time)
