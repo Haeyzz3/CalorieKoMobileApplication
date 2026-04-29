@@ -3,6 +3,7 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.calorieko.app.data.local.ActivityLogDao
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
@@ -27,7 +28,8 @@ class DiaryViewModel(
     private val dashboardRepository: DashboardRepository,
     private val activityLogDao: ActivityLogDao,
     private val mealLogDao: MealLogDao,
-    private val mealRepository: MealRepository
+    private val mealRepository: MealRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     // ── Targets ──
@@ -231,11 +233,31 @@ class DiaryViewModel(
 
     fun deleteMeal(mealLogId: Long) {
         viewModelScope.launch {
+            // 1. Delete from Room + update summary (fast IO operation)
             withContext(Dispatchers.IO) {
                 mealRepository.deleteMealLogLocally(uid, mealLogId)
-                // Reload to update UI
-                loadMealLogs()
-                loadDaySummary()
+            }
+            
+            // 2. Reload UI immediately (uses flow, very fast)
+            loadMealLogs()
+            loadDaySummary()
+            
+            // 3. Handle Firestore deletion + WorkManager sync in background (non-blocking)
+            launch {
+                withContext(Dispatchers.IO) {
+                    try {
+                        val firestoreRepo = com.calorieko.app.data.remote.FirestoreSyncRepository()
+                        firestoreRepo.deleteMealLog(uid, mealLogId)
+                    } catch (e: Exception) {
+                        android.util.Log.w("DiaryViewModel", "Background Firestore delete failed: ${e.message}")
+                    }
+                    
+                    // Trigger WorkManager for syncing other pending changes
+                    com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
+                        appContext,
+                        uid
+                    )
+                }
             }
         }
     }
@@ -246,12 +268,13 @@ class DiaryViewModel(
             dashboardRepository: DashboardRepository,
             activityLogDao: ActivityLogDao,
             mealLogDao: MealLogDao,
-            mealRepository: MealRepository
+            mealRepository: MealRepository,
+            appContext: Context
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(DiaryViewModel::class.java)) {
-                    return DiaryViewModel(auth, dashboardRepository, activityLogDao, mealLogDao, mealRepository) as T
+                    return DiaryViewModel(auth, dashboardRepository, activityLogDao, mealLogDao, mealRepository, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

@@ -19,17 +19,21 @@ import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 /**
@@ -75,6 +79,18 @@ data class DishResult(
     val dataSource: String = "USDA_FDC"
 )
 
+/**
+ * Week metadata for the scrubber pills in the Meal Plan Calendar.
+ */
+data class WeekInfo(
+    val weekStartDate: String,      // ISO date, e.g., "2026-04-13"
+    val label: String,              // "Apr 13 – 19"
+    val mealCount: Int,             // for density dots
+    val isCurrentWeek: Boolean,     // true if this is today's week
+    val isPast: Boolean,            // true if entire week is before current week
+    val isBeyondHorizon: Boolean    // true if beyond 8-week planning cap
+)
+
 class PantryViewModel(
     private val auth: FirebaseAuth,
     private val pantryDao: PantryDao,
@@ -112,6 +128,9 @@ class PantryViewModel(
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
         }
+
+        /** Sentinel value in the substitution map indicating an ingredient was removed. */
+        const val REMOVED_INGREDIENT = "__REMOVED__"
     }
 
     // --- Search ---
@@ -138,9 +157,11 @@ class PantryViewModel(
 
     // --- Meal Plan ---
     private val _currentWeekStart = MutableStateFlow(getWeekStartDate())
+    val currentWeekStart: StateFlow<String> = _currentWeekStart.asStateFlow()
 
-    val plannedMeals: StateFlow<List<PlannedMealEntity>> = mealPlanDao
-        .getMealsForWeek(getWeekStartDate())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val plannedMeals: StateFlow<List<PlannedMealEntity>> = _currentWeekStart
+        .flatMapLatest { weekStart -> mealPlanDao.getMealsForWeek(weekStart) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _weeklyCalories = MutableStateFlow(0)
@@ -148,6 +169,21 @@ class PantryViewModel(
 
     private val _avgDailySodium = MutableStateFlow(0)
     val avgDailySodium: StateFlow<Int> = _avgDailySodium.asStateFlow()
+
+    // --- Month Navigation & Week Scrubber ---
+    private val _displayedMonth = MutableStateFlow(YearMonth.now())
+    val displayedMonth: StateFlow<YearMonth> = _displayedMonth.asStateFlow()
+
+    private val _weeksInMonth = MutableStateFlow<List<WeekInfo>>(emptyList())
+    val weeksInMonth: StateFlow<List<WeekInfo>> = _weeksInMonth.asStateFlow()
+
+    // --- Day Dates for Grid Column Headers ---
+    private val _weekDayDates = MutableStateFlow<List<Pair<String, Int>>>(emptyList())
+    val weekDayDates: StateFlow<List<Pair<String, Int>>> = _weekDayDates.asStateFlow()
+
+    // --- Today Indicator (null if today is not in the displayed week) ---
+    private val _todayColumnIndex = MutableStateFlow<Int?>(null)
+    val todayColumnIndex: StateFlow<Int?> = _todayColumnIndex.asStateFlow()
 
     // --- Cache for dish nutritional data ---
     private val _dishNutritionCache = mutableMapOf<String, DishNutritionInfo>()
@@ -219,12 +255,28 @@ class PantryViewModel(
             }
         }
 
-        // React to planned meals changes → recompute weekly stats
+        // React to planned meals changes → recompute weekly stats + refresh scrubber dots
         viewModelScope.launch {
             plannedMeals.collect { meals ->
                 withContext(Dispatchers.IO) {
                     recomputeWeeklyStats(meals)
+                    recomputeWeekScrubberData()
                 }
+            }
+        }
+
+        // React to current week changes → update day dates + today indicator
+        viewModelScope.launch {
+            _currentWeekStart.collect { weekStart ->
+                _weekDayDates.value = computeWeekDayDates(weekStart)
+                _todayColumnIndex.value = computeTodayColumnIndex(weekStart)
+            }
+        }
+
+        // React to displayed month changes → recompute week scrubber pills
+        viewModelScope.launch {
+            _displayedMonth.collect {
+                withContext(Dispatchers.IO) { recomputeWeekScrubberData() }
             }
         }
     }
@@ -443,13 +495,24 @@ class PantryViewModel(
     // Meal Plan Actions
     // ============================================================
 
-    fun addMealToPlan(dayIndex: Int, dishLabel: String, mealSlot: String) {
+    fun addMealToPlan(
+        dayIndex: Int,
+        dishLabel: String,
+        mealSlot: String,
+        weekStartDate: String = _currentWeekStart.value,
+        substitutions: Map<String, String> = emptyMap()
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
+            val substitutionsJson = if (substitutions.isNotEmpty()) {
+                org.json.JSONObject(substitutions as Map<*, *>).toString()
+            } else ""
+
             val meal = PlannedMealEntity(
                 dayIndex = dayIndex,
                 dishLabel = dishLabel,
-                weekStartDate = _currentWeekStart.value,
-                mealSlot = mealSlot
+                weekStartDate = weekStartDate,
+                mealSlot = mealSlot,
+                substitutionsJson = substitutionsJson
             )
             mealPlanDao.insertMeal(meal)
             if (uid.isNotEmpty()) {
@@ -519,6 +582,261 @@ class PantryViewModel(
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+        }
+    }
+
+    // ============================================================
+    // Week & Month Navigation
+    // ============================================================
+
+    /**
+     * Selects a week by its start date (tapping a scrubber pill).
+     * Also updates the displayed month if the selected week is in a different month.
+     */
+    fun selectWeek(weekStartDate: String) {
+        _currentWeekStart.value = weekStartDate
+        val weekDate = LocalDate.parse(weekStartDate)
+        val weekMonth = YearMonth.from(weekDate)
+        if (weekMonth != _displayedMonth.value) {
+            _displayedMonth.value = weekMonth
+        }
+    }
+
+    /**
+     * Navigates to the previous or next month in the scrubber.
+     * Capped at the month containing the 8-week planning horizon.
+     */
+    fun navigateMonth(offset: Int) {
+        val newMonth = _displayedMonth.value.plusMonths(offset.toLong())
+        val maxWeekStart = LocalDate.parse(getMaxPlanningWeekStart())
+        val maxMonth = YearMonth.from(maxWeekStart)
+        if (newMonth <= maxMonth) {
+            _displayedMonth.value = newMonth
+        }
+    }
+
+    /**
+     * Snaps back to the current week and current month.
+     */
+    fun navigateToToday() {
+        _currentWeekStart.value = getWeekStartDate()
+        _displayedMonth.value = YearMonth.now()
+    }
+
+    /**
+     * Returns whether a specific day in the displayed week is editable.
+     * A day is editable if it is today or in the future.
+     */
+    fun isDayEditable(dayIndex: Int): Boolean {
+        val weekStart = LocalDate.parse(_currentWeekStart.value)
+        val dayDate = weekStart.plusDays(dayIndex.toLong())
+        return !dayDate.isBefore(LocalDate.now())
+    }
+
+    /**
+     * Copies all meals from the currently selected week to the next week.
+     * Uses REPLACE strategy so duplicates are overwritten, not doubled.
+     */
+    fun copyWeekToNext() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val sourceWeek = _currentWeekStart.value
+            val sourceDate = LocalDate.parse(sourceWeek)
+            val targetWeek = sourceDate.plusWeeks(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+            // Don't copy beyond the planning horizon
+            if (targetWeek > getMaxPlanningWeekStart()) return@launch
+
+            val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
+            if (sourceMeals.isEmpty()) return@launch
+
+            val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
+            mealPlanDao.insertMeals(copiedMeals)
+
+            // Sync to Firestore
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try {
+                        copiedMeals.forEach { firestoreSyncRepo.syncPlannedMeal(uid, it) }
+                    } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
+
+            // Refresh scrubber density dots
+            recomputeWeekScrubberData()
+        }
+    }
+
+    // ============================================================
+    // Public Helpers for Recipe Card "Add to Meal Plan" Dialog
+    // ============================================================
+
+    /**
+     * One-shot fetch of meals for a specific week.
+     * Used by the Recipe Card dialog for accurate duplicate detection.
+     */
+    suspend fun getPlannedMealsForWeekSnapshot(weekStartDate: String): List<PlannedMealEntity> {
+        return mealPlanDao.getMealsForWeekOneShot(weekStartDate)
+    }
+
+    /**
+     * Returns whether a specific day in a given week is editable (today or future).
+     * Used by the Recipe Card dialog which may target a different week.
+     */
+    fun isDayEditableForWeek(dayIndex: Int, weekStartDate: String): Boolean {
+        val weekStart = LocalDate.parse(weekStartDate)
+        val dayDate = weekStart.plusDays(dayIndex.toLong())
+        return !dayDate.isBefore(LocalDate.now())
+    }
+
+    /**
+     * Computes day-of-month values for a given week start date.
+     * Public wrapper for use by the Recipe Card dialog.
+     */
+    fun computeWeekDayDatesPublic(weekStart: String): List<Pair<String, Int>> {
+        return computeWeekDayDates(weekStart)
+    }
+
+    /**
+     * Returns the furthest Monday users can plan ahead to.
+     * Public wrapper for use by the Recipe Card dialog's week navigator.
+     */
+    fun getMaxPlanningWeekStartPublic(): String = getMaxPlanningWeekStart()
+
+    /**
+     * Returns the Monday of the current (real-world) week.
+     * Public wrapper for use by the Recipe Card dialog's week navigator boundary.
+     */
+    fun getCurrentWeekStartDate(): String = getWeekStartDate()
+
+    // ============================================================
+    // Planned Dish Detail Lookups (for Meal Plan Calendar)
+    // ============================================================
+
+    /**
+     * Compact nutrition summary for inline display in the Meal Detail Dialog.
+     */
+    data class CompactDishNutrition(
+        val calories: Int,
+        val protein: Int,
+        val carbs: Int,
+        val fats: Int
+    )
+
+    /**
+     * Returns compact nutrition info for a dish.
+     * Used for inline display in the Meal Detail Dialog without loading full ingredient details.
+     * When [substitutionsJson] is non-empty, nutrition is recalculated with the substitutions.
+     */
+    suspend fun getCompactNutrition(dishLabel: String, substitutionsJson: String = ""): CompactDishNutrition {
+        val subs = parseSubstitutionsJson(substitutionsJson)
+        return if (subs.isNotEmpty()) {
+            val r = calculator.calculateWithSubstitution(dishLabel, subs)
+            CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
+        } else {
+            val n = getDishNutrition(dishLabel)
+            CompactDishNutrition(n.calories, n.protein, n.carbs, n.fats)
+        }
+    }
+
+    /**
+     * Constructs a full DishResult for a given dish label.
+     * Used to view planned dish details from the Meal Plan Calendar.
+     * Returns null if the dish doesn't exist in the recipe database.
+     *
+     * When [substitutionsJson] is non-empty, ingredient names are swapped
+     * to reflect the substituted versions and nutrition is recalculated
+     * via the RecipeNutritionCalculator.
+     */
+    suspend fun getDishResultByLabel(
+        dishLabel: String,
+        substitutionsJson: String = ""
+    ): DishResult? {
+        val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
+        if (allIngredients.isEmpty()) return null
+
+        val details = pantryDao.getIngredientDetailsForDish(dishLabel)
+        val subs = parseSubstitutionsJson(substitutionsJson)
+
+        // Apply substitutions to ingredient names if present, filtering out removed ones
+        val finalIngredients = if (subs.isNotEmpty()) {
+            allIngredients.mapNotNull { name ->
+                val mapped = subs[name] ?: name
+                if (mapped == REMOVED_INGREDIENT) null else mapped
+            }
+        } else allIngredients
+
+        val ingredientInfoList = details.mapNotNull { detail ->
+            val mapped = subs[detail.ingredient_name] ?: detail.ingredient_name
+            if (mapped == REMOVED_INGREDIENT) return@mapNotNull null
+            IngredientInfo(
+                name = mapped,
+                type = detail.ingredient_type,
+                category = detail.ingredient_category,
+                portionQuantity = detail.portion_quantity,
+                preparationMethod = detail.preparation_method,
+                step = detail.step
+            )
+        }
+
+        // Use recalculated nutrition when substitutions are present
+        val nutrition = if (subs.isNotEmpty()) {
+            val result = calculator.calculateWithSubstitution(dishLabel, subs)
+            DishNutritionInfo(
+                calories = result.calories.toInt(),
+                protein = result.protein.toInt(),
+                carbs = result.carbs.toInt(),
+                fats = result.fat.toInt(),
+                fiber = result.fiber.toFloat(),
+                sugar = result.sugar.toFloat(),
+                sodium = result.sodium.toInt(),
+                potassium = result.potassium.toFloat(),
+                vitaminA = result.vitaminA.toFloat(),
+                vitaminC = result.vitaminC.toFloat(),
+                calcium = result.calcium.toFloat(),
+                iron = result.iron.toFloat()
+            )
+        } else {
+            getDishNutrition(dishLabel)
+        }
+
+        return DishResult(
+            dishLabel = dishLabel,
+            dishName = formatDishName(dishLabel),
+            ingredients = finalIngredients,
+            ingredientDetails = ingredientInfoList,
+            missingCoreIngredients = emptyList(),
+            missingOptionalIngredients = emptyList(),
+            coreMatchedCount = 0,
+            coreTotalCount = 0,
+            calories = nutrition.calories,
+            protein = nutrition.protein,
+            carbs = nutrition.carbs,
+            fats = nutrition.fats,
+            fiber = nutrition.fiber,
+            sugar = nutrition.sugar,
+            sodium = nutrition.sodium,
+            potassium = nutrition.potassium,
+            vitaminA = nutrition.vitaminA,
+            vitaminC = nutrition.vitaminC,
+            calcium = nutrition.calcium,
+            iron = nutrition.iron
+        )
+    }
+
+    /**
+     * Parses a substitutions JSON string into a Map<String, String>.
+     * Returns empty map if the string is blank or malformed.
+     */
+    private fun parseSubstitutionsJson(json: String): Map<String, String> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, String>()
+            obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
         }
     }
 
@@ -599,6 +917,87 @@ class PantryViewModel(
         return LocalDate.now()
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    /**
+     * Returns the furthest Monday that users can plan ahead to (8 weeks from current week).
+     */
+    private fun getMaxPlanningWeekStart(): String {
+        return LocalDate.now()
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .plusWeeks(8)
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
+
+    /**
+     * Computes day-of-month values for the grid column headers.
+     * E.g., for week starting 2026-04-28: [("Mon", 28), ("Tue", 29), ...]
+     */
+    private fun computeWeekDayDates(weekStart: String): List<Pair<String, Int>> {
+        val startDate = LocalDate.parse(weekStart)
+        val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        return dayNames.mapIndexed { index, name ->
+            name to startDate.plusDays(index.toLong()).dayOfMonth
+        }
+    }
+
+    /**
+     * Computes which column index (0-6) is today, or null if today is not in the displayed week.
+     */
+    private fun computeTodayColumnIndex(weekStart: String): Int? {
+        val startDate = LocalDate.parse(weekStart)
+        val today = LocalDate.now()
+        val daysBetween = ChronoUnit.DAYS.between(startDate, today).toInt()
+        return if (daysBetween in 0..6) daysBetween else null
+    }
+
+    /**
+     * Computes all week-start Mondays that overlap with the given month.
+     */
+    private fun computeWeeksInMonth(yearMonth: YearMonth): List<String> {
+        val firstDayOfMonth = yearMonth.atDay(1)
+        val lastDayOfMonth = yearMonth.atEndOfMonth()
+        val firstMonday = firstDayOfMonth.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+        val weekStarts = mutableListOf<String>()
+        var current = firstMonday
+        while (!current.isAfter(lastDayOfMonth)) {
+            weekStarts.add(current.format(DateTimeFormatter.ISO_LOCAL_DATE))
+            current = current.plusWeeks(1)
+        }
+        return weekStarts
+    }
+
+    /**
+     * Recomputes the week scrubber pills with meal counts for the displayed month.
+     */
+    private suspend fun recomputeWeekScrubberData() {
+        val month = _displayedMonth.value
+        val weekStartDates = computeWeeksInMonth(month)
+        val currentWeek = getWeekStartDate()
+        val maxWeek = getMaxPlanningWeekStart()
+
+        val mealCounts = if (weekStartDates.isNotEmpty()) {
+            mealPlanDao.getMealCountsForWeeks(weekStartDates)
+                .associate { it.weekStartDate to it.count }
+        } else emptyMap()
+
+        val labelFormatter = DateTimeFormatter.ofPattern("MMM d")
+
+        _weeksInMonth.value = weekStartDates.map { weekStart ->
+            val start = LocalDate.parse(weekStart)
+            val end = start.plusDays(6)
+            val label = "${start.format(labelFormatter)} \u2013 ${end.dayOfMonth}"
+
+            WeekInfo(
+                weekStartDate = weekStart,
+                label = label,
+                mealCount = mealCounts[weekStart] ?: 0,
+                isCurrentWeek = weekStart == currentWeek,
+                isPast = weekStart < currentWeek,
+                isBeyondHorizon = weekStart > maxWeek
+            )
+        }
     }
 
     /**
@@ -704,5 +1103,14 @@ class PantryViewModel(
         val currentNutrition = _substitutedNutrition.value.toMutableMap()
         currentNutrition.remove(dishLabel)
         _substitutedNutrition.value = currentNutrition
+    }
+
+    /**
+     * Removes an optional ingredient from the dish by marking it as [REMOVED_INGREDIENT]
+     * in the substitution map and recalculating nutrition.
+     * Undo is handled by [removeSubstitution] — same as any other substitution.
+     */
+    fun removeIngredient(dishLabel: String, ingredientKey: String) {
+        applySubstitution(dishLabel, ingredientKey, REMOVED_INGREDIENT)
     }
 }

@@ -1425,7 +1425,15 @@ private fun ManualMealSummaryOverlay(
                                         .fillMaxWidth()
                                         .clickable {
                                             ingredientSheetDishIndex = index
-                                            activeSubstitutions = emptyMap()
+                                            // Pre-populate substitutions from planned meal data
+                                            activeSubstitutions = if (dish.substitutionsJson.isNotBlank()) {
+                                                try {
+                                                    val obj = org.json.JSONObject(dish.substitutionsJson)
+                                                    val map = mutableMapOf<String, String>()
+                                                    obj.keys().forEach { key -> map[key] = obj.getString(key) }
+                                                    map
+                                                } catch (_: Exception) { emptyMap() }
+                                            } else emptyMap()
                                             scope.launch {
                                                 ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                     manualViewModel.getIngredientBreakdown(dish.dishLabel)
@@ -1562,6 +1570,9 @@ private fun ManualMealSummaryOverlay(
     if (ingredientSheetDishIndex >= 0 && manualViewModel != null) {
         val dish = dishes.getOrNull(ingredientSheetDishIndex)
         if (dish != null) {
+            // Determine if this is a planned-meal dish (view-only substitutions)
+            val isFromMealPlan = dish.substitutionsJson.isNotBlank()
+
             ModalBottomSheet(
                 onDismissRequest = {
                     ingredientSheetDishIndex = -1
@@ -1591,6 +1602,38 @@ private fun ManualMealSummaryOverlay(
                         fontSize = 13.sp,
                         color = Color(0xFF6B7280)
                     )
+
+                    // Planned dish badge
+                    if (isFromMealPlan) {
+                        Spacer(Modifier.height(6.dp))
+                        Surface(
+                            color = Color(0xFFECFDF5),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("📅", fontSize = 12.sp)
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "From Meal Plan",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF059669)
+                                )
+                                if (activeSubstitutions.isNotEmpty()) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "• ${activeSubstitutions.size} customization${if (activeSubstitutions.size > 1) "s" else ""}",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Raw ingredient nutritional values (before cooking)",
@@ -1603,8 +1646,8 @@ private fun ManualMealSummaryOverlay(
                         Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
                     } else {
 
-                    // ── Substitution picker (shown above ingredients when active) ──
-                    if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
+                    // ── Substitution picker (only shown when NOT from meal plan) ──
+                    if (!isFromMealPlan && substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
                         Surface(
                             color = Color(0xFFF0F9FF),
                             shape = RoundedCornerShape(12.dp),
@@ -1683,13 +1726,25 @@ private fun ManualMealSummaryOverlay(
                     Spacer(Modifier.height(8.dp))
 
                     ingredientBreakdown.values.forEach { ing ->
-                        val effectiveName = activeSubstitutions[ing.ingredientKey]
-                            ?.let { manualViewModel.formatIngredientName(it) }
-                            ?: ing.displayName
-                        val isSubstituted = activeSubstitutions.containsKey(ing.ingredientKey)
+                        val substitutedWith = activeSubstitutions[ing.ingredientKey]
+                        val isRemoved = substitutedWith == ManualLogViewModel.REMOVED_INGREDIENT
+                        val isSubstituted = substitutedWith != null && !isRemoved
+
+                        val effectiveName = when {
+                            isRemoved -> ing.displayName  // show original name with strikethrough
+                            isSubstituted -> manualViewModel.formatIngredientName(substitutedWith!!)
+                            else -> ing.displayName
+                        }
+
+                        // Skip removed ingredients' nutrition display but show the row
+                        val rowBgColor = when {
+                            isRemoved -> Color(0xFFFEF2F2)   // light red
+                            isSubstituted -> Color(0xFFF0F9FF) // light blue
+                            else -> Color(0xFFF9FAFB)
+                        }
 
                         Surface(
-                            color = if (isSubstituted) Color(0xFFF0F9FF) else Color(0xFFF9FAFB),
+                            color = rowBgColor,
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
                         ) {
@@ -1700,49 +1755,105 @@ private fun ManualMealSummaryOverlay(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(effectiveName, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Color(0xFF374151))
-                                        Text("${ing.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    // Swap button
-                                    Surface(
-                                        onClick = {
-                                            scope.launch {
-                                                substitutionTarget = ing.ingredientKey
-                                                substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                    manualViewModel.getSubstitutesForIngredient(ing.ingredientKey)
-                                                }
-                                                if (substitutionCandidates.isEmpty()) {
-                                                    substitutionTarget = null
-                                                }
+                                        if (isRemoved) {
+                                            // Removed ingredient: strikethrough name + badge
+                                            Text(
+                                                effectiveName,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF9CA3AF),
+                                                style = androidx.compose.ui.text.TextStyle(
+                                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                                )
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Surface(
+                                                color = Color(0xFFFEE2E2),
+                                                shape = RoundedCornerShape(50)
+                                            ) {
+                                                Text(
+                                                    "Removed from recipe",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color(0xFFDC2626),
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                )
                                             }
-                                        },
-                                        color = Color(0xFF0284C7).copy(alpha = 0.08f),
-                                        shape = RoundedCornerShape(4.dp)
-                                    ) {
-                                        Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
+                                        } else if (isSubstituted) {
+                                            // Substituted ingredient: show new name + original
+                                            Text(
+                                                effectiveName,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF0C4A6E)
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    Icons.Default.SwapHoriz,
+                                                    null,
+                                                    tint = Color(0xFF0284C7),
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    "Replaces ${ing.displayName}",
+                                                    fontSize = 10.sp,
+                                                    color = Color(0xFF0284C7)
+                                                )
+                                            }
+                                        } else {
+                                            Text(effectiveName, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Color(0xFF374151))
+                                            Text("${ing.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                    }
+
+                                    // Swap button — only shown when NOT from meal plan and NOT removed
+                                    if (!isFromMealPlan && !isRemoved) {
+                                        Surface(
+                                            onClick = {
+                                                scope.launch {
+                                                    substitutionTarget = ing.ingredientKey
+                                                    substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        manualViewModel.getSubstitutesForIngredient(ing.ingredientKey)
+                                                    }
+                                                    if (substitutionCandidates.isEmpty()) {
+                                                        substitutionTarget = null
+                                                    }
+                                                }
+                                            },
+                                            color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
+                                        }
                                     }
                                 }
-                                Spacer(Modifier.height(6.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                    Column {
-                                        Text("${ing.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                                        Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    Column {
-                                        Text("${ing.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
-                                        Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    Column {
-                                        Text("${ing.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
-                                        Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    Column {
-                                        Text("${ing.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
-                                        Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    Column {
-                                        Text("${ing.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
-                                        Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+
+                                // Nutrition row — only show for non-removed ingredients
+                                if (!isRemoved) {
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        Column {
+                                            Text("${ing.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                            Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${ing.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                            Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${ing.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                            Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${ing.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                            Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
+                                        Column {
+                                            Text("${ing.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                            Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                        }
                                     }
                                 }
                             }

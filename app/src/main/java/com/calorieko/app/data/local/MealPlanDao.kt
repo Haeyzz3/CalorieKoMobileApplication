@@ -1,5 +1,6 @@
 package com.calorieko.app.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -42,4 +43,27 @@ interface MealPlanDao {
     /** One-shot fetch of meals for a specific day and week (for notifications). */
     @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE day_index = :dayIndex AND week_start_date = :weekStartDate")
     suspend fun getMealsForDayOneShot(dayIndex: Int, weekStartDate: String): List<PlannedMealEntity>
+
+    /** Meal counts per week for scrubber density dots. */
+    @Query("""
+        SELECT week_start_date, COUNT(*) as count 
+        FROM PLANNED_MEALS_TABLE 
+        WHERE week_start_date IN (:weekStartDates) 
+        GROUP BY week_start_date
+    """)
+    suspend fun getMealCountsForWeeks(weekStartDates: List<String>): List<WeekMealCount>
+
+    /** One-shot fetch of meals for a specific week (for copy-week). */
+    @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE week_start_date = :weekStartDate")
+    suspend fun getMealsForWeekOneShot(weekStartDate: String): List<PlannedMealEntity>
+
+    /** Batch insert meals (for copy-week). */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMeals(meals: List<PlannedMealEntity>)
 }
+
+/** Result class for week meal count query. */
+data class WeekMealCount(
+    @ColumnInfo(name = "week_start_date") val weekStartDate: String,
+    @ColumnInfo(name = "count") val count: Int
+)
