@@ -370,6 +370,10 @@ fun MealsTabContent(
     // Track which meal is selected for the detail bottom sheet
     var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
 
+    // Track delete confirmation dialog state
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var mealToDelete by remember { mutableStateOf<Long?>(null) }
+
     if (viewMode == "week") {
         Box(
             modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -570,7 +574,10 @@ fun MealsTabContent(
                                 // Delete button
                                 IconButton(
                                     modifier = Modifier.size(28.dp),
-                                    onClick = { onDelete(mealLog.mealLogId) }
+                                    onClick = {
+                                        mealToDelete = mealLog.mealLogId
+                                        showDeleteConfirmation = true
+                                    }
                                 ) {
                                     Icon(
                                         Icons.Default.Delete,
@@ -630,6 +637,40 @@ fun MealsTabContent(
                 }
             }
         }
+    }
+
+    // ── Delete Confirmation Dialog ──
+    if (showDeleteConfirmation && mealToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirmation = false
+                mealToDelete = null
+            },
+            title = { Text("Delete Meal") },
+            text = { Text("Are you sure you want to delete this meal? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        mealToDelete?.let { onDelete(it) }
+                        showDeleteConfirmation = false
+                        mealToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        mealToDelete = null
+                    }
+                ) {
+                    Text("Cancel", color = Color(0xFF6B7280))
+                }
+            }
+        )
     }
 
     // ── Meal Detail Bottom Sheet (reuses DashboardScreen's component) ──
