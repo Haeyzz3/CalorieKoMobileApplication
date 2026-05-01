@@ -38,6 +38,11 @@ class DashboardRepository(
         return userDao.getUser(uid)
     }
 
+    /** Observe the user's profile reactively from Room. */
+    fun observeUserProfile(uid: String): Flow<UserProfile?> {
+        return userDao.observeUser(uid)
+    }
+
     /** Compute nutritional targets (calories, macros, micros) from a user profile. */
     fun getTargetsForUser(profile: UserProfile): NutritionalTarget {
         return nutritionalValuesRepo.getTargetsForUser(profile)

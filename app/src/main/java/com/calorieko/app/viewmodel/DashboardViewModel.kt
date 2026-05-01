@@ -3,6 +3,7 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.model.ActivityDetails
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.ActivityLogEntry
@@ -44,7 +45,7 @@ import java.time.temporal.TemporalAdjusters
  * change, so the UI updates instantly when a meal or workout is logged — no navigation
  * callback or manual refresh needed.
  *
- * User profile & targets are still loaded once (they rarely change mid-session).
+ * User profile & targets are observed reactively so edits propagate back to the UI.
  */
 class DashboardViewModel(
     private val auth: FirebaseAuth,
@@ -57,39 +58,66 @@ class DashboardViewModel(
 
     // ── User Info ──
 
-    private val _userName = MutableStateFlow("User")
-    val userName: StateFlow<String> = _userName.asStateFlow()
+    private val profileFlow: StateFlow<UserProfile?> =
+        if (uid != null) {
+            dashboardRepository.observeUserProfile(uid)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        } else {
+            MutableStateFlow(null)
+        }
 
-    private val _localPhotoUrl = MutableStateFlow("")
-    val localPhotoUrl: StateFlow<String> = _localPhotoUrl.asStateFlow()
+    val userName: StateFlow<String> = profileFlow
+        .map { profile ->
+            auth.currentUser?.displayName
+                ?.split(" ")?.firstOrNull()
+                ?: profile?.name?.split(" ")?.firstOrNull()
+                ?: "User"
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "User")
+
+    val localPhotoUrl: StateFlow<String> = profileFlow
+        .map { profile -> profile?.photoUrl ?: "" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     val firebaseProfileImageUrl = auth.currentUser?.photoUrl
 
-    private val _userProfile = MutableStateFlow<com.calorieko.app.data.model.UserProfile?>(null)
-    val userProfile: StateFlow<com.calorieko.app.data.model.UserProfile?> = _userProfile.asStateFlow()
+    val userProfile: StateFlow<UserProfile?> = profileFlow
 
-    private val _goalTitle = MutableStateFlow("General Health")
-    val goalTitle: StateFlow<String> = _goalTitle.asStateFlow()
+    val goalTitle: StateFlow<String> = profileFlow
+        .map { profile ->
+            when (profile?.goal?.lowercase()?.trim()) {
+                "weight_loss" -> "Weight Control"
+                "gain_muscle" -> "Gain Muscle"
+                else -> "General Health & Wellness"
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "General Health & Wellness")
 
     // ── Targets ──
 
-    private val _targetCalories = MutableStateFlow(2000)
-    val targetCalories: StateFlow<Int> = _targetCalories.asStateFlow()
+    val targetCalories: StateFlow<Int> = profileFlow
+        .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetCalories } ?: 2000 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2000)
 
-    private val _targetBurned = MutableStateFlow(500)
-    val targetBurned: StateFlow<Int> = _targetBurned.asStateFlow()
+    val targetBurned: StateFlow<Int> = profileFlow
+        .map { profile -> profile?.let { calculateTargetBurned(it) } ?: 500 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 500)
 
-    private val _targetSodium = MutableStateFlow(2300)
-    val targetSodium: StateFlow<Int> = _targetSodium.asStateFlow()
+    val targetSodium: StateFlow<Int> = profileFlow
+        .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetSodium } ?: 2300 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2300)
 
-    private val _targetProtein = MutableStateFlow(150)
-    val targetProtein: StateFlow<Int> = _targetProtein.asStateFlow()
+    val targetProtein: StateFlow<Int> = profileFlow
+        .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetProtein } ?: 150 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 150)
 
-    private val _targetCarbs = MutableStateFlow(200)
-    val targetCarbs: StateFlow<Int> = _targetCarbs.asStateFlow()
+    val targetCarbs: StateFlow<Int> = profileFlow
+        .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetCarbs } ?: 200 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 200)
 
-    private val _targetFats = MutableStateFlow(65)
-    val targetFats: StateFlow<Int> = _targetFats.asStateFlow()
+    val targetFats: StateFlow<Int> = profileFlow
+        .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetFats } ?: 65 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 65)
 
     // ── Reactive Data State (Flow-based — auto-updates on Room changes) ──
 
@@ -128,7 +156,6 @@ class DashboardViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        loadUserProfileAndTargets()
         loadDishNames()
     }
 
@@ -166,65 +193,29 @@ class DashboardViewModel(
         }
     }
 
-    /**
-     * Loads user profile and computes nutritional targets.
-     * This is a one-shot load — profile data rarely changes mid-session.
-     * The reactive Flows handle all dashboard data (nutrition, meals, workouts).
-     */
-    private fun loadUserProfileAndTargets() {
-        val currentUid = uid ?: return
-
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                val profile = dashboardRepository.getUserProfile(currentUid)
-                if (profile != null) {
-                    val targets = dashboardRepository.getTargetsForUser(profile)
-                    _targetCalories.value = targets.targetCalories
-                    _targetProtein.value = targets.targetProtein
-                    _targetCarbs.value = targets.targetCarbs
-                    _targetFats.value = targets.targetFats
-                    _targetSodium.value = targets.targetSodium
-
-                    _userProfile.value = profile
-                    _goalTitle.value = when (profile.goal.lowercase().trim()) {
-                        "weight_loss" -> "Weight Control"
-                        "gain_muscle" -> "Gain Muscle"
-                        else -> "General Health & Wellness"
-                    }
-
-                    // Dynamic burn target: Active calories = TDEE - BMR
-                    // BMR via Mifflin-St Jeor (used only for burn target estimation,
-                    // not for nutritional TEA which uses NDAP method).
-                    val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
-                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
-                    } else {
-                        (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
-                    }
-                    // Backward-compatible: accepts both new NDAP IDs and legacy IDs.
-                    val activityMultiplier = when (profile.activityLevel.lowercase().trim()) {
-                        "sedentary", "not_very_active"  -> 1.2
-                        "light", "lightly_active"       -> 1.375
-                        "moderate", "active"             -> 1.55
-                        "vigorous", "very_active"        -> 1.725
-                        else -> 1.2
-                    }
-                    val tdee = bmr * activityMultiplier
-                    val baseBurn = (tdee - bmr).toInt().coerceAtLeast(150) // floor at 150 kcal
-
-                    val goalLower = profile.goal.lowercase().trim()
-                    val isWeightLoss = "lose" in goalLower || "weight_loss" in goalLower || "weight control" in goalLower
-                    _targetBurned.value = if (isWeightLoss) baseBurn + 300 else baseBurn
-
-                    _localPhotoUrl.value = profile.photoUrl
-
-                    val fbName = auth.currentUser?.displayName
-                        ?.split(" ")?.firstOrNull()
-                    _userName.value = fbName
-                        ?: profile.name.split(" ").firstOrNull()
-                        ?: "User"
-                }
-            }
+    private fun calculateTargetBurned(profile: UserProfile): Int {
+        // Dynamic burn target: Active calories = TDEE - BMR
+        // BMR via Mifflin-St Jeor (used only for burn target estimation,
+        // not for nutritional TEA which uses NDAP method).
+        val bmr = if (profile.sex.equals("Male", ignoreCase = true)) {
+            (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5
+        } else {
+            (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) - 161
         }
+        // Backward-compatible: accepts both new NDAP IDs and legacy IDs.
+        val activityMultiplier = when (profile.activityLevel.lowercase().trim()) {
+            "sedentary", "not_very_active"  -> 1.2
+            "light", "lightly_active"       -> 1.375
+            "moderate", "active"             -> 1.55
+            "vigorous", "very_active"        -> 1.725
+            else -> 1.2
+        }
+        val tdee = bmr * activityMultiplier
+        val baseBurn = (tdee - bmr).toInt().coerceAtLeast(150) // floor at 150 kcal
+
+        val goalLower = profile.goal.lowercase().trim()
+        val isWeightLoss = "lose" in goalLower || "weight_loss" in goalLower || "weight control" in goalLower
+        return if (isWeightLoss) baseBurn + 300 else baseBurn
     }
 
     // ── Private Helpers ──
