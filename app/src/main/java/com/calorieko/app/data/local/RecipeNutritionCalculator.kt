@@ -255,6 +255,58 @@ class RecipeNutritionCalculator(
         val recipeIngredients = recipeIngredientDao.getIngredientsForDish(dishLabel)
         if (recipeIngredients.isEmpty()) return emptyMap()
 
+        // Check if ALL recipe ingredients have raw_weight_grams = 0.
+        // This happens for single-serving "simple" dishes (rice, eggs, fried fish)
+        // whose nutrition is pre-computed at the dish level, not the ingredient level.
+        val allZeroWeight = recipeIngredients.all { it.rawWeightGrams <= 0f }
+
+        if (allZeroWeight) {
+            // Fall back to dish-level nutrition, attributing it to the primary ingredient.
+            val dish = dishRecipeDao.getByDishLabel(dishLabel)
+                ?: return emptyMap()
+            val perServing = dishToPerServing(dish)
+
+            val result = mutableMapOf<String, IngredientNutritionBreakdown>()
+            // The first "core" ingredient (or first ingredient if no core) gets the nutrition
+            val primary = recipeIngredients.firstOrNull { it.ingredientType == "core" }
+                ?: recipeIngredients.first()
+
+            for (ri in recipeIngredients) {
+                val ingredient = rawIngredientDao.getByKey(ri.ingredientKey)
+                val displayName = ingredient?.displayName
+                    ?: ri.ingredientKey.replace("_", " ").replaceFirstChar { it.uppercase() }
+
+                if (ri.ingredientKey == primary.ingredientKey) {
+                    // Primary ingredient gets full dish nutrition
+                    result[ri.ingredientKey] = IngredientNutritionBreakdown(
+                        ingredientKey = ri.ingredientKey,
+                        displayName = displayName,
+                        rawWeightGrams = dish.perServingWeightG,
+                        calories = perServing.calories,
+                        protein = perServing.protein,
+                        carbs = perServing.carbs,
+                        fat = perServing.fat,
+                        sodium = perServing.sodium
+                    )
+                } else {
+                    // Supporting ingredients (water, oil for frying) show 0 — they're accounted
+                    // for in the dish-level values already
+                    result[ri.ingredientKey] = IngredientNutritionBreakdown(
+                        ingredientKey = ri.ingredientKey,
+                        displayName = displayName,
+                        rawWeightGrams = 0f,
+                        calories = 0f,
+                        protein = 0f,
+                        carbs = 0f,
+                        fat = 0f,
+                        sodium = 0f
+                    )
+                }
+            }
+            return result
+        }
+
+        // Standard path: ingredient-level calculation for multi-ingredient recipes
         val result = mutableMapOf<String, IngredientNutritionBreakdown>()
 
         for (ri in recipeIngredients) {

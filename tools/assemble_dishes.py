@@ -38,7 +38,7 @@ DISH_METADATA = {
         "servings": 5,
     },
     "kinilaw_tuna": {
-        "name_en": "Kinilaw na Tuna",
+        "name_en": "Tuna Ceviche",
         "name_ph": "Kinilaw na Tuna",
         "category": "Fish",
         "cooking_method": "raw_cured",
@@ -144,8 +144,8 @@ DISH_METADATA = {
         "servings": 1,
     },
     "rice_well_milled": {
-        "name_en": "Well-Milled Rice",
-        "name_ph": "Bigas na Puti",
+        "name_en": "Steamed White Rice",
+        "name_ph": "Kanin na Puti",
         "category": "Rice",
         "cooking_method": "boiled",
         "servings": 1,
@@ -247,7 +247,7 @@ YIELD_FACTORS = {
 
     # Boiled
     "egg_boiled":           0.90,   # Boiled egg, shell removed
-    "rice_well_milled":     2.40,   # Rice ABSORBS water (1 cup raw -> ~2.4 cups cooked)
+    "rice_well_milled":     2.81,   # Rice ABSORBS water: USDA raw (365 kcal/100g) ÷ cooked (130 kcal/100g) = 2.81× weight gain
 
     # Store-bought (already cooked, weighed as-is)
     "chicken_wings":        1.00,

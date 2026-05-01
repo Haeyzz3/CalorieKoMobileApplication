@@ -2171,11 +2171,12 @@
       "calcium": 0.0,
       "iron": 0.0
     },
-    "portions": []
+    "portions": [],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "cooking_oil",
-    "display_name": "Cooking Oil (Soybean)",
+    "display_name": "Soybean Oil",
     "category": "pantry_staple",
     "sub_category": "oil",
     "fdc_id": 171411,
@@ -2230,7 +2231,8 @@
       "calcium": 0.0,
       "iron": 0.0
     },
-    "portions": []
+    "portions": [],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "tomato_sauce",
@@ -2374,7 +2376,7 @@
   },
   {
     "ingredient_key": "rice_bigas",
-    "display_name": "Rice (Bigas)",
+    "display_name": "Raw White Rice Grain (Bigas)",
     "category": "pantry_staple",
     "sub_category": "grain",
     "fdc_id": 169756,
@@ -2426,7 +2428,8 @@
         "description": "serving 2 oz",
         "grams": 56.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "store_bought_lechon_manok_thigh",
@@ -2454,7 +2457,8 @@
         "description": "link",
         "grams": 84.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "store_bought_lechon_manok_drumstick",
@@ -2482,7 +2486,8 @@
         "description": "oz",
         "grams": 28.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "store_bought_lechon_manok_breast",
@@ -2510,7 +2515,8 @@
         "description": "oz",
         "grams": 28.4
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "olive_oil",

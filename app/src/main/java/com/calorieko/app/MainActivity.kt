@@ -682,7 +682,7 @@ fun AppNavigation() {
             }
             val logMealViewModel: com.calorieko.app.viewmodel.LogMealViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogMealViewModel.provideFactory(
-                    foodDao = db.foodDao(),
+                    dishRecipeDao = db.dishRecipeDao(),
                     rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,

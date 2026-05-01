@@ -2,12 +2,12 @@ package com.calorieko.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calorieko.app.data.local.FoodDao
+import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.local.IngredientNutritionBreakdown
 import com.calorieko.app.data.model.RawIngredientEntity
-import com.calorieko.app.data.model.FoodItem
+import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LogMealPhase
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.repository.MealRepository
@@ -35,7 +35,7 @@ sealed interface LogMealEvent {
 }
 
 class LogMealViewModel(
-    private val foodDao: FoodDao,
+    private val dishRecipeDao: DishRecipeDao,
     private val rawIngredientDao: RawIngredientDao,
     private val auth: FirebaseAuth,
     private val mealRepository: MealRepository,
@@ -62,8 +62,8 @@ class LogMealViewModel(
     private val _topConfidence = MutableStateFlow(0f)
     val topConfidence: StateFlow<Float> = _topConfidence.asStateFlow()
 
-    private val _currentDetectedFood = MutableStateFlow<FoodItem?>(null)
-    val currentDetectedFood: StateFlow<FoodItem?> = _currentDetectedFood.asStateFlow()
+    private val _currentDetectedFood = MutableStateFlow<DishRecipeEntity?>(null)
+    val currentDetectedFood: StateFlow<DishRecipeEntity?> = _currentDetectedFood.asStateFlow()
 
     private val _showUnsupportedBanner = MutableStateFlow(false)
     val showUnsupportedBanner: StateFlow<Boolean> = _showUnsupportedBanner.asStateFlow()
@@ -80,13 +80,13 @@ class LogMealViewModel(
     private val _showCandidateSelection = MutableStateFlow(false)
     val showCandidateSelection: StateFlow<Boolean> = _showCandidateSelection.asStateFlow()
 
-    private val _candidate1 = MutableStateFlow<Pair<FoodItem, Float>?>(null)
-    val candidate1: StateFlow<Pair<FoodItem, Float>?> = _candidate1.asStateFlow()
+    private val _candidate1 = MutableStateFlow<Pair<DishRecipeEntity, Float>?>(null)
+    val candidate1: StateFlow<Pair<DishRecipeEntity, Float>?> = _candidate1.asStateFlow()
 
-    private val _candidate2 = MutableStateFlow<Pair<FoodItem, Float>?>(null)
-    val candidate2: StateFlow<Pair<FoodItem, Float>?> = _candidate2.asStateFlow()
+    private val _candidate2 = MutableStateFlow<Pair<DishRecipeEntity, Float>?>(null)
+    val candidate2: StateFlow<Pair<DishRecipeEntity, Float>?> = _candidate2.asStateFlow()
 
-    private val _pendingFoodId = MutableStateFlow(0)
+    private val _pendingDishLabel = MutableStateFlow("")
 
     private val _pendingDishName = MutableStateFlow("")
     val pendingDishName: StateFlow<String> = _pendingDishName.asStateFlow()
@@ -170,12 +170,12 @@ class LogMealViewModel(
             _topConfidence.value = results[0].second
 
             viewModelScope.launch {
-                val food = if (newTopLabel.isNotEmpty() && newTopLabel != "negative") {
-                    withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(newTopLabel) }
+                val dish = if (newTopLabel.isNotEmpty() && newTopLabel != "negative") {
+                    withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(newTopLabel) }
                 } else {
                     null
                 }
-                _currentDetectedFood.value = food
+                _currentDetectedFood.value = dish
             }
         }
     }
@@ -199,9 +199,9 @@ class LogMealViewModel(
 
         viewModelScope.launch {
             _isProcessing.value = true
-            val food1 = top1?.let { withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(it.first) } }
+            val dish1 = top1?.let { withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(it.first) } }
 
-            if (food1 == null) {
+            if (dish1 == null) {
                 triggerUnsupportedBanner()
                 _isProcessing.value = false
                 return@launch
@@ -209,19 +209,19 @@ class LogMealViewModel(
 
             // Use the new calculator for the calorie estimate
             val calEst = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(food1.mlLabel, currentWeight).calories
+                calculator.calculatePortionNutrition(dish1.dishLabel, currentWeight).calories
             }
 
             if (top1.second >= 0.80f) {
-                setDishReady(food1.foodId, food1.namePh, food1.nameEn, top1.second, calEst)
+                setDishReady(dish1.dishLabel, dish1.namePh, dish1.nameEn, top1.second, calEst)
             } else if (top2 != null && (top1.second - top2.second) <= 0.40f && top1.second > 0.10f) {
-                val food2 = withContext(Dispatchers.IO) { foodDao.getFoodByMlLabel(top2.first) }
-                if (food2 != null) {
-                    _candidate1.value = Pair(food1, top1.second)
-                    _candidate2.value = Pair(food2, top2.second)
+                val dish2 = withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(top2.first) }
+                if (dish2 != null) {
+                    _candidate1.value = Pair(dish1, top1.second)
+                    _candidate2.value = Pair(dish2, top2.second)
                     _showCandidateSelection.value = true
                 } else {
-                    setDishReady(food1.foodId, food1.namePh, food1.nameEn, top1.second, calEst)
+                    setDishReady(dish1.dishLabel, dish1.namePh, dish1.nameEn, top1.second, calEst)
                 }
             } else {
                 triggerUnsupportedBanner()
@@ -238,8 +238,8 @@ class LogMealViewModel(
         }
     }
 
-    private fun setDishReady(foodId: Int, namePh: String, nameEn: String, confidence: Float, calEst: Float) {
-        _pendingFoodId.value = foodId
+    private fun setDishReady(dishLabel: String, namePh: String, nameEn: String, confidence: Float, calEst: Float) {
+        _pendingDishLabel.value = dishLabel
         _pendingDishName.value = namePh
         _pendingDishNameEn.value = nameEn
         _pendingConfidence.value = confidence
@@ -247,12 +247,12 @@ class LogMealViewModel(
         _phase.value = LogMealPhase.DISH_READY
     }
 
-    fun onCandidateSelected(food: FoodItem, confidence: Float) {
+    fun onCandidateSelected(dish: DishRecipeEntity, confidence: Float) {
         viewModelScope.launch {
             val calEst = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(food.mlLabel, _weight.value).calories
+                calculator.calculatePortionNutrition(dish.dishLabel, _weight.value).calories
             }
-            setDishReady(food.foodId, food.namePh, food.nameEn, confidence, calEst)
+            setDishReady(dish.dishLabel, dish.namePh, dish.nameEn, confidence, calEst)
             _showCandidateSelection.value = false
         }
     }
@@ -263,49 +263,49 @@ class LogMealViewModel(
     }
 
     fun logCurrentDish() {
-        val foodId = _pendingFoodId.value
+        val dishLabel = _pendingDishLabel.value
         val dishName = _pendingDishName.value
         val confidence = _pendingConfidence.value
         val currentWeight = _weight.value
 
+        if (dishLabel.isEmpty()) {
+            triggerLogFailedBanner()
+            return
+        }
+
         viewModelScope.launch {
-            val food = withContext(Dispatchers.IO) { foodDao.getFoodById(foodId) }
-            if (food != null) {
-                val w = currentWeight
-                // Use the new calculator to compute all nutrients at once
-                val nutrients = withContext(Dispatchers.IO) {
-                    calculator.calculatePortionNutrition(food.mlLabel, w)
-                }
-                val dish = LoggedDish(
-                    dishNameEn = _pendingDishNameEn.value,
-                    dishNamePh = dishName,
-                    weightGrams = w,
-                    confidence = confidence,
-                    foodId = food.foodId,
-                    dishLabel = food.mlLabel,
-                    calories = nutrients.calories,
-                    protein = nutrients.protein,
-                    carbs = nutrients.carbs,
-                    fat = nutrients.fat,
-                    fiber = nutrients.fiber,
-                    sugar = nutrients.sugar,
-                    // Secondary fat macros zeroed — removed from UI per earlier decision
-                    saturatedFat = 0f,
-                    polyunsaturatedFat = 0f,
-                    monounsaturatedFat = 0f,
-                    transFat = 0f,
-                    cholesterol = 0f,
-                    sodium = nutrients.sodium,
-                    potassium = nutrients.potassium,
-                    vitaminA = nutrients.vitaminA,
-                    vitaminC = nutrients.vitaminC,
-                    calcium = nutrients.calcium,
-                    iron = nutrients.iron
-                )
-                _loggedDishes.update { it + dish }
-            } else {
-                triggerLogFailedBanner()
+            val w = currentWeight
+            // Use the new calculator to compute all nutrients at once
+            val nutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(dishLabel, w)
             }
+            val loggedDish = LoggedDish(
+                dishNameEn = _pendingDishNameEn.value,
+                dishNamePh = dishName,
+                weightGrams = w,
+                confidence = confidence,
+                foodId = 0,  // Legacy field — no longer used for nutrition
+                dishLabel = dishLabel,
+                calories = nutrients.calories,
+                protein = nutrients.protein,
+                carbs = nutrients.carbs,
+                fat = nutrients.fat,
+                fiber = nutrients.fiber,
+                sugar = nutrients.sugar,
+                // Secondary fat macros zeroed — removed from UI per earlier decision
+                saturatedFat = 0f,
+                polyunsaturatedFat = 0f,
+                monounsaturatedFat = 0f,
+                transFat = 0f,
+                cholesterol = 0f,
+                sodium = nutrients.sodium,
+                potassium = nutrients.potassium,
+                vitaminA = nutrients.vitaminA,
+                vitaminC = nutrients.vitaminC,
+                calcium = nutrients.calcium,
+                iron = nutrients.iron
+            )
+            _loggedDishes.update { it + loggedDish }
             resetScanningVariables()
         }
     }
@@ -318,7 +318,7 @@ class LogMealViewModel(
         _latestResults.value = emptyList()
         _topLabel.value = ""
         _topConfidence.value = 0f
-        _pendingFoodId.value = 0
+        _pendingDishLabel.value = ""
         _candidate1.value = null
         _candidate2.value = null
         _showCandidateSelection.value = false
@@ -370,11 +370,11 @@ class LogMealViewModel(
 
     // ── Ingredient Breakdown & Substitution ──
 
-    /** Resolves a foodId to its ML label for calculator lookups. */
+    /** Resolves a dishLabel from an old foodId. Legacy bridge — callers should use dishLabel directly. */
+    @Deprecated("Use dishLabel directly from LoggedDish instead of looking up by foodId")
     suspend fun getMlLabelForDish(foodId: Int): String? {
-        return withContext(Dispatchers.IO) {
-            foodDao.getFoodById(foodId)?.mlLabel
-        }
+        // Legacy: foodId is no longer used. Return null to signal migration.
+        return null
     }
 
     /** Returns per-ingredient nutrition breakdown for a dish. */
@@ -430,7 +430,7 @@ class LogMealViewModel(
         const val CONFIDENCE_THRESHOLD = 0.70f
 
         fun provideFactory(
-            foodDao: FoodDao,
+            dishRecipeDao: DishRecipeDao,
             rawIngredientDao: RawIngredientDao,
             auth: FirebaseAuth,
             mealRepository: MealRepository,
@@ -439,7 +439,7 @@ class LogMealViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(LogMealViewModel::class.java)) {
-                    return LogMealViewModel(foodDao, rawIngredientDao, auth, mealRepository, calculator) as T
+                    return LogMealViewModel(dishRecipeDao, rawIngredientDao, auth, mealRepository, calculator) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

@@ -93,13 +93,13 @@ INGREDIENT_MAP = [
     {"key": "cornstarch", "fdc_id": 170569, "display_name": "Cornstarch", "category": "pantry_staple", "sub_category": "starch"},
     {"key": "all_purpose_flour", "fdc_id": 169761, "display_name": "All-Purpose Flour", "category": "pantry_staple", "sub_category": "flour"},
     {"key": "food_coloring_orange", "fdc_id": None, "display_name": "Food Coloring (Orange)", "category": "pantry_staple", "sub_category": "additive"},
-    {"key": "cooking_oil", "fdc_id": 171028, "display_name": "Cooking Oil (Soybean)", "category": "pantry_staple", "sub_category": "oil"},
+    {"key": "cooking_oil", "fdc_id": 171028, "display_name": "Soybean Oil", "category": "pantry_staple", "sub_category": "oil"},
     {"key": "water", "fdc_id": None, "display_name": "Water", "category": "pantry_staple", "sub_category": "water"},
     {"key": "tomato_sauce", "fdc_id": 170466, "display_name": "Tomato Sauce", "category": "pantry_staple", "sub_category": "canned_good"},
     {"key": "raisins", "fdc_id": 168165, "display_name": "Raisins", "category": "pantry_staple", "sub_category": "dried_fruit"},
     {"key": "odong_noodles", "fdc_id": 169741, "display_name": "Odong Noodles", "category": "pantry_staple", "sub_category": "noodle"},
     {"key": "sardines_tomato_sauce_canned", "fdc_id": 175139, "display_name": "Sardines in Tomato Sauce", "category": "pantry_staple", "sub_category": "canned_good"},
-    {"key": "rice_bigas", "fdc_id": 169756, "display_name": "Rice (Bigas)", "category": "pantry_staple", "sub_category": "grain"},
+    {"key": "rice_bigas", "fdc_id": 169756, "display_name": "Raw White Rice Grain (Bigas)", "category": "pantry_staple", "sub_category": "grain"},
 
     # ── STORE-BOUGHT (cooked chicken) ──
     {"key": "store_bought_lechon_manok_wing", "fdc_id": 174608, "display_name": "Lechon Manok Wing", "category": "store_bought", "sub_category": "poultry_cooked"},

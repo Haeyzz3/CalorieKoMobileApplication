@@ -26,12 +26,14 @@ interface RawIngredientDao {
 
     /**
      * Returns all raw ingredients in the same [subCategory], excluding
-     * the ingredient with [excludeKey]. Used for the substitution picker.
+     * the ingredient with [excludeKey] and any non-substitutable ingredients.
+     * Used for the substitution picker.
      */
     @Query("""
         SELECT * FROM RAW_INGREDIENTS_TABLE 
         WHERE sub_category = :subCategory 
           AND ingredient_key != :excludeKey 
+          AND is_substitutable = 1
         ORDER BY display_name ASC
     """)
     suspend fun getSubstituteCandidates(

@@ -1870,9 +1870,9 @@ private fun ManualMealSummaryOverlay(
 
 @Composable
 private fun CandidateSelectionSheet(
-    candidate1: Pair<com.calorieko.app.data.model.FoodItem, Float>,
-    candidate2: Pair<com.calorieko.app.data.model.FoodItem, Float>,
-    onSelect: (com.calorieko.app.data.model.FoodItem, Float) -> Unit,
+    candidate1: Pair<com.calorieko.app.data.model.DishRecipeEntity, Float>,
+    candidate2: Pair<com.calorieko.app.data.model.DishRecipeEntity, Float>,
+    onSelect: (com.calorieko.app.data.model.DishRecipeEntity, Float) -> Unit,
     onCancel: () -> Unit
 ) {
     Box(

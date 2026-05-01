@@ -34,4 +34,7 @@ data class RawIngredientEntity(
     @ColumnInfo(name = "vitamin_c") val vitaminC: Float = 0f,
     @ColumnInfo(name = "calcium") val calcium: Float = 0f,
     @ColumnInfo(name = "iron") val iron: Float = 0f,
+
+    // Substitution control: false = ingredient never appears as a swap candidate
+    @ColumnInfo(name = "is_substitutable", defaultValue = "1") val isSubstitutable: Boolean = true,
 )
