@@ -55,6 +55,13 @@ interface RawIngredientDao {
     @Query("SELECT ingredient_key, category FROM RAW_INGREDIENTS_TABLE WHERE ingredient_key IN (:keys)")
     suspend fun getCategoriesForKeys(keys: List<String>): List<IngredientKeyCategory>
 
+    /**
+     * Returns ingredient_key and display_name for a list of keys.
+     * Used to resolve authoritative display names for recipe cards.
+     */
+    @Query("SELECT ingredient_key, display_name FROM RAW_INGREDIENTS_TABLE WHERE ingredient_key IN (:keys)")
+    suspend fun getDisplayNamesForKeys(keys: List<String>): List<IngredientKeyDisplayName>
+
     /** Clears all rows. Used before re-seeding from JSON. */
     @Query("DELETE FROM RAW_INGREDIENTS_TABLE")
     suspend fun deleteAll()
@@ -66,4 +73,13 @@ interface RawIngredientDao {
 data class IngredientKeyCategory(
     val ingredient_key: String,
     val category: String
+)
+
+/**
+ * Lightweight pair of ingredient_key + display_name, used for resolving
+ * authoritative display names from RAW_INGREDIENTS_TABLE.
+ */
+data class IngredientKeyDisplayName(
+    val ingredient_key: String,
+    val display_name: String
 )

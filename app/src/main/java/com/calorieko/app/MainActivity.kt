@@ -655,6 +655,7 @@ fun AppNavigation() {
                     auth = auth,
                     dishRecipeDao = db.dishRecipeDao(),
                     pantryDao = db.pantryDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )

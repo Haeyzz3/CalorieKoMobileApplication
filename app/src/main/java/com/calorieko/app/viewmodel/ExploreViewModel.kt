@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.local.PantryDao
+import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.remote.FirestoreSyncRepository
@@ -50,6 +51,7 @@ class ExploreViewModel(
     private val auth: FirebaseAuth,
     private val dishRecipeDao: DishRecipeDao,
     private val pantryDao: PantryDao,
+    private val rawIngredientDao: RawIngredientDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) : ViewModel() {
@@ -62,13 +64,14 @@ class ExploreViewModel(
             auth: FirebaseAuth,
             dishRecipeDao: DishRecipeDao,
             pantryDao: PantryDao,
+            rawIngredientDao: RawIngredientDao,
             firestoreSyncRepo: FirestoreSyncRepository,
             appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ExploreViewModel::class.java)) {
-                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, firestoreSyncRepo, appContext) as T
+                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, rawIngredientDao, firestoreSyncRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -137,7 +140,11 @@ class ExploreViewModel(
 
             val recipes = dishRecipeDao.getAllDishRecipes()
             val dishes = recipes.map { recipe ->
-                val ingredients = pantryDao.getIngredientsForDish(recipe.dishLabel)
+                val ingredientKeys = pantryDao.getIngredientsForDish(recipe.dishLabel)
+                // Resolve authoritative display names from RAW_INGREDIENTS_TABLE
+                val displayNames = rawIngredientDao.getDisplayNamesForKeys(ingredientKeys)
+                val nameMap = displayNames.associate { it.ingredient_key to it.display_name }
+                val resolvedNames = ingredientKeys.map { nameMap[it] ?: it }
                 ExploreDish(
                     dishLabel = recipe.dishLabel,
                     nameEn = recipe.nameEn,
@@ -149,8 +156,8 @@ class ExploreViewModel(
                     fats = recipe.fatPerServing.toInt(),
                     sodium = recipe.sodiumPerServing.toInt(),
                     dataSource = "USDA_FDC",
-                    ingredientCount = ingredients.size,
-                    ingredientNames = ingredients,
+                    ingredientCount = resolvedNames.size,
+                    ingredientNames = resolvedNames,
                     servings = recipe.servings,
                     perServingWeightG = recipe.perServingWeightG
                 )
@@ -216,9 +223,15 @@ class ExploreViewModel(
      * Returns ingredient details for a dish (for use in the detail bottom sheet).
      */
     suspend fun getIngredientDetails(dishLabel: String): List<IngredientInfo> {
-        return pantryDao.getIngredientDetailsForDish(dishLabel).map { detail ->
+        val details = pantryDao.getIngredientDetailsForDish(dishLabel)
+        // Resolve authoritative display names from RAW_INGREDIENTS_TABLE
+        val keys = details.map { it.ingredient_name }.distinct()
+        val displayNames = rawIngredientDao.getDisplayNamesForKeys(keys)
+        val nameMap = displayNames.associate { it.ingredient_key to it.display_name }
+        return details.map { detail ->
             IngredientInfo(
-                name = detail.ingredient_name,
+                name = nameMap[detail.ingredient_name] ?: detail.ingredient_name,
+                ingredientKey = detail.ingredient_name,
                 type = detail.ingredient_type,
                 category = detail.ingredient_category,
                 portionQuantity = detail.portion_quantity,

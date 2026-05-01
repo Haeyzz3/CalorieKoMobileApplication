@@ -38,9 +38,13 @@ import java.time.temporal.TemporalAdjusters
 
 /**
  * Rich ingredient info for display in the Recipe Detail bottom sheet.
+ *
+ * [name] is the authoritative display name from RAW_INGREDIENTS_TABLE (e.g., "Soybean Oil").
+ * [ingredientKey] is the raw key used for substitution lookups and pantry matching (e.g., "cooking_oil").
  */
 data class IngredientInfo(
     val name: String,
+    val ingredientKey: String = "",  // Raw key from DISH_INGREDIENTS_TABLE
     val type: String,           // "core" or "optional"
     val category: String,       // "protein", "produce", "seasoning", "pantry_staple"
     val portionQuantity: String, // e.g. "5 cups", "" if not specified
@@ -418,11 +422,19 @@ class PantryViewModel(
             val missingCore = missingWithType.filter { it.ingredient_type == "core" }.map { it.ingredient_name }
             val missingOptional = missingWithType.filter { it.ingredient_type == "optional" }.map { it.ingredient_name }
 
+            // Collect all ingredient keys (details + missing) for batch display name resolution
+            val allMissingKeys = missingWithType.map { it.ingredient_name }.distinct()
+
             val nutrition = getDishNutrition(info.dish_label)
+
+            // Resolve authoritative display names from RAW_INGREDIENTS_TABLE
+            val allKeys = (details.map { it.ingredient_name } + allMissingKeys + allIngredients).distinct()
+            val displayNameMap = resolveDisplayNames(allKeys)
 
             val ingredientInfoList = details.map { detail ->
                 IngredientInfo(
-                    name = detail.ingredient_name,
+                    name = displayNameMap[detail.ingredient_name] ?: detail.ingredient_name,
+                    ingredientKey = detail.ingredient_name,
                     type = detail.ingredient_type,
                     category = detail.ingredient_category,
                     portionQuantity = detail.portion_quantity,
@@ -431,13 +443,18 @@ class PantryViewModel(
                 )
             }
 
+            // Map ingredient lists to display names for the recipe card
+            val resolvedIngredients = allIngredients.map { displayNameMap[it] ?: it }
+            val resolvedMissingCore = missingCore.map { displayNameMap[it] ?: it }
+            val resolvedMissingOptional = missingOptional.map { displayNameMap[it] ?: it }
+
             val result = DishResult(
                 dishLabel = info.dish_label,
                 dishName = formatDishName(info.dish_label),
-                ingredients = allIngredients,
+                ingredients = resolvedIngredients,
                 ingredientDetails = ingredientInfoList,
-                missingCoreIngredients = missingCore,
-                missingOptionalIngredients = missingOptional,
+                missingCoreIngredients = resolvedMissingCore,
+                missingOptionalIngredients = resolvedMissingOptional,
                 coreMatchedCount = info.core_matched,
                 coreTotalCount = info.core_total,
                 calories = nutrition.calories,
@@ -467,6 +484,18 @@ class PantryViewModel(
         val coreRatio: (DishResult) -> Float = { it.coreMatchedCount.toFloat() / it.coreTotalCount.toFloat() }
         _readyToCookDishes.value = ready.sortedByDescending(coreRatio)
         _almostReadyDishes.value = almostReady.sortedByDescending(coreRatio)
+    }
+
+    /**
+     * Batch-resolves ingredient keys to their authoritative display names
+     * from RAW_INGREDIENTS_TABLE. Falls back to the raw key if not found.
+     *
+     * @return Map of ingredient_key → display_name
+     */
+    private suspend fun resolveDisplayNames(keys: List<String>): Map<String, String> {
+        if (keys.isEmpty()) return emptyMap()
+        val results = rawIngredientDao.getDisplayNamesForKeys(keys)
+        return results.associate { it.ingredient_key to it.display_name }
     }
 
     /**
@@ -766,17 +795,26 @@ class PantryViewModel(
             }
         } else allIngredients
 
-        val ingredientInfoList = details.mapNotNull { detail ->
-            val mapped = subs[detail.ingredient_name] ?: detail.ingredient_name
-            if (mapped == REMOVED_INGREDIENT) return@mapNotNull null
-            IngredientInfo(
-                name = mapped,
-                type = detail.ingredient_type,
-                category = detail.ingredient_category,
-                portionQuantity = detail.portion_quantity,
-                preparationMethod = detail.preparation_method,
-                step = detail.step
-            )
+        val ingredientInfoList = run {
+            // Resolve display names for all ingredient keys, including substituted ones
+            val allKeys = details.map { detail ->
+                subs[detail.ingredient_name] ?: detail.ingredient_name
+            }.filter { it != REMOVED_INGREDIENT }.distinct()
+            val displayNameMap = resolveDisplayNames(allKeys)
+
+            details.mapNotNull { detail ->
+                val mapped = subs[detail.ingredient_name] ?: detail.ingredient_name
+                if (mapped == REMOVED_INGREDIENT) return@mapNotNull null
+                IngredientInfo(
+                    name = displayNameMap[mapped] ?: mapped,
+                    ingredientKey = mapped,
+                    type = detail.ingredient_type,
+                    category = detail.ingredient_category,
+                    portionQuantity = detail.portion_quantity,
+                    preparationMethod = detail.preparation_method,
+                    step = detail.step
+                )
+            }
         }
 
         // Use recalculated nutrition when substitutions are present

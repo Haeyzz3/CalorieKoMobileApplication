@@ -839,7 +839,7 @@ private fun ExploreDishDetailContent(
             Spacer(modifier = Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ingredientDetails.forEach { detail ->
-                    val isInPantry = detail.name in pantryItems
+                    val isInPantry = detail.ingredientKey in pantryItems
                     val isCore = detail.type == "core"
                     val bgColor = if (isInPantry) Color(0xFFECFDF5) else Color(0xFFF9FAFB)
                     val iconColor = if (isInPantry) CalorieKoGreen else Color(0xFF9CA3AF)
@@ -864,7 +864,7 @@ private fun ExploreDishDetailContent(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            val displayName = viewModel.formatName(detail.name)
+                            val displayName = detail.name
                             val nameWithPrep = if (detail.preparationMethod.isNotBlank()) {
                                 "$displayName, ${detail.preparationMethod}"
                             } else {
@@ -908,7 +908,7 @@ private fun ExploreDishDetailContent(
         // Add Core Ingredients to Pantry Button
         if (ingredientDetails.isNotEmpty()) {
             val coreCount = ingredientDetails.count { it.type == "core" }
-            val coreInPantryCount = ingredientDetails.count { it.type == "core" && it.name in pantryItems }
+            val coreInPantryCount = ingredientDetails.count { it.type == "core" && it.ingredientKey in pantryItems }
             val allCoreInPantry = coreInPantryCount == coreCount
 
             Surface(

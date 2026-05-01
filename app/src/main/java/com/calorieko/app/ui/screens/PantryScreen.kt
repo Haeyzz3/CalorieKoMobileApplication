@@ -2130,12 +2130,12 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 val isMissing = isMissingCore || isMissingOptional
 
                 // Check if this ingredient has been substituted or removed
-                val substitutedWith = dishSubs[detail.name]
+                val substitutedWith = dishSubs[detail.ingredientKey]
                 val isRemoved = substitutedWith == PantryViewModel.REMOVED_INGREDIENT
                 val isSubstituted = substitutedWith != null && !isRemoved
-                val effectiveIngredientName = when {
+                val effectiveDisplayName = when {
                     isRemoved -> detail.name
-                    substitutedWith != null -> substitutedWith
+                    isSubstituted -> viewModel.formatIngredientName(substitutedWith!!)
                     else -> detail.name
                 }
                 val isOptional = detail.type == "optional"
@@ -2172,10 +2172,10 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             .fillMaxWidth()
                             .clickable {
                                 // Toggle nutrition detail on tap; also load substitutes
-                                if (expandedIngredient == detail.name) {
+                                if (expandedIngredient == detail.ingredientKey) {
                                     expandedIngredient = null
                                 } else {
-                                    expandedIngredient = detail.name
+                                    expandedIngredient = detail.ingredientKey
                                 }
                             }
                             .padding(12.dp),
@@ -2195,7 +2195,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             // Ingredient name (show substituted name if active, strikethrough if removed)
-                            val displayName = viewModel.formatIngredientName(effectiveIngredientName)
+                            val displayName = effectiveDisplayName
                             val nameWithPrep = if (!isSubstituted && !isRemoved && detail.preparationMethod.isNotBlank()) {
                                 "$displayName, ${detail.preparationMethod}"
                             } else {
@@ -2217,7 +2217,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             // Show original ingredient name if substituted
                             if (isSubstituted) {
                                 Text(
-                                    "\u21a9 ${viewModel.formatIngredientName(detail.name)}",
+                                    "\u21a9 ${detail.name}",
                                     fontSize = 11.sp,
                                     color = Color(0xFF0369A1)
                                 )
@@ -2239,7 +2239,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         // Badges
                         if (isRemoved) {
                             Surface(
-                                onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
+                                onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.ingredientKey) },
                                 color = Color(0xFFFEE2E2),
                                 shape = RoundedCornerShape(4.dp)
                             ) {
@@ -2247,7 +2247,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             }
                         } else if (isSubstituted) {
                             Surface(
-                                onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.name) },
+                                onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.ingredientKey) },
                                 color = Color(0xFFBAE6FD),
                                 shape = RoundedCornerShape(4.dp)
                             ) {
@@ -2265,9 +2265,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     }
 
                     // Expandable per-ingredient nutrition detail
-                    val breakdown = ingredientBreakdown[detail.name]
+                    val breakdown = ingredientBreakdown[detail.ingredientKey]
                     AnimatedVisibility(
-                        visible = expandedIngredient == detail.name,
+                        visible = expandedIngredient == detail.ingredientKey,
                         enter = expandVertically(),
                         exit = shrinkVertically()
                     ) {
@@ -2311,7 +2311,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             }
                             // Action buttons row (hidden in view-only mode)
                             if (!isViewOnly) {
-                            val hasAlts = ingredientHasAlternatives[detail.name]
+                            val hasAlts = ingredientHasAlternatives[detail.ingredientKey]
 
                             if (!isRemoved && !isSubstituted) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2327,9 +2327,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                                 onClick = {
                                                     scope.launch {
                                                         isLoadingCandidates = true
-                                                        substitutionTarget = detail.name
+                                                        substitutionTarget = detail.ingredientKey
                                                         val candidates = withContext(Dispatchers.IO) {
-                                                            viewModel.getSubstitutesForIngredient(detail.name)
+                                                            viewModel.getSubstitutesForIngredient(detail.ingredientKey)
                                                         }
                                                         substitutionCandidates = candidates
                                                         isLoadingCandidates = false
@@ -2370,7 +2370,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Surface(
                                         onClick = {
-                                            viewModel.removeIngredient(recipe.dishLabel, detail.name)
+                                            viewModel.removeIngredient(recipe.dishLabel, detail.ingredientKey)
                                             expandedIngredient = null
                                         },
                                         color = Color(0xFFEF4444).copy(alpha = 0.08f),
