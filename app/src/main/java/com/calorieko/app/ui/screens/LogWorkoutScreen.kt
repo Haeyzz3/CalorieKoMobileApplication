@@ -1349,7 +1349,10 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                                         val timePrefix = when { hour < 12 -> "Morning"; hour < 17 -> "Afternoon"; else -> "Evening" }
                                         activityTitle = "$timePrefix ${selectedActivity.name}"
                                     },
-                                    modifier = Modifier.size(72.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)), elevation = ButtonDefaults.buttonElevation(defaultElevation = 12.dp)
+                                    modifier = Modifier.size(72.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color(
+                                        0xFFFFC107
+                                    )
+                                    ), elevation = ButtonDefaults.buttonElevation(defaultElevation = 12.dp)
                                 ) { Icon(Icons.Default.Stop, contentDescription = "Stop", tint = Color.White, modifier = Modifier.size(32.dp)) }
                             }
                         }
