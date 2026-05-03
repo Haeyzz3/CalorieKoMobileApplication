@@ -51,6 +51,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.theme.RingEaten
+import com.calorieko.app.ui.theme.RingBurned
+import com.calorieko.app.ui.theme.RingSodium
 import com.calorieko.app.viewmodel.ProgressViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -81,113 +84,122 @@ private data class DayEntry(
 )
 
 // ==================== CHART DATA BUILDERS ====================
-// These replace the old inline viewMode == "weekly"/"monthly" checks
-// that never matched the real viewMode strings ("7_days", "30_days", "90_days").
+// Calorie intake and sodium come from DailyNutritionSummaryEntity (Room).
+// Burned calories and steps come from ActivityLogEntity (workout logs).
 
 /**
- * Builds calorie chart points from raw logs, grouped by day / week / month
- * depending on [viewMode].  Labels use real calendar dates (e.g. "4/13").
+ * Builds calorie chart points, grouped by day / week / month depending on [viewMode].
+ * Intake comes from [nutritionSummaries], burned from [workoutLogs].
  */
 private fun buildCalorieChartData(
-    logs: List<ActivityLogEntity>,
+    nutritionSummaries: List<com.calorieko.app.data.model.DailyNutritionSummaryEntity>,
+    workoutLogs: List<ActivityLogEntity>,
     viewMode: String
-): List<DayCalorieData> = when (viewMode) {
-    "7_days" -> (6 downTo 0).map { daysAgo ->
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        val dayStart = cal.timeInMillis
-        val dayEnd = dayStart + 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
-        DayCalorieData(
-            label,
-            dayLogs.filter { it.type == "meal" }.sumOf { it.calories },
-            dayLogs.filter { it.type == "workout" }.sumOf { it.calories }
-        )
+): List<DayCalorieData> {
+    val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+
+    return when (viewMode) {
+        "7_days" -> (6 downTo 0).map { daysAgo ->
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            val dayStart = cal.timeInMillis
+            val dayEnd = dayStart + 86_400_000L
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+
+            val epochDay = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+            val intake = summaryMap[epochDay]?.totalCalories?.toInt() ?: 0
+            val burned = workoutLogs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.calories }
+            DayCalorieData(label, intake, burned)
+        }
+        "30_days" -> (3 downTo 0).map { weeksAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+            val weekStart = cal.timeInMillis
+            val weekEnd = weekStart + 7 * 86_400_000L
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+            val intake = (0..6).sumOf { d -> summaryMap[startEpoch + d]?.totalCalories?.toInt() ?: 0 } / 7
+            val burned = workoutLogs.filter { it.timestamp in weekStart until weekEnd }.sumOf { it.calories } / 7
+            DayCalorieData(label, intake, burned)
+        }
+        "90_days" -> (2 downTo 0).map { monthsAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.MONTH, -monthsAgo)
+            val monthStart = cal.timeInMillis
+            val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
+            val nextCal = cal.clone() as Calendar
+            nextCal.add(Calendar.MONTH, 1)
+            val monthEnd = nextCal.timeInMillis
+            val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
+
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
+            ).toEpochDay()
+            val intake = (0 until daysInMonth).sumOf { d -> summaryMap[startEpoch + d]?.totalCalories?.toInt() ?: 0 } / daysInMonth
+            val burned = workoutLogs.filter { it.timestamp in monthStart until monthEnd }.sumOf { it.calories } / daysInMonth
+            DayCalorieData(label, intake, burned)
+        }
+        else -> emptyList()
     }
-    "30_days" -> (3 downTo 0).map { weeksAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-        val weekStart = cal.timeInMillis
-        val weekEnd = weekStart + 7 * 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val weekLogs = logs.filter { it.timestamp in weekStart until weekEnd }
-        DayCalorieData(
-            label,
-            weekLogs.filter { it.type == "meal" }.sumOf { it.calories } / 7,
-            weekLogs.filter { it.type == "workout" }.sumOf { it.calories } / 7
-        )
-    }
-    "90_days" -> (2 downTo 0).map { monthsAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.MONTH, -monthsAgo)
-        val monthStart = cal.timeInMillis
-        val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
-        val nextCal = cal.clone() as Calendar
-        nextCal.add(Calendar.MONTH, 1)
-        val monthEnd = nextCal.timeInMillis
-        val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
-        val monthLogs = logs.filter { it.timestamp in monthStart until monthEnd }
-        DayCalorieData(
-            label,
-            monthLogs.filter { it.type == "meal" }.sumOf { it.calories } / daysInMonth,
-            monthLogs.filter { it.type == "workout" }.sumOf { it.calories } / daysInMonth
-        )
-    }
-    else -> emptyList()
 }
 
 private fun buildSodiumChartData(
-    logs: List<ActivityLogEntity>,
+    nutritionSummaries: List<com.calorieko.app.data.model.DailyNutritionSummaryEntity>,
     viewMode: String
-): List<DaySodiumData> = when (viewMode) {
-    "7_days" -> (6 downTo 0).map { daysAgo ->
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        val dayStart = cal.timeInMillis
-        val dayEnd = dayStart + 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
-        DaySodiumData(label, dayLogs.filter { it.type == "meal" }.sumOf { it.sodium })
+): List<DaySodiumData> {
+    val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+
+    return when (viewMode) {
+        "7_days" -> (6 downTo 0).map { daysAgo ->
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+            val epochDay = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+            DaySodiumData(label, summaryMap[epochDay]?.totalSodium?.toInt() ?: 0)
+        }
+        "30_days" -> (3 downTo 0).map { weeksAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+            val avgSodium = (0..6).sumOf { d -> summaryMap[startEpoch + d]?.totalSodium?.toInt() ?: 0 } / 7
+            DaySodiumData(label, avgSodium)
+        }
+        "90_days" -> (2 downTo 0).map { monthsAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.add(Calendar.MONTH, -monthsAgo)
+            val monthStart = cal.timeInMillis
+            val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
+            val nextCal = cal.clone() as Calendar
+            nextCal.add(Calendar.MONTH, 1)
+            val daysInMonth = ((nextCal.timeInMillis - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
+            ).toEpochDay()
+            val avgSodium = (0 until daysInMonth).sumOf { d -> summaryMap[startEpoch + d]?.totalSodium?.toInt() ?: 0 } / daysInMonth
+            DaySodiumData(label, avgSodium)
+        }
+        else -> emptyList()
     }
-    "30_days" -> (3 downTo 0).map { weeksAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-        val weekStart = cal.timeInMillis
-        val weekEnd = weekStart + 7 * 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val weekLogs = logs.filter { it.timestamp in weekStart until weekEnd }
-        DaySodiumData(label, weekLogs.filter { it.type == "meal" }.sumOf { it.sodium } / 7)
-    }
-    "90_days" -> (2 downTo 0).map { monthsAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.MONTH, -monthsAgo)
-        val monthStart = cal.timeInMillis
-        val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
-        val nextCal = cal.clone() as Calendar
-        nextCal.add(Calendar.MONTH, 1)
-        val monthEnd = nextCal.timeInMillis
-        val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
-        val monthLogs = logs.filter { it.timestamp in monthStart until monthEnd }
-        DaySodiumData(label, monthLogs.filter { it.type == "meal" }.sumOf { it.sodium } / daysInMonth)
-    }
-    else -> emptyList()
 }
 
 private fun buildStepsChartData(
@@ -293,12 +305,59 @@ private fun buildDayEntries(logs: List<ActivityLogEntity>): List<DayEntry> {
         .sortedByDescending { it.timestamp }
 }
 
+/**
+ * Builds day entries by merging nutrition summaries (intake/sodium) with workout logs (burned/steps).
+ * This replaces the old buildDayEntries which only read from activity_log_table.
+ */
+private fun buildDayEntriesFromSummaries(
+    nutritionSummaries: List<com.calorieko.app.data.model.DailyNutritionSummaryEntity>,
+    workoutLogs: List<ActivityLogEntity>
+): List<DayEntry> {
+    val fullDateFmt = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault())
+    val dayNameFmt = SimpleDateFormat("EEEE", Locale.getDefault())
+
+    // Collect all unique epoch days from both sources
+    val nutritionByEpochDay = nutritionSummaries.associateBy { it.dateEpochDay }
+    val workoutsByEpochDay = workoutLogs.groupBy { log ->
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = log.timestamp
+        java.time.LocalDate.of(
+            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+        ).toEpochDay()
+    }
+
+    val allDays = (nutritionByEpochDay.keys + workoutsByEpochDay.keys).distinct()
+
+    return allDays.map { epochDay ->
+        val date = java.time.LocalDate.ofEpochDay(epochDay)
+        val cal = Calendar.getInstance()
+        cal.set(date.year, date.monthValue - 1, date.dayOfMonth, 0, 0, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val dayTs = cal.timeInMillis
+
+        val nutrition = nutritionByEpochDay[epochDay]
+        val dayWorkouts = workoutsByEpochDay[epochDay] ?: emptyList()
+
+        DayEntry(
+            timestamp = dayTs,
+            fullDate = fullDateFmt.format(Date(dayTs)),
+            dayName = dayNameFmt.format(Date(dayTs)),
+            intakeCalories = nutrition?.totalCalories?.toInt() ?: 0,
+            burnedCalories = dayWorkouts.sumOf { it.calories },
+            sodium = nutrition?.totalSodium?.toInt() ?: 0,
+            steps = dayWorkouts.sumOf { it.steps ?: 0 }
+        )
+    }.sortedByDescending { it.timestamp }
+}
+
 // ==================== MAIN SCREEN ====================
 
 @Composable
 fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     // ── Collect ViewModel State ──
     val weeklyLogs by viewModel.weeklyLogs.collectAsState()
+    val nutritionSummaries by viewModel.nutritionSummaries.collectAsState()
+    val mealLogsWithItems by viewModel.mealLogsWithItems.collectAsState()
     val userWeight by viewModel.userWeight.collectAsState()
     val selectedMetric by viewModel.selectedMetric.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
@@ -306,20 +365,25 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
 
     var activeTab by remember { mutableStateOf("progress") }
 
-    // ── Chart data — keyed on both logs AND viewMode so graph updates on range change ──
-    val calorieData = remember(weeklyLogs, viewMode) { buildCalorieChartData(weeklyLogs, viewMode) }
-    val sodiumData = remember(weeklyLogs, viewMode) { buildSodiumChartData(weeklyLogs, viewMode) }
+    // ── Chart data — keyed on data sources AND viewMode so graph updates on range change ──
+    val calorieData = remember(nutritionSummaries, weeklyLogs, viewMode) {
+        buildCalorieChartData(nutritionSummaries, weeklyLogs, viewMode)
+    }
+    val sodiumData = remember(nutritionSummaries, viewMode) {
+        buildSodiumChartData(nutritionSummaries, viewMode)
+    }
     val stepsData = remember(weeklyLogs, viewMode) { buildStepsChartData(weeklyLogs, viewMode) }
     val weightData = remember(userWeight, viewMode) { buildWeightChartData(userWeight, viewMode) }
-    val topFoods = remember(weeklyLogs) {
-        weeklyLogs.filter { it.type == "meal" }
-            .groupBy { it.name }
-            .map { (name, logs) ->
+    val topFoods = remember(mealLogsWithItems) {
+        mealLogsWithItems
+            .flatMap { mlwi -> mlwi.items.map { it } }
+            .groupBy { it.dishName }
+            .map { (name, items) ->
                 TopFoodItem(
                     name = name,
-                    frequency = logs.size,
-                    avgCalories = if (logs.isNotEmpty()) logs.sumOf { it.calories } / logs.size else 0,
-                    avgSodium = if (logs.isNotEmpty()) logs.sumOf { it.sodium } / logs.size else 0
+                    frequency = items.size,
+                    avgCalories = if (items.isNotEmpty()) items.sumOf { it.calories.toInt() } / items.size else 0,
+                    avgSodium = if (items.isNotEmpty()) items.sumOf { it.sodium.toInt() } / items.size else 0
                 )
             }
             .sortedByDescending { it.frequency }
@@ -327,7 +391,9 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     }
 
     // ── Entries history — one row per calendar day ──
-    val dayEntries = remember(weeklyLogs) { buildDayEntries(weeklyLogs) }
+    val dayEntries = remember(nutritionSummaries, weeklyLogs) {
+        buildDayEntriesFromSummaries(nutritionSummaries, weeklyLogs)
+    }
 
     Scaffold(
         bottomBar = {
@@ -791,11 +857,11 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
                 data.forEachIndexed { index, day ->
                     val cx = leftPad + barGroupW * (index + 0.5f)
                     val intakeH = (day.intake.toFloat() / yMax) * drawH * progress
-                    if (intakeH > 0) drawRoundRect(Color(0xFF4CAF50),
+                    if (intakeH > 0) drawRoundRect(RingEaten,
                         Offset(cx - barW - gap / 2, drawH - intakeH), Size(barW, intakeH),
                         CornerRadius(cornerR, cornerR))
                     val burnedH = (day.burned.toFloat() / yMax) * drawH * progress
-                    if (burnedH > 0) drawRoundRect(Color(0xFFFF9800),
+                    if (burnedH > 0) drawRoundRect(RingBurned,
                         Offset(cx + gap / 2, drawH - burnedH), Size(barW, burnedH),
                         CornerRadius(cornerR, cornerR))
                     drawContext.canvas.nativeCanvas.drawText(
@@ -806,10 +872,10 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
             Spacer(modifier = Modifier.height(14.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(10.dp).background(Color(0xFF4CAF50), CircleShape))
+                Box(Modifier.size(10.dp).background(RingEaten, CircleShape))
                 Spacer(Modifier.width(6.dp)); Text("Intake", fontSize = 12.sp, color = Color(0xFF6B7280))
                 Spacer(Modifier.width(20.dp))
-                Box(Modifier.size(10.dp).background(Color(0xFFFF9800), CircleShape))
+                Box(Modifier.size(10.dp).background(RingBurned, CircleShape))
                 Spacer(Modifier.width(6.dp)); Text("Burned", fontSize = 12.sp, color = Color(0xFF6B7280))
             }
 
@@ -944,9 +1010,9 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                             path.lineTo(from.x + (to.x - from.x) * frac, from.y + (to.y - from.y) * frac)
                         }
                     }
-                    drawPath(path, Color(0xFFFF9800), style = Stroke(with(density) { 3.dp.toPx() }, cap = StrokeCap.Round))
+                    drawPath(path, RingSodium, style = Stroke(with(density) { 3.dp.toPx() }, cap = StrokeCap.Round))
                     for (i in 0 until drawnCount.coerceAtMost(totalPoints)) {
-                        drawCircle(Color(0xFFFF9800), with(density) { 5.dp.toPx() }, points[i])
+                        drawCircle(RingSodium, with(density) { 5.dp.toPx() }, points[i])
                         drawCircle(Color.White, with(density) { 2.5.dp.toPx() }, points[i])
                     }
                     data.forEachIndexed { index, day ->

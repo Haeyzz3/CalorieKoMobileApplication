@@ -227,6 +227,15 @@ class LocationTrackingService : Service(), SensorEventListener {
                 // (called from the bound UI) to prevent duplicate registration.
                 startForegroundWithNotification()
             }
+            else -> {
+                // OS recreated the service via START_STICKY after killing it.
+                // Re-promote to foreground immediately so ColorOS/MIUI don't
+                // kill it again within seconds for lacking a notification.
+                if (_isTracking.value) {
+                    startForegroundWithNotification()
+                    Log.w(TAG, "Service re-created by OS (START_STICKY). Re-promoted to foreground.")
+                }
+            }
         }
         // START_STICKY: OS will re-create the service if it's killed.
         return START_STICKY
@@ -238,6 +247,26 @@ class LocationTrackingService : Service(), SensorEventListener {
         isServiceRunning = false
         stopTracking()
         super.onDestroy()
+    }
+
+    /**
+     * Called when the user swipes the app from the Recents screen.
+     * On stock Android this is fine, but OPPO/ColorOS will destroy the
+     * service entirely unless we explicitly re-schedule it.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (_isTracking.value) {
+            Log.w(TAG, "onTaskRemoved — workout is active, re-scheduling service.")
+            val restartIntent = Intent(applicationContext, LocationTrackingService::class.java).apply {
+                action = ACTION_START
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(restartIntent)
+            } else {
+                startService(restartIntent)
+            }
+        }
     }
 
     // ── Public API (called from Compose via binder) ──
@@ -625,7 +654,13 @@ class LocationTrackingService : Service(), SensorEventListener {
             }
         }.apply {
             name = "CalorieKo-Timer"
-            isDaemon = true
+            // CRITICAL: Do NOT use isDaemon = true!
+            // Daemon threads are killed immediately when the process is
+            // being considered for termination. A non-daemon thread signals
+            // the JVM that this thread is doing meaningful work, giving the
+            // timer (and therefore the service) a better survival chance
+            // on aggressive OEMs like OPPO/ColorOS and Xiaomi/MIUI.
+            isDaemon = false
             start()
         }
     }

@@ -37,6 +37,9 @@ import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.MacroCarbs
 import com.calorieko.app.ui.theme.MacroFat
 import com.calorieko.app.ui.theme.MacroProtein
+import com.calorieko.app.ui.theme.RingBurned
+import com.calorieko.app.ui.theme.RingEaten
+import com.calorieko.app.ui.theme.RingSodium
 
 
 @Composable
@@ -114,7 +117,7 @@ fun ProgressRings(
                                 text = "~$caloriesBurned",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFD32F2F)
+                                color = RingBurned
                             )
                             Text(
                                 text = "/ $caloriesBurnedTarget out",
@@ -128,7 +131,7 @@ fun ProgressRings(
                                 text = "~$sodiumCurrent",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEAB308)
+                                color = RingSodium
                             )
                             Text(
                                 text = "/ $sodiumTarget Na",
@@ -147,11 +150,11 @@ fun ProgressRings(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendDot(color = Color(0xFF4CAF50), label = "Eaten")
+                LegendDot(color = RingEaten, label = "Eaten")
                 Spacer(modifier = Modifier.width(16.dp))
-                LegendDot(color = Color(0xFFEF5350), label = "Burned")
+                LegendDot(color = RingBurned, label = "Burned")
                 Spacer(modifier = Modifier.width(16.dp))
-                LegendDot(color = Color(0xFFEAB308), label = "Sodium")
+                LegendDot(color = RingSodium, label = "Sodium")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -216,13 +219,13 @@ fun TripleRingChart(
         // --- Outer Ring: Calories Consumed (Green) ---
         val outerRadius = (size.toPx() / 2) - (outerStroke / 2)
         drawCircle(
-            color = Color(0xFFE8F5E9),
+            color = Color(0xFFE8F5E9), // Light green track
             radius = outerRadius,
             center = center,
             style = Stroke(width = outerStroke)
         )
         drawArc(
-            color = Color(0xFF4CAF50),
+            color = RingEaten,
             startAngle = -90f,
             sweepAngle = 360f * animatedCalories,
             useCenter = false,
@@ -231,16 +234,16 @@ fun TripleRingChart(
             style = Stroke(width = outerStroke, cap = StrokeCap.Round)
         )
 
-        // --- Middle Ring: Calories Burned (Red) ---
+        // --- Middle Ring: Calories Burned (Coral Red) ---
         val middleRadius = outerRadius - outerStroke / 2 - gap - middleStroke / 2
         drawCircle(
-            color = Color(0xFFFFEBEE),
+            color = Color(0xFFFFEBEE), // Light red track
             radius = middleRadius,
             center = center,
             style = Stroke(width = middleStroke)
         )
         drawArc(
-            color = Color(0xFFEF5350),
+            color = RingBurned,
             startAngle = -90f,
             sweepAngle = 360f * animatedBurned,
             useCenter = false,
@@ -249,16 +252,16 @@ fun TripleRingChart(
             style = Stroke(width = middleStroke, cap = StrokeCap.Round)
         )
 
-        // --- Inner Ring: Sodium (Golden Yellow) ---
+        // --- Inner Ring: Sodium (Cyan/Teal) ---
         val innerRadius = middleRadius - middleStroke / 2 - gap - innerStroke / 2
         drawCircle(
-            color = Color(0xFFFEFCE8),
+            color = Color(0xFFE0F7FA), // Light cyan track
             radius = innerRadius,
             center = center,
             style = Stroke(width = innerStroke)
         )
         drawArc(
-            color = Color(0xFFEAB308),
+            color = RingSodium,
             startAngle = -90f,
             sweepAngle = 360f * animatedSodium,
             useCenter = false,

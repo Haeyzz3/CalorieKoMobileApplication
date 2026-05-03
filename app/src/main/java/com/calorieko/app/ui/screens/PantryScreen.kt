@@ -99,6 +99,7 @@ import com.calorieko.app.ui.components.BottomNavigation
 import com.calorieko.app.ui.components.SimpleFlowRow
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.ui.theme.MacroFat
 import com.calorieko.app.viewmodel.DishProofDocument
 import com.calorieko.app.viewmodel.DishResult
 import com.calorieko.app.viewmodel.PantryViewModel
@@ -108,10 +109,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.ui.draw.alpha
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -879,12 +883,33 @@ fun MealPlanCalendarSection(
                         tint = Color(0xFF6B7280)
                     )
                 }
-                Text(
-                    "${displayedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayedMonth.year}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1F2937)
-                )
+                // Clickable month+year — tapping the year shows a year picker dropdown
+                Box {
+                    var showYearPicker by remember { mutableStateOf(false) }
+                    Text(
+                        "${displayedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayedMonth.year}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1F2937),
+                        modifier = Modifier.clickable { showYearPicker = true }
+                    )
+                    DropdownMenu(
+                        expanded = showYearPicker,
+                        onDismissRequest = { showYearPicker = false }
+                    ) {
+                        val currentYear = java.time.Year.now().value
+                        // Show a reasonable range: 2020 through current year + 2
+                        (2020..(currentYear + 2)).forEach { year ->
+                            DropdownMenuItem(
+                                text = { Text("$year", fontSize = 15.sp) },
+                                onClick = {
+                                    viewModel.navigateToYear(year)
+                                    showYearPicker = false
+                                }
+                            )
+                        }
+                    }
+                }
                 IconButton(
                     onClick = { viewModel.navigateMonth(1) },
                     modifier = Modifier.size(32.dp)
@@ -1254,7 +1279,7 @@ fun MealPlanCalendarSection(
                                         Text("carbs", fontSize = 9.sp, color = Color.Gray)
                                     }
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalFats}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEF4444))
+                                        Text("${totalFats}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MacroFat)
                                         Text("fat", fontSize = 9.sp, color = Color.Gray)
                                     }
                                 }

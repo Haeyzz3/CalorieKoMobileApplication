@@ -3,7 +3,11 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.calorieko.app.data.local.DailyNutritionSummaryDao
+import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.repository.ActivityRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.util.Calendar
 
 /**
@@ -19,22 +24,30 @@ import java.util.Calendar
  *
  * Manages:
  * - User weight for the weight trend chart
- * - Activity logs for the selected time range (weekly/monthly)
- * - View mode toggle (weekly ↔ monthly) with automatic data re-fetch
- *
- * Chart data processing (calorie data, sodium data, weight data, top foods)
- * stays as composable-level `remember(weeklyLogs)` transformations since
- * they are pure UI-data mappings with no backend dependency.
+ * - Activity logs (workouts) for burned calorie data
+ * - Daily nutrition summaries for intake calorie, sodium, and nutrient charts
+ * - Meal logs with items for dietary insights (top foods)
+ * - View mode toggle (7-day / 30-day / 90-day) with automatic data re-fetch
  */
 class ProgressViewModel(
     private val auth: FirebaseAuth,
-    private val activityRepository: ActivityRepository
+    private val activityRepository: ActivityRepository,
+    private val nutritionSummaryDao: DailyNutritionSummaryDao,
+    private val mealLogDao: MealLogDao
 ) : ViewModel() {
 
     // ── State ──
 
     private val _weeklyLogs = MutableStateFlow<List<ActivityLogEntity>>(emptyList())
     val weeklyLogs: StateFlow<List<ActivityLogEntity>> = _weeklyLogs.asStateFlow()
+
+    /** Daily nutrition summaries for the selected range (for intake calories, sodium, etc.) */
+    private val _nutritionSummaries = MutableStateFlow<List<DailyNutritionSummaryEntity>>(emptyList())
+    val nutritionSummaries: StateFlow<List<DailyNutritionSummaryEntity>> = _nutritionSummaries.asStateFlow()
+
+    /** Meal logs with items for dietary insights (top foods by frequency/sodium). */
+    private val _mealLogsWithItems = MutableStateFlow<List<MealLogWithItems>>(emptyList())
+    val mealLogsWithItems: StateFlow<List<MealLogWithItems>> = _mealLogsWithItems.asStateFlow()
 
     private val _userWeight = MutableStateFlow(74.0)
     val userWeight: StateFlow<Double> = _userWeight.asStateFlow()
@@ -67,7 +80,8 @@ class ProgressViewModel(
     }
 
     /**
-     * Fetches user weight and activity logs for the currently selected time range.
+     * Fetches user weight, activity logs, nutrition summaries, and meal logs
+     * for the currently selected time range.
      */
     fun loadData() {
         val uid = auth.currentUser?.uid
@@ -98,8 +112,22 @@ class ProgressViewModel(
                 calendar.add(Calendar.DAY_OF_YEAR, -(daysBack - 1))
                 val startTime = calendar.timeInMillis
 
-                // 3. Fetch logs
+                // 3. Fetch workout logs from activity_log_table
                 _weeklyLogs.value = activityRepository.getLogsForRange(uid, startTime, endTime)
+
+                // 4. Fetch nutrition summaries from daily_nutrition_summary_table
+                val today = LocalDate.now()
+                val startDate = today.minusDays((daysBack - 1).toLong())
+                _nutritionSummaries.value = nutritionSummaryDao.getSummariesForRange(
+                    uid,
+                    startDate.toEpochDay(),
+                    today.toEpochDay()
+                )
+
+                // 5. Fetch meal logs with items for dietary insights
+                _mealLogsWithItems.value = mealLogDao.getMealLogsWithItemsByDate(
+                    uid, startTime, endTime
+                )
             }
             _dataLoaded.value = true
         }
@@ -108,12 +136,14 @@ class ProgressViewModel(
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
-            activityRepository: ActivityRepository
+            activityRepository: ActivityRepository,
+            nutritionSummaryDao: DailyNutritionSummaryDao,
+            mealLogDao: MealLogDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ProgressViewModel::class.java)) {
-                    return ProgressViewModel(auth, activityRepository) as T
+                    return ProgressViewModel(auth, activityRepository, nutritionSummaryDao, mealLogDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

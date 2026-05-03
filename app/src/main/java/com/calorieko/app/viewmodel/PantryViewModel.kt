@@ -633,15 +633,10 @@ class PantryViewModel(
 
     /**
      * Navigates to the previous or next month in the scrubber.
-     * Capped at the month containing the 8-week planning horizon.
+     * No limits — users can browse any month (past or future) to view/plan meals.
      */
     fun navigateMonth(offset: Int) {
-        val newMonth = _displayedMonth.value.plusMonths(offset.toLong())
-        val maxWeekStart = LocalDate.parse(getMaxPlanningWeekStart())
-        val maxMonth = YearMonth.from(maxWeekStart)
-        if (newMonth <= maxMonth) {
-            _displayedMonth.value = newMonth
-        }
+        _displayedMonth.value = _displayedMonth.value.plusMonths(offset.toLong())
     }
 
     /**
@@ -650,6 +645,21 @@ class PantryViewModel(
     fun navigateToToday() {
         _currentWeekStart.value = getWeekStartDate()
         _displayedMonth.value = YearMonth.now()
+    }
+
+    /**
+     * Jumps to the first month of the given year (or current month if same year).
+     * Used by the year-picker dropdown in the month header.
+     * No limits — users can view any year.
+     */
+    fun navigateToYear(year: Int) {
+        val currentMonth = YearMonth.now()
+        val targetMonth = if (year == currentMonth.year) {
+            currentMonth // Same year — stay on current month
+        } else {
+            YearMonth.of(year, 1) // Different year — jump to January
+        }
+        _displayedMonth.value = targetMonth
     }
 
     /**

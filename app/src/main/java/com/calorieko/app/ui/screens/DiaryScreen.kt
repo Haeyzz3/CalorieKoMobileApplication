@@ -10,8 +10,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -46,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.ActivityLogEntity
+import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.ui.components.NutrientDisclaimerDialog
 import com.calorieko.app.ui.components.NutrientDisclaimerIconButton
@@ -306,7 +309,9 @@ fun DiaryScreen(viewModel: DiaryViewModel, onBackClick: () -> Unit, onNavigateTo
                         mealLogs = mealLogs,
                         viewMode = viewMode,
                         dateText = dateText,
-                        onDelete = { viewModel.deleteMeal(it) }
+                        onDelete = { viewModel.deleteMeal(it) },
+                        weekDaySummaries = weekDaySummaries,
+                        weekDayLabels = weekDayLabels
                     )
                 }
                 4 -> {
@@ -363,7 +368,9 @@ fun MealsTabContent(
     mealLogs: List<MealLogWithItems>,
     viewMode: String,
     dateText: String,
-    onDelete: (Long) -> Unit = {}
+    onDelete: (Long) -> Unit = {},
+    weekDaySummaries: List<DailyNutritionSummaryEntity?> = emptyList(),
+    weekDayLabels: List<String> = emptyList()
 ) {
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
@@ -375,34 +382,7 @@ fun MealsTabContent(
     var mealToDelete by remember { mutableStateOf<Long?>(null) }
 
     if (viewMode == "week") {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Restaurant,
-                    contentDescription = null,
-                    tint = Color(0xFFD1D5DB),
-                    modifier = Modifier.size(48.dp)
-                )
-                Text(
-                    "Switch to Day View",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF6B7280)
-                )
-                Text(
-                    "Meal history shows per-day logs only.",
-                    fontSize = 13.sp,
-                    color = Color(0xFF9CA3AF),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
+        MealsWeekSummary(weekDaySummaries = weekDaySummaries, weekDayLabels = weekDayLabels)
         return
     }
 
@@ -685,6 +665,179 @@ fun MealsTabContent(
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Meals Week Summary
+// Shows a stacked bar chart of per-day calories by meal type and
+// weekly totals when the Meals tab is in Week View mode.
+// ────────────────────────────────────────────────────────────────────
+@Composable
+private fun MealsWeekSummary(
+    weekDaySummaries: List<DailyNutritionSummaryEntity?>,
+    weekDayLabels: List<String>
+) {
+    val breakfastColor = CalorieKoGreen
+    val lunchColor = CalorieKoDarkGreen
+    val dinnerColor = CalorieKoOrange
+    val snacksColor = CalorieKoLightOrange
+
+    // Per-day meal calorie breakdown
+    val dayLabels = weekDayLabels.take(7)
+    val dailyBreakfast = weekDaySummaries.take(7).map { (it?.breakfastCalories ?: 0f).toInt() }
+    val dailyLunch = weekDaySummaries.take(7).map { (it?.lunchCalories ?: 0f).toInt() }
+    val dailyDinner = weekDaySummaries.take(7).map { (it?.dinnerCalories ?: 0f).toInt() }
+    val dailySnacks = weekDaySummaries.take(7).map { (it?.snacksCalories ?: 0f).toInt() }
+
+    val weekBreakfast = dailyBreakfast.sum()
+    val weekLunch = dailyLunch.sum()
+    val weekDinner = dailyDinner.sum()
+    val weekSnacks = dailySnacks.sum()
+    val weekTotal = weekBreakfast + weekLunch + weekDinner + weekSnacks
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(IceGray)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // ── Bar Chart Card ──
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "Weekly Meals",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1F2937)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Simple bar chart using Compose Boxes (no Canvas needed for clarity)
+                val maxDailyCal = (dailyBreakfast.zip(dailyLunch).zip(dailyDinner.zip(dailySnacks)) { (b, l), (d, s) -> b + l + d + s })
+                    .maxOrNull()?.coerceAtLeast(100) ?: 100
+                val chartHeight = 160.dp
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(chartHeight),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    dayLabels.forEachIndexed { i, label ->
+                        val b = dailyBreakfast.getOrElse(i) { 0 }
+                        val l = dailyLunch.getOrElse(i) { 0 }
+                        val d = dailyDinner.getOrElse(i) { 0 }
+                        val s = dailySnacks.getOrElse(i) { 0 }
+                        val total = b + l + d + s
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            // Stacked segments
+                            if (total > 0) {
+                                val ratio = total.toFloat() / maxDailyCal
+                                val barHeight = (chartHeight.value * 0.85f * ratio).dp
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.6f)
+                                        .height(barHeight)
+                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)),
+                                    verticalArrangement = Arrangement.Bottom
+                                ) {
+                                    // Snacks (top)
+                                    if (s > 0) Box(modifier = Modifier.fillMaxWidth().weight(s.toFloat()).background(snacksColor))
+                                    // Dinner
+                                    if (d > 0) Box(modifier = Modifier.fillMaxWidth().weight(d.toFloat()).background(dinnerColor))
+                                    // Lunch
+                                    if (l > 0) Box(modifier = Modifier.fillMaxWidth().weight(l.toFloat()).background(lunchColor))
+                                    // Breakfast (bottom)
+                                    if (b > 0) Box(modifier = Modifier.fillMaxWidth().weight(b.toFloat()).background(breakfastColor))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(label, fontSize = 11.sp, color = SubtleText)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Legend
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    MealLegendDot(breakfastColor, "Breakfast")
+                    MealLegendDot(lunchColor, "Lunch")
+                    MealLegendDot(dinnerColor, "Dinner")
+                    MealLegendDot(snacksColor, "Snacks")
+                }
+            }
+        }
+
+        // ── Weekly Totals Card ──
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Weekly Totals", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+
+                MealTotalRow("Breakfast", weekBreakfast, breakfastColor)
+                MealTotalRow("Lunch", weekLunch, lunchColor)
+                MealTotalRow("Dinner", weekDinner, dinnerColor)
+                MealTotalRow("Snacks", weekSnacks, snacksColor)
+
+                HorizontalDivider(color = DividerGray)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text("$weekTotal kcal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = CalorieKoGreen)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MealLegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+        Text(label, fontSize = 11.sp, color = SubtleText)
+    }
+}
+
+@Composable
+private fun MealTotalRow(label: String, calories: Int, color: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(color))
+            Text(label, fontSize = 14.sp, color = Color(0xFF4B5563))
+        }
+        Text("$calories kcal", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Epic 6 — Activity History Tab Content
 // Renders a day's workout logs: icon, name, calories, duration.
 // ────────────────────────────────────────────────────────────────────
@@ -697,6 +850,10 @@ fun ActivityHistoryTabContent(
     onDelete: (Int) -> Unit = {}
 ) {
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+
+    // Track delete confirmation dialog state
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var activityToDelete by remember { mutableStateOf<Int?>(null) }
 
     if (viewMode == "week") {
         // Show a placeholder for week view — per-day breakdown not yet implemented
@@ -800,39 +957,25 @@ fun ActivityHistoryTabContent(
                     shadowElevation = 1.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        // Dynamic icon based on activity name
-                        val iconVector = getActivityIcon(log.name)
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFFFFEDD5), Color(0xFFFED7AA))
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                iconVector,
-                                contentDescription = log.name,
-                                tint = Color(0xFFEA580C),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        // Top section: Name and metadata
+                        Text(
+                            log.name,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1F2937),
+                            maxLines = 2
+                        )
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                log.name,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1F2937)
-                            )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Time + duration row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             Text(
                                 timeFormatter.format(Date(log.timestamp)),
                                 fontSize = 12.sp,
@@ -850,34 +993,66 @@ fun ActivityHistoryTabContent(
                             }
                         }
 
-                        // Calories badge
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color(0xFFFFF7ED)
-                        ) {
-                            Text(
-                                "-${log.calories} kcal",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEA580C),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        // Constraints: GPS workouts cannot be edited
-                        val isOutdoor = log.encodedPath != null || log.distanceKm != null
-                        
+                        // Bottom section: Icon, calories badge, edit/delete actions
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            if (!isOutdoor) {
-                                IconButton(modifier = Modifier.size(32.dp), onClick = { onEdit(log.id) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF6B7280), modifier = Modifier.size(18.dp))
-                                }
+                            // Activity icon
+                            val iconVector = getActivityIcon(log.name)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFFFFEDD5), Color(0xFFFED7AA))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    iconVector,
+                                    contentDescription = log.name,
+                                    tint = Color(0xFFEA580C),
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                            IconButton(modifier = Modifier.size(32.dp), onClick = { onDelete(log.id) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+
+                            // Calories badge
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Color(0xFFFFF7ED)
+                            ) {
+                                Text(
+                                    "-${log.calories} kcal",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFEA580C),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            // Edit/Delete actions
+                            val isOutdoor = log.encodedPath != null || log.distanceKm != null
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (!isOutdoor) {
+                                    IconButton(modifier = Modifier.size(32.dp), onClick = { onEdit(log.id) }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF6B7280), modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                                IconButton(modifier = Modifier.size(32.dp), onClick = {
+                                    activityToDelete = log.id
+                                    showDeleteConfirmation = true
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
                     }
@@ -911,6 +1086,38 @@ fun ActivityHistoryTabContent(
                 }
             }
         }
+    }
+
+    // ── Delete Confirmation Dialog ──
+    if (showDeleteConfirmation && activityToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirmation = false
+                activityToDelete = null
+            },
+            title = { Text("Delete Workout") },
+            text = { Text("Are you sure you want to delete this workout? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        activityToDelete?.let { onDelete(it) }
+                        showDeleteConfirmation = false
+                        activityToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    showDeleteConfirmation = false
+                    activityToDelete = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -1050,7 +1257,7 @@ fun ActivityHistoryWeeklyChart(
                         // Burned bar (orange)
                         if (burnedH > 0) {
                             drawRoundRect(
-                                color = Color(0xFFFF9800),
+                                color = RingBurned,
                                 topLeft = Offset(cx - barW / 2, drawH - burnedH),
                                 size = Size(barW, burnedH),
                                 cornerRadius = CornerRadius(cornerR, cornerR)
@@ -1077,14 +1284,14 @@ fun ActivityHistoryWeeklyChart(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.size(10.dp).background(Color(0xFFFF9800), CircleShape))
+                        Box(Modifier.size(10.dp).background(RingBurned, CircleShape))
                         Text("Total Weekly Burn", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
                     }
                     Text(
                         "$totalCalories kcal",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF9800)
+                        color = RingBurned
                     )
                 }
             }

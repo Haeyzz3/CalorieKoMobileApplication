@@ -74,7 +74,8 @@ class ProfileViewModel(
 
     init {
         // Compute Firebase-derived values immediately
-        _displayName.value = auth.currentUser?.displayName ?: "User"
+        val authName = auth.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: "User"
+        _displayName.value = authName
 
         val sdf = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
         _memberSince.value = auth.currentUser?.metadata?.creationTimestamp?.let {
@@ -83,6 +84,16 @@ class ProfileViewModel(
 
         loadBadgeStats()
         loadComputedStreak()
+
+        // Keep displayName reactive to profile changes from EditProfileScreen
+        viewModelScope.launch {
+            userProfile.collect { profile ->
+                val name = profile?.name?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() }
+                    ?: auth.currentUser?.displayName?.takeIf { it.isNotBlank() }
+                    ?: "User"
+                _displayName.value = name
+            }
+        }
     }
 
     /**

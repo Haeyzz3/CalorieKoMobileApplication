@@ -23,6 +23,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- WakeLock for keeping CPU alive during workouts -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Request exemption from battery optimization (critical for OPPO/ColorOS/Xiaomi) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
 
     <application
@@ -71,6 +73,7 @@
         <service
             android:name=".util.LocationTrackingService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="location" />
 
     </application>

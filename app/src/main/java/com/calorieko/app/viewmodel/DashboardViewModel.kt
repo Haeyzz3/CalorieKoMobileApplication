@@ -51,7 +51,8 @@ class DashboardViewModel(
     private val auth: FirebaseAuth,
     private val dashboardRepository: DashboardRepository,
     private val mealPlanDao: MealPlanDao,
-    private val dishRecipeDao: DishRecipeDao
+    private val dishRecipeDao: DishRecipeDao,
+    private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val uid: String? = auth.currentUser?.uid
@@ -68,9 +69,11 @@ class DashboardViewModel(
 
     val userName: StateFlow<String> = profileFlow
         .map { profile ->
+            // Guard: displayName or profile.name might be "" (empty but not null),
+            // which wouldn't fall through the ?: chain. Use takeIf to convert blanks → null.
             auth.currentUser?.displayName
-                ?.split(" ")?.firstOrNull()
-                ?: profile?.name?.split(" ")?.firstOrNull()
+                ?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() }
+                ?: profile?.name?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() }
                 ?: "User"
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "User")
@@ -154,6 +157,35 @@ class DashboardViewModel(
         combine(todayMealLogs, todayWorkoutLogs) { meals, workouts ->
             buildActivityFeed(meals, workouts)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // ── Pull-to-Refresh ──
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    /**
+     * Triggers a cloud sync and briefly shows the refresh indicator.
+     * Since all data is reactive via Room Flow, the UI auto-updates
+     * once the sync writes new data to the local database.
+     */
+    fun refreshData() {
+        if (_isRefreshing.value) return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            withContext(Dispatchers.IO) {
+                try {
+                    uid?.let {
+                        com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
+                            appContext, it
+                        )
+                    }
+                } catch (_: Exception) {}
+            }
+            // Small delay so user sees the refresh indicator
+            kotlinx.coroutines.delay(800)
+            _isRefreshing.value = false
+        }
+    }
 
     init {
         loadDishNames()
@@ -294,12 +326,13 @@ class DashboardViewModel(
             auth: FirebaseAuth,
             dashboardRepository: DashboardRepository,
             mealPlanDao: MealPlanDao,
-            dishRecipeDao: DishRecipeDao
+            dishRecipeDao: DishRecipeDao,
+            appContext: android.content.Context
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
-                    return DashboardViewModel(auth, dashboardRepository, mealPlanDao, dishRecipeDao) as T
+                    return DashboardViewModel(auth, dashboardRepository, mealPlanDao, dishRecipeDao, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

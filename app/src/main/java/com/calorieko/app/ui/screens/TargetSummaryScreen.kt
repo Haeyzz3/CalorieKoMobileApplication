@@ -194,15 +194,15 @@ fun TargetSummaryScreen(
                 ) {
                     SmallMacroCard(
                         title = "Protein", value = animatedProtein.toString(), modifier = Modifier.weight(1f),
-                        icon = Icons.Rounded.SetMeal, color = Color(0xFFEF4444) // Red
+                        icon = Icons.Rounded.SetMeal, color = MacroProtein // Blue
                     )
                     SmallMacroCard(
                         title = "Carbs", value = animatedCarbs.toString(), modifier = Modifier.weight(1f),
-                        icon = Icons.Rounded.BreakfastDining, color = Color(0xFFF59E0B) // Yellow/Amber
+                        icon = Icons.Rounded.BreakfastDining, color = MacroCarbs // Amber
                     )
                     SmallMacroCard(
                         title = "Fats", value = animatedFats.toString(), modifier = Modifier.weight(1f),
-                        icon = Icons.Rounded.EggAlt, color = Color(0xFF3B82F6) // Blue
+                        icon = Icons.Rounded.EggAlt, color = MacroFat // Purple
                     )
                 }
 

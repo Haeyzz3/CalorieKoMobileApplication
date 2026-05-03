@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
@@ -76,7 +77,7 @@ private fun NutrientsDayView(
 }
 
 // =====================================================
-// WEEK VIEW
+// WEEK VIEW — chart + table in single scrollable parent
 // =====================================================
 
 @Composable
@@ -105,12 +106,21 @@ private fun NutrientsWeekView(
         NutrientRow("Iron",                avgOf { it.totalIron },               targets?.targetIron?.toFloat() ?: 18f,            "mg")
     )
 
-    Column(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+    // Single scrollable parent — prevents chart vs. table overlap
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(IceGray)
+            .verticalScroll(rememberScrollState())
+    ) {
         NutrientsWeeklyChart(weekDaySummaries, weekDayLabels)
-        NutrientTable(
+        Spacer(modifier = Modifier.height(8.dp))
+        // Nutrient table rendered inline (no nested scroll)
+        NutrientTableCard(
             valueColumnHeader = "Avg",
             nutrients = nutrients
         )
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -121,51 +131,57 @@ private fun NutrientsWeeklyChart(
 ) {
     // Find the max calories to scale the bars
     val maxCals = summaries.maxOfOrNull { it?.totalCalories ?: 0f }?.coerceAtLeast(100f) ?: 100f
-    
+
     Card(
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
     ) {
         Column(
-            modifier = androidx.compose.ui.Modifier.padding(16.dp).fillMaxWidth()
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
         ) {
-            androidx.compose.material3.Text(
+            Text(
                 "Weekly Calorie Intake",
                 fontSize = 15.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                color = com.calorieko.app.ui.theme.DarkText
+                fontWeight = FontWeight.SemiBold,
+                color = DarkText
             )
-            androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.height(16.dp))
-            androidx.compose.foundation.layout.Row(
-                modifier = androidx.compose.ui.Modifier.fillMaxWidth().height(150.dp),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly,
-                verticalAlignment = androidx.compose.ui.Alignment.Bottom
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
             ) {
                 // Ignore the last label which is "Avg"
                 val chartLabels = labels.take(7)
                 chartLabels.forEachIndexed { i, label ->
                     val cals = summaries.getOrNull(i)?.totalCalories ?: 0f
                     val heightRatio = (cals / maxCals).coerceIn(0f, 1f)
-                    
-                    androidx.compose.foundation.layout.Column(
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Bottom,
-                        modifier = androidx.compose.ui.Modifier.weight(1f)
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        androidx.compose.foundation.layout.Box(
-                            modifier = androidx.compose.ui.Modifier
+                        Box(
+                            modifier = Modifier
                                 .fillMaxWidth(0.6f)
                                 .fillMaxHeight(heightRatio)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(com.calorieko.app.ui.theme.CalorieKoGreen)
+                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                .background(CalorieKoGreen)
                         )
-                        androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
-                        androidx.compose.material3.Text(
-                            text = label, // Mon, Tue, etc.
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = label,
                             fontSize = 11.sp,
-                            color = com.calorieko.app.ui.theme.SubtleText
+                            color = SubtleText
                         )
                     }
                 }
@@ -175,7 +191,7 @@ private fun NutrientsWeeklyChart(
 }
 
 // =====================================================
-// SHARED TABLE
+// SHARED TABLE (full-screen scrollable — Day View only)
 // =====================================================
 
 @Composable
@@ -198,38 +214,8 @@ private fun NutrientTable(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // --- Header Row ---
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = valueColumnHeader,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = SubtleText,
-                        modifier = Modifier.width(60.dp)
-                    )
-                    Text(
-                        text = "Goal",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = SubtleText,
-                        modifier = Modifier.width(60.dp)
-                    )
-                    Text(
-                        text = "Left",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = SubtleText,
-                        modifier = Modifier.width(70.dp)
-                    )
-                }
-
+                NutrientTableHeader(valueColumnHeader)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
-
                 // --- Nutrient Rows ---
                 nutrients.forEach { nutrient ->
                     NutrientItemRow(nutrient)
@@ -240,14 +226,83 @@ private fun NutrientTable(
     }
 }
 
+// =====================================================
+// INLINE TABLE CARD (for Week View — no nested scroll)
+// =====================================================
+
+@Composable
+private fun NutrientTableCard(
+    valueColumnHeader: String,
+    nutrients: List<NutrientRow>
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                NutrientTableHeader(valueColumnHeader)
+                HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                nutrients.forEach { nutrient ->
+                    NutrientItemRow(nutrient)
+                    HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                }
+            }
+        }
+    }
+}
+
+// =====================================================
+// SHARED HEADER & ROW COMPONENTS
+// =====================================================
+
+@Composable
+private fun NutrientTableHeader(valueColumnHeader: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Nutrient name column (flexible)
+        Spacer(modifier = Modifier.weight(1f))
+        // Fixed-width columns with consistent sizing
+        Text(
+            text = valueColumnHeader,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = SubtleText,
+            modifier = Modifier.width(52.dp)
+        )
+        Text(
+            text = "Goal",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = SubtleText,
+            modifier = Modifier.width(52.dp)
+        )
+        Text(
+            text = "Left",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = SubtleText,
+            modifier = Modifier.width(80.dp)
+        )
+    }
+}
+
 @Composable
 private fun NutrientItemRow(nutrient: NutrientRow) {
     val left = nutrient.goal - nutrient.total
-    val leftText = if (nutrient.unit == "%") {
-        "${left.toFormattedString()} %"
-    } else {
-        "${left.toFormattedString()} ${nutrient.unit}"
-    }
+    // Format "Left" text: show number + unit on one line, compact
+    val leftNumber = left.toFormattedString()
+    val leftText = "$leftNumber ${nutrient.unit}"
     val goalText = nutrient.goal.toFormattedString()
     val progress = if (nutrient.goal > 0f) {
         (nutrient.total / nutrient.goal).coerceIn(0f, 1f)
@@ -261,44 +316,50 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Name
+            // Name — takes remaining space, truncates if needed
             Text(
                 text = nutrient.name,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
                 color = DarkText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
             // Total / Avg
             Text(
                 text = "~${nutrient.total.toFormattedString()}",
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 color = SubtleText,
-                modifier = Modifier.width(60.dp)
+                maxLines = 1,
+                modifier = Modifier.width(52.dp)
             )
             // Goal
             Text(
                 text = goalText,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 color = SubtleText,
-                modifier = Modifier.width(60.dp)
+                maxLines = 1,
+                modifier = Modifier.width(52.dp)
             )
-            // Left
+            // Left — wider column to fit "3,510.0 mg" on one line
             Text(
                 text = leftText,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 color = if (left < 0) CalorieKoOrange else SubtleText,
-                modifier = Modifier.width(70.dp)
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(80.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Progress bar
         Box(

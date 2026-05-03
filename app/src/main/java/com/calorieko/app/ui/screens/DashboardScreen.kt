@@ -97,7 +97,10 @@ import com.calorieko.app.viewmodel.QuickLogBridge
 import com.calorieko.app.viewmodel.QuickLogDishEntry
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleManager, onNavigate: (String) -> Unit) {
 
@@ -130,6 +133,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
     // ── Local UI State ──
     var activeTab by remember { mutableStateOf("home") }
     var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -142,11 +146,17 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
         }
     ) { paddingValues ->
 
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
-                .padding(paddingValues),
+                .background(Color(0xFFF8F9FA)),
             contentPadding = PaddingValues(bottom = 20.dp)
         ) {
 
@@ -365,6 +375,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                 }
             }
         }
+        } // end PullToRefreshBox
     }
 
     // --- Meal Detail Bottom Sheet Overlay ---

@@ -73,6 +73,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.MacroFat
 import com.calorieko.app.viewmodel.ExploreDish
 import com.calorieko.app.viewmodel.ExploreViewModel
 import com.calorieko.app.viewmodel.IngredientInfo
@@ -636,7 +637,7 @@ private fun ExploreDishDetailContent(
                 NutrientQuickStat("Calories", "${dish.calories}", "kcal", CalorieKoGreen)
                 NutrientQuickStat("Protein", "${dish.protein}", "g", Color(0xFF3B82F6))
                 NutrientQuickStat("Carbs", "${dish.carbs}", "g", Color(0xFFEAB308))
-                NutrientQuickStat("Fat", "${dish.fats}", "g", Color(0xFFA855F7))
+                NutrientQuickStat("Fat", "${dish.fats}", "g", MacroFat)
             }
         }
 

@@ -264,8 +264,13 @@ private fun MacrosWeekView(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- Bar Chart ---
-                val chartValues = dailyGrams + avgGrams
+                // --- Bar Chart (Stacked by Macro) ---
+                // Per-day macro breakdown for stacked bars
+                val dailyCarbsGrams = weekDaySummaries.map { ((it?.totalCarbs ?: 0f) + (0f)).toInt() }
+                val dailyFatGrams = weekDaySummaries.map { (it?.totalFat ?: 0f).toInt() }
+                val dailyProteinGrams = weekDaySummaries.map { (it?.totalProtein ?: 0f).toInt() }
+
+                val chartLabelsCount = weekDayLabels.size  // 7 days + "Avg"
                 val yAxisLabels = listOf(0, 560, 1120)
                 val maxY = 1120f
 
@@ -279,7 +284,7 @@ private fun MacrosWeekView(
                         val bottomPadding = 50f
                         val chartWidth = size.width - leftPadding - 20f
                         val chartHeight = size.height - bottomPadding - 20f
-                        val barCount = chartValues.size
+                        val barCount = chartLabelsCount
 
                         // Y-axis labels and grid lines
                         val textPaint = android.graphics.Paint().apply {
@@ -304,21 +309,36 @@ private fun MacrosWeekView(
                             )
                         }
 
-                        // Bars
+                        // Stacked bars: Carbs (bottom) → Fat → Protein (top)
                         val barWidth = chartWidth / barCount * 0.5f
                         val barSpacing = chartWidth / barCount
+                        val macroColors = listOf(MacroCarbs, MacroFat, MacroProtein)
 
-                        chartValues.forEachIndexed { index, value ->
-                            val barHeight = (value / maxY) * chartHeight
-                            val x = leftPadding + index * barSpacing + barSpacing / 2 - barWidth / 2
-                            val yTop = 20f + chartHeight - barHeight
-
-                            if (value > 0) {
-                                drawRect(
-                                    color = MacroCarbs,
-                                    topLeft = Offset(x, yTop),
-                                    size = Size(barWidth, barHeight)
+                        for (dayIndex in 0 until barCount) {
+                            val segments = if (dayIndex < 7) {
+                                listOf(
+                                    dailyCarbsGrams.getOrElse(dayIndex) { 0 },
+                                    dailyFatGrams.getOrElse(dayIndex) { 0 },
+                                    dailyProteinGrams.getOrElse(dayIndex) { 0 }
                                 )
+                            } else {
+                                // Avg column
+                                listOf(avgCarbs, avgFat, avgProtein)
+                            }
+
+                            val x = leftPadding + dayIndex * barSpacing + barSpacing / 2 - barWidth / 2
+                            var yBottom = 20f + chartHeight
+
+                            segments.forEachIndexed { segIdx, segVal ->
+                                if (segVal > 0) {
+                                    val segHeight = (segVal / maxY) * chartHeight
+                                    yBottom -= segHeight
+                                    drawRect(
+                                        color = macroColors[segIdx],
+                                        topLeft = Offset(x, yBottom),
+                                        size = Size(barWidth, segHeight)
+                                    )
+                                }
                             }
                         }
 

@@ -576,8 +576,85 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
     var isCompassMode by remember { mutableStateOf(false) } // False = Center/Birds Eye, True = Forward Rotation
     var followUser by remember { mutableStateOf(true) }
 
+    // ── Battery Optimization Warning (OPPO/ColorOS/Xiaomi/MIUI) ──
+    // These OEMs aggressively kill foreground services when the screen is off.
+    // We proactively ask the user to whitelist CalorieKo from battery optimization
+    // so the workout tracker stays alive during runs.
+    var showBatteryDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!com.calorieko.app.util.BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)) {
+            showBatteryDialog = true
+        }
+    }
+
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+
+    // ── Battery Optimization Dialog ──
+    if (showBatteryDialog) {
+        val isAggressiveOem = com.calorieko.app.util.BatteryOptimizationHelper.isAggressiveOem()
+        val oemInstructions = com.calorieko.app.util.BatteryOptimizationHelper.getOemInstructions()
+        val manufacturer = android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showBatteryDialog = false },
+            title = {
+                Text(
+                    if (isAggressiveOem) "\u26a0\ufe0f Keep Workout Alive"
+                    else "Battery Optimization",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        if (isAggressiveOem)
+                            "$manufacturer phones may stop workout tracking when your screen turns off. " +
+                            "To prevent this, please disable battery optimization for CalorieKo."
+                        else
+                            "To keep your workout tracking accurate when the screen is off, " +
+                            "please allow CalorieKo to run in the background.",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                    if (isAggressiveOem) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            color = Color(0xFF2A2A2A),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                oemInstructions,
+                                fontSize = 12.sp,
+                                color = Color(0xFFBBBBBB),
+                                modifier = Modifier.padding(12.dp),
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBatteryDialog = false
+                    // Try OEM-specific settings first, fall back to stock Android dialog
+                    if (!com.calorieko.app.util.BatteryOptimizationHelper.openOemBatterySettings(context)) {
+                        com.calorieko.app.util.BatteryOptimizationHelper.requestBatteryOptimizationExemption(context)
+                    }
+                }) {
+                    Text("Open Settings", color = CalorieKoOrange, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatteryDialog = false }) {
+                    Text("Skip", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.Gray
+        )
     }
 
     // State to hold the final camera center in case the user saves a 0.0km run

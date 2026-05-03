@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,6 +142,14 @@ fun AppNavigation() {
     var setupGoalId by remember { mutableStateOf("") } // Add this to hold the goal ID temporarily
 
 
+
+    // ── Global keyboard dismissal on navigation ──
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect {
+            keyboardController?.hide()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = "splash") {
@@ -395,7 +404,8 @@ fun AppNavigation() {
                     auth = auth,
                     dashboardRepository = dashboardRepo,
                     mealPlanDao = db.mealPlanDao(),
-                    dishRecipeDao = db.dishRecipeDao()
+                    dishRecipeDao = db.dishRecipeDao(),
+                    appContext = context.applicationContext
                 )
             )
             DashboardScreen(
@@ -426,7 +436,8 @@ fun AppNavigation() {
                     auth = auth,
                     dashboardRepository = dashboardRepo,
                     mealPlanDao = db.mealPlanDao(),
-                    dishRecipeDao = db.dishRecipeDao()
+                    dishRecipeDao = db.dishRecipeDao(),
+                    appContext = context.applicationContext
                 )
             )
 
@@ -505,7 +516,9 @@ fun AppNavigation() {
             val progressViewModel: com.calorieko.app.viewmodel.ProgressViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ProgressViewModel.provideFactory(
                     auth = auth,
-                    activityRepository = activityRepo
+                    activityRepository = activityRepo,
+                    nutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                    mealLogDao = db.mealLogDao()
                 )
             )
             ProgressScreen(

@@ -50,7 +50,7 @@ class AuthRepository(
                 user?.sendEmailVerification()
                 auth.signOut()
                 AuthResult.UnverifiedEmail(
-                    "Your email is not yet verified. A new verification link has been sent to your inbox."
+                    "Your email is not yet verified. A new verification link has been sent to your inbox. If you don't see it, please check your spam or junk folder."
                 )
             }
         } catch (e: com.google.firebase.FirebaseNetworkException) {

@@ -287,12 +287,13 @@ private fun CaloriesWeekView(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // --- Bar Chart ---
-                val chartValues = if (isTotal) {
-                    dailyTotalCals + avgTotal
-                } else {
-                    dailyNetCals + avgNet
-                }
+                // --- Bar Chart (Stacked by Meal Type) ---
+                // Per-day meal breakdown for stacked bars
+                val dailyBreakfast = weekDaySummaries.map { (it?.breakfastCalories ?: 0f).toInt() }
+                val dailyLunch = weekDaySummaries.map { (it?.lunchCalories ?: 0f).toInt() }
+                val dailyDinner = weekDaySummaries.map { (it?.dinnerCalories ?: 0f).toInt() }
+                val dailySnacks = weekDaySummaries.map { (it?.snacksCalories ?: 0f).toInt() }
+
                 val yAxisLabels = listOf(0, 600, 1200, 1800, 2400)
                 val maxY = 2400f
 
@@ -306,7 +307,8 @@ private fun CaloriesWeekView(
                         val bottomPadding = 50f
                         val chartWidth = size.width - leftPadding - 20f
                         val chartHeight = size.height - bottomPadding - 20f
-                        val barCount = chartValues.size
+                        // 7 days + 1 avg column
+                        val barCount = weekDayLabels.size
 
                         // Draw Y-axis labels and horizontal grid lines
                         val textPaint = android.graphics.Paint().apply {
@@ -317,14 +319,12 @@ private fun CaloriesWeekView(
 
                         yAxisLabels.forEach { yVal ->
                             val yPos = 20f + chartHeight - (yVal / maxY) * chartHeight
-                            // Grid line
                             drawLine(
                                 color = DividerGray,
                                 start = Offset(leftPadding, yPos),
                                 end = Offset(size.width - 20f, yPos),
                                 strokeWidth = 1f
                             )
-                            // Y label
                             drawContext.canvas.nativeCanvas.drawText(
                                 yVal.toFormattedString(),
                                 leftPadding - 12f,
@@ -333,21 +333,40 @@ private fun CaloriesWeekView(
                             )
                         }
 
-                        // Draw bars
+                        // Draw stacked bars
                         val barWidth = chartWidth / barCount * 0.5f
                         val barSpacing = chartWidth / barCount
 
-                        chartValues.forEachIndexed { index, value ->
-                            val barHeight = (value / maxY) * chartHeight
-                            val x = leftPadding + index * barSpacing + barSpacing / 2 - barWidth / 2
-                            val yTop = 20f + chartHeight - barHeight
+                        // Meal segments per day: Breakfast (bottom) → Lunch → Dinner → Snacks (top)
+                        val mealColors = listOf(breakfastColor, lunchColor, dinnerColor, snacksColor)
 
-                            if (value > 0) {
-                                drawRect(
-                                    color = CalorieKoGreen,
-                                    topLeft = Offset(x, yTop),
-                                    size = Size(barWidth, barHeight)
+                        for (dayIndex in 0 until barCount) {
+                            val segments = if (dayIndex < 7) {
+                                listOf(
+                                    dailyBreakfast.getOrElse(dayIndex) { 0 },
+                                    dailyLunch.getOrElse(dayIndex) { 0 },
+                                    dailyDinner.getOrElse(dayIndex) { 0 },
+                                    dailySnacks.getOrElse(dayIndex) { 0 }
                                 )
+                            } else {
+                                // Avg column — show as single green bar
+                                val avg = if (isTotal) dailyTotalCals.average().toInt() else dailyNetCals.average().toInt()
+                                listOf(avg, 0, 0, 0)
+                            }
+
+                            val x = leftPadding + dayIndex * barSpacing + barSpacing / 2 - barWidth / 2
+                            var yBottom = 20f + chartHeight  // baseline
+
+                            segments.forEachIndexed { segIdx, segVal ->
+                                if (segVal > 0) {
+                                    val segHeight = (segVal / maxY) * chartHeight
+                                    yBottom -= segHeight
+                                    drawRect(
+                                        color = mealColors[segIdx],
+                                        topLeft = Offset(x, yBottom),
+                                        size = Size(barWidth, segHeight)
+                                    )
+                                }
                             }
                         }
 
