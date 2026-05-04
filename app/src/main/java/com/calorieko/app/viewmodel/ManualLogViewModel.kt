@@ -209,10 +209,34 @@ class ManualLogViewModel(
      * Now supports substitutions from the meal plan.
      */
     fun quickLogFromPlan(dishLabel: String, mealSlot: String, substitutionsJson: String = "") {
+        // Override meal type immediately to prevent time-based mismatch
+        _mealType.value = mealSlot
+
         viewModelScope.launch {
             val recipe = withContext(Dispatchers.IO) {
                 dishRecipeDao.getByDishLabel(dishLabel)
-            } ?: return@launch
+            }
+
+            if (recipe == null) {
+                // Fallback: create minimal entry so UI doesn't freeze
+                val displayName = dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
+                _loggedDishes.update { it + LoggedDish(
+                    dishNameEn = displayName,
+                    dishNamePh = displayName,
+                    weightGrams = 100f,
+                    confidence = 0.5f,
+                    foodId = 0,
+                    dishLabel = dishLabel,
+                    calories = 0f, protein = 0f, carbs = 0f, fat = 0f,
+                    fiber = 0f, sugar = 0f, saturatedFat = 0f,
+                    polyunsaturatedFat = 0f, monounsaturatedFat = 0f,
+                    transFat = 0f, cholesterol = 0f, sodium = 0f,
+                    potassium = 0f, vitaminA = 0f, vitaminC = 0f,
+                    calcium = 0f, iron = 0f
+                ) }
+                _showSummary.value = true
+                return@launch
+            }
 
             val subs = parseSubstitutionsJson(substitutionsJson)
 
@@ -254,7 +278,6 @@ class ManualLogViewModel(
                 substitutionsJson = substitutionsJson
             )
             _loggedDishes.update { it + dish }
-            _mealType.value = mealSlot
             _showSummary.value = true
         }
     }
@@ -264,12 +287,35 @@ class ManualLogViewModel(
      * Pre-loads all dishes with substitution-aware nutrition and shows summary.
      */
     fun quickLogSlotFromPlan(mealSlot: String, dishEntries: List<QuickLogDishEntry>) {
+        // Override meal type immediately to prevent time-based mismatch
+        _mealType.value = mealSlot
+
         viewModelScope.launch {
             val loggedDishList = mutableListOf<LoggedDish>()
             for (entry in dishEntries) {
                 val recipe = withContext(Dispatchers.IO) {
                     dishRecipeDao.getByDishLabel(entry.dishLabel)
-                } ?: continue
+                }
+
+                if (recipe == null) {
+                    // Fallback: create minimal entry so no dish is silently skipped
+                    val displayName = entry.dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
+                    loggedDishList.add(LoggedDish(
+                        dishNameEn = displayName,
+                        dishNamePh = displayName,
+                        weightGrams = 100f,
+                        confidence = 0.5f,
+                        foodId = 0,
+                        dishLabel = entry.dishLabel,
+                        calories = 0f, protein = 0f, carbs = 0f, fat = 0f,
+                        fiber = 0f, sugar = 0f, saturatedFat = 0f,
+                        polyunsaturatedFat = 0f, monounsaturatedFat = 0f,
+                        transFat = 0f, cholesterol = 0f, sodium = 0f,
+                        potassium = 0f, vitaminA = 0f, vitaminC = 0f,
+                        calcium = 0f, iron = 0f
+                    ))
+                    continue
+                }
 
                 val subs = parseSubstitutionsJson(entry.substitutionsJson)
                 val nutrients = withContext(Dispatchers.IO) {
@@ -311,7 +357,6 @@ class ManualLogViewModel(
                 ))
             }
             _loggedDishes.update { it + loggedDishList }
-            _mealType.value = mealSlot
             _showSummary.value = true
         }
     }

@@ -2527,6 +2527,34 @@ fun QuickLogScreen(
             isConfirming = isConfirming,
             manualViewModel = viewModel
         )
+    } else if (showSummary && dishes.isEmpty()) {
+        // Error state: recipe not found or all dishes failed to load
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                androidx.compose.material3.Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = Color(0xFFEA580C),
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+                Text("Dish not found in recipes", fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = Color(0xFF1F2937))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "\"${dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }}\" could not be loaded.",
+                    fontSize = 14.sp, color = Color(0xFF6B7280),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                Spacer(Modifier.height(24.dp))
+                androidx.compose.material3.OutlinedButton(onClick = onBack) {
+                    Text("Go Back")
+                }
+            }
+        }
     } else {
         // Loading state while the dish is being pre-computed
         Box(

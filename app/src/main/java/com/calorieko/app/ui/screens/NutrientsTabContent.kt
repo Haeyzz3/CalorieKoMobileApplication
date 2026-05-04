@@ -278,21 +278,21 @@ private fun NutrientTableHeader(valueColumnHeader: String) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = SubtleText,
-            modifier = Modifier.width(52.dp)
+            modifier = Modifier.width(56.dp)
         )
         Text(
             text = "Goal",
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = SubtleText,
-            modifier = Modifier.width(52.dp)
+            modifier = Modifier.width(56.dp)
         )
         Text(
             text = "Left",
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = SubtleText,
-            modifier = Modifier.width(80.dp)
+            modifier = Modifier.width(88.dp)
         )
     }
 }
@@ -335,27 +335,27 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
             // Total / Avg
             Text(
                 text = "~${nutrient.total.toFormattedString()}",
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 color = SubtleText,
                 maxLines = 1,
-                modifier = Modifier.width(52.dp)
+                modifier = Modifier.width(56.dp)
             )
             // Goal
             Text(
                 text = goalText,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 color = SubtleText,
                 maxLines = 1,
-                modifier = Modifier.width(52.dp)
+                modifier = Modifier.width(56.dp)
             )
             // Left — wider column to fit "3,510.0 mg" on one line
             Text(
                 text = leftText,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 color = if (left < 0) CalorieKoOrange else SubtleText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(80.dp)
+                modifier = Modifier.width(88.dp)
             )
         }
 

@@ -647,7 +647,10 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
 
     val totalPossibleLevels = leveledBadges.sumOf { it.maxLevel }
     val earnedCount = earned.size
-    val badges = earned + inProgress
+
+    // Sort earned badges: highest level first, then by badge ID descending for scalability
+    val sortedEarned = earned.sortedWith(compareByDescending<Badge> { it.level }.thenByDescending { it.id })
+    val badges = sortedEarned + inProgress
 
     selectedBadge?.let { badge -> BadgeDetailDialog(badge = badge, onDismiss = { selectedBadge = null }) }
 
@@ -686,10 +689,10 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
             }
         }
 
-        if (earned.isNotEmpty()) {
+        if (sortedEarned.isNotEmpty()) {
             Text("Earned Badges", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF4B5563), modifier = Modifier.padding(bottom = 12.dp, start = 4.dp))
             // Dynamic grid: rows of 3 badges, handles any count
-            earned.chunked(3).forEachIndexed { index, rowBadges ->
+            sortedEarned.chunked(3).forEachIndexed { index, rowBadges ->
                 if (index > 0) Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     rowBadges.forEach { badge ->
