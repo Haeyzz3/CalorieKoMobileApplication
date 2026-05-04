@@ -808,6 +808,7 @@ fun MealPlanCalendarSection(
     val showClearWeekDialog = remember { mutableStateOf(false) }
     val showClearDayDialog = remember { mutableStateOf(false) }
     val clearDayIndex = remember { mutableIntStateOf(-1) }
+    var isTodayPillSelected by remember { mutableStateOf(false) }
 
     // "View Recipe" bottom sheet state (from Meal Detail Dialog)
     var viewRecipeDishResult = remember { mutableStateOf<DishResult?>(null) }
@@ -874,7 +875,10 @@ fun MealPlanCalendarSection(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(
-                    onClick = { viewModel.navigateMonth(-1) },
+                    onClick = {
+                        isTodayPillSelected = false
+                        viewModel.navigateMonth(-1)
+                    },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
@@ -903,6 +907,7 @@ fun MealPlanCalendarSection(
                             DropdownMenuItem(
                                 text = { Text("$year", fontSize = 15.sp) },
                                 onClick = {
+                                    isTodayPillSelected = false
                                     viewModel.navigateToYear(year)
                                     showYearPicker = false
                                 }
@@ -911,7 +916,10 @@ fun MealPlanCalendarSection(
                     }
                 }
                 IconButton(
-                    onClick = { viewModel.navigateMonth(1) },
+                    onClick = {
+                        isTodayPillSelected = false
+                        viewModel.navigateMonth(1)
+                    },
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
@@ -922,15 +930,22 @@ fun MealPlanCalendarSection(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
-                    modifier = Modifier.clickable { viewModel.navigateToToday() },
-                    color = CalorieKoGreen.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
+                    modifier = Modifier.clickable {
+                        isTodayPillSelected = true
+                        viewModel.navigateToToday()
+                    },
+                    color = Color.White,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (isTodayPillSelected) CalorieKoGreen else Color(0xFFE5E7EB)
+                    )
                 ) {
                     Text(
                         "Today",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = CalorieKoGreen,
+                        color = if (isTodayPillSelected) CalorieKoGreen else Color(0xFF9CA3AF),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
@@ -948,6 +963,7 @@ fun MealPlanCalendarSection(
                     isSelected = weekInfo.weekStartDate == currentWeekStart,
                     onClick = {
                         if (!weekInfo.isBeyondHorizon) {
+                            isTodayPillSelected = false
                             viewModel.selectWeek(weekInfo.weekStartDate)
                         }
                     }

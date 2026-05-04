@@ -152,15 +152,16 @@ private fun NutrientsWeeklyChart(
                 color = DarkText
             )
             Spacer(modifier = Modifier.height(16.dp))
+
+            val chartLabels = labels.take(7)
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp),
+                    .height(176.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
             ) {
-                // Ignore the last label which is "Avg"
-                val chartLabels = labels.take(7)
                 chartLabels.forEachIndexed { i, label ->
                     val cals = summaries.getOrNull(i)?.totalCalories ?: 0f
                     val heightRatio = (cals / maxCals).coerceIn(0f, 1f)
@@ -168,20 +169,34 @@ private fun NutrientsWeeklyChart(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Bottom,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.6f)
-                                .fillMaxHeight(heightRatio)
-                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(CalorieKoGreen)
-                        )
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            if (heightRatio > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.6f)
+                                        .fillMaxHeight(heightRatio)
+                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                        .background(CalorieKoGreen)
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = label,
                             fontSize = 11.sp,
-                            color = SubtleText
+                            color = SubtleText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.height(18.dp)
                         )
                     }
                 }
