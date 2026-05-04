@@ -814,7 +814,13 @@ fun AppNavigation() {
                 dishLabel = dishLabel,
                 mealSlot = mealSlot,
                 onBack = { navController.popBackStack() },
-                onMealConfirmed = { navController.popBackStack() }
+                onMealConfirmed = { navController.popBackStack() },
+                onAddMore = {
+                    navController.popBackStack()
+                    navController.navigate("pantry") {
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 
@@ -858,7 +864,13 @@ fun AppNavigation() {
                 dishLabel = bridgeDishes.firstOrNull()?.dishLabel ?: "",
                 mealSlot = bridgeSlot,
                 onBack = { navController.popBackStack() },
-                onMealConfirmed = { navController.popBackStack() }
+                onMealConfirmed = { navController.popBackStack() },
+                onAddMore = {
+                    navController.popBackStack()
+                    navController.navigate("pantry") {
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 

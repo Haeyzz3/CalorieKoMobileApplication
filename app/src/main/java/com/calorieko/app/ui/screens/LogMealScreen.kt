@@ -2500,7 +2500,8 @@ fun QuickLogScreen(
     dishLabel: String,
     mealSlot: String,
     onBack: () -> Unit,
-    onMealConfirmed: () -> Unit
+    onMealConfirmed: () -> Unit,
+    onAddMore: () -> Unit
 ) {
     val dishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
@@ -2521,7 +2522,7 @@ fun QuickLogScreen(
             mealType = mealType,
             onMealTypeChange = { viewModel.updateMealType(it) },
             onRemoveDish = { viewModel.removeDish(it) },
-            onAddMore = { /* Not applicable for quick-log */ },
+            onAddMore = onAddMore,
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
             isConfirming = isConfirming,
