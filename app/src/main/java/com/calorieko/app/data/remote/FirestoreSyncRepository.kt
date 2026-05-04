@@ -63,6 +63,7 @@ class FirestoreSyncRepository {
                 "streak" to profile.streak,
                 "level" to profile.level,
                 "photoUrl" to profile.photoUrl,
+                "onboardingCompleted" to profile.onboardingCompleted,
                 "updatedAt" to profile.updatedAt
             )
             db.collection(USERS_COLLECTION)
@@ -740,7 +741,8 @@ class FirestoreSyncRepository {
                 goal = doc.getString("goal") ?: "general",
                 streak = (doc.getLong("streak") ?: 0).toInt(),
                 level = (doc.getLong("level") ?: 1).toInt(),
-                photoUrl = doc.getString("photoUrl") ?: ""
+                photoUrl = doc.getString("photoUrl") ?: "",
+                onboardingCompleted = doc.getBoolean("onboardingCompleted") ?: false
             ).also { Log.d(TAG, "Profile fetched for $uid") }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch profile for $uid", e)

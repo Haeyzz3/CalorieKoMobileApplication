@@ -25,6 +25,7 @@ class SplashViewModel(
 
     sealed class Event {
         data object AlreadyLoggedIn : Event()
+        data object VerificationRequired : Event()
         data object NotLoggedIn : Event()
     }
 
@@ -46,7 +47,9 @@ class SplashViewModel(
                 is AuthRepository.AuthState.Verified -> {
                     _events.send(Event.AlreadyLoggedIn)
                 }
-                is AuthRepository.AuthState.Unverified,
+                is AuthRepository.AuthState.Unverified -> {
+                    _events.send(Event.VerificationRequired)
+                }
                 is AuthRepository.AuthState.NotLoggedIn -> {
                     _events.send(Event.NotLoggedIn)
                 }

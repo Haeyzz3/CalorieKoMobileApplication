@@ -23,8 +23,8 @@ class RestoreViewModel(
     sealed class RestoreState {
         data object Idle : RestoreState()
         data object Restoring : RestoreState()
-        data object Success : RestoreState()
-        data object NotNeeded : RestoreState()
+        data class Success(val onboardingCompleted: Boolean) : RestoreState()
+        data class NotNeeded(val onboardingCompleted: Boolean) : RestoreState()
         data object NoCloudData : RestoreState()
         data class Failed(val error: String) : RestoreState()
     }
@@ -44,8 +44,8 @@ class RestoreViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val result = cloudRestoreManager.restoreIfNeeded(uid)
             _state.value = when (result) {
-                is RestoreResult.Success    -> RestoreState.Success
-                is RestoreResult.NotNeeded  -> RestoreState.NotNeeded
+                is RestoreResult.Success    -> RestoreState.Success(result.onboardingCompleted)
+                is RestoreResult.NotNeeded  -> RestoreState.NotNeeded(result.onboardingCompleted)
                 is RestoreResult.NoCloudData -> RestoreState.NoCloudData
                 is RestoreResult.Failed     -> RestoreState.Failed(result.error)
             }

@@ -121,8 +121,31 @@ class AuthRepository(
         return if (user.isEmailVerified) {
             AuthState.Verified
         } else {
-            auth.signOut()
             AuthState.Unverified
+        }
+    }
+
+    /**
+     * Reloads the current user to refresh the email verification status.
+     */
+    suspend fun reloadUser(): Boolean {
+        return try {
+            auth.currentUser?.reload()?.await()
+            auth.currentUser?.isEmailVerified ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Resends the email verification link.
+     */
+    suspend fun resendVerificationEmail(): Boolean {
+        return try {
+            auth.currentUser?.sendEmailVerification()?.await()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 

@@ -110,10 +110,24 @@ fun AppNavigation() {
 
     LaunchedEffect(restoreState) {
         when (restoreState) {
-            is RestoreViewModel.RestoreState.Success,
-            is RestoreViewModel.RestoreState.NotNeeded,
+            is RestoreViewModel.RestoreState.Success -> {
+                val completed = (restoreState as RestoreViewModel.RestoreState.Success).onboardingCompleted
+                if (completed) {
+                    navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
+                } else {
+                    navController.navigate("targetSummary") { popUpTo(0) { inclusive = true } }
+                }
+            }
+            is RestoreViewModel.RestoreState.NotNeeded -> {
+                val completed = (restoreState as RestoreViewModel.RestoreState.NotNeeded).onboardingCompleted
+                if (completed) {
+                    navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
+                } else {
+                    navController.navigate("targetSummary") { popUpTo(0) { inclusive = true } }
+                }
+            }
             is RestoreViewModel.RestoreState.NoCloudData -> {
-                navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
+                navController.navigate("targetSummary") { popUpTo(0) { inclusive = true } }
             }
             else -> {}
         }
@@ -171,6 +185,11 @@ fun AppNavigation() {
                         navController.navigate("dashboard") {
                             popUpTo("splash") { inclusive = true }
                         }
+                    }
+                },
+                onVerificationRequired = {
+                    navController.navigate("verificationPending") {
+                        popUpTo("splash") { inclusive = true }
                     }
                 },
                 onNotLoggedIn = {
@@ -308,7 +327,8 @@ fun AppNavigation() {
                             height = setupHeight,
                             sex = setupSex,
                             activityLevel = setupActivityLevel,
-                            goal = setupGoalId
+                            goal = setupGoalId,
+                            onboardingCompleted = false // New user, must complete onboarding
                         )
                         scope.launch {
                             userDao.insertUser(userProfile)
@@ -321,7 +341,7 @@ fun AppNavigation() {
                                 context.applicationContext, currentUser.uid
                             )
 
-                            navController.navigate("targetSummary") {
+                            navController.navigate("verificationPending") {
                                 popUpTo("intro") { inclusive = true }
                             }
                         }
@@ -329,6 +349,30 @@ fun AppNavigation() {
                 },
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // 7b. NEW: Verification Pending Screen
+        composable("verificationPending") {
+            val verificationViewModel: com.calorieko.app.viewmodel.VerificationViewModel = viewModel(
+                factory = com.calorieko.app.viewmodel.VerificationViewModel.provideFactory(
+                    authRepository = authRepo
+                )
+            )
+            VerificationPendingScreen(
+                viewModel = verificationViewModel,
+                onVerificationSuccess = {
+                    val uid = auth.currentUser?.uid
+                    if (uid != null) {
+                        // After verification, we try to restore (which checks onboarding status)
+                        restoreViewModel.restore(uid)
+                    } else {
+                        navController.navigate("intro") { popUpTo(0) { inclusive = true } }
+                    }
+                },
+                onCancel = {
+                    navController.navigate("intro") { popUpTo(0) { inclusive = true } }
                 }
             )
         }
@@ -383,8 +427,23 @@ fun AppNavigation() {
             SuccessScreen(
                 isScaleConnected = isScaleConnected,
                 onEnterDashboard = {
-                    navController.navigate("dashboard") {
-                        popUpTo("success/{isScaleConnected}") { inclusive = true }
+                    val uid = auth.currentUser?.uid
+                    if (uid != null) {
+                        scope.launch {
+                            val profile = userDao.getUser(uid)
+                            if (profile != null) {
+                                val updatedProfile = profile.copy(onboardingCompleted = true)
+                                userDao.insertUser(updatedProfile)
+                                firestoreSyncRepo.syncProfile(uid, updatedProfile)
+                            }
+                            navController.navigate("dashboard") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    } else {
+                        navController.navigate("dashboard") {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 }
             )

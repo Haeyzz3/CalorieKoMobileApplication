@@ -24,10 +24,10 @@ import kotlinx.coroutines.coroutineScope
  */
 sealed class RestoreResult {
     /** Local profile already exists — restore was skipped. */
-    data object NotNeeded : RestoreResult()
+    data class NotNeeded(val onboardingCompleted: Boolean) : RestoreResult()
 
     /** Data was successfully restored from Firestore. */
-    data class Success(val profileName: String) : RestoreResult()
+    data class Success(val profileName: String, val onboardingCompleted: Boolean) : RestoreResult()
 
     /** No Firestore profile found — this is a genuinely new user. */
     data object NoCloudData : RestoreResult()
@@ -92,7 +92,7 @@ class CloudRestoreManager(
             val existingProfile = userDao.getUser(uid)
             if (existingProfile != null) {
                 Log.d(TAG, "Local profile exists for $uid — skipping restore")
-                return RestoreResult.NotNeeded
+                return RestoreResult.NotNeeded(existingProfile.onboardingCompleted)
             }
 
             Log.d(TAG, "No local profile for $uid — checking Firestore...")
@@ -173,7 +173,7 @@ class CloudRestoreManager(
             }
 
             Log.d(TAG, "═══ Full restore complete for ${profile.name} ═══")
-            RestoreResult.Success(profile.name)
+            RestoreResult.Success(profile.name, profile.onboardingCompleted)
 
         } catch (e: Exception) {
             Log.e(TAG, "Cloud restore failed for $uid", e)

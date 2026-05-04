@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 fun SplashScreen(
     viewModel: SplashViewModel,
     onAlreadyLoggedIn: () -> Unit,
+    onVerificationRequired: () -> Unit,
     onNotLoggedIn: () -> Unit
 ) {
     // ── Handle one-shot events ──
@@ -36,6 +37,7 @@ fun SplashScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is SplashViewModel.Event.AlreadyLoggedIn -> onAlreadyLoggedIn()
+                is SplashViewModel.Event.VerificationRequired -> onVerificationRequired()
                 is SplashViewModel.Event.NotLoggedIn -> onNotLoggedIn()
             }
         }

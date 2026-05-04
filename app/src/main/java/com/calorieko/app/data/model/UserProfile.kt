@@ -21,6 +21,8 @@ data class UserProfile(
     val milestonesTier: Int = 1, // Current difficulty tier for badges (scales thresholds)
     val photoUrl: String = "",   // Profile photo URL from backend
 
+    @ColumnInfo(name = "onboarding_completed") val onboardingCompleted: Boolean = false,
+
     // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )
