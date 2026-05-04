@@ -26,5 +26,6 @@ data class LoggedDish(
     val vitaminC: Float,
     val calcium: Float,
     val iron: Float,
-    val substitutionsJson: String = ""  // Carries saved substitutions from planned meals
+    val substitutionsJson: String = "",  // Carries saved substitutions from planned meals
+    val requiresWeightConfirmation: Boolean = false
 )
