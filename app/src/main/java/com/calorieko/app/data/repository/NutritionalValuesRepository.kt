@@ -124,29 +124,29 @@ class NutritionalValuesRepository(private val context: Context) {
         val ndapBaseline = dbw * activityKcalPerKg
 
         var finalCalories = ndapBaseline.toInt()
-        var proteinPct = 0.30
-        var carbsPct = 0.40
-        var fatsPct = 0.30
+        var proteinPct = 0.15
+        var carbsPct = 0.60
+        var fatsPct = 0.25
 
         when (goal.lowercase().trim()) {
             "lose_weight", "weight_loss", "weight", "weight control" -> {
                 finalCalories = (ndapBaseline - 500).toInt().coerceAtLeast(1200) // 1200 floor safety
-                proteinPct = 0.35 // Higher protein to preserve muscle mass
-                carbsPct = 0.35
+                proteinPct = 0.25
+                carbsPct = 0.45
                 fatsPct = 0.30
             }
             "gain_muscle" -> {
                 finalCalories = (ndapBaseline + 300).toInt()
-                proteinPct = 0.30
-                carbsPct = 0.45 // Higher carbs to fuel muscle synthesis routines
-                fatsPct = 0.25
+                proteinPct = 0.25
+                carbsPct = 0.55
+                fatsPct = 0.20
             }
             else -> {
                 // "General Health & Wellness" or "Maintain" → pure NDAP TEA
                 finalCalories = ndapBaseline.toInt()
-                proteinPct = 0.30
-                carbsPct = 0.40
-                fatsPct = 0.30
+                proteinPct = 0.15
+                carbsPct = 0.60
+                fatsPct = 0.25
             }
         }
 

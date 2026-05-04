@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Card
@@ -44,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.ui.theme.CalorieKoGreen
+import com.calorieko.app.ui.theme.CalorieKoOrange
 
 /**
  * Static informational screen explaining how nutritional values are calculated.
@@ -70,6 +73,7 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 fun HowWeCalculateScreen(
     onBack: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
     Scaffold(
         topBar = {
             Surface(shadowElevation = 2.dp) {
@@ -135,6 +139,117 @@ fun HowWeCalculateScreen(
                     "Each of the 88 ingredients in our system is individually mapped to a " +
                     "specific USDA FDC entry by its unique FDC ID, ensuring full traceability " +
                     "back to the original laboratory-analyzed data."
+                )
+            }
+
+            // ── Section: Your Daily Targets ──
+            ExpandableSection(
+                icon = Icons.Default.Person,
+                iconColor = Color(0xFF8B5CF6),
+                title = "Your Daily Targets",
+                subtitle = "How are your personalized goals set?"
+            ) {
+                // --- Calories ---
+                BoldBodyText("Calories (Total Energy Allowance)")
+                Spacer(modifier = Modifier.height(6.dp))
+                BodyText(
+                    "Your daily calorie target is computed using the NDAP (National Dietetic " +
+                    "Association of the Philippines) protocol — the standard method used by " +
+                    "Filipino Registered Nutritionist-Dietitians:"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BulletPoint(
+                    title = "Step 1 \u2014 Desirable Body Weight",
+                    body = "Calculated using the Broca-Tannhauser formula adjusted for Asian frames: " +
+                           "DBW = (Height in cm \u2212 100) \u00d7 0.90."
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                BulletPoint(
+                    title = "Step 2 \u2014 Activity Factor",
+                    body = "Your activity level maps to an NDAP energy factor (kcal per kg of DBW): " +
+                           "Sedentary \u2192 30, Light \u2192 35, Moderate \u2192 40, Vigorous \u2192 45."
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                BulletPoint(
+                    title = "Step 3 \u2014 Goal Adjustment",
+                    body = "General Health uses the baseline (DBW \u00d7 factor). " +
+                           "Muscle Gain adds +300 kcal for surplus. " +
+                           "Weight Control subtracts 500 kcal (minimum 1,200 kcal for safety)."
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FormulaText("TEA = DBW \u00d7 Activity Factor \u00b1 Goal Adjustment")
+
+                // --- Macronutrients ---
+                Spacer(modifier = Modifier.height(16.dp))
+                BoldBodyText("Macronutrients (Protein, Carbs, Fat)")
+                Spacer(modifier = Modifier.height(6.dp))
+                BodyText(
+                    "Your macro targets are derived from your calorie target using " +
+                    "goal-specific percentage splits verified by our nutritionist:"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BulletPoint(
+                    title = "Weight Control",
+                    body = "45% Carbs, 25% Protein, 30% Fat"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Muscle Gain",
+                    body = "55% Carbs, 25% Protein, 20% Fat"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "General Health & Wellness",
+                    body = "60% Carbs, 15% Protein, 25% Fat"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BodyText("Grams are calculated using standard energy densities:")
+                Spacer(modifier = Modifier.height(6.dp))
+                FormulaText(
+                    "Protein (g) = (Calories \u00d7 Protein%) \u00f7 4\n" +
+                    "Carbs (g)   = (Calories \u00d7 Carbs%) \u00f7 4\n" +
+                    "Fat (g)     = (Calories \u00d7 Fat%) \u00f7 9"
+                )
+
+                // --- Sugar & Fiber ---
+                Spacer(modifier = Modifier.height(16.dp))
+                BoldBodyText("Sugar & Fiber")
+                Spacer(modifier = Modifier.height(6.dp))
+                BulletPoint(
+                    title = "Sugar",
+                    body = "Capped at 10% of your total daily calories, converted to grams (\u00f7 4 cal/g)."
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Fiber",
+                    body = "Sourced from the Philippine Dietary Reference Intakes (PDRI) based on " +
+                           "your age and sex \u2014 not derived from your calorie target."
+                )
+
+                // --- Micronutrients ---
+                Spacer(modifier = Modifier.height(16.dp))
+                BoldBodyText("Micronutrients")
+                Spacer(modifier = Modifier.height(6.dp))
+                BodyText(
+                    "The following daily targets are looked up directly from the Philippine " +
+                    "Dietary Reference Intakes (PDRI), matched to your age range and biological sex:"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BulletPoint(title = "Sodium", body = "mg \u2014 upper safe intake limit")
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(title = "Potassium", body = "mg \u2014 adequate intake target")
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(title = "Vitamin A", body = "\u00b5g \u2014 recommended daily intake")
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(title = "Vitamin C", body = "mg \u2014 recommended daily intake")
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(title = "Calcium", body = "mg \u2014 recommended daily intake")
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(title = "Iron", body = "mg \u2014 recommended daily intake")
+                Spacer(modifier = Modifier.height(8.dp))
+                BodyText(
+                    "These values are not scaled by your weight or calorie target. They represent " +
+                    "evidence-based guidelines for safe daily intake specific to your demographic group."
                 )
             }
 
@@ -265,6 +380,7 @@ fun HowWeCalculateScreen(
             // ── Footer: USDA Link ──
             Spacer(modifier = Modifier.height(4.dp))
             Card(
+                onClick = { uriHandler.openUri("https://fdc.nal.usda.gov") },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = CalorieKoGreen.copy(alpha = 0.08f)
@@ -298,6 +414,51 @@ fun HowWeCalculateScreen(
                         )
                         Text(
                             text = "The authoritative source for all ingredient nutritional data used in this app.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF),
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // ── Footer: PDRI Link ──
+            Card(
+                onClick = { uriHandler.openUri("https://www.fnri.dost.gov.ph/index.php/tools-and-standard/philippine-dietary-reference-intakes-pdri") },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = CalorieKoOrange.copy(alpha = 0.08f)
+                ),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        tint = CalorieKoOrange,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Philippine Dietary Reference Intakes",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = CalorieKoOrange
+                        )
+                        Text(
+                            text = "fnri.dost.gov.ph",
+                            fontSize = 12.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                        Text(
+                            text = "The authoritative source for all age- and sex-specific micronutrient daily values used in this app.",
                             fontSize = 12.sp,
                             color = Color(0xFF9CA3AF),
                             lineHeight = 16.sp,
