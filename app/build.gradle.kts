@@ -39,8 +39,8 @@ android {
             )
         resValue("string", "mapbox_access_token", mapboxAccessToken)
 
-        val apiUrl = localProperties.getProperty("CALORIEKO_API_BASE_URL") ?: "http://10.0.2.2:8000/"
-        buildConfigField("String", "API_BASE_URL", "\"$apiUrl\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://admin-calorieko.xyz/\"")
+
     }
 
     buildTypes {
