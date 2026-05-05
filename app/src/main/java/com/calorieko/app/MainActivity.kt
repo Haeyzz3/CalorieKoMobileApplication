@@ -765,6 +765,7 @@ fun AppNavigation() {
             val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
                     dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator
@@ -800,6 +801,7 @@ fun AppNavigation() {
             val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
                     dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator
@@ -836,6 +838,7 @@ fun AppNavigation() {
             val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
                     dishRecipeDao = db.dishRecipeDao(),
+                    rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator

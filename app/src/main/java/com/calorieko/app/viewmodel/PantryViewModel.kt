@@ -222,6 +222,10 @@ class PantryViewModel(
     private val _allBrowsableIngredients = MutableStateFlow<List<RawIngredientEntity>>(emptyList())
     val allBrowsableIngredients: StateFlow<List<RawIngredientEntity>> = _allBrowsableIngredients.asStateFlow()
 
+    // --- Display name cache: ingredient_key → display_name from RAW_INGREDIENTS_TABLE ---
+    // Populated once at init; used by formatIngredientName() for authoritative naming.
+    private val _displayNameCache = mutableMapOf<String, String>()
+
     init {
         // Defense-in-depth: ensure reference data is seeded before any queries.
         // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
@@ -240,8 +244,13 @@ class PantryViewModel(
         }
 
         // Load all browsable ingredients for the Ingredient Browser (excluding store_bought)
+        // Also populate the display name cache for formatIngredientName()
         viewModelScope.launch(Dispatchers.IO) {
-            _allBrowsableIngredients.value = rawIngredientDao.getAllBrowsable()
+            val browsable = rawIngredientDao.getAllBrowsable()
+            _allBrowsableIngredients.value = browsable
+            // Build cache from ALL raw ingredients (including store_bought) for full coverage
+            val allRaw = rawIngredientDao.getAllRawIngredients()
+            allRaw.forEach { _displayNameCache[it.ingredientKey] = it.displayName }
         }
 
         // Load user's actual nutritional targets
@@ -380,7 +389,11 @@ class PantryViewModel(
         val lowerQuery = query.lowercase()
         val currentPantry = pantryItems.value
         _autocompleteSuggestions.value = _allIngredients.value.filter { ingredient ->
-            ingredient.contains(lowerQuery) && ingredient !in currentPantry
+            val matchesKey = ingredient.contains(lowerQuery)
+            // Also match against authoritative display name (e.g., "Soybean Oil")
+            val displayName = _displayNameCache[ingredient]?.lowercase() ?: ""
+            val matchesDisplayName = displayName.contains(lowerQuery)
+            (matchesKey || matchesDisplayName) && ingredient !in currentPantry
         }.take(10)
     }
 
@@ -1049,9 +1062,17 @@ class PantryViewModel(
     }
 
     /**
-     * Formats an ingredient name for display: "cooking_oil" → "Cooking Oil".
+     * Formats an ingredient key for display.
+     *
+     * Resolves the authoritative display name from [_displayNameCache]
+     * (sourced from RAW_INGREDIENTS_TABLE) if available.
+     * Falls back to naive formatting ("cooking_oil" → "Cooking Oil") for
+     * keys not found in the cache (e.g., user-typed free-form ingredients).
      */
     fun formatIngredientName(name: String): String {
+        // Check the display name cache first (authoritative USDA names)
+        _displayNameCache[name]?.let { return it }
+        // Fallback: naive underscore-split formatting for unrecognized keys
         return name.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
