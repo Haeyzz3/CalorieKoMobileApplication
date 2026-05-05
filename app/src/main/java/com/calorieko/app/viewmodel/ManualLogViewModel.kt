@@ -71,9 +71,6 @@ class ManualLogViewModel(
     private val _manualWeightText = MutableStateFlow("")
     val manualWeightText: StateFlow<String> = _manualWeightText.asStateFlow()
 
-    private val _servingQuantityText = MutableStateFlow("1")
-    val servingQuantityText: StateFlow<String> = _servingQuantityText.asStateFlow()
-
     // ── Logged dishes ──
 
     private val _loggedDishes = MutableStateFlow<List<LoggedDish>>(emptyList())
@@ -135,21 +132,15 @@ class ManualLogViewModel(
     fun selectDish(dish: DishRecipeEntity) {
         _selectedDish.value = dish
         _manualWeightText.value = defaultWeightText(dish)
-        _servingQuantityText.value = "1"
     }
 
     fun clearSelectedDish() {
         _selectedDish.value = null
         _manualWeightText.value = ""
-        _servingQuantityText.value = "1"
     }
 
     fun updateWeightText(text: String) {
         _manualWeightText.value = text
-    }
-
-    fun updateServingQuantityText(text: String) {
-        _servingQuantityText.value = text
     }
 
     /**
@@ -159,21 +150,18 @@ class ManualLogViewModel(
      */
     fun addDish() {
         val recipe = _selectedDish.value ?: return
-        val unitWeight = _manualWeightText.value.toFloatOrNull() ?: return
-        val quantity = _servingQuantityText.value.toFloatOrNull() ?: return
-        if (unitWeight <= 0f || quantity <= 0f) return
-
-        val totalWeight = unitWeight * quantity
+        val weightGrams = _manualWeightText.value.toFloatOrNull() ?: return
+        if (weightGrams <= 0f) return
 
         viewModelScope.launch {
             val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(recipe.dishLabel, unitWeight) * quantity
+                calculator.calculatePortionNutrition(recipe.dishLabel, weightGrams)
             }
             val dish = LoggedDish(
                 dishNameEn = recipe.nameEn,
                 dishNamePh = recipe.namePh,
-                weightGrams = totalWeight,
-                servingQuantity = quantity,
+                weightGrams = weightGrams,
+                servingQuantity = 1f,
                 confidence = 1.0f, // Manual entry = 100% confidence
                 foodId = 0,        // No legacy food_id needed for new calculator path
                 dishLabel = recipe.dishLabel,
@@ -201,7 +189,6 @@ class ManualLogViewModel(
             // Reset for next dish
             _selectedDish.value = null
             _manualWeightText.value = ""
-            _servingQuantityText.value = "1"
         }
     }
 
@@ -414,60 +401,6 @@ class ManualLogViewModel(
                             calcium = nutrients.calcium,
                             iron = nutrients.iron,
                             requiresWeightConfirmation = false
-                        )
-                    } else {
-                        current
-                    }
-                }
-            }
-        }
-    }
-
-    fun updateLoggedDishQuantity(index: Int, quantity: Float) {
-        if (quantity <= 0f) return
-        val dish = _loggedDishes.value.getOrNull(index) ?: return
-        if (dish.dishLabel.isBlank()) return
-
-        viewModelScope.launch {
-            val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
-            val recipe = withContext(Dispatchers.IO) {
-                dishRecipeDao.getByDishLabel(dish.dishLabel)
-            } ?: return@launch
-            val servingWeight = if (recipe.perServingWeightG > 0f) {
-                recipe.perServingWeightG
-            } else if (recipe.servings > 0) {
-                recipe.cookedWeightG / recipe.servings
-            } else {
-                recipe.cookedWeightG
-            }
-            val currentUnitWeight = if (dish.servingQuantity > 0f && dish.weightGrams > 0f) {
-                dish.weightGrams / dish.servingQuantity
-            } else {
-                servingWeight
-            }
-            val totalWeight = currentUnitWeight * quantity
-            val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(dish.dishLabel, totalWeight, substitutions)
-            }
-
-            _loggedDishes.update { list ->
-                list.mapIndexed { i, current ->
-                    if (i == index) {
-                        current.copy(
-                            weightGrams = totalWeight,
-                            servingQuantity = quantity,
-                            calories = nutrients.calories,
-                            protein = nutrients.protein,
-                            carbs = nutrients.carbs,
-                            fat = nutrients.fat,
-                            fiber = nutrients.fiber,
-                            sugar = nutrients.sugar,
-                            sodium = nutrients.sodium,
-                            potassium = nutrients.potassium,
-                            vitaminA = nutrients.vitaminA,
-                            vitaminC = nutrients.vitaminC,
-                            calcium = nutrients.calcium,
-                            iron = nutrients.iron
                         )
                     } else {
                         current

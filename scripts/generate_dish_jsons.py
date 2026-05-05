@@ -415,7 +415,10 @@ def main():
                             "iron": float(csv_vals.get("iron_mg", 0) or 0),
                         }
                         # Default weights for simple dishes
-                        if "egg" in label:
+                        if label == "egg_boiled":
+                            total_weight = 50.0  # edible boiled egg portion
+                            yield_factor = 1.0
+                        elif "egg" in label:
                             total_weight = 55.0  # 1 egg + oil
                         elif "chicken" in label:
                             total_weight = 150.0  # typical portion

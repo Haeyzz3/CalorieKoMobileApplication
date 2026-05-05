@@ -14,6 +14,10 @@ class FoodDatabaseCallback(
     private val databaseProvider: () -> AppDatabase // Allows safe access to the database instance
 ) : RoomDatabase.Callback() {
 
+    private val seedPrefs by lazy {
+        context.getSharedPreferences(REFERENCE_DATA_PREFS, Context.MODE_PRIVATE)
+    }
+
     // NOTE: We intentionally do NOT override onCreate() for seeding.
     // Room always calls onOpen() after onCreate(), so the onOpen() empty-check
     // handles fresh installs, migrations, and normal opens — all from one path.
@@ -39,22 +43,35 @@ class FoodDatabaseCallback(
                 // Re-seed if DB is empty, has new ingredients, OR if a previous
                 // seed was interrupted (recipe_ingredients is empty while raw isn't)
                 val rawCount = database.rawIngredientDao().getCount()
+                val recipeCount = database.dishRecipeDao().getCount()
                 val recipeIngCount = database.recipeIngredientDao().getCount()
+                val seededVersion = seedPrefs.getInt(KEY_JSON_REFERENCE_VERSION, 0)
                 val assetIngredients = context.assets.open("raw_ingredients.json").use { stream ->
                     FoodJsonParser.parseRawIngredients(stream)
                 }
                 val needsReseed = rawCount == 0
+                        || recipeCount == 0
                         || rawCount < assetIngredients.size
+                        || seededVersion < CURRENT_JSON_REFERENCE_VERSION
                         || recipeIngCount == 0  // Partial seed recovery
                 if (needsReseed) {
                     try {
                         seedFromJson(context, database)
+                        seedPrefs.edit()
+                            .putInt(KEY_JSON_REFERENCE_VERSION, CURRENT_JSON_REFERENCE_VERSION)
+                            .apply()
                     } catch (e: Exception) {
                         Log.e("FoodDatabaseCallback", "JSON seeding failed", e)
                     }
                 }
             }
         }
+    }
+
+    companion object {
+        private const val REFERENCE_DATA_PREFS = "reference_data_seed"
+        private const val KEY_JSON_REFERENCE_VERSION = "json_reference_version"
+        private const val CURRENT_JSON_REFERENCE_VERSION = 2
     }
 }
 

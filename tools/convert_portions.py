@@ -172,7 +172,7 @@ EMPTY_PORTION_DEFAULTS = {
 
     # egg_boiled — 1 boiled egg
     ("egg_boiled", "chicken_egg"): 50.0,
-    ("egg_boiled", "water"): 236.6,
+    ("egg_boiled", "water"): 0.0,
 
     # store-bought lechon manok parts — typical serving weight
     ("chicken_wings", "store_bought_lechon_manok_wing"): 90.0,

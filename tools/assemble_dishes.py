@@ -246,7 +246,7 @@ YIELD_FACTORS = {
     "egg_fried":            0.90,   # Fried egg, slightly more crisp
 
     # Boiled
-    "egg_boiled":           0.90,   # Boiled egg, shell removed
+    "egg_boiled":           1.00,   # Boiled egg portion uses edible egg weight only
     "rice_well_milled":     2.81,   # Rice ABSORBS water: USDA raw (365 kcal/100g) ÷ cooked (130 kcal/100g) = 2.81× weight gain
 
     # Store-bought (already cooked, weighed as-is)

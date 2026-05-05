@@ -353,7 +353,6 @@ class LocationTrackingService : Service(), SensorEventListener {
             failTrackingStart("Workout tracking could not start on this device. Please try again.")
         }
     }
-
     fun pauseTracking() {
         _isPaused.value = true
         // Record when this pause started so we can subtract it from elapsed time
