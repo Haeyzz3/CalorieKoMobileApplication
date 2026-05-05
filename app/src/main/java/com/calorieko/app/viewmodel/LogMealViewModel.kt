@@ -42,6 +42,9 @@ class LogMealViewModel(
     private val calculator: RecipeNutritionCalculator
 ) : ViewModel() {
 
+    // --- Display name cache: ingredient_key → display_name from RAW_INGREDIENTS_TABLE ---
+    private val _displayNameCache = mutableMapOf<String, String>()
+
     // ── UI States ──
 
     private val _phase = MutableStateFlow(LogMealPhase.MODE_SELECTION)
@@ -422,8 +425,22 @@ class LogMealViewModel(
         }
     }
 
-    /** Formats an ingredient_key into a readable display name. */
+    /**
+     * Formats an ingredient key for display.
+     *
+     * Resolves the authoritative display name from [_displayNameCache]
+     * (sourced from RAW_INGREDIENTS_TABLE) if available.
+     * Falls back to naive formatting for user-typed free-form ingredients.
+     */
     fun formatIngredientName(key: String): String {
+        // Populate cache on first call if empty
+        if (_displayNameCache.isEmpty()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val allRaw = rawIngredientDao.getAllRawIngredients()
+                allRaw.forEach { _displayNameCache[it.ingredientKey] = it.displayName }
+            }
+        }
+        _displayNameCache[key]?.let { return it }
         return key.replace("_", " ").replaceFirstChar { it.uppercase() }
     }
 

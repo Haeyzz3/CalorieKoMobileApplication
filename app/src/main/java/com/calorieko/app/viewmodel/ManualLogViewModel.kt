@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
+import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LoggedDish
@@ -48,10 +49,14 @@ object QuickLogBridge {
 
 class ManualLogViewModel(
     private val dishRecipeDao: DishRecipeDao,
+    private val rawIngredientDao: RawIngredientDao,
     private val auth: FirebaseAuth,
     private val mealRepository: MealRepository,
     private val calculator: RecipeNutritionCalculator
 ) : ViewModel() {
+
+    // --- Display name cache: ingredient_key → display_name from RAW_INGREDIENTS_TABLE ---
+    private val _displayNameCache = mutableMapOf<String, String>()
 
     // ── Dish catalogue ──
 
@@ -450,8 +455,22 @@ class ManualLogViewModel(
         }
     }
 
-    /** Formats an ingredient key for display. */
+    /**
+     * Formats an ingredient key for display.
+     *
+     * Resolves the authoritative display name from [_displayNameCache]
+     * (sourced from RAW_INGREDIENTS_TABLE) if available.
+     * Falls back to naive formatting for user-typed free-form ingredients.
+     */
     fun formatIngredientName(key: String): String {
+        // Populate cache on first call if empty
+        if (_displayNameCache.isEmpty()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val allRaw = rawIngredientDao.getAllRawIngredients()
+                allRaw.forEach { _displayNameCache[it.ingredientKey] = it.displayName }
+            }
+        }
+        _displayNameCache[key]?.let { return it }
         return key.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
@@ -515,6 +534,7 @@ class ManualLogViewModel(
 
         fun provideFactory(
             dishRecipeDao: DishRecipeDao,
+            rawIngredientDao: RawIngredientDao,
             auth: FirebaseAuth,
             mealRepository: MealRepository,
             calculator: RecipeNutritionCalculator
@@ -522,7 +542,7 @@ class ManualLogViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ManualLogViewModel::class.java)) {
-                    return ManualLogViewModel(dishRecipeDao, auth, mealRepository, calculator) as T
+                    return ManualLogViewModel(dishRecipeDao, rawIngredientDao, auth, mealRepository, calculator) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
