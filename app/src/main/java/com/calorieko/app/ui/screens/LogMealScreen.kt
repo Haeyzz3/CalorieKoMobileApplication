@@ -2526,7 +2526,6 @@ fun QuickLogScreen(
     val mealType by viewModel.mealType.collectAsState()
     val showSummary by viewModel.showSummary.collectAsState()
     val isConfirming by viewModel.isConfirming.collectAsState()
-    var isAddingMore by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -2536,32 +2535,13 @@ fun QuickLogScreen(
         }
     }
 
-    if (isAddingMore) {
-        ManualMealContent(
-            viewModel = viewModel,
-            onBack = {
-                if (dishes.isNotEmpty()) {
-                    viewModel.setShowSummary(true)
-                    isAddingMore = false
-                } else {
-                    onBack()
-                }
-            },
-            onMealConfirmed = onMealConfirmed
-        )
-        return
-    }
-
     if (showSummary && dishes.isNotEmpty()) {
         ManualMealSummaryOverlay(
             dishes = dishes,
             mealType = mealType,
             onMealTypeChange = { viewModel.updateMealType(it) },
             onRemoveDish = { viewModel.removeDish(it) },
-            onAddMore = {
-                viewModel.setShowSummary(false)
-                isAddingMore = true
-            },
+            onAddMore = { /* Not applicable for quick-log */ },
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
             isConfirming = isConfirming,
