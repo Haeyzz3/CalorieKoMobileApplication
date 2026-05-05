@@ -130,6 +130,9 @@ class LogWorkoutViewModel(
     private val _pathPoints = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
     val pathPoints: StateFlow<List<Pair<Double, Double>>> = _pathPoints.asStateFlow()
 
+    private val _trackingError = MutableStateFlow<String?>(null)
+    val trackingError: StateFlow<String?> = _trackingError.asStateFlow()
+
     // ── Internal State ──
     private var collectorJob: Job? = null
     private var boundContext: Context? = null
@@ -215,6 +218,7 @@ class LogWorkoutViewModel(
             launch { svc.lastLocation.collect { _lastLocation.value = it } }
             launch { svc.currentPoint.collect { _currentPoint.value = it } }
             launch { svc.pathPoints.collect { _pathPoints.value = it } }
+            launch { svc.trackingError.collect { _trackingError.value = it } }
         }
     }
 
@@ -227,6 +231,10 @@ class LogWorkoutViewModel(
     fun resumeTracking() { _service?.resumeTracking() }
     fun stopTracking() { _service?.stopTracking() }
     fun resetMetrics() { _service?.resetMetrics() }
+    fun clearTrackingError() {
+        _trackingError.value = null
+        _service?.clearTrackingError()
+    }
 
     /**
      * Snapshot the current service values directly (bypasses compose

@@ -1296,7 +1296,9 @@ private fun ManualMealSummaryOverlay(
 
     // Track expanded state per dish (by index)
     val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
+    val requiredWeightInputs = remember { mutableStateMapOf<Int, String>() }
     var totalsExpanded by remember { mutableStateOf(false) }
+    val hasRequiredWeights = dishes.any { it.requiresWeightConfirmation }
 
     // ── Ingredient bottom sheet state ──
     val scope = rememberCoroutineScope()
@@ -1397,6 +1399,60 @@ private fun ManualMealSummaryOverlay(
                                 }
                                 IconButton(onClick = { onRemoveDish(index) }) {
                                     Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                }
+                            }
+
+                            if (dish.requiresWeightConfirmation && manualViewModel != null) {
+                                HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                                val weightText = requiredWeightInputs[index] ?: ""
+                                val parsedWeight = weightText.toFloatOrNull() ?: 0f
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFFFF7ED))
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                ) {
+                                    Text(
+                                        "Actual weight required",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF9A3412)
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = weightText,
+                                            onValueChange = { requiredWeightInputs[index] = it },
+                                            placeholder = { Text("Cooked weight (g)") },
+                                            keyboardOptions = KeyboardOptions(
+                                                keyboardType = KeyboardType.Number,
+                                                imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                                            ),
+                                            singleLine = true,
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = CalorieKoOrange,
+                                                unfocusedBorderColor = Color(0xFFF59E0B)
+                                            ),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Button(
+                                            onClick = {
+                                                manualViewModel.confirmLoggedDishWeight(index, parsedWeight)
+                                            },
+                                            enabled = parsedWeight > 0f,
+                                            colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.height(52.dp)
+                                        ) {
+                                            Text("Apply", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
 
@@ -1535,7 +1591,7 @@ private fun ManualMealSummaryOverlay(
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Button(
                         onClick = onConfirmMeal,
-                        enabled = dishes.isNotEmpty() && !isConfirming,
+                        enabled = dishes.isNotEmpty() && !isConfirming && !hasRequiredWeights,
                         colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -1543,7 +1599,11 @@ private fun ManualMealSummaryOverlay(
                         Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (isConfirming) "Saving..." else "Confirm Meal",
+                            when {
+                                isConfirming -> "Saving..."
+                                hasRequiredWeights -> "Enter Weight to Confirm"
+                                else -> "Confirm Meal"
+                            },
                             fontWeight = FontWeight.Bold, fontSize = 16.sp
                         )
                     }

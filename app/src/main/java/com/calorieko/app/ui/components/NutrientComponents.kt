@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
  * Note: Secondary macros (saturated/poly/mono/trans fat, cholesterol)
  * are hidden per nutritionist recommendation — data layer retains them.
  */
+
 @Composable
 fun ExpandableNutrientGrid(
     fiber: Float,

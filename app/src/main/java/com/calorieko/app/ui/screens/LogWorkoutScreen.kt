@@ -6,6 +6,7 @@ import android.animation.ValueAnimator
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,6 +92,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -98,6 +100,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
@@ -505,6 +509,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 @Composable
 fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave: (String, Int, String, Double?, Double?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit, onBackToDashboard: () -> Unit) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // ── Service Binding via ViewModel ──
     // The ViewModel manages the service connection and survives Activity recreation.
@@ -529,6 +534,7 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
     val currentPace by viewModel.currentPace.collectAsState()
     val isMoving by viewModel.isMoving.collectAsState()
     val lastLocation by viewModel.lastLocation.collectAsState()
+    val trackingError by viewModel.trackingError.collectAsState()
 
     // Convert service's (lat,lng) pairs to Mapbox Points for map rendering
     val servicePathPoints by viewModel.pathPoints.collectAsState()
@@ -570,6 +576,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
     var showDiscardDialog by remember { mutableStateOf(false) }
     val gpsFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var showLocationDialog by remember { mutableStateOf(false) }
+    var showBackgroundLocationDialog by remember { mutableStateOf(false) }
+    var localTrackingError by remember { mutableStateOf<String?>(null) }
+    var pendingStartAfterSettings by remember { mutableStateOf(false) }
 
     // Map Settings
     var mapType by remember { mutableStateOf("Dark") } // Dark, Standard, Terrain
@@ -589,6 +598,57 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
 
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+    var hasBackgroundLocationPermission by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val backgroundPermissionOptionLabel = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.packageManager.backgroundPermissionOptionLabel?.toString() ?: "Allow all the time"
+        } else {
+            "Allow all the time"
+        }
+    }
+
+    var startForegroundTracking: (() -> Unit)? = null
+    var attemptStartTracking: (() -> Unit)? = null
+    var requestBackgroundAccess: (() -> Unit)? = null
+
+    fun refreshPermissionState() {
+        hasLocationPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        hasBackgroundLocationPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshPermissionState()
+                if (pendingStartAfterSettings && hasBackgroundLocationPermission) {
+                    pendingStartAfterSettings = false
+                    attemptStartTracking?.invoke()
+                } else if (pendingStartAfterSettings) {
+                    pendingStartAfterSettings = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     // ── Battery Optimization Dialog ──
@@ -657,6 +717,71 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         )
     }
 
+    if (showBackgroundLocationDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showBackgroundLocationDialog = false },
+            title = { Text("Background Location", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        "To keep your distance accurate while the screen is off, open app permissions and change Location to \"$backgroundPermissionOptionLabel\"."
+                    } else {
+                        "To keep your distance accurate while the screen is off, allow background location for CalorieKo."
+                    },
+                    color = Color.Gray
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBackgroundLocationDialog = false
+                    requestBackgroundAccess?.invoke()
+                }) {
+                    Text("Open Settings", color = CalorieKoOrange)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackgroundLocationDialog = false }) {
+                    Text("Cancel", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.Gray
+        )
+    }
+
+    if (localTrackingError != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { localTrackingError = null },
+            title = { Text("Tracking Error", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text(localTrackingError.orEmpty(), color = Color.Gray) },
+            confirmButton = {
+                TextButton(onClick = { localTrackingError = null }) {
+                    Text("OK", color = CalorieKoOrange)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.Gray
+        )
+    }
+
+    if (trackingError != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.clearTrackingError() },
+            title = { Text("Tracking Error", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text(trackingError.orEmpty(), color = Color.Gray) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearTrackingError() }) {
+                    Text("OK", color = CalorieKoOrange)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.Gray
+        )
+    }
+
     // State to hold the final camera center in case the user saves a 0.0km run
     var fallbackMapCenter by remember { mutableStateOf<Point?>(null) }
 
@@ -665,35 +790,89 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
-        // Whether granted or denied, start the service — it will still run,
-        // but the notification will only be visible if permission was granted.
-        val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
-            action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+        startForegroundTracking?.invoke()
+    }
+
+    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        refreshPermissionState()
+        if (granted || hasBackgroundLocationPermission) {
+            attemptStartTracking?.invoke()
+        } else {
+            localTrackingError = "Background location is required if you want distance to keep updating while the app is in the background or the screen is off."
         }
-        androidx.core.content.ContextCompat.startForegroundService(context, intent)
-        viewModel.startTracking()
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         if (hasLocationPermission) {
-            // Also verify GPS/Location services are actually turned on
-            val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-            if (!locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
-                showLocationDialog = true
-            } else {
-                // On Android 13+, also request notification permission before starting the service
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                    val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
-                        action = com.calorieko.app.util.LocationTrackingService.ACTION_START
-                    }
-                    androidx.core.content.ContextCompat.startForegroundService(context, intent)
-                    viewModel.startTracking()
-                }
-            }
+            attemptStartTracking?.invoke()
+        } else {
+            localTrackingError = "Precise location is required to measure workout distance."
         }
+    }
+
+    requestBackgroundAccess = {
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            pendingStartAfterSettings = true
+            context.startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = android.net.Uri.parse("package:${context.packageName}")
+                }
+            )
+        }
+    }
+
+    startForegroundTracking = {
+        try {
+            val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
+                action = com.calorieko.app.util.LocationTrackingService.ACTION_START
+            }
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+            viewModel.clearTrackingError()
+            viewModel.startTracking()
+        } catch (exception: Exception) {
+            localTrackingError = "Workout tracking could not start on this device. Please try again."
+        }
+    }
+
+    attemptStartTracking = trackingAttempt@{
+        refreshPermissionState()
+
+        if (!hasLocationPermission) {
+            val perms = mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                perms.add(Manifest.permission.ACTIVITY_RECOGNITION)
+            }
+            permissionLauncher.launch(perms.toTypedArray())
+            return@trackingAttempt
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasBackgroundLocationPermission) {
+            showBackgroundLocationDialog = true
+            return@trackingAttempt
+        }
+
+        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+        if (!locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+            showLocationDialog = true
+            return@trackingAttempt
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return@trackingAttempt
+        }
+
+        startForegroundTracking?.invoke()
     }
 
     // ── Proactive Offline Map Caching ──
@@ -1364,36 +1543,7 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     AnimatedContent(targetState = isTracking, label = "TrackingTransition") { tracking ->
                         if (!tracking) {
                             Button(
-                                onClick = {
-                                    if (hasLocationPermission) {
-                                        // Check if GPS/Location services are actually turned on
-                                        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-                                        val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
-                                        if (!isGpsEnabled) {
-                                            showLocationDialog = true
-                                        } else {
-                                            // On Android 13+, request notification permission first
-                                            // so the foreground service notification is visible
-                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
-                                                androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                            } else {
-                                                // Start the foreground service and begin tracking
-                                                val intent = android.content.Intent(context, com.calorieko.app.util.LocationTrackingService::class.java).apply {
-                                                    action = com.calorieko.app.util.LocationTrackingService.ACTION_START
-                                                }
-                                                androidx.core.content.ContextCompat.startForegroundService(context, intent)
-                                                viewModel.startTracking()
-                                            }
-                                        }
-                                    } else {
-                                        val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                                            perms.add(Manifest.permission.ACTIVITY_RECOGNITION)
-                                        }
-                                        permissionLauncher.launch(perms.toTypedArray())
-                                    }
-                                },
+                                onClick = { attemptStartTracking?.invoke() },
                                 modifier = Modifier.size(72.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange), elevation = ButtonDefaults.buttonElevation(defaultElevation = 12.dp)
                             ) { Icon(Icons.Default.PlayArrow, contentDescription = "Start", tint = Color.White, modifier = Modifier.size(36.dp)) }
                         } else {

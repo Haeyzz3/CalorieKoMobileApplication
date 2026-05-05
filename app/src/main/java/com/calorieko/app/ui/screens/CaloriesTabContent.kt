@@ -32,15 +32,22 @@ fun CaloriesTabContent(
     daySummary: DailyNutritionSummaryEntity?,
     goalCalories: Int,
     weekDaySummaries: List<DailyNutritionSummaryEntity?>,
-    weekDayLabels: List<String>
+    weekDayLabels: List<String>,
+    dayBurnedCalories: Int = 0,
+    weekDayBurnedCalories: List<Int> = emptyList()
 ) {
     if (viewMode == "day") {
-        CaloriesDayView(daySummary = daySummary, goalCalories = goalCalories)
+        CaloriesDayView(
+            daySummary = daySummary,
+            goalCalories = goalCalories,
+            burnedCalories = dayBurnedCalories
+        )
     } else {
         CaloriesWeekView(
             weekDaySummaries = weekDaySummaries,
             weekDayLabels = weekDayLabels,
-            goalCalories = goalCalories
+            goalCalories = goalCalories,
+            weekDayBurnedCalories = weekDayBurnedCalories
         )
     }
 }
@@ -52,13 +59,15 @@ fun CaloriesTabContent(
 @Composable
 private fun CaloriesDayView(
     daySummary: DailyNutritionSummaryEntity?,
-    goalCalories: Int
+    goalCalories: Int,
+    burnedCalories: Int
 ) {
     val breakfastCal = daySummary?.breakfastCalories?.toInt() ?: 0
     val lunchCal = daySummary?.lunchCalories?.toInt() ?: 0
     val dinnerCal = daySummary?.dinnerCalories?.toInt() ?: 0
     val snacksCal = daySummary?.snacksCalories?.toInt() ?: 0
     val totalCalories = breakfastCal + lunchCal + dinnerCal + snacksCal
+    val netCalories = totalCalories - burnedCalories
 
     val totalForPercent = if (totalCalories > 0) totalCalories.toFloat() else 1f
     val breakfastPct = if (totalCalories > 0) (breakfastCal / totalForPercent * 100).toInt() else 0
@@ -176,7 +185,7 @@ private fun CaloriesDayView(
             Column(modifier = Modifier.fillMaxWidth()) {
                 CalorieSummaryRow(label = "Estimated Total Calories", value = "~$totalCalories", valueColor = DarkText)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
-                CalorieSummaryRow(label = "Estimated Net Calories", value = "~$totalCalories", valueColor = DarkText)
+                CalorieSummaryRow(label = "Estimated Net Calories", value = "~$netCalories", valueColor = DarkText)
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
                 CalorieSummaryRow(label = "Goal", value = goalCalories.toFormattedString(), valueColor = CalorieKoGreen)
             }
@@ -192,21 +201,30 @@ private fun CaloriesDayView(
 private fun CaloriesWeekView(
     weekDaySummaries: List<DailyNutritionSummaryEntity?>,
     weekDayLabels: List<String>,
-    goalCalories: Int
+    goalCalories: Int,
+    weekDayBurnedCalories: List<Int>
 ) {
     val selectedSubTab = remember { mutableIntStateOf(0) } // 0 = Total, 1 = Net
     val isTotal = selectedSubTab.intValue == 0
 
     val weeklyGoal = goalCalories * 7
 
-    // Extract daily total cals from real data
-    val dailyTotalCals = weekDaySummaries.map { it?.totalCalories?.toInt() ?: 0 }
-    val dailyNetCals = dailyTotalCals // Net = Total for now (no exercise subtraction here)
+    val dailyTotalCals = (0 until 7).map { i ->
+        weekDaySummaries.getOrNull(i)?.totalCalories?.toInt() ?: 0
+    }
+    val dailyBurnedCals = (0 until 7).map { i ->
+        weekDayBurnedCalories.getOrElse(i) { 0 }
+    }
+    val dailyNetCals = dailyTotalCals.mapIndexed { index, total ->
+        total - dailyBurnedCals[index]
+    }
+    val dailyNetChartCals = dailyNetCals.map { it.coerceAtLeast(0) }
 
     val avgTotal = if (dailyTotalCals.sum() > 0) dailyTotalCals.average().toInt() else 0
-    val avgNet = if (dailyNetCals.sum() > 0) dailyNetCals.average().toInt() else 0
+    val avgNet = if (dailyTotalCals.sum() > 0 || dailyBurnedCals.sum() > 0) dailyNetCals.average().toInt() else 0
     val caloriesUnderGoal = weeklyGoal - dailyTotalCals.sum()
     val netUnderGoal = weeklyGoal - dailyNetCals.sum()
+    val activityBurned = dailyBurnedCals.sum()
 
     // Meal breakdown aggregates for the week (Total tab legend)
     val weekBreakfast = weekDaySummaries.sumOf { (it?.breakfastCalories ?: 0f).toDouble() }.toInt()
@@ -294,8 +312,14 @@ private fun CaloriesWeekView(
                 val dailyDinner = weekDaySummaries.map { (it?.dinnerCalories ?: 0f).toInt() }
                 val dailySnacks = weekDaySummaries.map { (it?.snacksCalories ?: 0f).toInt() }
 
-                val yAxisLabels = listOf(0, 600, 1200, 1800, 2400)
-                val maxY = 2400f
+                val maxChartValue = (
+                    dailyTotalCals +
+                        dailyNetChartCals +
+                        listOf(goalCalories, avgTotal, avgNet.coerceAtLeast(0), 2400)
+                    ).maxOrNull() ?: 2400
+                val maxYValue = roundedChartMax(maxChartValue)
+                val yAxisLabels = (0..4).map { tick -> (maxYValue * tick) / 4 }
+                val maxY = maxYValue.toFloat()
 
                 Box(
                     modifier = Modifier
@@ -342,15 +366,19 @@ private fun CaloriesWeekView(
 
                         for (dayIndex in 0 until barCount) {
                             val segments = if (dayIndex < 7) {
-                                listOf(
-                                    dailyBreakfast.getOrElse(dayIndex) { 0 },
-                                    dailyLunch.getOrElse(dayIndex) { 0 },
-                                    dailyDinner.getOrElse(dayIndex) { 0 },
-                                    dailySnacks.getOrElse(dayIndex) { 0 }
-                                )
+                                if (isTotal) {
+                                    listOf(
+                                        dailyBreakfast.getOrElse(dayIndex) { 0 },
+                                        dailyLunch.getOrElse(dayIndex) { 0 },
+                                        dailyDinner.getOrElse(dayIndex) { 0 },
+                                        dailySnacks.getOrElse(dayIndex) { 0 }
+                                    )
+                                } else {
+                                    listOf(dailyNetChartCals.getOrElse(dayIndex) { 0 }, 0, 0, 0)
+                                }
                             } else {
                                 // Avg column — show as single green bar
-                                val avg = if (isTotal) dailyTotalCals.average().toInt() else dailyNetCals.average().toInt()
+                                val avg = if (isTotal) avgTotal else avgNet.coerceAtLeast(0)
                                 listOf(avg, 0, 0, 0)
                             }
 
@@ -372,7 +400,9 @@ private fun CaloriesWeekView(
 
                         // Draw goal line for Net tab
                         if (!isTotal) {
-                            val goalY = 20f + chartHeight - (goalCalories / maxY) * chartHeight
+                            val goalY = (
+                                20f + chartHeight - (goalCalories / maxY) * chartHeight
+                                ).coerceIn(20f, 20f + chartHeight)
                             drawLine(
                                 color = DarkText,
                                 start = Offset(leftPadding, goalY),
@@ -472,6 +502,12 @@ private fun CaloriesWeekView(
                         value = "~$avgNet",
                         valueColor = DarkText
                     )
+                    HorizontalDivider(color = DividerGray, thickness = 1.dp)
+                    CalorieSummaryRow(
+                        label = "Activity Burned",
+                        value = "~${activityBurned.toFormattedString()}",
+                        valueColor = CalorieKoOrange
+                    )
                 }
                 HorizontalDivider(color = DividerGray, thickness = 1.dp)
                 CalorieSummaryRow(
@@ -552,4 +588,9 @@ private fun CalorieSummaryRow(
 
 private fun Int.toFormattedString(): String {
     return String.format(Locale.US, "%,d", this)
+}
+
+private fun roundedChartMax(value: Int, step: Int = 600): Int {
+    val safeValue = value.coerceAtLeast(step)
+    return ((safeValue + step - 1) / step) * step
 }

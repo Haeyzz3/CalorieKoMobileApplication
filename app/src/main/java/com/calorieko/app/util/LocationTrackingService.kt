@@ -1,5 +1,6 @@
 package com.calorieko.app.util
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -22,6 +24,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.calorieko.app.R
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -98,9 +101,25 @@ class LocationTrackingService : Service(), SensorEventListener {
         // we completely neutralize the jitter. The smoothed point stays perfectly still.
         private const val SMOOTHING_WINDOW_SIZE = 6
 
-        /** Maximum distance (meters) that can be added from a single GPS reading.
-         *  Caps teleport glitches and cell-tower jumps that slip through other checks. */
-        private const val MAX_SINGLE_READING_DISTANCE = 35.0f
+        /** Plausibility guard for one GPS segment, scaled by elapsed fix time. */
+        private const val MAX_PLAUSIBLE_SPEED_MPS = 8.0f
+        private const val GPS_SEGMENT_BUFFER_METERS = 20.0f
+        private const val FALLBACK_MAX_SINGLE_READING_DISTANCE = 35.0f
+
+        /** Below this speed, Android's fused fix is treated as stationary drift. */
+        private const val STATIONARY_SPEED_MPS = 0.5f
+
+        /** Speed that is enough to accept movement without step confirmation. */
+        private const val MOVING_SPEED_MPS = 0.8f
+
+        /** Require more than one step so small posture shifts do not unlock GPS drift. */
+        private const val MIN_STEP_DELTA_FOR_MOVEMENT = 2
+
+        /** Conservative fallback for devices that do not attach speed to GPS fixes. */
+        private const val GPS_ONLY_MIN_ANCHOR_DISTANCE = 12.0f
+        private const val GPS_ONLY_MIN_FIX_DISTANCE = 8.0f
+        private const val GPS_ONLY_MAX_BEARING_CHANGE_DEGREES = 45.0f
+        private const val GPS_ONLY_CONFIRMATION_FIXES = 2
 
         /** Global flag so Compose can quickly check if the service is alive. */
         @Volatile
@@ -127,6 +146,9 @@ class LocationTrackingService : Service(), SensorEventListener {
     private val _isPaused = MutableStateFlow(false)
     val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
 
+    private val _trackingError = MutableStateFlow<String?>(null)
+    val trackingError: StateFlow<String?> = _trackingError.asStateFlow()
+
     private val _lastLocation = MutableStateFlow<Location?>(null)
     val lastLocation: StateFlow<Location?> = _lastLocation.asStateFlow()
 
@@ -140,6 +162,10 @@ class LocationTrackingService : Service(), SensorEventListener {
     
     /** The last hardware location received, used strictly to compute instantaneous speed. */
     private var lastRawLocation: Location? = null
+
+    private var lastAcceptedTotalSteps = 0
+    private var pendingGpsMovementLocation: Location? = null
+    private var pendingGpsMovementFixes = 0
     
     private val _steps = MutableStateFlow(0)
     val steps: StateFlow<Int> = _steps.asStateFlow()
@@ -272,6 +298,12 @@ class LocationTrackingService : Service(), SensorEventListener {
     // ── Public API (called from Compose via binder) ──
 
     fun startTracking() {
+        if (!hasRequiredTrackingPermissions()) {
+            failTrackingStart("Allow precise and background location to keep workout distance accurate while the app is in the background.")
+            return
+        }
+
+        clearTrackingError()
         _isTracking.value = true
         _isPaused.value = false
         _timeSeconds.value = 0L
@@ -281,6 +313,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         _lastLocation.value = null
         _pathPoints.value = emptyList()
         _isMoving.value = false
+        lastRawLocation = null
         lastMovementTimeMs = System.currentTimeMillis()
         lastUpdateWallClockMs = 0L
 
@@ -289,6 +322,8 @@ class LocationTrackingService : Service(), SensorEventListener {
         pausedStepsToSubtract = 0
         stepsAtPause = 0
         lastRecordedTotalSteps = 0
+        lastAcceptedTotalSteps = 0
+        resetPendingGpsMovement()
 
         // Anchor wall-clock for accurate duration tracking
         trackingStartRealtimeMs = SystemClock.elapsedRealtime()
@@ -299,14 +334,23 @@ class LocationTrackingService : Service(), SensorEventListener {
         isGpsWarmedUp = false
         gpsWarmUpStartMs = System.currentTimeMillis()
         warmUpLocations.clear()
+        recentPositions.clear()
 
-        acquireWakeLock()
-        startForegroundWithNotification()
-        startLocationUpdates()
-        startTimer()
-        
-        stepSensor?.let {
-            sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+        try {
+            acquireWakeLock()
+            startForegroundWithNotification()
+            startLocationUpdates()
+            startTimer()
+
+            stepSensor?.let {
+                sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            }
+        } catch (securityException: SecurityException) {
+            Log.e(TAG, "Tracking failed to start due to missing permission", securityException)
+            failTrackingStart("Location permission was lost while starting the workout. Check app permissions and try again.")
+        } catch (exception: Exception) {
+            Log.e(TAG, "Tracking failed to start", exception)
+            failTrackingStart("Workout tracking could not start on this device. Please try again.")
         }
     }
 
@@ -372,6 +416,7 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     /** Reset all metrics to initial state. */
     fun resetMetrics() {
+        clearTrackingError()
         _timeSeconds.value = 0L
         _movingTimeSeconds.value = 0L
         _distanceKm.value = 0.0
@@ -382,10 +427,114 @@ class LocationTrackingService : Service(), SensorEventListener {
         isGpsWarmedUp = false
         warmUpLocations.clear()
         recentPositions.clear()
+        lastRawLocation = null
+        lastAcceptedTotalSteps = 0
+        resetPendingGpsMovement()
         lastUpdateWallClockMs = 0L
     }
 
     // ── Location Handling ──
+
+    fun clearTrackingError() {
+        _trackingError.value = null
+    }
+
+    private fun hasRequiredTrackingPermissions(): Boolean {
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasBackgroundLocation = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+        return hasFineLocation && hasBackgroundLocation
+    }
+
+    private fun failTrackingStart(message: String) {
+        _trackingError.value = message
+        _isTracking.value = false
+        _isPaused.value = false
+        _isMoving.value = false
+        stopTimer()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+        sensorManager?.unregisterListener(this)
+        releaseWakeLock()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    private fun resetPendingGpsMovement() {
+        pendingGpsMovementLocation = null
+        pendingGpsMovementFixes = 0
+    }
+
+    private fun resetSmoothingTo(location: Location) {
+        recentPositions.clear()
+        repeat(SMOOTHING_WINDOW_SIZE) {
+            recentPositions.add(location)
+        }
+    }
+
+    private fun holdStationary(anchor: Location, keepPendingGpsMovement: Boolean = false) {
+        _isMoving.value = false
+        if (!keepPendingGpsMovement) {
+            resetPendingGpsMovement()
+        }
+        resetSmoothingTo(anchor)
+    }
+
+    private fun hasEnoughStepMovement(): Boolean {
+        if (initialStepCount == -1) return false
+        return lastRecordedTotalSteps - lastAcceptedTotalSteps >= MIN_STEP_DELTA_FOR_MOVEMENT
+    }
+
+    private fun hasConfirmedGpsOnlyMovement(
+        anchor: Location,
+        location: Location,
+        distanceFromAnchor: Float
+    ): Boolean {
+        if (distanceFromAnchor < GPS_ONLY_MIN_ANCHOR_DISTANCE) {
+            resetPendingGpsMovement()
+            return false
+        }
+
+        val pending = pendingGpsMovementLocation
+        if (pending == null) {
+            pendingGpsMovementLocation = location
+            pendingGpsMovementFixes = 1
+            return false
+        }
+
+        val distanceFromPending = pending.distanceTo(location)
+        val pendingDistanceFromAnchor = anchor.distanceTo(pending)
+        val bearingDelta = bearingDeltaDegrees(
+            anchor.bearingTo(pending),
+            anchor.bearingTo(location)
+        )
+
+        if (
+            distanceFromPending < GPS_ONLY_MIN_FIX_DISTANCE ||
+            distanceFromAnchor + GPS_ONLY_MIN_FIX_DISTANCE < pendingDistanceFromAnchor ||
+            bearingDelta > GPS_ONLY_MAX_BEARING_CHANGE_DEGREES
+        ) {
+            pendingGpsMovementLocation = location
+            pendingGpsMovementFixes = 1
+            return false
+        }
+
+        pendingGpsMovementLocation = location
+        pendingGpsMovementFixes += 1
+        return pendingGpsMovementFixes >= GPS_ONLY_CONFIRMATION_FIXES
+    }
+
+    private fun bearingDeltaDegrees(first: Float, second: Float): Float {
+        var delta = (first - second + 540.0f) % 360.0f - 180.0f
+        if (delta < 0.0f) delta = -delta
+        return delta
+    }
 
     private fun handleLocationUpdate(location: Location) {
         // _currentPoint is now only updated when movement is confirmed (below).
@@ -430,18 +579,17 @@ class LocationTrackingService : Service(), SensorEventListener {
 
                 if (bestLocation != null) {
                     isGpsWarmedUp = true
-                    _isMoving.value = true
+                    _isMoving.value = false
                     _pathPoints.value = listOf(Pair(bestLocation.latitude, bestLocation.longitude))
                     _lastLocation.value = bestLocation
+                    lastRawLocation = bestLocation
                     _currentPoint.value = Pair(bestLocation.latitude, bestLocation.longitude)
                     lastKnownPoint = _currentPoint.value
                     lastMovementTimeMs = System.currentTimeMillis()
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
-                    recentPositions.clear()
-                    for (i in 0 until SMOOTHING_WINDOW_SIZE) {
-                        recentPositions.add(bestLocation)
-                    }
+                    resetSmoothingTo(bestLocation)
+                    resetPendingGpsMovement()
                     Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
                             "hasSpeed=${bestLocation.hasSpeed()} " +
                             "at (${bestLocation.latitude}, ${bestLocation.longitude})")
@@ -455,7 +603,6 @@ class LocationTrackingService : Service(), SensorEventListener {
 
         // Strict accuracy gate: ignore garbage data
         if (location.accuracy > TRACKING_ACCURACY) {
-            lastRawLocation = location
             return
         }
 
@@ -470,40 +617,51 @@ class LocationTrackingService : Service(), SensorEventListener {
             val hardwareTimeDeltaSec = (location.time - rawPrev.time) / 1000.0
             val hardwareDistance = rawPrev.distanceTo(location)
             val instantaneousSpeedMps = if (hardwareTimeDeltaSec > 0) hardwareDistance / hardwareTimeDeltaSec else 0.0
+            val maxAllowedDistance = if (hardwareTimeDeltaSec > 0.0) {
+                (hardwareTimeDeltaSec * MAX_PLAUSIBLE_SPEED_MPS + GPS_SEGMENT_BUFFER_METERS).toFloat()
+            } else {
+                FALLBACK_MAX_SINGLE_READING_DISTANCE
+            }
 
             // ── 1. Teleport Glitch Prevention ──
-            // If the jump is massive (>35m) OR the instantaneous speed implies impossible 
-            // human speeds (>8m/s = 28km/h), it's a GPS glitch. Re-anchor WITHOUT adding distance.
-            if (distanceFromAnchor > MAX_SINGLE_READING_DISTANCE || instantaneousSpeedMps > 8.0) {
-                Log.d(TAG, "Teleport detected: Dist ${distanceFromAnchor.toInt()}m, Speed ${instantaneousSpeedMps.toInt()}m/s. Re-anchoring.")
+            // Android can batch GPS callbacks. Accept longer gaps when the elapsed
+            // GPS time makes the segment plausible; still reject true jumps.
+            if (distanceFromAnchor > maxAllowedDistance) {
+                Log.d(TAG, "Teleport detected: Dist ${distanceFromAnchor.toInt()}m > ${maxAllowedDistance.toInt()}m, Speed ${instantaneousSpeedMps.toInt()}m/s. Re-anchoring.")
                 _lastLocation.value = location
                 lastRawLocation = location
-                
-                // CRITICAL FIX: Flush the smoothing window! 
-                // If we don't flush it, the old points will mix with the new teleported point,
-                // causing the centroid to slowly "drag" across the map. This drag looks like 
-                // valid movement and adds fake distance. By flushing it, the centroid instantly 
-                // snaps to the new anchor, and the minimum-step filter will easily drop it.
-                recentPositions.clear()
-                for (i in 0 until SMOOTHING_WINDOW_SIZE) {
-                    recentPositions.add(location)
-                }
-                
+                resetPendingGpsMovement()
+                resetSmoothingTo(location)
+                _currentPoint.value = Pair(location.latitude, location.longitude)
+                lastKnownPoint = _currentPoint.value
                 return
             }
 
-            // ── 2. Stationary Detection (Android Sensor) ──
-            val reportedSpeed = if (location.hasSpeed()) location.speed.toDouble() else instantaneousSpeedMps
-            if (reportedSpeed < 0.4 && distanceFromAnchor < 15.0f) {
-                _isMoving.value = false
+            val reportedSpeedMps = if (location.hasSpeed()) location.speed else instantaneousSpeedMps.toFloat()
+            if (reportedSpeedMps <= STATIONARY_SPEED_MPS && distanceFromAnchor < GPS_ONLY_MIN_ANCHOR_DISTANCE) {
+                holdStationary(prevLocation)
                 lastRawLocation = location
                 return
             }
 
-            // ── 3. GPS Smoothing (Moving Average Filter) ──
-            // Jitter bounces back and forth. By averaging the last raw points,
-            // the resulting "centroid" completely stabilizes.
-            // the smoothed location will not move, allowing the min-step filter below to drop it!
+            val movementConfirmed = when {
+                reportedSpeedMps >= MOVING_SPEED_MPS -> true
+                hasEnoughStepMovement() -> true
+                hasConfirmedGpsOnlyMovement(prevLocation, location, distanceFromAnchor) -> true
+                else -> false
+            }
+
+            if (!movementConfirmed) {
+                holdStationary(prevLocation, keepPendingGpsMovement = distanceFromAnchor >= GPS_ONLY_MIN_ANCHOR_DISTANCE)
+                lastRawLocation = location
+                return
+            }
+
+            resetPendingGpsMovement()
+            if (initialStepCount != -1) {
+                lastAcceptedTotalSteps = lastRecordedTotalSteps
+            }
+
             recentPositions.add(location)
             if (recentPositions.size > SMOOTHING_WINDOW_SIZE) {
                 recentPositions.removeAt(0)
@@ -516,24 +674,18 @@ class LocationTrackingService : Service(), SensorEventListener {
                 latitude = avgLat
                 longitude = avgLng
             }
-            
-            // Recalculate distance using the SMOOTHED location
-            val smoothedDistanceFromAnchor = prevLocation.distanceTo(smoothedLocation)
 
-            // ── 4. Minimum Step Filter ──
-            // Enforce a small step from the last anchor. Because the smoothed location
-            // is perfectly stable when stationary, smoothedDistanceFromAnchor will be < 4.0m.
-            if (smoothedDistanceFromAnchor < 4.0f) {
-                _isMoving.value = false
+            if (distanceFromAnchor < 2.5f) {
+                holdStationary(prevLocation)
                 lastRawLocation = location
                 return
             }
 
-            // ── 5. Add Distance (Success!) ──
-            // Update the map and path using the beautifully smoothed curve!
+            // Distance uses the accepted GPS segment itself. The smoothed point is only
+            // for rendering, so batched/background fixes do not get shortened by the UI filter.
             _currentPoint.value = Pair(smoothedLocation.latitude, smoothedLocation.longitude)
             lastKnownPoint = _currentPoint.value
-            _distanceKm.value += smoothedDistanceFromAnchor / 1000.0
+            _distanceKm.value += distanceFromAnchor / 1000.0
             _isMoving.value = true
             lastMovementTimeMs = System.currentTimeMillis()
 
@@ -541,8 +693,8 @@ class LocationTrackingService : Service(), SensorEventListener {
                 _pathPoints.value = listOf(Pair(prevLocation.latitude, prevLocation.longitude))
             }
             _pathPoints.value = _pathPoints.value + Pair(smoothedLocation.latitude, smoothedLocation.longitude)
-            
-            _lastLocation.value = smoothedLocation
+
+            _lastLocation.value = location
             lastRawLocation = location
             lastUpdateWallClockMs = System.currentTimeMillis()
 
@@ -574,7 +726,9 @@ class LocationTrackingService : Service(), SensorEventListener {
     private fun startLocationUpdates() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
             .setMinUpdateIntervalMillis(2000L)
-            .setMinUpdateDistanceMeters(0f)  // Fetch every point possible for smoothest Strava-like path
+            .setMinUpdateDistanceMeters(0f)
+            .setMaxUpdateDelayMillis(15000L)
+            .setWaitForAccurateLocation(true)
             .build()
 
         fusedLocationClient.requestLocationUpdates(

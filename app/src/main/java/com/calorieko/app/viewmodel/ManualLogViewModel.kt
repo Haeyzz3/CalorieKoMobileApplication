@@ -275,7 +275,8 @@ class ManualLogViewModel(
                 vitaminC = nutrients.vitaminC,
                 calcium = nutrients.calcium,
                 iron = nutrients.iron,
-                substitutionsJson = substitutionsJson
+                substitutionsJson = substitutionsJson,
+                requiresWeightConfirmation = substitutionsJson.isNotBlank()
             )
             _loggedDishes.update { it + dish }
             _showSummary.value = true
@@ -353,11 +354,54 @@ class ManualLogViewModel(
                     vitaminC = nutrients.vitaminC,
                     calcium = nutrients.calcium,
                     iron = nutrients.iron,
-                    substitutionsJson = entry.substitutionsJson
+                    substitutionsJson = entry.substitutionsJson,
+                    requiresWeightConfirmation = entry.substitutionsJson.isNotBlank()
                 ))
             }
             _loggedDishes.update { it + loggedDishList }
             _showSummary.value = true
+        }
+    }
+
+    /**
+     * Applies an actual cooked weight to a planned/customized dish and recalculates
+     * its nutrition using the substitutions saved with that planned meal.
+     */
+    fun confirmLoggedDishWeight(index: Int, weightGrams: Float) {
+        if (weightGrams <= 0f) return
+        val dish = _loggedDishes.value.getOrNull(index) ?: return
+        if (dish.dishLabel.isBlank()) return
+
+        viewModelScope.launch {
+            val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
+            val nutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(dish.dishLabel, weightGrams, substitutions)
+            }
+
+            _loggedDishes.update { list ->
+                list.mapIndexed { i, current ->
+                    if (i == index) {
+                        current.copy(
+                            weightGrams = weightGrams,
+                            calories = nutrients.calories,
+                            protein = nutrients.protein,
+                            carbs = nutrients.carbs,
+                            fat = nutrients.fat,
+                            fiber = nutrients.fiber,
+                            sugar = nutrients.sugar,
+                            sodium = nutrients.sodium,
+                            potassium = nutrients.potassium,
+                            vitaminA = nutrients.vitaminA,
+                            vitaminC = nutrients.vitaminC,
+                            calcium = nutrients.calcium,
+                            iron = nutrients.iron,
+                            requiresWeightConfirmation = false
+                        )
+                    } else {
+                        current
+                    }
+                }
+            }
         }
     }
 
@@ -409,6 +453,8 @@ class ManualLogViewModel(
     }
 
     fun confirmMeal() {
+        if (_loggedDishes.value.any { it.requiresWeightConfirmation }) return
+
         // Guard: prevent duplicate submissions from rapid taps
         if (_isConfirming.value) return
         _isConfirming.value = true

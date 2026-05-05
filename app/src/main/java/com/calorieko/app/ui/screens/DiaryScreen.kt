@@ -121,6 +121,21 @@ fun DiaryScreen(viewModel: DiaryViewModel, onBackClick: () -> Unit, onNavigateTo
         } + "Avg"
     }
 
+    val dayBurnedCalories = remember(activityLogs) {
+        activityLogs.sumOf { it.calories }
+    }
+
+    val weekDayBurnedCalories = remember(weeklyActivityLogs, weekOffset) {
+        (0L..6L).map { i ->
+            val date = weekStartDate.plusDays(i)
+            val startMs = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endMs = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            weeklyActivityLogs
+                .filter { it.timestamp in startMs until endMs }
+                .sumOf { it.calories }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -286,7 +301,9 @@ fun DiaryScreen(viewModel: DiaryViewModel, onBackClick: () -> Unit, onNavigateTo
                     daySummary = daySummary,
                     goalCalories = targets?.targetCalories ?: 2000,
                     weekDaySummaries = weekDaySummaries,
-                    weekDayLabels = weekDayLabels
+                    weekDayLabels = weekDayLabels,
+                    dayBurnedCalories = dayBurnedCalories,
+                    weekDayBurnedCalories = weekDayBurnedCalories
                 )
                 1 -> NutrientsTabContent(
                     viewMode = viewMode,
