@@ -166,7 +166,6 @@ class ManualLogViewModel(
                 dishNameEn = recipe.nameEn,
                 dishNamePh = recipe.namePh,
                 weightGrams = weightGrams,
-                servingQuantity = 1f,
                 confidence = 1.0f, // Manual entry = 100% confidence
                 foodId = 0,        // No legacy food_id needed for new calculator path
                 dishLabel = recipe.dishLabel,
@@ -230,7 +229,6 @@ class ManualLogViewModel(
                     dishNameEn = displayName,
                     dishNamePh = displayName,
                     weightGrams = 100f,
-                    servingQuantity = 1f,
                     confidence = 0.5f,
                     foodId = 0,
                     dishLabel = dishLabel,
@@ -262,7 +260,6 @@ class ManualLogViewModel(
                 dishNameEn = recipe.nameEn,
                 dishNamePh = recipe.namePh,
                 weightGrams = servingWeight,
-                servingQuantity = 1f,
                 confidence = 1.0f,
                 foodId = 0,
                 dishLabel = recipe.dishLabel,
@@ -283,8 +280,7 @@ class ManualLogViewModel(
                 vitaminC = nutrients.vitaminC,
                 calcium = nutrients.calcium,
                 iron = nutrients.iron,
-                substitutionsJson = substitutionsJson,
-                requiresWeightConfirmation = substitutionsJson.isNotBlank()
+                substitutionsJson = substitutionsJson
             )
             _loggedDishes.update { it + dish }
             _showSummary.value = true
@@ -313,7 +309,6 @@ class ManualLogViewModel(
                         dishNameEn = displayName,
                         dishNamePh = displayName,
                         weightGrams = 100f,
-                        servingQuantity = 1f,
                         confidence = 0.5f,
                         foodId = 0,
                         dishLabel = entry.dishLabel,
@@ -343,7 +338,6 @@ class ManualLogViewModel(
                     dishNameEn = recipe.nameEn,
                     dishNamePh = recipe.namePh,
                     weightGrams = servingWeight,
-                    servingQuantity = 1f,
                     confidence = 1.0f,
                     foodId = 0,
                     dishLabel = recipe.dishLabel,
@@ -364,8 +358,7 @@ class ManualLogViewModel(
                     vitaminC = nutrients.vitaminC,
                     calcium = nutrients.calcium,
                     iron = nutrients.iron,
-                    substitutionsJson = entry.substitutionsJson,
-                    requiresWeightConfirmation = entry.substitutionsJson.isNotBlank()
+                    substitutionsJson = entry.substitutionsJson
                 ))
             }
             _loggedDishes.update { it + loggedDishList }
@@ -373,47 +366,7 @@ class ManualLogViewModel(
         }
     }
 
-    /**
-     * Applies an actual cooked weight to a planned/customized dish and recalculates
-     * its nutrition using the substitutions saved with that planned meal.
-     */
-    fun confirmLoggedDishWeight(index: Int, weightGrams: Float) {
-        if (weightGrams <= 0f) return
-        val dish = _loggedDishes.value.getOrNull(index) ?: return
-        if (dish.dishLabel.isBlank()) return
 
-        viewModelScope.launch {
-            val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
-            val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(dish.dishLabel, weightGrams, substitutions)
-            }
-
-            _loggedDishes.update { list ->
-                list.mapIndexed { i, current ->
-                    if (i == index) {
-                        current.copy(
-                            weightGrams = weightGrams,
-                            calories = nutrients.calories,
-                            protein = nutrients.protein,
-                            carbs = nutrients.carbs,
-                            fat = nutrients.fat,
-                            fiber = nutrients.fiber,
-                            sugar = nutrients.sugar,
-                            sodium = nutrients.sodium,
-                            potassium = nutrients.potassium,
-                            vitaminA = nutrients.vitaminA,
-                            vitaminC = nutrients.vitaminC,
-                            calcium = nutrients.calcium,
-                            iron = nutrients.iron,
-                            requiresWeightConfirmation = false
-                        )
-                    } else {
-                        current
-                    }
-                }
-            }
-        }
-    }
 
     // ── Ingredient Breakdown & Substitution (shared with AI flow) ──
 
@@ -477,8 +430,6 @@ class ManualLogViewModel(
     }
 
     fun confirmMeal() {
-        if (_loggedDishes.value.any { it.requiresWeightConfirmation }) return
-
         // Guard: prevent duplicate submissions from rapid taps
         if (_isConfirming.value) return
         _isConfirming.value = true

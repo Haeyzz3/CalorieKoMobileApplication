@@ -43,7 +43,6 @@ data class MealLogItemEntity(
 
     /** Actual weight in grams from the IoT scale */
     @ColumnInfo(name = "weight_grams") val weightGrams: Float,
-    @ColumnInfo(name = "serving_quantity") val servingQuantity: Float = 1f,
 
     // ── Core Energy ──
     @ColumnInfo(name = "calories") val calories: Float = 0f,

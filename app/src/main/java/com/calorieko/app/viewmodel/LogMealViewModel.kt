@@ -286,7 +286,6 @@ class LogMealViewModel(
                 dishNameEn = _pendingDishNameEn.value,
                 dishNamePh = dishName,
                 weightGrams = w,
-                servingQuantity = 1f,
                 confidence = confidence,
                 foodId = 0,  // Legacy field — no longer used for nutrition
                 dishLabel = dishLabel,

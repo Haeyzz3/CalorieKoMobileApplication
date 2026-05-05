@@ -51,7 +51,6 @@ data class SyncMealItem(
     @SerializedName("food_id") val foodId: Int,
     @SerializedName("dish_name") val dishName: String,
     @SerializedName("weight_grams") val weightGrams: Float,
-    @SerializedName("serving_quantity") val servingQuantity: Float,
     @SerializedName("calories") val calories: Float,
     @SerializedName("protein") val protein: Float,
     @SerializedName("carbs") val carbs: Float,

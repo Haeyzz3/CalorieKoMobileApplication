@@ -5,7 +5,6 @@ data class LoggedDish(
     val dishNameEn: String,
     val dishNamePh: String = "",
     val weightGrams: Float,
-    val servingQuantity: Float = 1f,
     val confidence: Float,
     val foodId: Int,
     val dishLabel: String = "",  // ML/recipe key for ingredient lookups
@@ -27,6 +26,5 @@ data class LoggedDish(
     val vitaminC: Float,
     val calcium: Float,
     val iron: Float,
-    val substitutionsJson: String = "",  // Carries saved substitutions from planned meals
-    val requiresWeightConfirmation: Boolean = false
+    val substitutionsJson: String = ""  // Carries saved substitutions from planned meals
 )

@@ -52,7 +52,6 @@ class MealRepository(
                 foodId = d.foodId,
                 dishName = d.dishNamePh.ifBlank { d.dishNameEn },
                 weightGrams = d.weightGrams,
-                servingQuantity = d.servingQuantity,
                 calories = d.calories,
                 protein = d.protein,
                 carbs = d.carbs,
