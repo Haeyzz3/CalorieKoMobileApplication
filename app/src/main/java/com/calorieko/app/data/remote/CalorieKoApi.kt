@@ -31,6 +31,7 @@ data class MealLogItemDto(
     @SerializedName("food_id")      val foodId: Int,
     @SerializedName("dish_name")    val dishName: String,
     @SerializedName("weight_grams") val weightGrams: Float,
+    @SerializedName("serving_quantity") val servingQuantity: Float = 1f,
     val calories: Float = 0f,
     val protein: Float = 0f,
     val carbs: Float = 0f,

@@ -892,6 +892,7 @@ private fun ManualMealContent(
     val filteredDishes by viewModel.filteredDishes.collectAsState()
     val selectedDish by viewModel.selectedDish.collectAsState()
     val manualWeightText by viewModel.manualWeightText.collectAsState()
+    val servingQuantityText by viewModel.servingQuantityText.collectAsState()
     val loggedDishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
     val showSummary by viewModel.showSummary.collectAsState()
@@ -962,7 +963,9 @@ private fun ManualMealContent(
                 WeightInputContent(
                     dish = selectedDish!!,
                     weightText = manualWeightText,
+                    quantityText = servingQuantityText,
                     onWeightChange = { viewModel.updateWeightText(it) },
+                    onQuantityChange = { viewModel.updateServingQuantityText(it) },
                     onChangeDish = { viewModel.clearSelectedDish() },
                     onAddDish = { viewModel.addDish() }
                 )
@@ -1100,16 +1103,20 @@ private fun DishSelectionContent(
 private fun WeightInputContent(
     dish: DishRecipeEntity,
     weightText: String,
+    quantityText: String,
     onWeightChange: (String) -> Unit,
+    onQuantityChange: (String) -> Unit,
     onChangeDish: () -> Unit,
     onAddDish: () -> Unit
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
-    val parsedWeight = weightText.toFloatOrNull() ?: 0f
-    val estimatedCalories = if (parsedWeight > 0f && dish.cookedWeightG > 0f)
-        (parsedWeight / dish.cookedWeightG) * dish.calPerServing * dish.servings
+    val parsedWeightPerServing = weightText.toFloatOrNull() ?: 0f
+    val parsedQuantity = quantityText.toFloatOrNull() ?: 0f
+    val totalWeight = parsedWeightPerServing * parsedQuantity
+    val estimatedCalories = if (parsedWeightPerServing > 0f && parsedQuantity > 0f && dish.cookedWeightG > 0f)
+        (parsedWeightPerServing / dish.cookedWeightG) * dish.calPerServing * dish.servings * parsedQuantity
     else 0f
-    val isValid = parsedWeight > 0f
+    val isValid = parsedWeightPerServing > 0f && parsedQuantity > 0f
 
     Column(
         modifier = Modifier
@@ -1172,7 +1179,7 @@ private fun WeightInputContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Weight input
+        // Serving quantity + weight input
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1180,28 +1187,64 @@ private fun WeightInputContent(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    "Weight (grams)",
+                    "Serving details",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFF374151)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
+                    value = quantityText,
+                    onValueChange = { onQuantityChange(sanitizeDecimalInput(it)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = androidx.compose.ui.text.input.ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CalorieKoGreen,
+                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                        focusedTextColor = Color(0xFF1F2937),
+                        unfocusedTextColor = Color(0xFF1F2937),
+                        cursorColor = CalorieKoGreen
+                    ),
+                    label = { Text("Number of servings") },
+                    placeholder = { Text("e.g. 2") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Restaurant, null, tint = Color.Gray)
+                    },
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
                     value = weightText,
-                    onValueChange = onWeightChange,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    onValueChange = { onWeightChange(sanitizeDecimalInput(it)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CalorieKoGreen,
-                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                        focusedTextColor = Color(0xFF1F2937),
+                        unfocusedTextColor = Color(0xFF1F2937),
+                        cursorColor = CalorieKoGreen
                     ),
-                    placeholder = { Text("e.g. 250") },
+                    label = { Text("Weight per serving (grams)") },
+                    placeholder = { Text("e.g. 50") },
                     leadingIcon = {
                         Icon(Icons.Default.MonitorWeight, null, tint = Color.Gray)
-                    }
+                    },
+                    suffix = { Text("g", color = Color.Gray, fontSize = 13.sp) },
+                    singleLine = true
                 )
+                if (isValid) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Total logged: ${totalWeight.roundToInt()}g across ${parsedQuantity.servingLabel()}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF6B7280)
+                    )
+                }
             }
         }
 
@@ -1238,7 +1281,7 @@ private fun WeightInputContent(
                         color = Color.White
                     )
                     Text(
-                        "kcal  •  ${parsedWeight.toInt()}g of ${dish.namePh}",
+                        "kcal  -  ${totalWeight.roundToInt()}g across ${parsedQuantity.servingLabel()}",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
@@ -1264,7 +1307,7 @@ private fun WeightInputContent(
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                "Add Dish",
+                if (isValid) "Add ${parsedQuantity.servingLabel()}" else "Add Dish",
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -1297,6 +1340,7 @@ private fun ManualMealSummaryOverlay(
     // Track expanded state per dish (by index)
     val expandedDishes = remember { mutableStateMapOf<Int, Boolean>() }
     val requiredWeightInputs = remember { mutableStateMapOf<Int, String>() }
+    val quantityInputs = remember { mutableStateMapOf<Int, String>() }
     var totalsExpanded by remember { mutableStateOf(false) }
     val hasRequiredWeights = dishes.any { it.requiresWeightConfirmation }
 
@@ -1366,6 +1410,7 @@ private fun ManualMealSummaryOverlay(
             ) {
                 itemsIndexed(dishes) { index, dish ->
                     val isExpanded = expandedDishes[index] == true
+                    val quantityText = quantityInputs[index] ?: dish.servingQuantity.quantityInputText()
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1380,7 +1425,7 @@ private fun ManualMealSummaryOverlay(
                                     Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.roundToInt()}g  •  ~${dish.calories.fmt()} kcal",
+                                        "${dish.weightGrams.roundToInt()}g  -  ${dish.servingQuantity.servingLabel()}  -  ~${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
@@ -1399,6 +1444,47 @@ private fun ManualMealSummaryOverlay(
                                 }
                                 IconButton(onClick = { onRemoveDish(index) }) {
                                     Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                }
+                            }
+
+                            if (manualViewModel != null && dish.dishLabel.isNotEmpty()) {
+                                HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                ) {
+                                    Text(
+                                        "Number of servings",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF374151)
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = quantityText,
+                                        onValueChange = { raw ->
+                                            val sanitized = sanitizeDecimalInput(raw)
+                                            quantityInputs[index] = sanitized
+                                            sanitized.toFloatOrNull()?.takeIf { it > 0f }?.let {
+                                                manualViewModel.updateLoggedDishQuantity(index, it)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Decimal,
+                                            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                                        ),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = CalorieKoGreen,
+                                            unfocusedBorderColor = Color(0xFFE5E7EB),
+                                            focusedTextColor = Color(0xFF1F2937),
+                                            unfocusedTextColor = Color(0xFF1F2937),
+                                            cursorColor = CalorieKoGreen
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
 
@@ -1656,7 +1742,7 @@ private fun ManualMealSummaryOverlay(
                         color = Color(0xFF1F2937)
                     )
                     Text(
-                        "${dish.weightGrams.roundToInt()}g cooked portion",
+                        "${dish.weightGrams.roundToInt()}g cooked portion - ${dish.servingQuantity.servingLabel()}",
                         fontSize = 13.sp,
                         color = Color(0xFF6B7280)
                     )
@@ -2212,7 +2298,7 @@ private fun MealSummaryOverlay(
                                     Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF1F2937))
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        "${dish.weightGrams.roundToInt()}g  •  ~${dish.calories.fmt()} kcal",
+                                        "${dish.weightGrams.roundToInt()}g  -  ${dish.servingQuantity.servingLabel()}  -  ~${dish.calories.fmt()} kcal",
                                         fontSize = 13.sp, color = Color(0xFF6B7280)
                                     )
                                     Spacer(Modifier.height(2.dp))
@@ -2411,7 +2497,7 @@ private fun MealSummaryOverlay(
                 ) {
                     // Header
                     Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                    Text("${dish.weightGrams.roundToInt()}g cooked portion", fontSize = 13.sp, color = Color(0xFF6B7280))
+                    Text("${dish.weightGrams.roundToInt()}g cooked portion - ${dish.servingQuantity.servingLabel()}", fontSize = 13.sp, color = Color(0xFF6B7280))
                     Spacer(Modifier.height(16.dp))
 
                     if (ingredientBreakdown.isEmpty()) {
@@ -2652,3 +2738,28 @@ fun QuickLogScreen(
 }
 
 private fun Float.fmt() = String.format(java.util.Locale.US, "%.1f", this)
+
+private fun Float.quantityInputText(): String {
+    return if (this % 1f == 0f) this.toInt().toString() else fmt()
+}
+
+private fun Float.servingLabel(): String {
+    val quantity = quantityInputText()
+    val unit = if (this == 1f) "serving" else "servings"
+    return "$quantity $unit"
+}
+
+private fun sanitizeDecimalInput(value: String): String {
+    val builder = StringBuilder()
+    var hasDecimal = false
+    value.forEach { char ->
+        when {
+            char.isDigit() -> builder.append(char)
+            char == '.' && !hasDecimal -> {
+                builder.append(char)
+                hasDecimal = true
+            }
+        }
+    }
+    return builder.toString().take(6)
+}

@@ -26,6 +26,11 @@ import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.ui.theme.*
 import java.util.Locale
 
+private val MealBreakfastColor = Color(0xFF16A34A)
+private val MealLunchColor = Color(0xFF2563EB)
+private val MealDinnerColor = Color(0xFFF97316)
+private val MealSnacksColor = Color(0xFF8B5CF6)
+
 @Composable
 fun CaloriesTabContent(
     viewMode: String,
@@ -75,10 +80,10 @@ private fun CaloriesDayView(
     val dinnerPct = if (totalCalories > 0) (dinnerCal / totalForPercent * 100).toInt() else 0
     val snacksPct = if (totalCalories > 0) (snacksCal / totalForPercent * 100).toInt() else 0
 
-    val breakfastColor = CalorieKoGreen
-    val lunchColor = CalorieKoDarkGreen
-    val dinnerColor = CalorieKoOrange
-    val snacksColor = CalorieKoLightOrange
+    val breakfastColor = MealBreakfastColor
+    val lunchColor = MealLunchColor
+    val dinnerColor = MealDinnerColor
+    val snacksColor = MealSnacksColor
 
     Column(
         modifier = Modifier
@@ -234,10 +239,10 @@ private fun CaloriesWeekView(
     val weekTotal = weekBreakfast + weekLunch + weekDinner + weekSnacks
     val weekForPct = if (weekTotal > 0) weekTotal.toFloat() else 1f
 
-    val breakfastColor = CalorieKoGreen
-    val lunchColor = CalorieKoDarkGreen
-    val dinnerColor = CalorieKoOrange
-    val snacksColor = CalorieKoLightOrange
+    val breakfastColor = MealBreakfastColor
+    val lunchColor = MealLunchColor
+    val dinnerColor = MealDinnerColor
+    val snacksColor = MealSnacksColor
 
     Column(
         modifier = Modifier

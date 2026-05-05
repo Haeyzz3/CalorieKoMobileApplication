@@ -130,6 +130,7 @@ class ApiSyncManager(
                             foodId = item.foodId,
                             dishName = item.dishName,
                             weightGrams = item.weightGrams,
+                            servingQuantity = item.servingQuantity,
                             calories = item.calories,
                             protein = item.protein,
                             carbs = item.carbs,
@@ -249,7 +250,8 @@ class ApiSyncManager(
                         items = mealWithItems.items.map { item ->
                             SyncMealItem(
                                 foodId = item.foodId, dishName = item.dishName,
-                                weightGrams = item.weightGrams, calories = item.calories,
+                                weightGrams = item.weightGrams, servingQuantity = item.servingQuantity,
+                                calories = item.calories,
                                 protein = item.protein, carbs = item.carbs, fat = item.fat,
                                 fiber = item.fiber, sugar = item.sugar,
                                 saturatedFat = item.saturatedFat,

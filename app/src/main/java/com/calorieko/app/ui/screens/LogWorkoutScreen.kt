@@ -337,6 +337,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
     var minutesText by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val durationInputTextColor = Color(0xFF1F2937)
 
     // Derive total minutes from both fields for calorie calculation
     val totalMinutes = remember(hoursText, minutesText) {
@@ -439,7 +440,12 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = CalorieKoOrange,
-                                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                                        focusedTextColor = durationInputTextColor,
+                                        unfocusedTextColor = durationInputTextColor,
+                                        cursorColor = CalorieKoOrange,
+                                        focusedPlaceholderColor = Color(0xFF9CA3AF),
+                                        unfocusedPlaceholderColor = Color(0xFF9CA3AF)
                                     ),
                                     placeholder = { Text("0") },
                                     leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) },
@@ -464,7 +470,12 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = CalorieKoOrange,
-                                        unfocusedBorderColor = Color(0xFFE5E7EB)
+                                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                                        focusedTextColor = durationInputTextColor,
+                                        unfocusedTextColor = durationInputTextColor,
+                                        cursorColor = CalorieKoOrange,
+                                        focusedPlaceholderColor = Color(0xFF9CA3AF),
+                                        unfocusedPlaceholderColor = Color(0xFF9CA3AF)
                                     ),
                                     placeholder = { Text("0") },
                                     leadingIcon = { Icon(Icons.Default.AccessTime, null, tint = Color.Gray) },

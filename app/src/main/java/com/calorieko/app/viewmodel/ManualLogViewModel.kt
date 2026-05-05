@@ -71,6 +71,9 @@ class ManualLogViewModel(
     private val _manualWeightText = MutableStateFlow("")
     val manualWeightText: StateFlow<String> = _manualWeightText.asStateFlow()
 
+    private val _servingQuantityText = MutableStateFlow("1")
+    val servingQuantityText: StateFlow<String> = _servingQuantityText.asStateFlow()
+
     // ── Logged dishes ──
 
     private val _loggedDishes = MutableStateFlow<List<LoggedDish>>(emptyList())
@@ -131,16 +134,22 @@ class ManualLogViewModel(
 
     fun selectDish(dish: DishRecipeEntity) {
         _selectedDish.value = dish
-        _manualWeightText.value = ""
+        _manualWeightText.value = defaultWeightText(dish)
+        _servingQuantityText.value = "1"
     }
 
     fun clearSelectedDish() {
         _selectedDish.value = null
         _manualWeightText.value = ""
+        _servingQuantityText.value = "1"
     }
 
     fun updateWeightText(text: String) {
         _manualWeightText.value = text
+    }
+
+    fun updateServingQuantityText(text: String) {
+        _servingQuantityText.value = text
     }
 
     /**
@@ -150,17 +159,21 @@ class ManualLogViewModel(
      */
     fun addDish() {
         val recipe = _selectedDish.value ?: return
-        val w = _manualWeightText.value.toFloatOrNull() ?: return
-        if (w <= 0f) return
+        val unitWeight = _manualWeightText.value.toFloatOrNull() ?: return
+        val quantity = _servingQuantityText.value.toFloatOrNull() ?: return
+        if (unitWeight <= 0f || quantity <= 0f) return
+
+        val totalWeight = unitWeight * quantity
 
         viewModelScope.launch {
             val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(recipe.dishLabel, w)
+                calculator.calculatePortionNutrition(recipe.dishLabel, unitWeight) * quantity
             }
             val dish = LoggedDish(
                 dishNameEn = recipe.nameEn,
                 dishNamePh = recipe.namePh,
-                weightGrams = w,
+                weightGrams = totalWeight,
+                servingQuantity = quantity,
                 confidence = 1.0f, // Manual entry = 100% confidence
                 foodId = 0,        // No legacy food_id needed for new calculator path
                 dishLabel = recipe.dishLabel,
@@ -188,6 +201,7 @@ class ManualLogViewModel(
             // Reset for next dish
             _selectedDish.value = null
             _manualWeightText.value = ""
+            _servingQuantityText.value = "1"
         }
     }
 
@@ -224,6 +238,7 @@ class ManualLogViewModel(
                     dishNameEn = displayName,
                     dishNamePh = displayName,
                     weightGrams = 100f,
+                    servingQuantity = 1f,
                     confidence = 0.5f,
                     foodId = 0,
                     dishLabel = dishLabel,
@@ -255,6 +270,7 @@ class ManualLogViewModel(
                 dishNameEn = recipe.nameEn,
                 dishNamePh = recipe.namePh,
                 weightGrams = servingWeight,
+                servingQuantity = 1f,
                 confidence = 1.0f,
                 foodId = 0,
                 dishLabel = recipe.dishLabel,
@@ -305,6 +321,7 @@ class ManualLogViewModel(
                         dishNameEn = displayName,
                         dishNamePh = displayName,
                         weightGrams = 100f,
+                        servingQuantity = 1f,
                         confidence = 0.5f,
                         foodId = 0,
                         dishLabel = entry.dishLabel,
@@ -334,6 +351,7 @@ class ManualLogViewModel(
                     dishNameEn = recipe.nameEn,
                     dishNamePh = recipe.namePh,
                     weightGrams = servingWeight,
+                    servingQuantity = 1f,
                     confidence = 1.0f,
                     foodId = 0,
                     dishLabel = recipe.dishLabel,
@@ -396,6 +414,60 @@ class ManualLogViewModel(
                             calcium = nutrients.calcium,
                             iron = nutrients.iron,
                             requiresWeightConfirmation = false
+                        )
+                    } else {
+                        current
+                    }
+                }
+            }
+        }
+    }
+
+    fun updateLoggedDishQuantity(index: Int, quantity: Float) {
+        if (quantity <= 0f) return
+        val dish = _loggedDishes.value.getOrNull(index) ?: return
+        if (dish.dishLabel.isBlank()) return
+
+        viewModelScope.launch {
+            val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
+            val recipe = withContext(Dispatchers.IO) {
+                dishRecipeDao.getByDishLabel(dish.dishLabel)
+            } ?: return@launch
+            val servingWeight = if (recipe.perServingWeightG > 0f) {
+                recipe.perServingWeightG
+            } else if (recipe.servings > 0) {
+                recipe.cookedWeightG / recipe.servings
+            } else {
+                recipe.cookedWeightG
+            }
+            val currentUnitWeight = if (dish.servingQuantity > 0f && dish.weightGrams > 0f) {
+                dish.weightGrams / dish.servingQuantity
+            } else {
+                servingWeight
+            }
+            val totalWeight = currentUnitWeight * quantity
+            val nutrients = withContext(Dispatchers.IO) {
+                calculator.calculatePortionNutrition(dish.dishLabel, totalWeight, substitutions)
+            }
+
+            _loggedDishes.update { list ->
+                list.mapIndexed { i, current ->
+                    if (i == index) {
+                        current.copy(
+                            weightGrams = totalWeight,
+                            servingQuantity = quantity,
+                            calories = nutrients.calories,
+                            protein = nutrients.protein,
+                            carbs = nutrients.carbs,
+                            fat = nutrients.fat,
+                            fiber = nutrients.fiber,
+                            sugar = nutrients.sugar,
+                            sodium = nutrients.sodium,
+                            potassium = nutrients.potassium,
+                            vitaminA = nutrients.vitaminA,
+                            vitaminC = nutrients.vitaminC,
+                            calcium = nutrients.calcium,
+                            iron = nutrients.iron
                         )
                     } else {
                         current
@@ -488,6 +560,19 @@ class ManualLogViewModel(
             map
         } catch (_: Exception) {
             emptyMap()
+        }
+    }
+
+    private fun defaultWeightText(dish: DishRecipeEntity): String {
+        val defaultWeight = when {
+            dish.perServingWeightG > 0f -> dish.perServingWeightG
+            dish.servings > 0 -> dish.cookedWeightG / dish.servings
+            else -> 0f
+        }
+        return if (defaultWeight > 0f) {
+            String.format(java.util.Locale.US, "%.0f", defaultWeight)
+        } else {
+            ""
         }
     }
 

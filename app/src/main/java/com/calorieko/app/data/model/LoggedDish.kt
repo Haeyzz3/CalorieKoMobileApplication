@@ -5,6 +5,7 @@ data class LoggedDish(
     val dishNameEn: String,
     val dishNamePh: String = "",
     val weightGrams: Float,
+    val servingQuantity: Float = 1f,
     val confidence: Float,
     val foodId: Int,
     val dishLabel: String = "",  // ML/recipe key for ingredient lookups
