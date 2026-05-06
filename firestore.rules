@@ -80,6 +80,16 @@ service cloud.firestore {
         allow delete: if isOwner(uid);
       }
 
+      // Weight Logs
+      match /weightLogs/{dateEpochDay} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.dateEpochDay is number
+          && request.resource.data.weightKg is number
+          && request.resource.data.timestamp is number;
+        allow delete: if isOwner(uid);
+      }
+
       // Pantry Items
       match /pantryItems/{ingredientName} {
         allow read: if isOwner(uid);

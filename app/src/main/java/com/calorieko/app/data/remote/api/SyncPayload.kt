@@ -17,7 +17,8 @@ data class SyncFullPayload(
     @SerializedName("profile") val profile: SyncProfile?,
     @SerializedName("meals") val meals: List<SyncMeal>,
     @SerializedName("activities") val activities: List<SyncActivity>,
-    @SerializedName("nutrition_summaries") val nutritionSummaries: List<SyncNutritionSummary>
+    @SerializedName("nutrition_summaries") val nutritionSummaries: List<SyncNutritionSummary>,
+    @SerializedName("weight_logs") val weightLogs: List<SyncWeightLog>
 )
 
 // ── Profile ──
@@ -121,6 +122,14 @@ data class SyncNutritionSummary(
     @SerializedName("lunch_calories") val lunchCalories: Float,
     @SerializedName("dinner_calories") val dinnerCalories: Float,
     @SerializedName("snacks_calories") val snacksCalories: Float,
+    @SerializedName("updated_at") val updatedAt: Long
+)
+
+data class SyncWeightLog(
+    @SerializedName("uid") val uid: String,
+    @SerializedName("date_epoch_day") val dateEpochDay: Long,
+    @SerializedName("weight_kg") val weightKg: Double,
+    @SerializedName("timestamp") val timestamp: Long,
     @SerializedName("updated_at") val updatedAt: Long
 )
 

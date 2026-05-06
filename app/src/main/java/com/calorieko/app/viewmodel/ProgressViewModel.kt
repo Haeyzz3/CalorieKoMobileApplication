@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DailyNutritionSummaryDao
 import com.calorieko.app.data.local.MealLogDao
+import com.calorieko.app.data.local.WeightLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
+import com.calorieko.app.data.model.WeightLogEntity
 import com.calorieko.app.data.repository.ActivityRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +35,8 @@ class ProgressViewModel(
     private val auth: FirebaseAuth,
     private val activityRepository: ActivityRepository,
     private val nutritionSummaryDao: DailyNutritionSummaryDao,
-    private val mealLogDao: MealLogDao
+    private val mealLogDao: MealLogDao,
+    private val weightLogDao: WeightLogDao
 ) : ViewModel() {
 
     // ── State ──
@@ -48,6 +51,9 @@ class ProgressViewModel(
     /** Meal logs with items for dietary insights (top foods by frequency/sodium). */
     private val _mealLogsWithItems = MutableStateFlow<List<MealLogWithItems>>(emptyList())
     val mealLogsWithItems: StateFlow<List<MealLogWithItems>> = _mealLogsWithItems.asStateFlow()
+
+    private val _weightLogs = MutableStateFlow<List<WeightLogEntity>>(emptyList())
+    val weightLogs: StateFlow<List<WeightLogEntity>> = _weightLogs.asStateFlow()
 
     private val _userWeight = MutableStateFlow(74.0)
     val userWeight: StateFlow<Double> = _userWeight.asStateFlow()
@@ -128,6 +134,29 @@ class ProgressViewModel(
                 _mealLogsWithItems.value = mealLogDao.getMealLogsWithItemsByDate(
                     uid, startTime, endTime
                 )
+
+                // 6. Fetch dated weight measurements. Include the most recent
+                // measurement before the range so charts can carry the user's
+                // real starting weight forward without rewriting old days.
+                val startEpochDay = startDate.toEpochDay()
+                val endEpochDay = today.toEpochDay()
+                val baselineWeight = weightLogDao.getLatestOnOrBefore(uid, startEpochDay - 1)
+                val rangeWeights = weightLogDao.getWeightLogsForRange(uid, startEpochDay, endEpochDay)
+                val weights = (listOfNotNull(baselineWeight) + rangeWeights)
+                    .distinctBy { it.dateEpochDay }
+                    .sortedBy { it.dateEpochDay }
+                _weightLogs.value = weights.ifEmpty {
+                    listOf(
+                        WeightLogEntity(
+                            uid = uid,
+                            dateEpochDay = endEpochDay,
+                            weightKg = _userWeight.value,
+                            timestamp = System.currentTimeMillis(),
+                            updatedAt = 0L,
+                            syncStatus = 1
+                        )
+                    )
+                }
             }
             _dataLoaded.value = true
         }
@@ -138,12 +167,13 @@ class ProgressViewModel(
             auth: FirebaseAuth,
             activityRepository: ActivityRepository,
             nutritionSummaryDao: DailyNutritionSummaryDao,
-            mealLogDao: MealLogDao
+            mealLogDao: MealLogDao,
+            weightLogDao: WeightLogDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ProgressViewModel::class.java)) {
-                    return ProgressViewModel(auth, activityRepository, nutritionSummaryDao, mealLogDao) as T
+                    return ProgressViewModel(auth, activityRepository, nutritionSummaryDao, mealLogDao, weightLogDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

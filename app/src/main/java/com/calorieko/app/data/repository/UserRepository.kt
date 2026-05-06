@@ -5,13 +5,17 @@ import android.net.Uri
 import com.calorieko.app.data.local.ActivityLogDao
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.local.WeightLogDao
 import com.calorieko.app.data.model.BadgeStats
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.model.WeightLogEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.LocalDate
+import kotlin.math.abs
 
 /**
  * Read-write repository for user profile operations.
@@ -25,6 +29,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class UserRepository(
     private val userDao: UserDao,
+    private val weightLogDao: WeightLogDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) {
@@ -45,12 +50,33 @@ class UserRepository(
 
     /** Save a profile to Room, sync to Firestore (with timeout), and trigger auto-sync to Laravel. */
     suspend fun saveProfile(uid: String, profile: UserProfile) {
+        val previousProfile = userDao.getUser(uid)
         userDao.insertUser(profile)
+        recordWeightIfChanged(uid, previousProfile?.weight, profile.weight)
         withTimeoutOrNull(5_000L) {
             try { firestoreSyncRepo.syncProfile(uid, profile) } catch (_: Exception) {}
         }
         // Trigger auto-sync to Laravel backend (background, debounced)
         AutoSyncManager.triggerSync(appContext, uid)
+    }
+
+    private suspend fun recordWeightIfChanged(uid: String, previousWeight: Double?, newWeight: Double) {
+        if (newWeight <= 0.0) return
+        if (previousWeight != null && abs(previousWeight - newWeight) < 0.05) return
+
+        val now = System.currentTimeMillis()
+        val weightLog = WeightLogEntity(
+            uid = uid,
+            dateEpochDay = LocalDate.now().toEpochDay(),
+            weightKg = newWeight,
+            timestamp = now,
+            updatedAt = now,
+            syncStatus = 0
+        )
+        weightLogDao.upsertWeightLog(weightLog)
+        withTimeoutOrNull(5_000L) {
+            try { firestoreSyncRepo.syncWeightLog(uid, weightLog) } catch (_: Exception) {}
+        }
     }
 
     /**

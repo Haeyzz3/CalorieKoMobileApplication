@@ -44,6 +44,7 @@ import androidx.navigation.navArgument
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.model.WeightLogEntity
 import com.calorieko.app.data.remote.CloudRestoreManager
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.ui.components.*
@@ -55,6 +56,7 @@ import com.calorieko.app.viewmodel.RestoreViewModel
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material3.TextButton
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,7 +101,8 @@ fun AppNavigation() {
             mealLogItemDao = db.mealLogItemDao(),
             dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
             pantryDao = db.pantryDao(),
-            mealPlanDao = db.mealPlanDao()
+            mealPlanDao = db.mealPlanDao(),
+            weightLogDao = db.weightLogDao()
         )
     }
 
@@ -332,9 +335,17 @@ fun AppNavigation() {
                         )
                         scope.launch {
                             userDao.insertUser(userProfile)
+                            val initialWeightLog = WeightLogEntity(
+                                uid = currentUser.uid,
+                                dateEpochDay = LocalDate.now().toEpochDay(),
+                                weightKg = userProfile.weight,
+                                timestamp = System.currentTimeMillis()
+                            )
+                            db.weightLogDao().upsertWeightLog(initialWeightLog)
 
                             // Sync new profile to Firestore
                             firestoreSyncRepo.syncProfile(currentUser.uid, userProfile)
+                            firestoreSyncRepo.syncWeightLog(currentUser.uid, initialWeightLog)
 
                             // Auto-sync to Laravel backend
                             com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
@@ -577,7 +588,8 @@ fun AppNavigation() {
                     auth = auth,
                     activityRepository = activityRepo,
                     nutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                    mealLogDao = db.mealLogDao()
+                    mealLogDao = db.mealLogDao(),
+                    weightLogDao = db.weightLogDao()
                 )
             )
             ProgressScreen(
@@ -597,6 +609,7 @@ fun AppNavigation() {
         composable("profile") {
             val userRepo = com.calorieko.app.data.repository.UserRepository(
                 userDao = db.userDao(),
+                weightLogDao = db.weightLogDao(),
                 firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
@@ -628,6 +641,7 @@ fun AppNavigation() {
         composable("editProfile") {
             val userRepo = com.calorieko.app.data.repository.UserRepository(
                 userDao = db.userDao(),
+                weightLogDao = db.weightLogDao(),
                 firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )

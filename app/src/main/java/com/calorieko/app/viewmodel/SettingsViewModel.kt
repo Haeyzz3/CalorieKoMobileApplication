@@ -100,6 +100,7 @@ class SettingsViewModel(
             activityLogDao = db.activityLogDao(),
             mealLogDao = db.mealLogDao(),
             dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+            weightLogDao = db.weightLogDao(),
             context = appContext
         )
     }
@@ -201,6 +202,7 @@ class SettingsViewModel(
                     db.dailyNutritionSummaryDao().deleteAll()
                     db.pantryDao().clearAllItems()
                     db.mealPlanDao().deleteAll()
+                    db.weightLogDao().deleteAll()
                     // 3. Reset delta sync timestamp (critical!)
                     apiSyncManager.resetSyncTimestamp()
                     // 4. Clear last-sync display timestamp
@@ -271,6 +273,7 @@ class SettingsViewModel(
                     db.dailyNutritionSummaryDao().deleteAll()
                     db.pantryDao().clearAllItems()
                     db.mealPlanDao().deleteAll()
+                    db.weightLogDao().deleteAll()
                 } catch (_: Exception) {}
             }
             // Cancel scheduled workers
@@ -325,6 +328,7 @@ class SettingsViewModel(
                     db.dailyNutritionSummaryDao().deleteAll()
                     db.pantryDao().clearAllItems()
                     db.mealPlanDao().deleteAll()
+                    db.weightLogDao().deleteAll()
 
                     // 4. Reset sync timestamps
                     apiSyncManager.resetSyncTimestamp()

@@ -151,6 +151,19 @@ class SyncWorker(
             }
 
             // ── Step 3: Push to Laravel backend (delta sync includes ALL modified data) ──
+            val weightLogDao = db.weightLogDao()
+            val unsyncedWeightLogs = weightLogDao.getUnsyncedWeightLogs(uid)
+            if (unsyncedWeightLogs.isNotEmpty()) {
+                try {
+                    val firestoreRepo = FirestoreSyncRepository()
+                    firestoreRepo.syncWeightLogsBatch(uid, unsyncedWeightLogs)
+                    weightLogDao.markAsSynced(uid, unsyncedWeightLogs.map { it.dateEpochDay })
+                    Log.d(TAG, "Weight log Firestore sync complete for ${unsyncedWeightLogs.size} rows.")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Weight log Firestore sync failed (non-fatal): ${e.message}")
+                }
+            }
+
             val apiService = RetrofitClient.getApiService(BuildConfig.API_BASE_URL)
             val syncManager = ApiSyncManager(
                 apiService = apiService,
@@ -158,6 +171,7 @@ class SyncWorker(
                 activityLogDao = activityLogDao,
                 mealLogDao = db.mealLogDao(),
                 dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                weightLogDao = db.weightLogDao(),
                 context = applicationContext
             )
 

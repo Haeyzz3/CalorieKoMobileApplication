@@ -226,7 +226,7 @@ class LogWorkoutViewModel(
     // These proxy commands to the service. Safe to call even if service
     // is not yet bound — they simply no-op.
 
-    fun startTracking() { _service?.startTracking() }
+    fun startTracking(activityCategory: String? = null) { _service?.startTracking(activityCategory) }
     fun pauseTracking() { _service?.pauseTracking() }
     fun resumeTracking() { _service?.resumeTracking() }
     fun stopTracking() { _service?.stopTracking() }

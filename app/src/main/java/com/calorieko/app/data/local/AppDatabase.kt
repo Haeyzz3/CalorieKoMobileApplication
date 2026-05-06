@@ -18,6 +18,7 @@ import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.model.RecipeIngredientEntity
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.model.WeightLogEntity
 import kotlinx.coroutines.CoroutineScope
 
 // INCREMENT version from 18 to 19 — adds raw ingredient, dish recipe, and recipe ingredient tables
@@ -34,9 +35,10 @@ import kotlinx.coroutines.CoroutineScope
         PlannedMealEntity::class,
         RawIngredientEntity::class,
         DishRecipeEntity::class,
-        RecipeIngredientEntity::class
+        RecipeIngredientEntity::class,
+        WeightLogEntity::class
     ],
-    version = 23,
+    version = 24,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -52,6 +54,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun rawIngredientDao(): RawIngredientDao
     abstract fun dishRecipeDao(): DishRecipeDao
     abstract fun recipeIngredientDao(): RecipeIngredientDao
+    abstract fun weightLogDao(): WeightLogDao
 
     companion object {
         @Volatile
@@ -431,6 +434,52 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 23 -> 24: Adds dated weight logs.
+         *
+         * A profile row only stores the current weight, which made charts rewrite
+         * every past day with today's value. This table stores actual measurement
+         * dates so progress charts can render real history.
+         */
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val now = System.currentTimeMillis()
+                val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS weight_log_table (
+                        uid TEXT NOT NULL,
+                        date_epoch_day INTEGER NOT NULL,
+                        weight_kg REAL NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        sync_status INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(uid, date_epoch_day)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    INSERT OR IGNORE INTO weight_log_table (
+                        uid,
+                        date_epoch_day,
+                        weight_kg,
+                        timestamp,
+                        updated_at,
+                        sync_status
+                    )
+                    SELECT
+                        uid,
+                        $todayEpochDay,
+                        weight,
+                        $now,
+                        updated_at,
+                        0
+                    FROM user_profile
+                    WHERE weight > 0
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -441,7 +490,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

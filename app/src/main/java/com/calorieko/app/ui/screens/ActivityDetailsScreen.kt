@@ -214,10 +214,10 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                         )
 
                         // Steps
-                        if (activity.steps != null) {
+                        if (activity.steps != null || activity.distanceKm != null) {
                             StatBlock(
                                 label = "Steps",
-                                value = activity.steps.toString(),
+                                value = (activity.steps ?: 0).toString(),
                                 unit = ""
                             )
                         } else {

@@ -10,14 +10,17 @@ import com.calorieko.app.data.local.MealLogItemDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.local.WeightLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.model.WeightLogEntity
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import java.time.LocalDate
 
 /**
  * Result of the cloud restore operation.
@@ -61,7 +64,8 @@ class CloudRestoreManager(
     private val mealLogItemDao: MealLogItemDao,
     private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
     private val pantryDao: PantryDao,
-    private val mealPlanDao: MealPlanDao
+    private val mealPlanDao: MealPlanDao,
+    private val weightLogDao: WeightLogDao
 ) {
     companion object {
         private const val TAG = "CloudRestore"
@@ -76,7 +80,8 @@ class CloudRestoreManager(
         val mealLogsWithItems: List<Pair<MealLogEntity, List<MealLogItemEntity>>>,
         val summaries: List<DailyNutritionSummaryEntity>,
         val pantryItems: List<String>,
-        val plannedMeals: List<PlannedMealEntity>
+        val plannedMeals: List<PlannedMealEntity>,
+        val weightLogs: List<WeightLogEntity>
     )
 
     /**
@@ -113,13 +118,15 @@ class CloudRestoreManager(
                 val summariesDeferred = async { firestoreSyncRepo.fetchDailyNutritionSummaries(uid) }
                 val pantryDeferred = async { firestoreSyncRepo.fetchPantryItems(uid) }
                 val plannedDeferred = async { firestoreSyncRepo.fetchPlannedMeals(uid) }
+                val weightLogsDeferred = async { firestoreSyncRepo.fetchWeightLogs(uid) }
 
                 FetchResults(
                     activityLogs = activityLogsDeferred.await(),
                     mealLogsWithItems = mealLogsDeferred.await(),
                     summaries = summariesDeferred.await(),
                     pantryItems = pantryDeferred.await(),
-                    plannedMeals = plannedDeferred.await()
+                    plannedMeals = plannedDeferred.await(),
+                    weightLogs = weightLogsDeferred.await()
                 )
             }
 
@@ -127,7 +134,8 @@ class CloudRestoreManager(
                     "${fetchResults.mealLogsWithItems.size} meal logs, " +
                     "${fetchResults.summaries.size} summaries, " +
                     "${fetchResults.pantryItems.size} pantry items, " +
-                    "${fetchResults.plannedMeals.size} planned meals")
+                    "${fetchResults.plannedMeals.size} planned meals, " +
+                    "${fetchResults.weightLogs.size} weight logs")
 
             // ═══ Phase 2: Insert ALL data into Room (atomic transaction) ═══
             Log.d(TAG, "Starting atomic Room transaction...")
@@ -135,6 +143,18 @@ class CloudRestoreManager(
             db.withTransaction {
                 // 1. Profile
                 userDao.insertUser(profile)
+                if (fetchResults.weightLogs.isEmpty() && profile.weight > 0.0) {
+                    weightLogDao.upsertWeightLog(
+                        WeightLogEntity(
+                            uid = uid,
+                            dateEpochDay = LocalDate.now().toEpochDay(),
+                            weightKg = profile.weight,
+                            timestamp = System.currentTimeMillis(),
+                            updatedAt = profile.updatedAt,
+                            syncStatus = 1
+                        )
+                    )
+                }
 
                 // 2. Activity Logs
                 for (log in fetchResults.activityLogs) {
@@ -169,6 +189,11 @@ class CloudRestoreManager(
                 // 6. Planned Meals
                 for (meal in fetchResults.plannedMeals) {
                     mealPlanDao.insertMeal(meal)
+                }
+
+                // 7. Weight Logs
+                for (weightLog in fetchResults.weightLogs) {
+                    weightLogDao.upsertWeightLog(weightLog.copy(syncStatus = 1))
                 }
             }
 

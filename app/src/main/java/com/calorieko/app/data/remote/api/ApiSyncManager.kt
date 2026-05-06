@@ -7,6 +7,7 @@ import com.calorieko.app.data.local.ActivityLogDao
 import com.calorieko.app.data.local.DailyNutritionSummaryDao
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.local.WeightLogDao
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -47,6 +48,7 @@ class ApiSyncManager(
     private val activityLogDao: ActivityLogDao,
     private val mealLogDao: MealLogDao,
     private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
+    private val weightLogDao: WeightLogDao,
     private val context: Context
 ) {
     companion object {
@@ -93,10 +95,11 @@ class ApiSyncManager(
             val activityLogs = activityLogDao.getLogsModifiedSince(uid, lastSync)
             val mealLogsWithItems = mealLogDao.getMealLogsWithItemsModifiedSince(uid, lastSync)
             val nutritionSummaries = dailyNutritionSummaryDao.getSummariesModifiedSince(uid, lastSync)
+            val weightLogs = weightLogDao.getWeightLogsModifiedSince(uid, lastSync)
 
             Log.d(TAG, "Delta payload: profile=${profile != null}, " +
                     "activities=${activityLogs.size}, meals=${mealLogsWithItems.size}, " +
-                    "summaries=${nutritionSummaries.size}")
+                    "summaries=${nutritionSummaries.size}, weights=${weightLogs.size}")
 
             // ── 2. Build the delta sync payload (with updatedAt on every entity) ──
 
@@ -207,11 +210,22 @@ class ApiSyncManager(
                 )
             }
 
+            val syncWeightLogs = weightLogs.map { log ->
+                SyncWeightLog(
+                    uid = uid,
+                    dateEpochDay = log.dateEpochDay,
+                    weightKg = log.weightKg,
+                    timestamp = log.timestamp,
+                    updatedAt = log.updatedAt
+                )
+            }
+
             // Check if there's actually anything to sync
             var hasData = syncProfile != null ||
                     syncMeals.isNotEmpty() ||
                     syncActivities.isNotEmpty() ||
-                    syncSummaries.isNotEmpty()
+                    syncSummaries.isNotEmpty() ||
+                    syncWeightLogs.isNotEmpty()
 
             // ── FULL SYNC FALLBACK ──
             // If delta is empty but user explicitly tapped "Sync Data",
@@ -223,6 +237,7 @@ class ApiSyncManager(
             var finalMeals = syncMeals
             var finalActivities = syncActivities
             var finalSummaries = syncSummaries
+            var finalWeightLogs = syncWeightLogs
 
             if (!hasData) {
                 Log.d(TAG, "Delta is empty — falling back to FULL sync of all records.")
@@ -303,10 +318,22 @@ class ApiSyncManager(
                     )
                 }
 
+                val allWeightLogs = weightLogDao.getAllWeightLogsForUser(uid)
+                finalWeightLogs = allWeightLogs.map { log ->
+                    SyncWeightLog(
+                        uid = uid,
+                        dateEpochDay = log.dateEpochDay,
+                        weightKg = log.weightKg,
+                        timestamp = log.timestamp,
+                        updatedAt = fallbackTimestamp
+                    )
+                }
+
                 hasData = finalProfile != null ||
                         finalMeals.isNotEmpty() ||
                         finalActivities.isNotEmpty() ||
-                        finalSummaries.isNotEmpty()
+                        finalSummaries.isNotEmpty() ||
+                        finalWeightLogs.isNotEmpty()
 
                 if (!hasData) {
                     Log.d(TAG, "No data at all in local database — nothing to transmit.")
@@ -323,7 +350,8 @@ class ApiSyncManager(
                 profile = finalProfile,
                 meals = finalMeals,
                 activities = finalActivities,
-                nutritionSummaries = finalSummaries
+                nutritionSummaries = finalSummaries,
+                weightLogs = finalWeightLogs
             )
 
             // ── 3. Authenticate and Send to backend ──

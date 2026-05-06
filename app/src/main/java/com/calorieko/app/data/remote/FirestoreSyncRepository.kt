@@ -7,6 +7,7 @@ import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.model.WeightLogEntity
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
@@ -80,6 +81,52 @@ class FirestoreSyncRepository {
     //  ACTIVITY LOGS (Workouts)
     // ════════════════════════════════════════════════════════════
 
+    suspend fun syncWeightLog(uid: String, log: WeightLogEntity) {
+        try {
+            val data = hashMapOf<String, Any?>(
+                "dateEpochDay" to log.dateEpochDay,
+                "weightKg" to log.weightKg,
+                "timestamp" to log.timestamp,
+                "updatedAt" to log.updatedAt
+            )
+            db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("weightLogs")
+                .document(log.dateEpochDay.toString())
+                .set(data)
+                .await()
+            Log.d(TAG, "Weight log ${log.dateEpochDay} synced for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync weight log ${log.dateEpochDay}", e)
+        }
+    }
+
+    suspend fun syncWeightLogsBatch(uid: String, logs: List<WeightLogEntity>) {
+        if (logs.isEmpty()) return
+        try {
+            val collectionRef = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("weightLogs")
+
+            logs.chunked(500).forEach { chunk ->
+                val batch = db.batch()
+                for (log in chunk) {
+                    val data = hashMapOf<String, Any?>(
+                        "dateEpochDay" to log.dateEpochDay,
+                        "weightKg" to log.weightKg,
+                        "timestamp" to log.timestamp,
+                        "updatedAt" to log.updatedAt
+                    )
+                    batch.set(collectionRef.document(log.dateEpochDay.toString()), data)
+                }
+                batch.commit().await()
+            }
+            Log.d(TAG, "${logs.size} weight logs batch-synced for $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch-sync weight logs", e)
+        }
+    }
+
     /**
      * Syncs a single activity log entry to Firestore.
      */
@@ -99,6 +146,7 @@ class FirestoreSyncRepository {
                 "distanceKm" to log.distanceKm,
                 "pace" to log.pace,
                 "movingTimeSeconds" to log.movingTimeSeconds,
+                "steps" to log.steps,
                 "mapType" to log.mapType,
                 "notes" to log.notes,
                 "activityTag" to log.activityTag,
@@ -148,6 +196,7 @@ class FirestoreSyncRepository {
                         "distanceKm" to log.distanceKm,
                         "pace" to log.pace,
                         "movingTimeSeconds" to log.movingTimeSeconds,
+                        "steps" to log.steps,
                         "mapType" to log.mapType,
                         "notes" to log.notes,
                         "activityTag" to log.activityTag,
@@ -658,7 +707,8 @@ class FirestoreSyncRepository {
                 "mealLogs",
                 "dailyNutritionSummaries",
                 "pantryItems",
-                "plannedMeals"
+                "plannedMeals",
+                "weightLogs"
             )
 
             // Phase 1: Collect ALL document references to delete
@@ -779,6 +829,7 @@ class FirestoreSyncRepository {
                         distanceKm = (doc.get("distanceKm") as? Number)?.toDouble(),
                         pace = (doc.get("pace") as? Number)?.toDouble(),
                         movingTimeSeconds = (doc.get("movingTimeSeconds") as? Number)?.toLong(),
+                        steps = (doc.get("steps") as? Number)?.toInt(),
                         mapType = doc.getString("mapType"),
                         notes = doc.getString("notes"),
                         activityTag = doc.getString("activityTag"),
@@ -792,6 +843,42 @@ class FirestoreSyncRepository {
             }.also { Log.d(TAG, "Fetched ${it.size} activity logs for $uid") }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch activity logs for $uid", e)
+            emptyList()
+        }
+    }
+
+    suspend fun fetchWeightLogs(uid: String): List<WeightLogEntity> {
+        return try {
+            val snapshot = db.collection(USERS_COLLECTION)
+                .document(uid)
+                .collection("weightLogs")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                try {
+                    val epochDay = (doc.get("dateEpochDay") as? Number)?.toLong()
+                        ?: doc.id.toLongOrNull()
+                        ?: return@mapNotNull null
+                    WeightLogEntity(
+                        uid = uid,
+                        dateEpochDay = epochDay,
+                        weightKg = (doc.get("weightKg") as? Number)?.toDouble()
+                            ?: (doc.get("weight_kg") as? Number)?.toDouble()
+                            ?: return@mapNotNull null,
+                        timestamp = (doc.get("timestamp") as? Number)?.toLong() ?: 0L,
+                        updatedAt = (doc.get("updatedAt") as? Number)?.toLong()
+                            ?: (doc.get("updated_at") as? Number)?.toLong()
+                            ?: 0L,
+                        syncStatus = 1
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipping malformed weight log doc ${doc.id}", e)
+                    null
+                }
+            }.also { Log.d(TAG, "Fetched ${it.size} weight logs for $uid") }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch weight logs for $uid", e)
             emptyList()
         }
     }
