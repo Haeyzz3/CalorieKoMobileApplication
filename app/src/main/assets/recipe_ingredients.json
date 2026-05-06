@@ -501,7 +501,7 @@
   },
   {
     "dish_label": "sinigang_pork",
-    "ingredient_key": "tomato_red",
+    "ingredient_key": "tomato",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
     "raw_weight_grams": 450.0,
@@ -1421,7 +1421,7 @@
   },
   {
     "dish_label": "milkfish_fried",
-    "ingredient_key": "milkfish",
+    "ingredient_key": "bangus_fish",
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 0.0,
@@ -1671,7 +1671,7 @@
   },
   {
     "dish_label": "linatan",
-    "ingredient_key": "tomato_red",
+    "ingredient_key": "tomato",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
     "raw_weight_grams": 180.0,
@@ -1911,7 +1911,7 @@
   },
   {
     "dish_label": "humba_pork",
-    "ingredient_key": "pork_belly",
+    "ingredient_key": "pork_liempo",
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 450.0,

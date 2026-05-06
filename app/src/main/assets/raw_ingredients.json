@@ -45,7 +45,8 @@
         "description": "large",
         "grams": 50.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "tuna_fish",
@@ -81,7 +82,8 @@
         "description": "oz, boneless",
         "grams": 28.4
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "tinapa_fish",
@@ -117,7 +119,8 @@
         "description": "fillet",
         "grams": 184.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "pork_liempo",
@@ -149,7 +152,8 @@
         "description": "oz",
         "grams": 113.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "bangus_fish",
@@ -177,7 +181,8 @@
         "description": "oz",
         "grams": 85.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "galunggong_fish",
@@ -209,7 +214,8 @@
         "description": "fillet",
         "grams": 112.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "tilapya_fish",
@@ -237,7 +243,8 @@
         "description": "fillet",
         "grams": 116.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "chicken_breast",
@@ -273,7 +280,8 @@
         "description": "piece",
         "grams": 272.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "pork_tenderloin",
@@ -309,35 +317,8 @@
         "description": "lb",
         "grams": 453.6
       }
-    ]
-  },
-  {
-    "ingredient_key": "milkfish",
-    "display_name": "Milkfish",
-    "category": "protein",
-    "sub_category": "fish_freshwater",
-    "fdc_id": 173675,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 148.0,
-      "protein": 20.53,
-      "carbs": 0.0,
-      "fat": 6.73,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 72.0,
-      "potassium": 292.0,
-      "vitamin_a": 100.0,
-      "vitamin_c": 0.0,
-      "calcium": 51.0,
-      "iron": 0.32
-    },
-    "portions": [
-      {
-        "description": "oz",
-        "grams": 85.0
-      }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "mackerel_fish",
@@ -369,13 +350,14 @@
         "description": "fillet",
         "grams": 112.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "onion_red",
     "display_name": "Red Onion",
     "category": "produce",
-    "sub_category": "allium",
+    "sub_category": "onion",
     "fdc_id": 170000,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
@@ -433,13 +415,14 @@
         "description": "slice, large (1/4\" thick)",
         "grams": 38.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "onion_white",
     "display_name": "White Onion",
     "category": "produce",
-    "sub_category": "allium",
+    "sub_category": "onion",
     "fdc_id": 170000,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
@@ -497,13 +480,14 @@
         "description": "slice, large (1/4\" thick)",
         "grams": 38.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "onion_bombay",
-    "display_name": "Bombay Onion",
+    "display_name": "Yellow Onion",
     "category": "produce",
-    "sub_category": "allium",
+    "sub_category": "onion",
     "fdc_id": 170000,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
@@ -561,13 +545,14 @@
         "description": "slice, large (1/4\" thick)",
         "grams": 38.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "garlic",
     "display_name": "Garlic",
     "category": "produce",
-    "sub_category": "allium",
+    "sub_category": "garlic",
     "fdc_id": 169230,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
@@ -601,7 +586,8 @@
         "description": "cup",
         "grams": 136.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "tomato",
@@ -677,83 +663,8 @@
         "description": "plum tomato",
         "grams": 62.0
       }
-    ]
-  },
-  {
-    "ingredient_key": "tomato_red",
-    "display_name": "Tomato (Red)",
-    "category": "produce",
-    "sub_category": "nightshade",
-    "fdc_id": 170457,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 18.0,
-      "protein": 0.88,
-      "carbs": 3.89,
-      "fat": 0.2,
-      "fiber": 1.2,
-      "sugar": 2.63,
-      "sodium": 5.0,
-      "potassium": 237.0,
-      "vitamin_a": 833.0,
-      "vitamin_c": 13.7,
-      "calcium": 10.0,
-      "iron": 0.27
-    },
-    "portions": [
-      {
-        "description": "medium whole (2-3/5\" dia)",
-        "grams": 123.0
-      },
-      {
-        "description": "slice, medium (1/4\" thick)",
-        "grams": 20.0
-      },
-      {
-        "description": "large whole (3\" dia)",
-        "grams": 182.0
-      },
-      {
-        "description": "cherry",
-        "grams": 17.0
-      },
-      {
-        "description": "Italian tomato",
-        "grams": 62.0
-      },
-      {
-        "description": "slice, thin/small",
-        "grams": 15.0
-      },
-      {
-        "description": "cup, chopped or sliced",
-        "grams": 180.0
-      },
-      {
-        "description": "small whole (2-2/5\" dia)",
-        "grams": 91.0
-      },
-      {
-        "description": "slice, thick/large (1/2\" thick)",
-        "grams": 27.0
-      },
-      {
-        "description": "cup cherry tomatoes",
-        "grams": 149.0
-      },
-      {
-        "description": "wedge (1/4 of medium tomato)",
-        "grams": 31.0
-      },
-      {
-        "description": "NLEA serving",
-        "grams": 148.0
-      },
-      {
-        "description": "plum tomato",
-        "grams": 62.0
-      }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "ginger",
@@ -789,7 +700,8 @@
         "description": "tsp",
         "grams": 2.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "cucumber",
@@ -821,7 +733,8 @@
         "description": "cup slices",
         "grams": 52.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "lato_seaweed",
@@ -849,7 +762,8 @@
         "description": "tbsp (1/8 cup)",
         "grams": 10.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "guso_seaweed",
@@ -877,7 +791,8 @@
         "description": "tbsp (1/8 cup)",
         "grams": 10.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "ampalaya",
@@ -909,7 +824,8 @@
         "description": "balsam-pear",
         "grams": 124.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "malunggay_leaves",
@@ -937,7 +853,8 @@
         "description": "cup, chopped",
         "grams": 21.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "gabi",
@@ -965,7 +882,8 @@
         "description": "cup, sliced",
         "grams": 104.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "sitaw",
@@ -997,7 +915,8 @@
         "description": "pod",
         "grams": 12.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "kangkong_leaves",
@@ -1029,7 +948,8 @@
         "description": "cup, chopped",
         "grams": 56.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "upo",
@@ -1061,7 +981,8 @@
         "description": "cup (1\" pieces)",
         "grams": 58.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "kamote_tops_green",
@@ -1093,7 +1014,8 @@
         "description": "leaf (12-1/4\" long)",
         "grams": 16.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "sayote",
@@ -1125,7 +1047,8 @@
         "description": "chayote (5-3/4\")",
         "grams": 203.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "pechay",
@@ -1161,7 +1084,8 @@
         "description": "cup, shredded",
         "grams": 70.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "squash",
@@ -1189,7 +1113,8 @@
         "description": "cup, cubes",
         "grams": 140.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "okra",
@@ -1221,7 +1146,8 @@
         "description": "cup",
         "grams": 100.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "eggplant",
@@ -1257,7 +1183,8 @@
         "description": "cup, cubes",
         "grams": 82.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "cauliflower",
@@ -1301,7 +1228,8 @@
         "description": "cup chopped (1/2\" pieces)",
         "grams": 107.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "carrot",
@@ -1361,7 +1289,8 @@
         "description": "cup strips or slices",
         "grams": 122.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "baguio_beans",
@@ -1393,7 +1322,8 @@
         "description": "cup 1/2\" pieces",
         "grams": 100.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "bell_pepper_red",
@@ -1445,7 +1375,8 @@
         "description": "small",
         "grams": 74.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "papaya_green",
@@ -1485,7 +1416,8 @@
         "description": "cup 1\" pieces",
         "grams": 145.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "mango_unripe",
@@ -1517,7 +1449,8 @@
         "description": "cup pieces",
         "grams": 165.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "pansit-pansitan",
@@ -1545,7 +1478,8 @@
         "description": "1 cup, chopped",
         "grams": 45.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "radish",
@@ -1593,7 +1527,8 @@
         "description": "large (1\" to 1-1/4\" dia)",
         "grams": 9.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "potato",
@@ -1633,7 +1568,8 @@
         "description": "Potato medium (2-1/4\" to 3-1/4\" dia)",
         "grams": 213.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "green_peas",
@@ -1661,7 +1597,8 @@
         "description": "cup",
         "grams": 145.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "salt_iodized",
@@ -1701,7 +1638,8 @@
         "description": "dash",
         "grams": 0.4
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "black_pepper",
@@ -1741,7 +1679,8 @@
         "description": "tsp, whole",
         "grams": 2.9
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "vinegar_cane",
@@ -1777,7 +1716,8 @@
         "description": "cup",
         "grams": 238.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "vinegar_white",
@@ -1813,7 +1753,8 @@
         "description": "cup",
         "grams": 238.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "calamansi_juice",
@@ -1849,7 +1790,8 @@
         "description": "lime yields",
         "grams": 44.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "sinigang_mix",
@@ -1877,7 +1819,8 @@
         "description": "1 pack (44g)",
         "grams": 44.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "patis",
@@ -1905,7 +1848,8 @@
         "description": "tbsp",
         "grams": 18.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "alamang_bagoong",
@@ -1928,7 +1872,8 @@
       "calcium": 533.0,
       "iron": 4.8
     },
-    "portions": []
+    "portions": [],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "soy_sauce",
@@ -1968,7 +1913,8 @@
         "description": "cup",
         "grams": 255.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "thyme",
@@ -2008,7 +1954,8 @@
         "description": "tsp, ground",
         "grams": 1.4
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "sugar_brown",
@@ -2052,7 +1999,8 @@
         "description": "tsp brownulated",
         "grams": 3.2
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "sugar_white",
@@ -2092,7 +2040,8 @@
         "description": "serving packet",
         "grams": 2.8
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "cornstarch",
@@ -2120,7 +2069,8 @@
         "description": "cup",
         "grams": 128.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "all_purpose_flour",
@@ -2148,7 +2098,8 @@
         "description": "cup",
         "grams": 125.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "food_coloring_orange",
@@ -2208,11 +2159,12 @@
         "description": "cup",
         "grams": 218.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "water",
-    "display_name": "Water",
+    "display_name": "Purified Water",
     "category": "pantry_staple",
     "sub_category": "water",
     "fdc_id": null,
@@ -2232,7 +2184,7 @@
       "iron": 0.0
     },
     "portions": [],
-    "is_substitutable": false
+    "is_substitutable": true
   },
   {
     "ingredient_key": "tomato_sauce",
@@ -2260,7 +2212,8 @@
         "description": "cup",
         "grams": 245.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "raisins",
@@ -2308,7 +2261,8 @@
         "description": "cup, packed",
         "grams": 165.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "odong_noodles",
@@ -2336,7 +2290,8 @@
         "description": "oz",
         "grams": 57.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "sardines_tomato_sauce_canned",
@@ -2372,12 +2327,13 @@
         "description": "can",
         "grams": 370.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "rice_bigas",
     "display_name": "Raw White Rice Grain (Bigas)",
-    "category": "pantry_staple",
+    "category": "grain_starch",
     "sub_category": "grain",
     "fdc_id": 169756,
     "data_source": "USDA_SR_LEGACY",
@@ -2400,7 +2356,8 @@
         "description": "cup",
         "grams": 185.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "store_bought_lechon_manok_wing",
@@ -2552,7 +2509,8 @@
         "description": "cup",
         "grams": 216.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "coconut_oil",
@@ -2588,7 +2546,8 @@
         "description": "tbsp",
         "grams": 13.6
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "canola_oil",
@@ -2624,7 +2583,8 @@
         "description": "tbsp",
         "grams": 14.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "chicken_thigh",
@@ -2656,7 +2616,8 @@
         "description": "thigh without skin",
         "grams": 149.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "chicken_drumstick",
@@ -2692,7 +2653,8 @@
         "description": "drumstick  with skin",
         "grams": 130.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "pork_shoulder",
@@ -2724,7 +2686,8 @@
         "description": "oz",
         "grams": 113.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "ground_pork",
@@ -2756,95 +2719,8 @@
         "description": "oz",
         "grams": 28.4
       }
-    ]
-  },
-  {
-    "ingredient_key": "bihon_noodles",
-    "display_name": "Bihon (Rice Noodles)",
-    "category": "grain_starch",
-    "sub_category": "noodle",
-    "fdc_id": 169742,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 364.0,
-      "protein": 5.95,
-      "carbs": 80.18,
-      "fat": 0.56,
-      "fiber": 1.6,
-      "sugar": 0.12,
-      "sodium": 182.0,
-      "potassium": 30.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 18.0,
-      "iron": 0.7
-    },
-    "portions": [
-      {
-        "description": "oz",
-        "grams": 57.0
-      }
-    ]
-  },
-  {
-    "ingredient_key": "canton_noodles",
-    "display_name": "Canton (Egg Noodles)",
-    "category": "grain_starch",
-    "sub_category": "noodle",
-    "fdc_id": 169731,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 384.0,
-      "protein": 14.16,
-      "carbs": 71.27,
-      "fat": 4.44,
-      "fiber": 3.3,
-      "sugar": 1.88,
-      "sodium": 21.0,
-      "potassium": 244.0,
-      "vitamin_a": 62.0,
-      "vitamin_c": 0.0,
-      "calcium": 35.0,
-      "iron": 4.01
-    },
-    "portions": [
-      {
-        "description": "oz",
-        "grams": 57.0
-      },
-      {
-        "description": "cup",
-        "grams": 38.0
-      }
-    ]
-  },
-  {
-    "ingredient_key": "brown_rice",
-    "display_name": "Brown Rice (raw)",
-    "category": "grain_starch",
-    "sub_category": "grain",
-    "fdc_id": 169703,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 367.0,
-      "protein": 7.54,
-      "carbs": 76.25,
-      "fat": 3.2,
-      "fiber": 3.6,
-      "sugar": 0.66,
-      "sodium": 5.0,
-      "potassium": 250.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 9.0,
-      "iron": 1.29
-    },
-    "portions": [
-      {
-        "description": "cup",
-        "grams": 185.0
-      }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "lemon_juice",
@@ -2884,7 +2760,8 @@
         "description": "fl oz",
         "grams": 30.5
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "lime_juice",
@@ -2920,7 +2797,8 @@
         "description": "lime yields",
         "grams": 44.0
       }
-    ]
+    ],
+    "is_substitutable": true
   },
   {
     "ingredient_key": "oregano_leaves",
@@ -2952,7 +2830,8 @@
         "description": "tsp, ground",
         "grams": 1.8
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "tanglad",
@@ -2984,13 +2863,14 @@
         "description": "tbsp",
         "grams": 4.8
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "spring_onion",
     "display_name": "Spring Onion (Scallion)",
     "category": "produce",
-    "sub_category": "allium",
+    "sub_category": "scallion",
     "fdc_id": 170005,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
@@ -3028,39 +2908,8 @@
         "description": "large",
         "grams": 25.0
       }
-    ]
-  },
-  {
-    "ingredient_key": "pork_belly",
-    "display_name": "Pork Belly (raw)",
-    "category": "protein",
-    "sub_category": "pork",
-    "fdc_id": 167812,
-    "data_source": "USDA_SR_LEGACY",
-    "nutrients_per_100g": {
-      "calories": 518.0,
-      "protein": 9.34,
-      "carbs": 0.0,
-      "fat": 53.01,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 32.0,
-      "potassium": 185.0,
-      "vitamin_a": 10.0,
-      "vitamin_c": 0.3,
-      "calcium": 5.0,
-      "iron": 0.52
-    },
-    "portions": [
-      {
-        "description": "lb",
-        "grams": 453.6
-      },
-      {
-        "description": "oz",
-        "grams": 113.0
-      }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "laurel_leaves",
@@ -3092,7 +2941,8 @@
         "description": "tsp, crumbled",
         "grams": 0.6
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "black_beans",
@@ -3120,7 +2970,8 @@
         "description": "cup",
         "grams": 240.0
       }
-    ]
+    ],
+    "is_substitutable": false
   },
   {
     "ingredient_key": "alugbati",
@@ -3142,6 +2993,302 @@
       "vitamin_c": 102.0,
       "calcium": 109.0,
       "iron": 1.2
+    },
+    "portions": [],
+    "is_substitutable": false
+  },
+  {
+    "ingredient_key": "palm_oil",
+    "display_name": "Palm Oil",
+    "category": "pantry_staple",
+    "sub_category": "oil",
+    "fdc_id": 171015,
+    "data_source": "USDA_FDC",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 884.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.01
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 4.5
+      },
+      {
+        "description": "undetermined",
+        "grams": 216.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 13.6
+      }
+    ]
+  },
+  {
+    "ingredient_key": "corn_oil",
+    "display_name": "Corn Oil",
+    "category": "pantry_staple",
+    "sub_category": "oil",
+    "fdc_id": 171029,
+    "data_source": "USDA_FDC",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 900.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.0
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 218.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 4.5
+      },
+      {
+        "description": "undetermined",
+        "grams": 13.6
+      }
+    ]
+  },
+  {
+    "ingredient_key": "kosher_salt",
+    "display_name": "Kosher Salt",
+    "category": "seasoning",
+    "sub_category": "salt",
+    "fdc_id": 173468,
+    "data_source": "USDA_FDC",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 38758.0,
+      "potassium": 8.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 24.0,
+      "iron": 0.33
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 292.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 6.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 18.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "sea_salt",
+    "display_name": "Sea Salt",
+    "category": "seasoning",
+    "sub_category": "salt",
+    "fdc_id": 173468,
+    "data_source": "USDA_FDC",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 38758.0,
+      "potassium": 8.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 24.0,
+      "iron": 0.33
+    },
+    "portions": [
+      {
+        "description": "tsp",
+        "grams": 6.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 18.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "vinegar_coconut",
+    "display_name": "Coconut Vinegar (Sukang Tuba)",
+    "category": "seasoning",
+    "sub_category": "acid",
+    "fdc_id": 172237,
+    "data_source": "USDA_FDC_PROXY",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 18.0,
+      "protein": 0.0,
+      "carbs": 0.04,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.04,
+      "sodium": 2.0,
+      "potassium": 2.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 6.0,
+      "iron": 0.03
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 14.9
+      },
+      {
+        "description": "undetermined",
+        "grams": 5.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 238.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "vinegar_apple_cider",
+    "display_name": "Apple Cider Vinegar",
+    "category": "seasoning",
+    "sub_category": "acid",
+    "fdc_id": 173469,
+    "data_source": "USDA_FDC",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 7.0,
+      "iron": 0.2
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 5.0
+      },
+      {
+        "description": "undetermined",
+        "grams": 14.9
+      },
+      {
+        "description": "undetermined",
+        "grams": 239.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "shallot",
+    "display_name": "Shallot",
+    "category": "produce",
+    "sub_category": "onion",
+    "fdc_id": 170400,
+    "data_source": "USDA_FDC",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 42.0,
+      "protein": 1.5,
+      "carbs": 9.2,
+      "fat": 0.3,
+      "fiber": 1.8,
+      "sugar": 1.6,
+      "sodium": 100.0,
+      "potassium": 300.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.0,
+      "calcium": 43.0,
+      "iron": 0.7
+    },
+    "portions": [
+      {
+        "description": "undetermined",
+        "grams": 156.0
+      }
+    ]
+  },
+  {
+    "ingredient_key": "distilled_water",
+    "display_name": "Distilled Water",
+    "category": "pantry_staple",
+    "sub_category": "water",
+    "fdc_id": 0,
+    "data_source": "MANUAL",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.0
+    },
+    "portions": []
+  },
+  {
+    "ingredient_key": "mineral_water",
+    "display_name": "Mineral Water",
+    "category": "pantry_staple",
+    "sub_category": "water",
+    "fdc_id": 0,
+    "data_source": "MANUAL",
+    "is_substitutable": true,
+    "nutrients_per_100g": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 4.0,
+      "potassium": 1.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 10.0,
+      "iron": 0.0
     },
     "portions": []
   }

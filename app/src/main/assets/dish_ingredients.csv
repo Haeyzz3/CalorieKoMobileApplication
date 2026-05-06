@@ -49,7 +49,7 @@ egg_ampalaya,black_pepper,optional,seasoning,1/8 tsp,ground,1
 egg_ampalaya,chicken_egg,core,protein,10 pcs,beaten,1
 sinigang_pork,cooking_oil,optional,pantry_staple,1/2 cup,,1
 sinigang_pork,onion_white,optional,produce,1/4 cup,sliced,1
-sinigang_pork,tomato_red,optional,produce,2 1/2 cups,sliced,1
+sinigang_pork,tomato,optional,produce,2 1/2 cups,sliced,1
 sinigang_pork,pork_liempo,core,protein,4 cups,lean & sliced,1
 sinigang_pork,water,optional,pantry_staple,6 cups,,1
 sinigang_pork,gabi,optional,produce,2 cups,cubed,1
@@ -141,13 +141,13 @@ sinuglaw_pork,salt_iodized,optional,seasoning,1/2 tsp,,2
 sinuglaw_pork,pansit-pansitan,optional,produce,1/2 cup,blanched,1
 sinuglaw_pork,onion_red,core,produce,2 tbsps,sliced into thin quarters,1
 sinuglaw_pork,radish,core,produce,3/4 cup,sliced into thin quarters,1
-milkfish_fried,milkfish,core,protein,,,1
+milkfish_fried,bangus_fish,core,protein,,,1
 milkfish_fried,cooking_oil,optional,pantry_staple,,,1
 milkfish_fried,salt_iodized,optional,seasoning,,,1
 mackerel_fried,mackerel_fish,core,protein,,,1
 mackerel_fried,cooking_oil,optional,pantry_staple,,,1
 mackerel_fried,salt_iodized,optional,seasoning,,,1
-rice_well_milled,rice_bigas,core,pantry_staple,,,1
+rice_well_milled,rice_bigas,core,grain_starch,,,1
 rice_well_milled,water,optional,pantry_staple,,,1
 egg_sunny,chicken_egg,core,protein,,,1
 egg_sunny,cooking_oil,optional,pantry_staple,,,1
@@ -166,7 +166,7 @@ egg_scrambled,chicken_egg,core,protein,,,1
 egg_scrambled,cooking_oil,optional,pantry_staple,,,1
 linatan,cooking_oil,optional,pantry_staple,1 Tbsp,,1
 linatan,onion_red,optional,produce,1/4 cup,sliced,1
-linatan,tomato_red,optional,produce,1 cup,sliced,1
+linatan,tomato,optional,produce,1 cup,sliced,1
 linatan,pork_tenderloin,core,protein,1 3/4 cups,sliced,1
 linatan,water,optional,pantry_staple,4 cups,,1
 linatan,patis,optional,seasoning,2 tsps,,1
@@ -190,7 +190,7 @@ lawuy,salt_iodized,optional,seasoning,1 Tbsp,,1
 lawuy,alugbati,optional,produce,3 cups,leaves and stem,1
 humba_pork,water,optional,pantry_staple,3 cups,,1
 humba_pork,cooking_oil,optional,pantry_staple,1 tbsp,,1
-humba_pork,pork_belly,core,protein,2 1/2 cups,sliced,1
+humba_pork,pork_liempo,core,protein,2 1/2 cups,sliced,1
 humba_pork,garlic,optional,produce,1/4 cup,chopped,1
 humba_pork,onion_red,optional,produce,1/4 cup,chopped,1
 humba_pork,black_beans,core,seasoning,1/4 cup,canned & drained,1
