@@ -83,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -660,6 +661,26 @@ fun RecipeRow(title: String, recipes: List<DishResult>, color: Color, onClick: (
     }
 }
 
+private fun DishResult.primaryDishName(): String {
+    return dishNamePh.ifBlank { dishNameEn.ifBlank { dishName } }
+}
+
+private fun DishResult.secondaryDishName(): String {
+    val primary = primaryDishName()
+    return dishNameEn.trim().takeIf {
+        it.isNotBlank() && !it.equals(primary, ignoreCase = true)
+    } ?: ""
+}
+
+private fun DishResult.inlineDishName(): String {
+    val secondary = secondaryDishName()
+    return if (secondary.isNotBlank()) {
+        "${primaryDishName()} ($secondary)"
+    } else {
+        primaryDishName()
+    }
+}
+
 @Composable
 fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) {
     val isReady = recipe.missingCoreIngredients.isEmpty()
@@ -669,7 +690,7 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .width(220.dp)
-            .height(200.dp)
+            .height(216.dp)
             .clickable { onClick(recipe) }
             .border(2.dp, color.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
     ) {
@@ -699,13 +720,26 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                recipe.dishName,
+                recipe.primaryDishName(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F2937),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            val secondaryDishName = recipe.secondaryDishName()
+            if (secondaryDishName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    secondaryDishName,
+                    fontSize = 12.sp,
+                    color = Color(0xFF9CA3AF),
+                    fontStyle = FontStyle.Italic,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -817,6 +851,7 @@ fun MealPlanCalendarSection(
 
     // Nutrition data for dishes in the open slot (loaded when dialog opens)
     var slotNutritionMap = remember { mutableStateOf<Map<String, PantryViewModel.CompactDishNutrition>>(emptyMap()) }
+    var slotDishResults = remember { mutableStateOf<Map<String, DishResult>>(emptyMap()) }
 
     // Load nutrition when meal detail dialog opens
     LaunchedEffect(showMealDetail.value, detailDayIndex.intValue, detailSlot.value) {
@@ -825,12 +860,20 @@ fun MealPlanCalendarSection(
                 it.dayIndex == detailDayIndex.intValue && it.mealSlot == detailSlot.value
             }
             val nutritionMap = mutableMapOf<String, PantryViewModel.CompactDishNutrition>()
+            val dishResultMap = mutableMapOf<String, DishResult>()
             withContext(Dispatchers.IO) {
                 meals.forEach { meal ->
                     nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(meal.dishLabel, meal.substitutionsJson)
+                    viewModel.getDishResultByLabel(meal.dishLabel, meal.substitutionsJson)?.let { result ->
+                        dishResultMap[meal.dishLabel] = result
+                    }
                 }
             }
             slotNutritionMap.value = nutritionMap
+            slotDishResults.value = dishResultMap
+        } else {
+            slotNutritionMap.value = emptyMap()
+            slotDishResults.value = emptyMap()
         }
     }
 
@@ -1207,7 +1250,7 @@ fun MealPlanCalendarSection(
                                     recipeToAdd.value = recipe
                                     showAddDialog.value = true
                                 },
-                                label = { Text("${getDishEmoji(recipe.dishLabel)} ${recipe.dishName}") },
+                                label = { Text("${getDishEmoji(recipe.dishLabel)} ${recipe.inlineDishName()}") },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = if (recipe.missingCoreIngredients.isEmpty()) Color(0xFFECFDF5) else Color(0xFFFFEDD5),
                                     labelColor = Color(0xFF1F2937)
@@ -1230,6 +1273,7 @@ fun MealPlanCalendarSection(
         val slotMeals = plannedMeals.filter { it.dayIndex == dayIdx && it.mealSlot == slot }
         val isEditable = viewModel.isDayEditable(dayIdx)
         val nutrition = slotNutritionMap.value
+        val slotDishDisplayResults = slotDishResults.value
 
         // Compute meal totals from loaded nutrition
         val totalCalories = slotMeals.sumOf { nutrition[it.dishLabel]?.calories ?: 0 }
@@ -1313,15 +1357,32 @@ fun MealPlanCalendarSection(
                                 Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                                     // Row 1: Emoji + Name + Remove button
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val dishResult = slotDishDisplayResults[meal.dishLabel]
+                                        val primaryDishName = dishResult?.primaryDishName()
+                                            ?: viewModel.formatIngredientName(meal.dishLabel)
+                                        val secondaryDishName = dishResult?.secondaryDishName().orEmpty()
                                         Text(getDishEmoji(meal.dishLabel), fontSize = 20.sp)
                                         Spacer(modifier = Modifier.width(10.dp))
-                                        Text(
-                                            viewModel.formatIngredientName(meal.dishLabel),
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF374151),
-                                            modifier = Modifier.weight(1f)
-                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                primaryDishName,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF374151),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (secondaryDishName.isNotBlank()) {
+                                                Text(
+                                                    secondaryDishName,
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF9CA3AF),
+                                                    fontStyle = FontStyle.Italic,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
                                         // Customized badge when substitutions are present
                                         if (meal.substitutionsJson.isNotEmpty()) {
                                             Surface(
@@ -1518,12 +1579,23 @@ fun MealPlanCalendarSection(
                                 Text(getDishEmoji(recipe.dishLabel), fontSize = 20.sp)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    val secondaryDishName = recipe.secondaryDishName()
                                     Text(
-                                        recipe.dishName,
+                                        recipe.primaryDishName(),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = if (alreadyAdded) Color(0xFF9CA3AF) else Color(0xFF374151)
                                     )
+                                    if (secondaryDishName.isNotBlank()) {
+                                        Text(
+                                            secondaryDishName,
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF9CA3AF),
+                                            fontStyle = FontStyle.Italic,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                     Text("${recipe.calories} kcal", fontSize = 11.sp, color = Color.Gray)
                                 }
                                 if (alreadyAdded) {
@@ -1560,7 +1632,7 @@ fun MealPlanCalendarSection(
             title = { Text("Plan Meal") },
             text = {
                 Column {
-                    Text("Select a day to cook ${recipeToAdd.value?.dishName}:")
+                    Text("Select a day to cook ${recipeToAdd.value?.inlineDishName().orEmpty()}:")
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         days.forEachIndexed { index, (dayName, dateNum) ->
@@ -1603,7 +1675,7 @@ fun MealPlanCalendarSection(
             title = { Text("Choose Meal Slot") },
             text = {
                 Column {
-                    Text("Add ${recipeToAdd.value?.dishName} on ${days[selectedDayIndex.intValue].first} ${days[selectedDayIndex.intValue].second} as:")
+                    Text("Add ${recipeToAdd.value?.inlineDishName().orEmpty()} on ${days[selectedDayIndex.intValue].first} ${days[selectedDayIndex.intValue].second} as:")
                     Spacer(modifier = Modifier.height(16.dp))
                     mealSlots.forEach { slot ->
                         val alreadyInSlot = plannedMeals.any {
@@ -1891,8 +1963,19 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text(recipe.dishName, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(recipe.primaryDishName(), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    val secondaryDishName = recipe.secondaryDishName()
+                    if (secondaryDishName.isNotBlank()) {
+                        Text(
+                            secondaryDishName,
+                            fontSize = 13.sp,
+                            color = Color(0xFF9CA3AF),
+                            fontStyle = FontStyle.Italic
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    } else {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                     if (isViewOnly) {
                         // In view-only mode (calendar), show a simple "Planned Dish" badge
                         Surface(color = Color(0xFFEDE9FE), shape = RoundedCornerShape(50)) {
@@ -2646,7 +2729,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         }
                     }
 
-                    Text("Select a day for ${recipe.dishName}:")
+                    Text("Select a day for ${recipe.inlineDishName()}:")
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Day circles with date numbers + editability
@@ -2721,7 +2804,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             title = { Text("Choose Meal Slot") },
             text = {
                 Column {
-                    Text("Add ${recipe.dishName} on $selectedDayName $selectedDateNum as:")
+                    Text("Add ${recipe.inlineDishName()} on $selectedDayName $selectedDateNum as:")
                     Spacer(modifier = Modifier.height(16.dp))
                     mealSlots.forEach { slot ->
                         val alreadyInSlot = targetWeekMeals.any {
