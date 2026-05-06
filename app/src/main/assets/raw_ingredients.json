@@ -2046,7 +2046,7 @@
   {
     "ingredient_key": "cornstarch",
     "display_name": "Cornstarch",
-    "category": "pantry_staple",
+    "category": "grain_starch",
     "sub_category": "starch",
     "fdc_id": 169698,
     "data_source": "USDA_SR_LEGACY",
@@ -2075,7 +2075,7 @@
   {
     "ingredient_key": "all_purpose_flour",
     "display_name": "All-Purpose Flour",
-    "category": "pantry_staple",
+    "category": "grain_starch",
     "sub_category": "flour",
     "fdc_id": 169761,
     "data_source": "USDA_SR_LEGACY",
@@ -2267,7 +2267,7 @@
   {
     "ingredient_key": "odong_noodles",
     "display_name": "Odong Noodles",
-    "category": "pantry_staple",
+    "category": "grain_starch",
     "sub_category": "noodle",
     "fdc_id": 168908,
     "data_source": "USDA_SR_LEGACY",
@@ -2296,7 +2296,7 @@
   {
     "ingredient_key": "sardines_tomato_sauce_canned",
     "display_name": "Sardines in Tomato Sauce",
-    "category": "pantry_staple",
+    "category": "protein",
     "sub_category": "canned_good",
     "fdc_id": 175140,
     "data_source": "USDA_SR_LEGACY",
@@ -2725,7 +2725,7 @@
   {
     "ingredient_key": "lemon_juice",
     "display_name": "Lemon Juice (fresh)",
-    "category": "pantry_staple",
+    "category": "seasoning",
     "sub_category": "citrus_juice",
     "fdc_id": 167747,
     "data_source": "USDA_SR_LEGACY",
@@ -2766,7 +2766,7 @@
   {
     "ingredient_key": "lime_juice",
     "display_name": "Lime Juice (fresh)",
-    "category": "pantry_staple",
+    "category": "seasoning",
     "sub_category": "citrus_juice",
     "fdc_id": 168156,
     "data_source": "USDA_SR_LEGACY",
@@ -2947,7 +2947,7 @@
   {
     "ingredient_key": "black_beans",
     "display_name": "Black Beans (Canned)",
-    "category": "seasoning",
+    "category": "pantry_staple",
     "sub_category": "legume",
     "fdc_id": 175188,
     "data_source": "USDA_SR_LEGACY",
