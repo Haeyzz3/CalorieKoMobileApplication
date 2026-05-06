@@ -34,6 +34,8 @@ import com.google.android.gms.location.Priority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * LocationTrackingService — a proper Android **Foreground Service** that keeps
@@ -384,15 +386,9 @@ class LocationTrackingService : Service(), SensorEventListener {
         // so _timeSeconds naturally freezes while paused.
         val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
         val dist = "%.2f km".format(_distanceKm.value)
-        val pace = _currentPace.value
-        val paceStr = if (pace > 0.0 && pace <= 999.0) {
-            val pMin = pace.toInt()
-            val pSec = ((pace - pMin) * 60).toInt()
-            "%d:%02d /km".format(pMin, pSec)
-        } else {
-            "-:-- /km"
-        }
-        updateNotificationWithStats(formatted, dist, paceStr, isPaused = true)
+        currentPaceMinutesPerKm()?.let { _currentPace.value = it }
+        val paceStr = formatPace(_currentPace.value)
+        updateNotificationWithStats(foratted, dist, paceStr, isPaused = true)
     }
 
     fun resumeTracking() {
@@ -501,12 +497,19 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     private fun holdStationary(anchor: Location, keepPendingGpsMovement: Boolean = false) {
         _isMoving.value = false
-        _currentPoint.value = Pair(anchor.latitude, anchor.longitude)
-        lastKnownPoint = _currentPoint.value
+        val displayPoint = _pathPoints.value.lastOrNull()
+            ?: Pair(anchor.latitude, anchor.longitude)
+        _currentPoint.value = displayPoint
+        lastKnownPoint = displayPoint
         if (!keepPendingGpsMovement) {
             resetPendingGpsMovement()
         }
-        resetSmoothingTo(anchor)
+        resetSmoothingTo(
+            Location(anchor).apply {
+                latitude = displayPoint.first
+                longitude = displayPoint.second
+            }
+        )
     }
 
     private fun freezeDisplayPointToRouteEndpoint() {
@@ -518,6 +521,28 @@ class LocationTrackingService : Service(), SensorEventListener {
             _currentPoint.value = endpoint
             lastKnownPoint = endpoint
         }
+    }
+
+    private fun currentPaceMinutesPerKm(): Double? {
+        if (_distanceKm.value <= 0.01) return null
+
+        val activeSeconds = when {
+            _movingTimeSeconds.value > 0L -> _movingTimeSeconds.value
+            _timeSeconds.value > 0L -> _timeSeconds.value
+            else -> 0L
+        }
+        if (activeSeconds <= 0L) return null
+
+        return (activeSeconds / 60.0 / _distanceKm.value).coerceAtMost(999.0)
+    }
+
+    private fun formatPace(minutesPerKm: Double?): String {
+        if (minutesPerKm == null || minutesPerKm <= 0.0 || minutesPerKm > 999.0) {
+            return "-:-- /km"
+        }
+
+        val totalSeconds = (minutesPerKm * 60.0).roundToInt().coerceAtLeast(0)
+        return String.format(Locale.US, "%d:%02d /km", totalSeconds / 60, totalSeconds % 60)
     }
 
     private fun hasEnoughStepMovement(distanceFromAnchor: Float): Boolean {
@@ -856,30 +881,14 @@ class LocationTrackingService : Service(), SensorEventListener {
                 }
 
                 // ── Compute Real-Time Strava-style Pace ──
-                // Strava calculates Average Pace using MOVING TIME, not total elapsed time.
-                // This prevents your pace from being ruined when waiting at a stoplight.
-                // Because _movingTimeSeconds auto-pauses, your pace accurately reflects your active speed.
-                if (_distanceKm.value > 0.01) {
-                    val movingTimeInMinutes = _movingTimeSeconds.value / 60.0
-                    if (movingTimeInMinutes > 0) {
-                        val rawPace = movingTimeInMinutes / _distanceKm.value
-                        _currentPace.value = rawPace.coerceAtMost(999.0)
-                    }
-                }
+                // Prefer moving time, but fall back to elapsed time if movement
+                // detection has not produced moving seconds yet.
+                currentPaceMinutesPerKm()?.let { _currentPace.value = it }
 
                 // Update notification with live stats every second (visible on lock screen)
                 val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
                 val dist = "%.2f km".format(_distanceKm.value)
-                val pace = _currentPace.value
-                val paceStr = if (!_isMoving.value) {
-                    "-:-- /km"
-                } else if (pace > 0.0 && pace <= 999.0) {
-                    val pMin = pace.toInt()
-                    val pSec = ((pace - pMin) * 60).toInt()
-                    "%d:%02d /km".format(pMin, pSec)
-                } else {
-                    "-:-- /km"
-                }
+                val paceStr = formatPace(_currentPace.value)
                 updateNotificationWithStats(formatted, dist, paceStr)
             }
         }.apply {

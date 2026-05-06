@@ -543,7 +543,6 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
     val movingTimeSeconds by viewModel.movingTimeSeconds.collectAsState()
     val distanceKm by viewModel.distanceKm.collectAsState()
     val currentPace by viewModel.currentPace.collectAsState()
-    val isMoving by viewModel.isMoving.collectAsState()
     val lastLocation by viewModel.lastLocation.collectAsState()
     val trackingError by viewModel.trackingError.collectAsState()
 
@@ -913,6 +912,10 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
 
     val formatTime = { seconds: Long ->
         com.calorieko.app.util.DurationFormatter.formatDigital(seconds)
+    }
+    val formatPace = { minutesPerKm: Double ->
+        val totalSeconds = (minutesPerKm * 60.0).roundToInt().coerceAtLeast(0)
+        String.format(Locale.US, "%d:%02d", totalSeconds / 60, totalSeconds % 60)
     }
 
     val hours = movingTimeSeconds / 3600.0
@@ -1519,19 +1522,25 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            val paceDisplay = if (isTracking && !isPaused && !isMoving) {
-                                "-:--"
-                            } else if (currentPace > 0.0 && currentPace <= 999.0) {
-                                val pMin = currentPace.toInt()
-                                val pSec = ((currentPace - pMin) * 60).toInt()
-                                String.format(java.util.Locale.US, "%d:%02d", pMin, pSec)
-                            } else { "-:--" }
+                            val paceMinutesPerKm = when {
+                                currentPace > 0.0 && currentPace <= 999.0 -> currentPace
+                                distanceKm > 0.01 -> {
+                                    val activeSeconds = if (movingTimeSeconds > 0L) movingTimeSeconds else timeSeconds
+                                    if (activeSeconds > 0L) {
+                                        (activeSeconds / 60.0 / distanceKm).coerceAtMost(999.0)
+                                    } else {
+                                        null
+                                    }
+                                }
+                                else -> null
+                            }
+                            val paceDisplay = paceMinutesPerKm?.let(formatPace) ?: "-:--"
                             Text(text = paceDisplay, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                             Text(text = if (isTracking && !isPaused) "Split avg. pace (/km)" else "Avg. pace (/km)", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = String.format(java.util.Locale.US, "%.2f", distanceKm), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                            Text(text = String.format(Locale.US, "%.2f", distanceKm), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                             Text(text = "Distance (km)", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                         }
                     }
