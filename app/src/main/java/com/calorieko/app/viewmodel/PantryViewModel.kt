@@ -58,6 +58,8 @@ data class IngredientInfo(
 data class DishResult(
     val dishLabel: String,
     val dishName: String,
+    val dishNamePh: String = "",
+    val dishNameEn: String = "",
     val ingredients: List<String>,
     val ingredientDetails: List<IngredientInfo> = emptyList(),
     val missingCoreIngredients: List<String>,
@@ -226,6 +228,16 @@ class PantryViewModel(
     // Populated once at init; used by formatIngredientName() for authoritative naming.
     private val _displayNameCache = mutableMapOf<String, String>()
 
+    private data class DishDisplayNames(
+        val namePh: String,
+        val nameEn: String
+    ) {
+        val primaryName: String
+            get() = namePh.ifBlank { nameEn }
+    }
+
+    private val _dishDisplayNameCache = mutableMapOf<String, DishDisplayNames>()
+
     init {
         // Defense-in-depth: ensure reference data is seeded before any queries.
         // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
@@ -251,6 +263,15 @@ class PantryViewModel(
             // Build cache from ALL raw ingredients (including store_bought) for full coverage
             val allRaw = rawIngredientDao.getAllRawIngredients()
             allRaw.forEach { _displayNameCache[it.ingredientKey] = it.displayName }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            dishRecipeDao.getAllDishRecipes().forEach { recipe ->
+                _dishDisplayNameCache[recipe.dishLabel] = DishDisplayNames(
+                    namePh = recipe.namePh,
+                    nameEn = recipe.nameEn
+                )
+            }
         }
 
         // Load user's actual nutritional targets
@@ -460,10 +481,13 @@ class PantryViewModel(
             val resolvedIngredients = allIngredients.map { displayNameMap[it] ?: it }
             val resolvedMissingCore = missingCore.map { displayNameMap[it] ?: it }
             val resolvedMissingOptional = missingOptional.map { displayNameMap[it] ?: it }
+            val dishDisplayNames = getDishDisplayNames(info.dish_label)
 
             val result = DishResult(
                 dishLabel = info.dish_label,
-                dishName = formatDishName(info.dish_label),
+                dishName = dishDisplayNames.primaryName,
+                dishNamePh = dishDisplayNames.namePh,
+                dishNameEn = dishDisplayNames.nameEn,
                 ingredients = resolvedIngredients,
                 ingredientDetails = ingredientInfoList,
                 missingCoreIngredients = resolvedMissingCore,
@@ -861,9 +885,13 @@ class PantryViewModel(
             getDishNutrition(dishLabel)
         }
 
+        val dishDisplayNames = getDishDisplayNames(dishLabel)
+
         return DishResult(
             dishLabel = dishLabel,
-            dishName = formatDishName(dishLabel),
+            dishName = dishDisplayNames.primaryName,
+            dishNamePh = dishDisplayNames.namePh,
+            dishNameEn = dishDisplayNames.nameEn,
             ingredients = finalIngredients,
             ingredientDetails = ingredientInfoList,
             missingCoreIngredients = emptyList(),
@@ -960,6 +988,27 @@ class PantryViewModel(
 
         _dishNutritionCache[dishLabel] = info
         return info
+    }
+
+    private suspend fun getDishDisplayNames(dishLabel: String): DishDisplayNames {
+        _dishDisplayNameCache[dishLabel]?.let { return it }
+
+        val recipe = dishRecipeDao.getByDishLabel(dishLabel)
+        val names = if (recipe != null) {
+            DishDisplayNames(
+                namePh = recipe.namePh,
+                nameEn = recipe.nameEn
+            )
+        } else {
+            val fallback = formatDishName(dishLabel)
+            DishDisplayNames(
+                namePh = fallback,
+                nameEn = ""
+            )
+        }
+
+        _dishDisplayNameCache[dishLabel] = names
+        return names
     }
 
     /**
