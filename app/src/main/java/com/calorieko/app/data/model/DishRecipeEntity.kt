@@ -27,6 +27,9 @@ data class DishRecipeEntity(
     @ColumnInfo(name = "per_serving_weight_g") val perServingWeightG: Float,
     @ColumnInfo(name = "ingredient_count") val ingredientCount: Int,
 
+    // FNRI serving size description (e.g., "1 1/2 cups", "3 matchbox size chicken + 1 cup vegetables")
+    @ColumnInfo(name = "serving_size_description", defaultValue = "") val servingSizeDescription: String = "",
+
     // Pre-computed per-serving nutrients (from assemble_dishes.py)
     @ColumnInfo(name = "cal_per_serving") val calPerServing: Float = 0f,
     @ColumnInfo(name = "protein_per_serving") val proteinPerServing: Float = 0f,

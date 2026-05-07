@@ -116,23 +116,27 @@ DISH_COOKING_METHODS = {
     "lawuy": "simmered",
 }
 
-# ─── Servings per dish ───
+# ─── Servings per dish (from DOST-FNRI Menu Guide PDFs) ───
 DISH_SERVINGS = {
-    # Existing dishes (from original dish_recipes.json)
+    # Complex dishes (FNRI-verified serving counts)
     "kwekwek": 5,
-    "kinilaw_tuna": 6,
-    "tinapa_ginisa": 6,
-    "egg_ampalaya": 6,
+    "kinilaw_tuna": 5,
+    "tinapa_ginisa": 5,
+    "egg_ampalaya": 5,
     "sinigang_pork": 10,
     "menudo": 10,
-    "udong": 6,
-    "sinabawang_bangus": 6,
+    "udong": 5,
+    "sinabawang_bangus": 5,
     "galunggong_grilled": 5,
     "tilapia_fried": 5,
-    "pinakbet": 8,
-    "chopseuy": 8,
-    "chicken_tinola": 8,
-    "sinuglaw_pork": 6,
+    "pinakbet": 5,
+    "chopseuy": 5,
+    "chicken_tinola": 5,
+    "sinuglaw_pork": 5,
+    "linatan": 5,
+    "humba_pork": 5,
+    "lawuy": 5,
+    # Simple/single-serving dishes
     "milkfish_fried": 1,
     "mackerel_fried": 1,
     "rice_well_milled": 1,
@@ -142,13 +146,9 @@ DISH_SERVINGS = {
     "chicken_thigh": 1,
     "chicken_drumstick": 1,
     "chicken_breast": 1,
-    # New dishes
     "galunggong_fried": 1,
     "egg_omelette": 1,
     "egg_scrambled": 1,
-    "linatan": 6,
-    "humba_pork": 6,
-    "lawuy": 6,
 }
 
 

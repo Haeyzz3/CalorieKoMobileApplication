@@ -111,6 +111,7 @@ object FoodJsonParser {
                     cookedWeightG = obj.getDouble("cooked_weight_g").toFloat(),
                     perServingWeightG = obj.getDouble("per_serving_weight_g").toFloat(),
                     ingredientCount = obj.getInt("ingredient_count"),
+                    servingSizeDescription = obj.optString("serving_size_description", ""),
                     calPerServing = perServing.optDouble("calories", 0.0).toFloat(),
                     proteinPerServing = perServing.optDouble("protein", 0.0).toFloat(),
                     carbsPerServing = perServing.optDouble("carbs", 0.0).toFloat(),
