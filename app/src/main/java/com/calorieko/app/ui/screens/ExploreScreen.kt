@@ -625,6 +625,15 @@ private fun ExploreDishDetailContent(
         Spacer(modifier = Modifier.height(20.dp))
 
         // Quick Nutrition Summary
+        Text("Per Serving Nutrition", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+        if (dish.servingSizeDescription.isNotBlank()) {
+            Text(
+                "1 serving \u2248 ${dish.servingSizeDescription}",
+                fontSize = 12.sp,
+                color = Color(0xFF9CA3AF)
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)),

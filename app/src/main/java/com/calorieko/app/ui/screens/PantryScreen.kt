@@ -2058,7 +2058,11 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
             Text("Per Serving Nutrition", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
             Text(
-                if (hasSubstitutions) "Updated with substitutions" else "Values per single serving",
+                when {
+                    hasSubstitutions -> "Updated with substitutions"
+                    recipe.servingSizeDescription.isNotBlank() -> "1 serving \u2248 ${recipe.servingSizeDescription}"
+                    else -> "Values per single serving"
+                },
                 fontSize = 12.sp,
                 color = if (hasSubstitutions) Color(0xFF0284C7) else Color(0xFF9CA3AF)
             )

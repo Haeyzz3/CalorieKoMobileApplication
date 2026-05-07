@@ -82,7 +82,9 @@ data class DishResult(
     val calcium: Float = 0f,
     val iron: Float = 0f,
     // Source attribution
-    val dataSource: String = "USDA_FDC"
+    val dataSource: String = "USDA_FDC",
+    // FNRI serving size description (e.g., "1 1/2 cups")
+    val servingSizeDescription: String = ""
 )
 
 /**
@@ -230,7 +232,8 @@ class PantryViewModel(
 
     private data class DishDisplayNames(
         val namePh: String,
-        val nameEn: String
+        val nameEn: String,
+        val servingSizeDescription: String = ""
     ) {
         val primaryName: String
             get() = namePh.ifBlank { nameEn }
@@ -269,7 +272,8 @@ class PantryViewModel(
             dishRecipeDao.getAllDishRecipes().forEach { recipe ->
                 _dishDisplayNameCache[recipe.dishLabel] = DishDisplayNames(
                     namePh = recipe.namePh,
-                    nameEn = recipe.nameEn
+                    nameEn = recipe.nameEn,
+                    servingSizeDescription = recipe.servingSizeDescription
                 )
             }
         }
@@ -505,7 +509,8 @@ class PantryViewModel(
                 vitaminA = nutrition.vitaminA,
                 vitaminC = nutrition.vitaminC,
                 calcium = nutrition.calcium,
-                iron = nutrition.iron
+                iron = nutrition.iron,
+                servingSizeDescription = dishDisplayNames.servingSizeDescription
             )
 
             if (info.core_matched >= info.core_total) {
@@ -909,7 +914,8 @@ class PantryViewModel(
             vitaminA = nutrition.vitaminA,
             vitaminC = nutrition.vitaminC,
             calcium = nutrition.calcium,
-            iron = nutrition.iron
+            iron = nutrition.iron,
+            servingSizeDescription = dishDisplayNames.servingSizeDescription
         )
     }
 
@@ -997,7 +1003,8 @@ class PantryViewModel(
         val names = if (recipe != null) {
             DishDisplayNames(
                 namePh = recipe.namePh,
-                nameEn = recipe.nameEn
+                nameEn = recipe.nameEn,
+                servingSizeDescription = recipe.servingSizeDescription
             )
         } else {
             val fallback = formatDishName(dishLabel)

@@ -1425,7 +1425,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 150.0,
-    "portion_original": "",
+    "portion_original": "1 pc",
     "preparation_method": "",
     "step": 1
   },
@@ -1435,7 +1435,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 14.0,
-    "portion_original": "",
+    "portion_original": "1 tbsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1445,7 +1445,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
     "raw_weight_grams": 1.0,
-    "portion_original": "",
+    "portion_original": "pinch",
     "preparation_method": "",
     "step": 1
   },
@@ -1455,7 +1455,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 150.0,
-    "portion_original": "",
+    "portion_original": "1 pc",
     "preparation_method": "",
     "step": 1
   },
@@ -1465,7 +1465,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 14.0,
-    "portion_original": "",
+    "portion_original": "1 tbsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1475,7 +1475,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
     "raw_weight_grams": 1.0,
-    "portion_original": "",
+    "portion_original": "pinch",
     "preparation_method": "",
     "step": 1
   },
@@ -1485,7 +1485,7 @@
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 65.0,
-    "portion_original": "",
+    "portion_original": "1/3 cup",
     "preparation_method": "",
     "step": 1
   },
@@ -1495,7 +1495,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 130.0,
-    "portion_original": "",
+    "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
   },
@@ -1505,7 +1505,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 50.0,
-    "portion_original": "",
+    "portion_original": "1 pc",
     "preparation_method": "",
     "step": 1
   },
@@ -1515,7 +1515,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 5.0,
-    "portion_original": "",
+    "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1525,7 +1525,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 50.0,
-    "portion_original": "",
+    "portion_original": "1 pc",
     "preparation_method": "",
     "step": 1
   },
@@ -1535,7 +1535,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 200.0,
-    "portion_original": "",
+    "portion_original": "enough to cover",
     "preparation_method": "",
     "step": 1
   },
@@ -1585,7 +1585,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 160.0,
-    "portion_original": "",
+    "portion_original": "2 pcs",
     "preparation_method": "",
     "step": 1
   },
@@ -1595,7 +1595,7 @@
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 10.0,
-    "portion_original": "",
+    "portion_original": "2 tsps",
     "preparation_method": "",
     "step": 1
   },
@@ -1605,7 +1605,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
     "raw_weight_grams": 1.0,
-    "portion_original": "",
+    "portion_original": "pinch",
     "preparation_method": "",
     "step": 1
   },
@@ -1615,7 +1615,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 50.0,
-    "portion_original": "",
+    "portion_original": "1 pc",
     "preparation_method": "",
     "step": 1
   },
@@ -1625,7 +1625,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 5.0,
-    "portion_original": "",
+    "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1635,7 +1635,7 @@
     "ingredient_type": "core",
     "ingredient_category": "protein",
     "raw_weight_grams": 50.0,
-    "portion_original": "",
+    "portion_original": "1 pc",
     "preparation_method": "",
     "step": 1
   },
@@ -1645,7 +1645,7 @@
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 5.0,
-    "portion_original": "",
+    "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
   },

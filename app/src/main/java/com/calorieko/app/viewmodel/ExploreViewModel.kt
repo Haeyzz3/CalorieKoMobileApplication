@@ -40,7 +40,8 @@ data class ExploreDish(
     val ingredientCount: Int = 0,
     val ingredientNames: List<String> = emptyList(),
     val servings: Int = 1,
-    val perServingWeightG: Float = 0f
+    val perServingWeightG: Float = 0f,
+    val servingSizeDescription: String = ""
 )
 
 /**
@@ -159,7 +160,8 @@ class ExploreViewModel(
                     ingredientCount = resolvedNames.size,
                     ingredientNames = resolvedNames,
                     servings = recipe.servings,
-                    perServingWeightG = recipe.perServingWeightG
+                    perServingWeightG = recipe.perServingWeightG,
+                    servingSizeDescription = recipe.servingSizeDescription
                 )
             }
 
