@@ -1424,7 +1424,7 @@
     "ingredient_key": "bangus_fish",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 150.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1434,7 +1434,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 14.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1444,7 +1444,7 @@
     "ingredient_key": "salt_iodized",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 1.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1454,7 +1454,7 @@
     "ingredient_key": "mackerel_fish",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 150.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1464,7 +1464,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 14.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1474,7 +1474,7 @@
     "ingredient_key": "salt_iodized",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 1.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1484,7 +1484,7 @@
     "ingredient_key": "rice_bigas",
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 65.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1494,7 +1494,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 130.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1504,7 +1504,7 @@
     "ingredient_key": "chicken_egg",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 50.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1514,7 +1514,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 5.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1524,7 +1524,7 @@
     "ingredient_key": "chicken_egg",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 50.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1534,7 +1534,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 200.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1584,7 +1584,7 @@
     "ingredient_key": "galunggong_fish",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 160.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1594,7 +1594,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 10.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1604,7 +1604,7 @@
     "ingredient_key": "salt_iodized",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 1.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1614,7 +1614,7 @@
     "ingredient_key": "chicken_egg",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 50.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1624,7 +1624,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 5.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1634,7 +1634,7 @@
     "ingredient_key": "chicken_egg",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 50.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
@@ -1644,7 +1644,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.0,
+    "raw_weight_grams": 5.0,
     "portion_original": "",
     "preparation_method": "",
     "step": 1
