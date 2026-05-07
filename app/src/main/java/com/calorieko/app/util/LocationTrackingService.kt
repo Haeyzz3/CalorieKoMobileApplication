@@ -388,7 +388,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         val dist = "%.2f km".format(_distanceKm.value)
         currentPaceMinutesPerKm()?.let { _currentPace.value = it }
         val paceStr = formatPace(_currentPace.value)
-        updateNotificationWithStats(foratted, dist, paceStr, isPaused = true)
+        updateNotificationWithStats(formatted, dist, paceStr, isPaused = true)
     }
 
     fun resumeTracking() {
