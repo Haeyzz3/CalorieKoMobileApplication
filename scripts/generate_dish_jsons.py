@@ -420,6 +420,7 @@ def main():
                             yield_factor = 1.0
                         elif "egg" in label:
                             total_weight = 55.0  # 1 egg + oil
+                            yield_factor = 0.92  # Eggs retain most moisture when pan-fried
                         elif "chicken" in label:
                             total_weight = 150.0  # typical portion
                         elif "galunggong" in label or "mackerel" in label or "milkfish" in label:
