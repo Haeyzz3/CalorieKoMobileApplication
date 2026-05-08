@@ -438,7 +438,8 @@ class PantryViewModel(
      */
     private suspend fun recomputeRecipeMatches(pantryItems: List<String>) {
         if (pantryItems.isEmpty()) {
-            _readyToCookDishes.value = emptyList()
+            // Even with an empty pantry, store-bought dishes are always "ready"
+            _readyToCookDishes.value = buildStoreBoughtDishResults()
             _almostReadyDishes.value = emptyList()
             return
         }
@@ -524,7 +525,10 @@ class PantryViewModel(
 
         // Sort by core completion ratio (descending)
         val coreRatio: (DishResult) -> Float = { it.coreMatchedCount.toFloat() / it.coreTotalCount.toFloat() }
-        _readyToCookDishes.value = ready.sortedByDescending(coreRatio)
+        val sortedReady = ready.sortedByDescending(coreRatio)
+
+        // Inject store-bought dishes (0 ingredients) — always "ready" since no cooking needed
+        _readyToCookDishes.value = sortedReady + buildStoreBoughtDishResults()
         _almostReadyDishes.value = almostReady.sortedByDescending(coreRatio)
     }
 
@@ -538,6 +542,42 @@ class PantryViewModel(
         if (keys.isEmpty()) return emptyMap()
         val results = rawIngredientDao.getDisplayNamesForKeys(keys)
         return results.associate { it.ingredient_key to it.display_name }
+    }
+
+    /**
+     * Builds DishResult objects for store-bought dishes (ingredient_count = 0).
+     * These items are always "ready" since they require no cooking/ingredients.
+     */
+    private suspend fun buildStoreBoughtDishResults(): List<DishResult> {
+        return dishRecipeDao.getStoreBoughtDishes().map { recipe ->
+            val dishDisplayNames = getDishDisplayNames(recipe.dishLabel)
+            val nutrition = getDishNutrition(recipe.dishLabel)
+            DishResult(
+                dishLabel = recipe.dishLabel,
+                dishName = dishDisplayNames.primaryName,
+                dishNamePh = dishDisplayNames.namePh,
+                dishNameEn = dishDisplayNames.nameEn,
+                ingredients = emptyList(),
+                ingredientDetails = emptyList(),
+                missingCoreIngredients = emptyList(),
+                missingOptionalIngredients = emptyList(),
+                coreMatchedCount = 0,
+                coreTotalCount = 0,
+                calories = nutrition.calories,
+                protein = nutrition.protein,
+                carbs = nutrition.carbs,
+                fats = nutrition.fats,
+                fiber = nutrition.fiber,
+                sugar = nutrition.sugar,
+                sodium = nutrition.sodium,
+                potassium = nutrition.potassium,
+                vitaminA = nutrition.vitaminA,
+                vitaminC = nutrition.vitaminC,
+                calcium = nutrition.calcium,
+                iron = nutrition.iron,
+                servingSizeDescription = dishDisplayNames.servingSizeDescription
+            )
+        }
     }
 
     /**

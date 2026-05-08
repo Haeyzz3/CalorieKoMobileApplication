@@ -32,6 +32,10 @@ interface DishRecipeDao {
     @Query("SELECT COUNT(*) FROM DISH_RECIPES_TABLE")
     suspend fun getCount(): Int
 
+    /** Returns dishes with no ingredients (store-bought items like Lechon Manok). */
+    @Query("SELECT * FROM DISH_RECIPES_TABLE WHERE ingredient_count = 0 ORDER BY name_en ASC")
+    suspend fun getStoreBoughtDishes(): List<DishRecipeEntity>
+
     /** Clears all rows. Used before re-seeding from JSON. */
     @Query("DELETE FROM DISH_RECIPES_TABLE")
     suspend fun deleteAll()

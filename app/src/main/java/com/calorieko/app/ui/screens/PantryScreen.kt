@@ -749,14 +749,23 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
                 Text("${recipe.sodium}mg Na", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
 
-            // Core ingredient match info
+            // Core ingredient match info (or store-bought label)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
-                fontSize = 11.sp,
-                color = if (isReady) CalorieKoGreen else CalorieKoOrange,
-                fontWeight = FontWeight.Medium
-            )
+            if (recipe.coreTotalCount > 0) {
+                Text(
+                    "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
+                    fontSize = 11.sp,
+                    color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                Text(
+                    "🛒 Store-Bought Item",
+                    fontSize = 11.sp,
+                    color = Color(0xFF0284C7),
+                    fontWeight = FontWeight.Medium
+                )
+            }
 
             if (recipe.missingCoreIngredients.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -1981,6 +1990,11 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         Surface(color = Color(0xFFEDE9FE), shape = RoundedCornerShape(50)) {
                             Text("\uD83D\uDCC5 Planned Dish", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color(0xFF7C3AED), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
+                    } else if (recipe.coreTotalCount == 0) {
+                        // Store-bought item — no ingredients
+                        Surface(color = Color(0xFFF0F9FF), shape = RoundedCornerShape(50)) {
+                            Text("🛒 Store-Bought Item", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color(0xFF0284C7), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     } else {
                         // Core ingredient match info (only relevant when browsing recipes)
                         Text(
@@ -2239,18 +2253,45 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             ingredientHasAlternatives = ingredientHasAlternatives + (key to hasAlts)
         }
 
-        // Ingredients List
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            if (!hasSubstitutions && !isViewOnly) {
-                Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+        // Ingredients List (hidden for store-bought items)
+        if (recipe.coreTotalCount > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                if (!hasSubstitutions && !isViewOnly) {
+                    Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                }
             }
+            Spacer(modifier = Modifier.height(12.dp))
+        } else {
+            // Store-bought info card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🛒", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("Store-Bought Item", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0369A1))
+                        Text(
+                            "This is a pre-cooked item with no recipe. Nutritional values are sourced directly from the USDA.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF0284C7),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
-        Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             recipe.ingredientDetails.forEach { detail ->
                 val isMissingCore = recipe.missingCoreIngredients.contains(detail.name)
