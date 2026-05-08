@@ -62,6 +62,7 @@ object FoodJsonParser {
                     calcium = nutrients.optDouble("calcium", 0.0).toFloat(),
                     iron = nutrients.optDouble("iron", 0.0).toFloat(),
                     isSubstitutable = obj.optBoolean("is_substitutable", true),
+                    nutrientProxyNote = obj.optString("nutrient_proxy_note", ""),
                 )
             )
         }

@@ -46,7 +46,8 @@
         "grams": 50.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "tuna_fish",
@@ -83,7 +84,8 @@
         "grams": 28.4
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "tinapa_fish",
@@ -120,7 +122,8 @@
         "grams": 184.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Atlantic Herring"
   },
   {
     "ingredient_key": "pork_liempo",
@@ -153,7 +156,8 @@
         "grams": 113.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "bangus_fish",
@@ -182,7 +186,8 @@
         "grams": 85.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "galunggong_fish",
@@ -215,7 +220,8 @@
         "grams": 112.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Atlantic Mackerel"
   },
   {
     "ingredient_key": "tilapya_fish",
@@ -244,7 +250,8 @@
         "grams": 116.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "chicken_breast",
@@ -281,7 +288,8 @@
         "grams": 272.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "pork_tenderloin",
@@ -318,7 +326,8 @@
         "grams": 453.6
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "mackerel_fish",
@@ -351,28 +360,29 @@
         "grams": 112.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "onion_red",
     "display_name": "Red Onion",
     "category": "produce",
     "sub_category": "onion",
-    "fdc_id": 170000,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 790577,
+    "data_source": "USDA_FOUNDATION",
     "nutrients_per_100g": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "carbs": 9.34,
+      "calories": 44.0,
+      "protein": 0.94,
+      "carbs": 9.93,
       "fat": 0.1,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "sodium": 4.0,
-      "potassium": 146.0,
-      "vitamin_a": 2.0,
-      "vitamin_c": 7.4,
-      "calcium": 23.0,
-      "iron": 0.21
+      "fiber": 2.2,
+      "sugar": 0.0,
+      "sodium": 1.0,
+      "potassium": 197.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.1,
+      "calcium": 17.0,
+      "iron": 0.24
     },
     "portions": [
       {
@@ -416,28 +426,29 @@
         "grams": 38.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "onion_white",
     "display_name": "White Onion",
     "category": "produce",
     "sub_category": "onion",
-    "fdc_id": 170000,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 1104962,
+    "data_source": "USDA_FOUNDATION",
     "nutrients_per_100g": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "carbs": 9.34,
-      "fat": 0.1,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "sodium": 4.0,
-      "potassium": 146.0,
-      "vitamin_a": 2.0,
-      "vitamin_c": 7.4,
-      "calcium": 23.0,
-      "iron": 0.21
+      "calories": 35.0,
+      "protein": 0.89,
+      "carbs": 7.68,
+      "fat": 0.13,
+      "fiber": 1.2,
+      "sugar": 0.0,
+      "sodium": 2.0,
+      "potassium": 141.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 21.0,
+      "iron": 0.15
     },
     "portions": [
       {
@@ -481,28 +492,29 @@
         "grams": 38.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "onion_bombay",
     "display_name": "Yellow Onion",
     "category": "produce",
     "sub_category": "onion",
-    "fdc_id": 170000,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 790646,
+    "data_source": "USDA_FOUNDATION",
     "nutrients_per_100g": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "carbs": 9.34,
-      "fat": 0.1,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "sodium": 4.0,
-      "potassium": 146.0,
-      "vitamin_a": 2.0,
-      "vitamin_c": 7.4,
-      "calcium": 23.0,
-      "iron": 0.21
+      "calories": 38.0,
+      "protein": 0.83,
+      "carbs": 8.61,
+      "fat": 0.05,
+      "fiber": 1.9,
+      "sugar": 0.0,
+      "sodium": 1.0,
+      "potassium": 182.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.2,
+      "calcium": 15.0,
+      "iron": 0.28
     },
     "portions": [
       {
@@ -546,7 +558,8 @@
         "grams": 38.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "garlic",
@@ -587,7 +600,8 @@
         "grams": 136.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "tomato",
@@ -664,7 +678,8 @@
         "grams": 62.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "ginger",
@@ -701,7 +716,8 @@
         "grams": 2.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "cucumber",
@@ -734,7 +750,8 @@
         "grams": 52.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "lato_seaweed",
@@ -763,7 +780,8 @@
         "grams": 10.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Agar Seaweed"
   },
   {
     "ingredient_key": "guso_seaweed",
@@ -792,7 +810,8 @@
         "grams": 10.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Irish Moss Seaweed"
   },
   {
     "ingredient_key": "ampalaya",
@@ -825,7 +844,8 @@
         "grams": 124.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "malunggay_leaves",
@@ -854,7 +874,8 @@
         "grams": 21.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "gabi",
@@ -883,7 +904,8 @@
         "grams": 104.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "sitaw",
@@ -916,7 +938,8 @@
         "grams": 12.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "kangkong_leaves",
@@ -949,7 +972,8 @@
         "grams": 56.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "upo",
@@ -982,7 +1006,8 @@
         "grams": 58.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "kamote_tops_green",
@@ -1015,7 +1040,8 @@
         "grams": 16.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Sweet Potato Leaves"
   },
   {
     "ingredient_key": "sayote",
@@ -1048,7 +1074,8 @@
         "grams": 203.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "pechay",
@@ -1085,7 +1112,8 @@
         "grams": 70.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "squash",
@@ -1114,7 +1142,8 @@
         "grams": 140.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "okra",
@@ -1147,7 +1176,8 @@
         "grams": 100.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "eggplant",
@@ -1184,7 +1214,8 @@
         "grams": 82.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "cauliflower",
@@ -1229,7 +1260,8 @@
         "grams": 107.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "carrot",
@@ -1290,7 +1322,8 @@
         "grams": 122.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "baguio_beans",
@@ -1323,7 +1356,8 @@
         "grams": 100.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "bell_pepper_red",
@@ -1376,7 +1410,8 @@
         "grams": 74.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "papaya_green",
@@ -1417,7 +1452,8 @@
         "grams": 145.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Ripe Papaya"
   },
   {
     "ingredient_key": "mango_unripe",
@@ -1450,28 +1486,29 @@
         "grams": 165.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Ripe Mango"
   },
   {
     "ingredient_key": "pansit-pansitan",
     "display_name": "Pansit-pansitan",
     "category": "produce",
     "sub_category": "leafy_green",
-    "fdc_id": null,
-    "data_source": "DOST_FNRI_LITERATURE",
+    "fdc_id": 170068,
+    "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 30.0,
-      "protein": 1.8,
-      "carbs": 5.5,
-      "fat": 0.4,
-      "fiber": 1.5,
-      "sugar": 0.0,
-      "sodium": 15.0,
-      "potassium": 350.0,
-      "vitamin_a": 250.0,
-      "vitamin_c": 28.0,
-      "calcium": 184.0,
-      "iron": 5.3
+      "calories": 11.0,
+      "protein": 2.3,
+      "carbs": 1.29,
+      "fat": 0.1,
+      "fiber": 0.5,
+      "sugar": 0.2,
+      "sodium": 41.0,
+      "potassium": 330.0,
+      "vitamin_a": 160.0,
+      "vitamin_c": 43.0,
+      "calcium": 120.0,
+      "iron": 0.2
     },
     "portions": [
       {
@@ -1479,7 +1516,8 @@
         "grams": 45.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values approximated from Watercress"
   },
   {
     "ingredient_key": "radish",
@@ -1528,7 +1566,8 @@
         "grams": 9.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "potato",
@@ -1569,7 +1608,8 @@
         "grams": 213.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "green_peas",
@@ -1598,15 +1638,16 @@
         "grams": 145.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "salt_iodized",
     "display_name": "Iodized Salt",
     "category": "seasoning",
     "sub_category": "salt",
-    "fdc_id": 173468,
-    "data_source": "USDA_SR_LEGACY",
+    "fdc_id": 746775,
+    "data_source": "USDA_FOUNDATION",
     "nutrients_per_100g": {
       "calories": 0.0,
       "protein": 0.0,
@@ -1614,12 +1655,12 @@
       "fat": 0.0,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 38758.0,
-      "potassium": 8.0,
+      "sodium": 38700.0,
+      "potassium": 2.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 24.0,
-      "iron": 0.33
+      "calcium": 50.0,
+      "iron": 0.0
     },
     "portions": [
       {
@@ -1639,7 +1680,8 @@
         "grams": 0.4
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "black_pepper",
@@ -1680,28 +1722,29 @@
         "grams": 2.9
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "vinegar_cane",
     "display_name": "Cane Vinegar",
     "category": "seasoning",
     "sub_category": "acid",
-    "fdc_id": 172237,
+    "fdc_id": 173469,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 18.0,
+      "calories": 21.0,
       "protein": 0.0,
-      "carbs": 0.04,
+      "carbs": 0.93,
       "fat": 0.0,
       "fiber": 0.0,
-      "sugar": 0.04,
-      "sodium": 2.0,
-      "potassium": 2.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 6.0,
-      "iron": 0.03
+      "calcium": 7.0,
+      "iron": 0.2
     },
     "portions": [
       {
@@ -1717,7 +1760,8 @@
         "grams": 238.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": "Nutritional values approximated from Cider Vinegar"
   },
   {
     "ingredient_key": "vinegar_white",
@@ -1754,28 +1798,29 @@
         "grams": 238.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "calamansi_juice",
     "display_name": "Calamansi Juice",
     "category": "seasoning",
     "sub_category": "citrus_juice",
-    "fdc_id": 168156,
+    "fdc_id": 167747,
     "data_source": "USDA_SR_LEGACY",
     "nutrients_per_100g": {
-      "calories": 25.0,
-      "protein": 0.42,
-      "carbs": 8.42,
-      "fat": 0.07,
-      "fiber": 0.4,
-      "sugar": 1.69,
-      "sodium": 2.0,
-      "potassium": 117.0,
-      "vitamin_a": 50.0,
-      "vitamin_c": 30.0,
-      "calcium": 14.0,
-      "iron": 0.09
+      "calories": 22.0,
+      "protein": 0.35,
+      "carbs": 6.9,
+      "fat": 0.24,
+      "fiber": 0.3,
+      "sugar": 2.52,
+      "sodium": 1.0,
+      "potassium": 103.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 38.7,
+      "calcium": 6.0,
+      "iron": 0.08
     },
     "portions": [
       {
@@ -1791,7 +1836,8 @@
         "grams": 44.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": "Nutritional values approximated from Lemon Juice"
   },
   {
     "ingredient_key": "sinigang_mix",
@@ -1820,7 +1866,8 @@
         "grams": 44.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": "Nutritional values from Knorr product label"
   },
   {
     "ingredient_key": "patis",
@@ -1849,7 +1896,8 @@
         "grams": 18.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "alamang_bagoong",
@@ -1873,7 +1921,8 @@
       "iron": 4.8
     },
     "portions": [],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "soy_sauce",
@@ -1914,7 +1963,8 @@
         "grams": 255.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "thyme",
@@ -1955,7 +2005,8 @@
         "grams": 1.4
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "sugar_brown",
@@ -2000,7 +2051,8 @@
         "grams": 3.2
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "sugar_white",
@@ -2041,7 +2093,8 @@
         "grams": 2.8
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "cornstarch",
@@ -2070,7 +2123,8 @@
         "grams": 128.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "all_purpose_flour",
@@ -2099,7 +2153,8 @@
         "grams": 125.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "food_coloring_orange",
@@ -2123,7 +2178,8 @@
       "iron": 0.0
     },
     "portions": [],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "cooking_oil",
@@ -2160,7 +2216,8 @@
         "grams": 218.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "water",
@@ -2184,7 +2241,8 @@
       "iron": 0.0
     },
     "portions": [],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "tomato_sauce",
@@ -2213,7 +2271,8 @@
         "grams": 245.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "raisins",
@@ -2262,7 +2321,8 @@
         "grams": 165.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "odong_noodles",
@@ -2291,7 +2351,8 @@
         "grams": 57.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "sardines_tomato_sauce_canned",
@@ -2328,7 +2389,8 @@
         "grams": 370.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "rice_bigas",
@@ -2357,7 +2419,8 @@
         "grams": 185.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "store_bought_lechon_manok_wing",
@@ -2386,7 +2449,8 @@
         "grams": 56.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "store_bought_lechon_manok_thigh",
@@ -2415,7 +2479,8 @@
         "grams": 84.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "store_bought_lechon_manok_drumstick",
@@ -2444,7 +2509,8 @@
         "grams": 28.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "store_bought_lechon_manok_breast",
@@ -2473,7 +2539,8 @@
         "grams": 28.4
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "olive_oil",
@@ -2510,7 +2577,8 @@
         "grams": 216.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "coconut_oil",
@@ -2547,7 +2615,8 @@
         "grams": 13.6
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "canola_oil",
@@ -2584,7 +2653,8 @@
         "grams": 14.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "chicken_thigh",
@@ -2617,7 +2687,8 @@
         "grams": 149.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "chicken_drumstick",
@@ -2654,7 +2725,8 @@
         "grams": 130.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "pork_shoulder",
@@ -2687,7 +2759,8 @@
         "grams": 113.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "ground_pork",
@@ -2720,7 +2793,8 @@
         "grams": 28.4
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "lemon_juice",
@@ -2761,7 +2835,8 @@
         "grams": 30.5
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "lime_juice",
@@ -2798,7 +2873,8 @@
         "grams": 44.0
       }
     ],
-    "is_substitutable": true
+    "is_substitutable": true,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "oregano_leaves",
@@ -2831,7 +2907,8 @@
         "grams": 1.8
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "tanglad",
@@ -2864,7 +2941,8 @@
         "grams": 4.8
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "spring_onion",
@@ -2909,7 +2987,8 @@
         "grams": 25.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "laurel_leaves",
@@ -2942,7 +3021,8 @@
         "grams": 0.6
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "black_beans",
@@ -2971,7 +3051,8 @@
         "grams": 240.0
       }
     ],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "alugbati",
@@ -2995,7 +3076,8 @@
       "iron": 1.2
     },
     "portions": [],
-    "is_substitutable": false
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "palm_oil",
@@ -3032,7 +3114,8 @@
         "description": "undetermined",
         "grams": 13.6
       }
-    ]
+    ],
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "corn_oil",
@@ -3069,7 +3152,8 @@
         "description": "undetermined",
         "grams": 13.6
       }
-    ]
+    ],
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "kosher_salt",
@@ -3106,7 +3190,8 @@
         "description": "undetermined",
         "grams": 18.0
       }
-    ]
+    ],
+    "nutrient_proxy_note": "Nutritional values based on Table Salt"
   },
   {
     "ingredient_key": "sea_salt",
@@ -3139,29 +3224,30 @@
         "description": "tbsp",
         "grams": 18.0
       }
-    ]
+    ],
+    "nutrient_proxy_note": "Nutritional values based on Table Salt"
   },
   {
     "ingredient_key": "vinegar_coconut",
     "display_name": "Coconut Vinegar (Sukang Tuba)",
     "category": "seasoning",
     "sub_category": "acid",
-    "fdc_id": 172237,
-    "data_source": "USDA_FDC_PROXY",
+    "fdc_id": 173469,
+    "data_source": "USDA_SR_LEGACY",
     "is_substitutable": true,
     "nutrients_per_100g": {
-      "calories": 18.0,
+      "calories": 21.0,
       "protein": 0.0,
-      "carbs": 0.04,
+      "carbs": 0.93,
       "fat": 0.0,
       "fiber": 0.0,
-      "sugar": 0.04,
-      "sodium": 2.0,
-      "potassium": 2.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 6.0,
-      "iron": 0.03
+      "calcium": 7.0,
+      "iron": 0.2
     },
     "portions": [
       {
@@ -3176,7 +3262,8 @@
         "description": "undetermined",
         "grams": 238.0
       }
-    ]
+    ],
+    "nutrient_proxy_note": "Nutritional values approximated from Cider Vinegar"
   },
   {
     "ingredient_key": "vinegar_apple_cider",
@@ -3213,7 +3300,8 @@
         "description": "undetermined",
         "grams": 239.0
       }
-    ]
+    ],
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "shallot",
@@ -3242,7 +3330,8 @@
         "description": "undetermined",
         "grams": 156.0
       }
-    ]
+    ],
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "distilled_water",
@@ -3266,7 +3355,8 @@
       "calcium": 0.0,
       "iron": 0.0
     },
-    "portions": []
+    "portions": [],
+    "nutrient_proxy_note": ""
   },
   {
     "ingredient_key": "mineral_water",
@@ -3290,6 +3380,7 @@
       "calcium": 10.0,
       "iron": 0.0
     },
-    "portions": []
+    "portions": [],
+    "nutrient_proxy_note": ""
   }
 ]

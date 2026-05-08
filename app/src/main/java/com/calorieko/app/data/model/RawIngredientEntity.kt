@@ -37,4 +37,7 @@ data class RawIngredientEntity(
 
     // Substitution control: false = ingredient never appears as a swap candidate
     @ColumnInfo(name = "is_substitutable", defaultValue = "1") val isSubstitutable: Boolean = true,
+
+    // Transparency note for proxy-sourced ingredients (empty = direct USDA match)
+    @ColumnInfo(name = "nutrient_proxy_note", defaultValue = "") val nutrientProxyNote: String = "",
 )

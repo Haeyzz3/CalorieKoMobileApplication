@@ -3646,28 +3646,78 @@ private fun IngredientBrowserRow(
                             }
                         }
 
-                        // Data source badge
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Proxy transparency note (if applicable)
+                        if (ingredient.nutrientProxyNote.isNotBlank()) {
                             Surface(
-                                color = Color(0xFFE8F5E9),
-                                shape = RoundedCornerShape(4.dp)
+                                color = Color(0xFFFFF8E1),
+                                shape = RoundedCornerShape(6.dp)
                             ) {
-                                Text(
-                                    "USDA FDC",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2E7D32),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Info,
+                                        contentDescription = null,
+                                        tint = Color(0xFFF59E0B),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        ingredient.nutrientProxyNote,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF92400E),
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                }
                             }
-                            if (ingredient.fdcId > 0) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    "FDC ID: ${ingredient.fdcId}",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF9CA3AF)
-                                )
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+
+                        // Dynamic data source badge
+                        val badgeText: String
+                        val badgeColor: Color
+                        val badgeTextColor: Color
+                        when {
+                            ingredient.fdcId > 0 -> {
+                                badgeText = "USDA FDC"
+                                badgeColor = Color(0xFFE8F5E9)
+                                badgeTextColor = Color(0xFF2E7D32)
+                            }
+                            ingredient.dataSource == "KNORR_LABEL" -> {
+                                badgeText = "Product Label"
+                                badgeColor = Color(0xFFE3F2FD)
+                                badgeTextColor = Color(0xFF1565C0)
+                            }
+                            else -> {
+                                badgeText = ""
+                                badgeColor = Color.Transparent
+                                badgeTextColor = Color.Transparent
+                            }
+                        }
+
+                        if (badgeText.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    color = badgeColor,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        badgeText,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = badgeTextColor,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                if (ingredient.fdcId > 0) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        "FDC ID: ${ingredient.fdcId}",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                }
                             }
                         }
                     }

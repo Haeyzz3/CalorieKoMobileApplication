@@ -31,9 +31,9 @@ VERIFIED_FDC = {
     "tuna_fish":        (175159, "keep"),
     "chicken_breast":   (171077, "keep"),
     "pork_tenderloin":  (168249, "keep"),
-    "onion_red":        (170000, "keep"),
-    "onion_white":      (170000, "keep"),
-    "onion_bombay":     (170000, "keep"),
+    "onion_red":        (790577,  "keep"),   # Onions, red, raw (Foundation)
+    "onion_white":      (1104962, "keep"),   # Onions, white, raw (Foundation)
+    "onion_bombay":     (790646,  "keep"),   # Onions, yellow, raw (Foundation)
     "garlic":           (169230, "keep"),
     "tomato":           (170457, "keep"),
     "tomato_red":       (170457, "keep"),
@@ -84,10 +84,11 @@ VERIFIED_FDC = {
     "squash":           (169295, "update"),   # Squash, winter, butternut, raw
     "papaya_green":     (169926, "update"),   # Papayas, raw (proxy for green)
     "mango_unripe":     (169910, "update"),   # Mangos, raw (proxy for unripe)
-    "salt_iodized":     (173468, "update"),   # Salt, table
-    "vinegar_cane":     (172237, "update"),   # Vinegar, distilled
+    "salt_iodized":     (746775, "update"),   # Salt, table, iodized (Foundation)
+    "vinegar_cane":     (173469, "update"),   # Vinegar, cider (proxy for cane vinegar)
     "vinegar_white":    (172237, "update"),   # Vinegar, distilled
-    "calamansi_juice":  (168156, "update"),   # Lime juice, raw
+    "vinegar_coconut":  (173469, "update"),   # Vinegar, cider (proxy for coconut vinegar)
+    "calamansi_juice":  (167747, "update"),   # Lemon juice, raw (closer proxy than lime)
     "patis":            (174531, "update"),   # Sauce, fish, ready-to-serve
     "soy_sauce":        (174277, "update"),   # Soy sauce (shoyu)
     "thyme":            (170938, "update"),   # Spices, thyme, dried
@@ -109,7 +110,7 @@ VERIFIED_FDC = {
     # === MANUAL (no API pull) ===
     "food_coloring_orange": (None, "manual"),
     "water":                (None, "manual"),
-    "pansit-pansitan":      (None, "manual"),
+    "pansit-pansitan":      (170068, "update"),  # Watercress, raw (proxy)
     "sinigang_mix":         (None, "manual"),
 }
 
