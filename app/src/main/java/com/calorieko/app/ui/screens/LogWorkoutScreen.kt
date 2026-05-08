@@ -941,9 +941,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                             mapboxMap.loadStyle(style) {
                                 polylineAnnotationManager = annotations.createPolylineAnnotationManager()
                             }
-                            // Enable location puck on the expanded summary map too
+                            // Summary uses the saved route, not Mapbox's raw live puck.
                             location.updateSettings {
-                                enabled = true
+                                enabled = false
                                 pulsingEnabled = true
                                 puckBearingEnabled = false
                             }
@@ -1349,8 +1349,8 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     }
                 },
                 update = { mapView ->
-                    // Disable native puck if we're rendering our custom one to prevent two blue dots
-                    if (displayCurrentPoint != null) {
+                    // During tracking, render only the filtered puck from the service.
+                    if (isTracking || isPaused || displayCurrentPoint != null) {
                         mapView.location.updateSettings { enabled = false }
                     } else {
                         mapView.location.updateSettings { enabled = true }

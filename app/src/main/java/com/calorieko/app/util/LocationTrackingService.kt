@@ -122,8 +122,10 @@ class LocationTrackingService : Service(), SensorEventListener {
 
         /** Require more than one step so small posture shifts do not unlock GPS drift. */
         private const val MIN_STEP_DELTA_FOR_MOVEMENT = 6
+        private const val STEP_MOVEMENT_MAX_AGE_MS = LOCATION_MAX_UPDATE_DELAY_MS + 5000L
         private const val MAX_DISTANCE_PER_STEP_METERS = 2.5f
         private const val STEP_DISTANCE_BUFFER_METERS = 8.0f
+        private const val WARM_UP_DISPLAY_ACCURACY_IMPROVEMENT_METERS = 5f
 
         /** Conservative fallback for devices that do not attach speed to GPS fixes. */
         private const val GPS_ONLY_MIN_ANCHOR_DISTANCE = 12.0f
@@ -215,6 +217,7 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var pausedStepsToSubtract = 0
     private var stepsAtPause = 0
     private var lastRecordedTotalSteps = 0
+    private var lastStepMovementMs = 0L
 
     // ── Wall-Clock Timer Anchors ──
     // Using SystemClock.elapsedRealtime() ensures the timer is immune to
@@ -231,6 +234,7 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var isGpsWarmedUp = false
     private var gpsWarmUpStartMs = 0L
     private val warmUpLocations = mutableListOf<Location>()
+    private var warmUpDisplayLocation: Location? = null
     private val recentPositions = mutableListOf<Location>()
 
     // ── Wall-Clock Timing for Speed Calculations ──
@@ -346,6 +350,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         stepsAtPause = 0
         lastRecordedTotalSteps = 0
         lastAcceptedTotalSteps = 0
+        lastStepMovementMs = 0L
         resetPendingGpsMovement()
 
         // Anchor wall-clock for accurate duration tracking
@@ -357,6 +362,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         isGpsWarmedUp = false
         gpsWarmUpStartMs = System.currentTimeMillis()
         warmUpLocations.clear()
+        warmUpDisplayLocation = null
         recentPositions.clear()
 
         try {
@@ -401,6 +407,11 @@ class LocationTrackingService : Service(), SensorEventListener {
             pausedStepsToSubtract += (lastRecordedTotalSteps - stepsAtPause)
         }
         stepsAtPause = 0
+        if (initialStepCount != -1) {
+            lastAcceptedTotalSteps = lastRecordedTotalSteps
+        }
+        lastStepMovementMs = 0L
+        resetPendingGpsMovement()
         _isPaused.value = false
         lastMovementTimeMs = System.currentTimeMillis()
         updateNotificationWithStats(
@@ -443,9 +454,11 @@ class LocationTrackingService : Service(), SensorEventListener {
         _isMoving.value = false
         isGpsWarmedUp = false
         warmUpLocations.clear()
+        warmUpDisplayLocation = null
         recentPositions.clear()
         lastRawLocation = null
         lastAcceptedTotalSteps = 0
+        lastStepMovementMs = 0L
         resetPendingGpsMovement()
         lastUpdateWallClockMs = 0L
     }
@@ -547,11 +560,18 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     private fun hasEnoughStepMovement(distanceFromAnchor: Float): Boolean {
         if (initialStepCount == -1) return false
+        if (!hasFreshStepMovement()) return false
+
         val stepDelta = lastRecordedTotalSteps - lastAcceptedTotalSteps
         if (stepDelta < MIN_STEP_DELTA_FOR_MOVEMENT) return false
 
         val plausibleDistance = stepDelta * MAX_DISTANCE_PER_STEP_METERS + STEP_DISTANCE_BUFFER_METERS
         return distanceFromAnchor <= plausibleDistance
+    }
+
+    private fun hasFreshStepMovement(): Boolean {
+        if (lastStepMovementMs <= 0L) return false
+        return SystemClock.elapsedRealtime() - lastStepMovementMs <= STEP_MOVEMENT_MAX_AGE_MS
     }
 
     private fun isGpsOnlyMovementAllowed(): Boolean {
@@ -576,6 +596,16 @@ class LocationTrackingService : Service(), SensorEventListener {
             conservativeSpeed >= STATIONARY_SPEED_MPS || location.speed >= FAST_MOVING_SPEED_MPS
         } else {
             true
+        }
+    }
+
+    private fun hasReliableMovementSpeedForMode(location: Location, distanceFromAnchor: Float): Boolean {
+        if (!hasReliableMovementSpeed(location, distanceFromAnchor)) return false
+
+        return when {
+            movementMode == MovementMode.GPS -> true
+            stepSensor == null -> true
+            else -> hasFreshStepMovement()
         }
     }
 
@@ -646,11 +676,19 @@ class LocationTrackingService : Service(), SensorEventListener {
                 warmUpLocations.add(location)
             }
 
-            // Keep the blue dot visible during warm-up by continuously updating
-            // _currentPoint with every reasonably accurate reading.
+            // During warm-up, hold the display dot steady. GPS often jitters while
+            // locking on, so only move the visible point for the first usable fix
+            // or when accuracy improves enough to justify a one-time correction.
             if (location.accuracy < MAP_DISPLAY_ACCURACY) {
-                _currentPoint.value = Pair(location.latitude, location.longitude)
-                lastKnownPoint = _currentPoint.value
+                val currentWarmUpDisplay = warmUpDisplayLocation
+                if (
+                    currentWarmUpDisplay == null ||
+                    location.accuracy + WARM_UP_DISPLAY_ACCURACY_IMPROVEMENT_METERS < currentWarmUpDisplay.accuracy
+                ) {
+                    warmUpDisplayLocation = Location(location)
+                    _currentPoint.value = Pair(location.latitude, location.longitude)
+                    lastKnownPoint = _currentPoint.value
+                }
             }
 
             if (System.currentTimeMillis() - gpsWarmUpStartMs > WARM_UP_DURATION_MS) {
@@ -676,6 +714,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                     lastMovementTimeMs = System.currentTimeMillis()
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
+                    warmUpDisplayLocation = null
                     resetSmoothingTo(bestLocation)
                     resetPendingGpsMovement()
                     Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
@@ -712,7 +751,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             }
             val reportedSpeedMps = if (location.hasSpeed()) location.speed else instantaneousSpeedMps.toFloat()
             val hasStepMovement = hasEnoughStepMovement(distanceFromAnchor)
-            val hasReliableGpsSpeed = hasReliableMovementSpeed(location, distanceFromAnchor)
+            val hasReliableGpsSpeed = hasReliableMovementSpeedForMode(location, distanceFromAnchor)
 
             // ── 1. Teleport Glitch Prevention ──
             // Android can batch GPS callbacks. Accept longer gaps when the elapsed
@@ -751,7 +790,11 @@ class LocationTrackingService : Service(), SensorEventListener {
             }
 
             if (!movementConfirmed) {
-                holdStationary(prevLocation, keepPendingGpsMovement = distanceFromAnchor >= GPS_ONLY_MIN_ANCHOR_DISTANCE)
+                holdStationary(
+                    prevLocation,
+                    keepPendingGpsMovement = isGpsOnlyMovementAllowed() &&
+                        distanceFromAnchor >= GPS_ONLY_MIN_ANCHOR_DISTANCE
+                )
                 lastRawLocation = location
                 return
             }
@@ -1054,11 +1097,14 @@ class LocationTrackingService : Service(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
             val totalSteps = event.values[0].toInt()
+            val previousTotalSteps = lastRecordedTotalSteps
             lastRecordedTotalSteps = totalSteps
             if (initialStepCount == -1) {
                 // If we already accumulated some steps via GPS fallback, subtract them so we don't reset to 0
                 initialStepCount = totalSteps - _steps.value
                 lastAcceptedTotalSteps = totalSteps
+            } else if (_isTracking.value && !_isPaused.value && totalSteps > previousTotalSteps) {
+                lastStepMovementMs = SystemClock.elapsedRealtime()
             }
             if (_isTracking.value && !_isPaused.value) {
                 _steps.value = (totalSteps - initialStepCount - pausedStepsToSubtract).coerceAtLeast(0)
