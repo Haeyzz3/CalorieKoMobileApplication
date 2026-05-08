@@ -1349,8 +1349,9 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                     }
                 },
                 update = { mapView ->
-                    // During tracking, render only the filtered puck from the service.
-                    if (isTracking || isPaused || displayCurrentPoint != null) {
+                    // Keep Mapbox's native puck only until the service has a
+                    // filtered point ready; then avoid double dots/drift.
+                    if (displayCurrentPoint != null && circleManager != null) {
                         mapView.location.updateSettings { enabled = false }
                     } else {
                         mapView.location.updateSettings { enabled = true }
