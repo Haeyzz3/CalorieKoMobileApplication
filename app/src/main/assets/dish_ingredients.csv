@@ -153,10 +153,6 @@ egg_sunny,chicken_egg,core,protein,,,1
 egg_sunny,cooking_oil,optional,pantry_staple,,,1
 egg_boiled,chicken_egg,core,protein,,,1
 egg_boiled,water,optional,pantry_staple,,,1
-chicken_wing,store_bought_lechon_manok_wing,core,protein,,,1
-chicken_thigh,store_bought_lechon_manok_thigh,core,protein,,,1
-chicken_drumstick,store_bought_lechon_manok_drumstick,core,protein,,,1
-chicken_breast,store_bought_lechon_manok_breast,core,protein,,,1
 galunggong_fried,galunggong_fish,core,protein,,,1
 galunggong_fried,cooking_oil,core,pantry_staple,,,1
 galunggong_fried,salt_iodized,optional,seasoning,,,1
