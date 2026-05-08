@@ -912,6 +912,9 @@ fun MealPlanCalendarSection(
     // Check if the entire displayed week is editable (has at least one editable day)
     val hasEditableDay = days.indices.any { viewModel.isDayEditable(it) }
 
+    // Combined recipe list for calendar pickers (recipes + store-bought)
+    val allAvailableRecipes = allRecipes + storeBoughtRecipes
+
     Column(modifier = Modifier.padding(16.dp)) {
         // Section Title
         Text(
@@ -1255,7 +1258,6 @@ fun MealPlanCalendarSection(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Quick Add — only show when the displayed week has editable days
-        val allAvailableRecipes = allRecipes + storeBoughtRecipes
         if (allAvailableRecipes.isNotEmpty() && hasEditableDay) {
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
