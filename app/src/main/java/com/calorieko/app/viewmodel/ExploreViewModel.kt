@@ -86,16 +86,16 @@ class ExploreViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // --- Source filter ---
-    private val _sourceFilter = MutableStateFlow("ALL")
-    val sourceFilter: StateFlow<String> = _sourceFilter.asStateFlow()
+    // --- Category filter ---
+    private val _categoryFilter = MutableStateFlow("ALL")
+    val categoryFilter: StateFlow<String> = _categoryFilter.asStateFlow()
 
     // --- Filtered + grouped dishes (derived state) ---
     val filteredDishes: StateFlow<Map<String, List<ExploreDish>>> = combine(
         _allDishes,
         _searchQuery,
-        _sourceFilter
-    ) { dishes, query, source ->
+        _categoryFilter
+    ) { dishes, query, category ->
         dishes
             .filter { dish ->
                 // Exclude non-food labels
@@ -110,10 +110,10 @@ class ExploreViewModel(
                      dish.ingredientNames.any { it.contains(query, ignoreCase = true) }
             }
             .filter { dish ->
-                // Source filter
-                when (source) {
+                // Category filter
+                when (category) {
                     "ALL" -> true
-                    else -> dish.dataSource == source
+                    else -> dish.category == category
                 }
             }
             .groupBy { it.category }
@@ -176,8 +176,8 @@ class ExploreViewModel(
         _searchQuery.value = query
     }
 
-    fun setSourceFilter(source: String) {
-        _sourceFilter.value = source
+    fun setCategoryFilter(category: String) {
+        _categoryFilter.value = category
     }
 
     /**
@@ -286,11 +286,8 @@ class ExploreViewModel(
      */
     fun getDishProofDocument(mlLabel: String, @Suppress("UNUSED_PARAMETER") dataSource: String): DishProofDocument {
         // Single-ingredient dishes with direct USDA nutrient detail pages
+        // Note: egg dishes removed — they are multi-ingredient recipes, not single-FDC-entry items
         val usdaUrls = mapOf(
-            "egg_sunny" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
-            "egg_boiled" to "https://fdc.nal.usda.gov/food-details/173424/nutrients",
-            "egg_omelette" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
-            "egg_scrambled" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
             "chicken_drumstick" to "https://fdc.nal.usda.gov/food-details/171126/nutrients",
             "chicken_thigh" to "https://fdc.nal.usda.gov/food-details/171127/nutrients",
             "chicken_wing" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
@@ -312,12 +309,15 @@ class ExploreViewModel(
      */
     fun getRecipeSourceDocument(mlLabel: String): DishProofDocument {
         // Dishes with FNRI recipe source PDFs in assets/sources/
+        // mackerel_fried, milkfish_fried, rice_well_milled removed (no applicable FNRI PDF)
+        // linatan, humba_pork, lawuy added (FNRI PDFs placed in assets/sources/)
         val fnriDishes = setOf(
             "chicken_tinola", "chopseuy", "egg_ampalaya",
-            "galunggong_grilled", "kinilaw_tuna", "mackerel_fried",
-            "menudo", "milkfish_fried", "sinabawang_bangus", "pinakbet",
-            "rice_well_milled", "sinigang_pork", "sinuglaw_pork",
-            "tilapia_fried", "tinapa_ginisa", "kwekwek", "udong"
+            "galunggong_grilled", "kinilaw_tuna",
+            "menudo", "sinabawang_bangus", "pinakbet",
+            "sinigang_pork", "sinuglaw_pork",
+            "tilapia_fried", "tinapa_ginisa", "kwekwek", "udong",
+            "linatan", "humba_pork", "lawuy"
         )
 
         return if (mlLabel in fnriDishes) {

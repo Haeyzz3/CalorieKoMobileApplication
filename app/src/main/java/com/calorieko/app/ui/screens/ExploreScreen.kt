@@ -104,12 +104,7 @@ private val CATEGORY_EMOJIS = mapOf(
     "Street Food" to "🍢"
 )
 
-private val SOURCE_BADGE_COLORS = mapOf(
-    "DOST_FNRI_MENU_GUIDE" to Pair(Color(0xFF1565C0), Color(0xFFE3F2FD)),
-    "DOST_FNRI_FCT" to Pair(Color(0xFF6A1B9A), Color(0xFFF3E5F5)),
-    "USDA_FNDDS" to Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9)),
-    "USDA_FDC" to Pair(Color(0xFF2E7D32), Color(0xFFE8F5E9))
-)
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -118,7 +113,7 @@ fun ExploreScreen(
     onBack: () -> Unit
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val sourceFilter by viewModel.sourceFilter.collectAsState()
+    val categoryFilter by viewModel.categoryFilter.collectAsState()
     val filteredDishes by viewModel.filteredDishes.collectAsState()
     val pantryItems by viewModel.pantryItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -218,12 +213,16 @@ fun ExploreScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Source Filter Chips
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SourceFilterChip("ALL", "All Sources", sourceFilter) { viewModel.setSourceFilter(it) }
-                        SourceFilterChip("DOST_FNRI_MENU_GUIDE", "FNRI", sourceFilter) { viewModel.setSourceFilter(it) }
-                        SourceFilterChip("DOST_FNRI_FCT", "FCT", sourceFilter) { viewModel.setSourceFilter(it) }
-                        SourceFilterChip("USDA_FDC", "USDA", sourceFilter) { viewModel.setSourceFilter(it) }
+                    // Category Filter Chips
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            CategoryFilterChip("ALL", "All", "🍽️", categoryFilter) { viewModel.setCategoryFilter(it) }
+                        }
+                        items(CATEGORY_ORDER.size) { index ->
+                            val cat = CATEGORY_ORDER[index]
+                            val emoji = CATEGORY_EMOJIS[cat] ?: "🍽️"
+                            CategoryFilterChip(cat, cat, emoji, categoryFilter) { viewModel.setCategoryFilter(it) }
+                        }
                     }
                 }
             }
@@ -386,12 +385,13 @@ fun ExploreScreen(
     }
 }
 
-// --- Source Filter Chip ---
+// --- Category Filter Chip ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SourceFilterChip(
+private fun CategoryFilterChip(
     value: String,
     label: String,
+    emoji: String,
     currentFilter: String,
     onSelect: (String) -> Unit
 ) {
@@ -399,7 +399,13 @@ private fun SourceFilterChip(
     FilterChip(
         selected = isSelected,
         onClick = { onSelect(value) },
-        label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(emoji, fontSize = 13.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+            }
+        },
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = CalorieKoGreen.copy(alpha = 0.15f),
             selectedLabelColor = CalorieKoGreen,
@@ -436,8 +442,6 @@ private fun ExploreDishCard(
     viewModel: ExploreViewModel,
     onClick: () -> Unit
 ) {
-    val (sourceTextColor, sourceBgColor) = SOURCE_BADGE_COLORS[dish.dataSource]
-        ?: Pair(Color(0xFF374151), Color(0xFFF3F4F6))
     val dietaryBadges = remember(dish) { getDietaryBadges(dish) }
 
     Card(
@@ -449,29 +453,14 @@ private fun ExploreDishCard(
             .clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Top Row: Emoji + Source Badge
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-                modifier = Modifier.fillMaxWidth()
+            // Top Row: Emoji
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = getDishEmoji(dish.dishLabel), fontSize = 24.sp)
-                }
-                Surface(color = sourceBgColor, shape = RoundedCornerShape(4.dp)) {
-                    Text(
-                        viewModel.getSourceBadgeLabel(dish.dataSource),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = sourceTextColor,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
+                Text(text = getDishEmoji(dish.dishLabel), fontSize = 24.sp)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -574,8 +563,9 @@ private fun ExploreDishDetailContent(
         isLoadingDetails = false
     }
 
-    val (sourceTextColor, sourceBgColor) = SOURCE_BADGE_COLORS[dish.dataSource]
-        ?: Pair(Color(0xFF374151), Color(0xFFF3F4F6))
+    // All nutritional data is now USDA — use consistent USDA green
+    val sourceTextColor = Color(0xFF2E7D32)
+    val sourceBgColor = Color(0xFFE8F5E9)
 
     Column(
         modifier = Modifier
@@ -825,6 +815,28 @@ private fun ExploreDishDetailContent(
                                 fontWeight = FontWeight.Bold,
                                 color = sourceTextColor,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // FNRI website link
+                    Surface(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.fnri.dost.gov.ph/index.php/tools-and-standard/fnri-menu-guide-calendar"))
+                            context.startActivity(intent)
+                        },
+                        color = sourceTextColor.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "View on FNRI",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sourceTextColor
                             )
                         }
                     }

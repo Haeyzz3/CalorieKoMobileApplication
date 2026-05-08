@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.Info
@@ -531,7 +532,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                                 color = Color(0xFF1E40AF)
                             )
                             Text(
-                                "Browse 24 supported dishes, view ingredients & sources",
+                                "Browse all supported dishes, view ingredients & sources",
                                 fontSize = 12.sp,
                                 color = Color(0xFF3B82F6),
                                 lineHeight = 16.sp
@@ -2603,6 +2604,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         val proofDoc = remember(recipe.dishLabel, recipe.dataSource) {
             getDishProofDocument(recipe.dishLabel, recipe.dataSource)
         }
+        val recipeSourceDoc = remember(recipe.dishLabel) {
+            getRecipeSourceDocument(recipe.dishLabel)
+        }
 
         Card(
             shape = RoundedCornerShape(12.dp),
@@ -2693,6 +2697,80 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 "Visit Database",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sourceTextColor
+                            )
+                        }
+                    }
+                }
+
+                // ── Recipe Source (FNRI) — shown only for dishes with FNRI PDFs ──
+                if (recipeSourceDoc.type == ProofType.PDF_ASSET) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Divider
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(sourceTextColor.copy(alpha = 0.15f))
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Description,
+                            null,
+                            tint = sourceTextColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Recipe sourced from",
+                                fontSize = 11.sp,
+                                color = sourceTextColor.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                "DOST-FNRI Menu Guide",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = sourceTextColor
+                            )
+                        }
+                        Surface(
+                            onClick = {
+                                openPdfFromAssets(context, recipeSourceDoc.path)
+                            },
+                            color = sourceTextColor.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "View PDF",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = sourceTextColor,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // FNRI website link
+                    Surface(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.fnri.dost.gov.ph/index.php/tools-and-standard/fnri-menu-guide-calendar"))
+                            context.startActivity(intent)
+                        },
+                        color = sourceTextColor.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "View on FNRI",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = sourceTextColor
@@ -3169,12 +3247,12 @@ fun formatNutrientValue(value: Float): String {
 /**
  * Returns a DishProofDocument for a given dish, matching the logic in ExploreViewModel.
  * Used by RecipeDetailContent in PantryScreen.
+ *
+ * Note: egg dishes removed — they are multi-ingredient recipes, not single-FDC-entry items.
+ * All dishes now use USDA_FDC as dataSource.
  */
 private fun getDishProofDocument(mlLabel: String, dataSource: String): DishProofDocument {
     val usdaUrls = mapOf(
-        "egg_sunny" to "https://fdc.nal.usda.gov/food-details/2707158/nutrients",
-        "egg_boiled" to "https://fdc.nal.usda.gov/food-details/173424/nutrients",
-        "egg_fried" to "https://fdc.nal.usda.gov/food-details/2707200/nutrients",
         "chicken_drumstick" to "https://fdc.nal.usda.gov/food-details/171126/nutrients",
         "chicken_thigh" to "https://fdc.nal.usda.gov/food-details/171127/nutrients",
         "chicken_wings" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
@@ -3191,6 +3269,32 @@ private fun getDishProofDocument(mlLabel: String, dataSource: String): DishProof
             DishProofDocument(ProofType.PDF_ASSET, "sources/$mlLabel.pdf")
         }
         else -> DishProofDocument(ProofType.NONE, "")
+    }
+}
+
+/**
+ * Returns the recipe source document for a dish, if available.
+ * Matches the logic in ExploreViewModel.getRecipeSourceDocument().
+ *
+ * These are DOST-FNRI Menu Guide PDFs that document the original
+ * recipe (ingredients, portions, preparation method). Even though
+ * the nutritional values are now computed from USDA data, these PDFs
+ * remain valuable as the provenance for the recipe itself.
+ */
+private fun getRecipeSourceDocument(mlLabel: String): DishProofDocument {
+    val fnriDishes = setOf(
+        "chicken_tinola", "chopseuy", "egg_ampalaya",
+        "galunggong_grilled", "kinilaw_tuna",
+        "menudo", "sinabawang_bangus", "pinakbet",
+        "sinigang_pork", "sinuglaw_pork",
+        "tilapia_fried", "tinapa_ginisa", "kwekwek", "udong",
+        "linatan", "humba_pork", "lawuy"
+    )
+
+    return if (mlLabel in fnriDishes) {
+        DishProofDocument(ProofType.PDF_ASSET, "sources/$mlLabel.pdf")
+    } else {
+        DishProofDocument(ProofType.NONE, "")
     }
 }
 

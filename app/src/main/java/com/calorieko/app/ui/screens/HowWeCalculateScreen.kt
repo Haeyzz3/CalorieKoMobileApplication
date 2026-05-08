@@ -430,7 +430,7 @@ fun HowWeCalculateScreen(
                 subtitle = "Where do the recipes come from?"
             ) {
                 BodyText("The original recipes for 17 dishes are based on the ")
-                BoldBodyText("DOST-FNRI Pinggang Pinoy Menu Guide")
+                BoldBodyText("DOST-FNRI Menu Guide Calendar")
                 BodyText(
                     ", a publication by the Philippine Department of Science and Technology – " +
                     "Food and Nutrition Research Institute. These recipe PDFs document the original " +
