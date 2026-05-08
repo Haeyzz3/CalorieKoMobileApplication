@@ -136,7 +136,7 @@ fun HowWeCalculateScreen(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 BodyText(
-                    "Of the 91 ingredients in our system, the majority are individually mapped " +
+                    "Of the 87 ingredients in our system, the majority are individually mapped " +
                     "to a specific USDA FDC entry by its unique FDC ID. A small number of " +
                     "Filipino-specific ingredients use nutritionally similar USDA entries as " +
                     "proxies, and one commercial product (Sinigang Mix) uses manufacturer " +

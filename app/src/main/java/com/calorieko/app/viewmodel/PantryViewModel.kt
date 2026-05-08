@@ -163,6 +163,10 @@ class PantryViewModel(
     private val _almostReadyDishes = MutableStateFlow<List<DishResult>>(emptyList())
     val almostReadyDishes: StateFlow<List<DishResult>> = _almostReadyDishes.asStateFlow()
 
+    // --- Store-bought dishes (always available, no ingredients needed) ---
+    private val _storeBoughtDishes = MutableStateFlow<List<DishResult>>(emptyList())
+    val storeBoughtDishes: StateFlow<List<DishResult>> = _storeBoughtDishes.asStateFlow()
+
     // --- Meal Plan ---
     private val _currentWeekStart = MutableStateFlow(getWeekStartDate())
     val currentWeekStart: StateFlow<String> = _currentWeekStart.asStateFlow()
@@ -437,6 +441,9 @@ class PantryViewModel(
      * Sorting: by core_matched / core_total ratio (descending)
      */
     private suspend fun recomputeRecipeMatches(pantryItems: List<String>) {
+        // Store-bought dishes are always available regardless of pantry state
+        _storeBoughtDishes.value = buildStoreBoughtDishResults()
+
         if (pantryItems.isEmpty()) {
             _readyToCookDishes.value = emptyList()
             _almostReadyDishes.value = emptyList()
@@ -524,7 +531,9 @@ class PantryViewModel(
 
         // Sort by core completion ratio (descending)
         val coreRatio: (DishResult) -> Float = { it.coreMatchedCount.toFloat() / it.coreTotalCount.toFloat() }
-        _readyToCookDishes.value = ready.sortedByDescending(coreRatio)
+        val sortedReady = ready.sortedByDescending(coreRatio)
+
+        _readyToCookDishes.value = sortedReady
         _almostReadyDishes.value = almostReady.sortedByDescending(coreRatio)
     }
 
@@ -538,6 +547,42 @@ class PantryViewModel(
         if (keys.isEmpty()) return emptyMap()
         val results = rawIngredientDao.getDisplayNamesForKeys(keys)
         return results.associate { it.ingredient_key to it.display_name }
+    }
+
+    /**
+     * Builds DishResult objects for store-bought dishes (ingredient_count = 0).
+     * These items are always "ready" since they require no cooking/ingredients.
+     */
+    private suspend fun buildStoreBoughtDishResults(): List<DishResult> {
+        return dishRecipeDao.getStoreBoughtDishes().map { recipe ->
+            val dishDisplayNames = getDishDisplayNames(recipe.dishLabel)
+            val nutrition = getDishNutrition(recipe.dishLabel)
+            DishResult(
+                dishLabel = recipe.dishLabel,
+                dishName = dishDisplayNames.primaryName,
+                dishNamePh = dishDisplayNames.namePh,
+                dishNameEn = dishDisplayNames.nameEn,
+                ingredients = emptyList(),
+                ingredientDetails = emptyList(),
+                missingCoreIngredients = emptyList(),
+                missingOptionalIngredients = emptyList(),
+                coreMatchedCount = 0,
+                coreTotalCount = 0,
+                calories = nutrition.calories,
+                protein = nutrition.protein,
+                carbs = nutrition.carbs,
+                fats = nutrition.fats,
+                fiber = nutrition.fiber,
+                sugar = nutrition.sugar,
+                sodium = nutrition.sodium,
+                potassium = nutrition.potassium,
+                vitaminA = nutrition.vitaminA,
+                vitaminC = nutrition.vitaminC,
+                calcium = nutrition.calcium,
+                iron = nutrition.iron,
+                servingSizeDescription = dishDisplayNames.servingSizeDescription
+            )
+        }
     }
 
     /**
@@ -834,7 +879,38 @@ class PantryViewModel(
         substitutionsJson: String = ""
     ): DishResult? {
         val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
-        if (allIngredients.isEmpty()) return null
+
+        // For dishes with no ingredients (store-bought), build from DISH_RECIPES_TABLE directly
+        if (allIngredients.isEmpty()) {
+            val recipe = dishRecipeDao.getByDishLabel(dishLabel) ?: return null
+            val dishDisplayNames = getDishDisplayNames(dishLabel)
+            val nutrition = getDishNutrition(dishLabel)
+            return DishResult(
+                dishLabel = dishLabel,
+                dishName = dishDisplayNames.primaryName,
+                dishNamePh = dishDisplayNames.namePh,
+                dishNameEn = dishDisplayNames.nameEn,
+                ingredients = emptyList(),
+                ingredientDetails = emptyList(),
+                missingCoreIngredients = emptyList(),
+                missingOptionalIngredients = emptyList(),
+                coreMatchedCount = 0,
+                coreTotalCount = recipe.ingredientCount,
+                calories = nutrition.calories,
+                protein = nutrition.protein,
+                carbs = nutrition.carbs,
+                fats = nutrition.fats,
+                fiber = nutrition.fiber,
+                sugar = nutrition.sugar,
+                sodium = nutrition.sodium,
+                potassium = nutrition.potassium,
+                vitaminA = nutrition.vitaminA,
+                vitaminC = nutrition.vitaminC,
+                calcium = nutrition.calcium,
+                iron = nutrition.iron,
+                servingSizeDescription = dishDisplayNames.servingSizeDescription
+            )
+        }
 
         val details = pantryDao.getIngredientDetailsForDish(dishLabel)
         val subs = parseSubstitutionsJson(substitutionsJson)
@@ -892,6 +968,10 @@ class PantryViewModel(
 
         val dishDisplayNames = getDishDisplayNames(dishLabel)
 
+        // Get actual ingredient count from recipe entity for accurate UI rendering
+        val recipeEntity = dishRecipeDao.getByDishLabel(dishLabel)
+        val actualIngredientCount = recipeEntity?.ingredientCount ?: details.size
+
         return DishResult(
             dishLabel = dishLabel,
             dishName = dishDisplayNames.primaryName,
@@ -901,8 +981,8 @@ class PantryViewModel(
             ingredientDetails = ingredientInfoList,
             missingCoreIngredients = emptyList(),
             missingOptionalIngredients = emptyList(),
-            coreMatchedCount = 0,
-            coreTotalCount = 0,
+            coreMatchedCount = actualIngredientCount,
+            coreTotalCount = actualIngredientCount,
             calories = nutrition.calories,
             protein = nutrition.protein,
             carbs = nutrition.carbs,

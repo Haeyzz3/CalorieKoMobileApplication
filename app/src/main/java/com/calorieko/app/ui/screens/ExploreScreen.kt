@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -834,17 +835,45 @@ private fun ExploreDishDetailContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Ingredients List
-        Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+        if (dish.ingredientCount > 0) {
+            Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+        }
         if (isLoadingDetails) {
             Text("Loading ingredients...", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
         } else if (ingredientDetails.isEmpty()) {
-            Text(
-                "No ingredient data available for this dish.",
-                fontSize = 13.sp,
-                color = Color.Gray,
-                fontStyle = FontStyle.Italic,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            // Store-bought dishes have no recipe — show contextual message
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.ShoppingCart,
+                        contentDescription = null,
+                        tint = Color(0xFF0284C7),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            "Store-Bought Item",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF0369A1)
+                        )
+                        Text(
+                            "This is a pre-cooked item with no recipe. Nutritional values are sourced directly from the USDA for this product.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF0284C7),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
         } else {
             Spacer(modifier = Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

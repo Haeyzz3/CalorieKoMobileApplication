@@ -1540,46 +1540,6 @@
     "step": 1
   },
   {
-    "dish_label": "chicken_wing",
-    "ingredient_key": "store_bought_lechon_manok_wing",
-    "ingredient_type": "core",
-    "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
-    "portion_original": "",
-    "preparation_method": "",
-    "step": 1
-  },
-  {
-    "dish_label": "chicken_thigh",
-    "ingredient_key": "store_bought_lechon_manok_thigh",
-    "ingredient_type": "core",
-    "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
-    "portion_original": "",
-    "preparation_method": "",
-    "step": 1
-  },
-  {
-    "dish_label": "chicken_drumstick",
-    "ingredient_key": "store_bought_lechon_manok_drumstick",
-    "ingredient_type": "core",
-    "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
-    "portion_original": "",
-    "preparation_method": "",
-    "step": 1
-  },
-  {
-    "dish_label": "chicken_breast",
-    "ingredient_key": "store_bought_lechon_manok_breast",
-    "ingredient_type": "core",
-    "ingredient_category": "protein",
-    "raw_weight_grams": 0.0,
-    "portion_original": "",
-    "preparation_method": "",
-    "step": 1
-  },
-  {
     "dish_label": "galunggong_fried",
     "ingredient_key": "galunggong_fish",
     "ingredient_type": "core",

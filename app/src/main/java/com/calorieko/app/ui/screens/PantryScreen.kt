@@ -138,6 +138,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     val pantryIngredients by viewModel.pantryItems.collectAsState()
     val readyRecipes by viewModel.readyToCookDishes.collectAsState()
     val almostReadyRecipes by viewModel.almostReadyDishes.collectAsState()
+    val storeBoughtRecipes by viewModel.storeBoughtDishes.collectAsState()
     val autocompleteSuggestions by viewModel.autocompleteSuggestions.collectAsState()
     val plannedMeals by viewModel.plannedMeals.collectAsState()
     val weeklyCalories by viewModel.weeklyCalories.collectAsState()
@@ -562,7 +563,12 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                         RecipeRow("Almost Ready", almostReadyRecipes, CalorieKoOrange) { selectedRecipe.value = it }
                     }
 
-                    if (readyRecipes.isEmpty() && almostReadyRecipes.isEmpty()) {
+                    if (storeBoughtRecipes.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        RecipeRow("Store-Bought Items", storeBoughtRecipes, Color(0xFF0284C7)) { selectedRecipe.value = it }
+                    }
+
+                    if (readyRecipes.isEmpty() && almostReadyRecipes.isEmpty() && storeBoughtRecipes.isEmpty()) {
                         EmptyStateCard()
                     }
                 }
@@ -575,7 +581,8 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                     plannedMeals = plannedMeals,
                     weeklyCalories = weeklyCalories,
                     avgDailySodium = avgDailySodium,
-                    allRecipes = readyRecipes + almostReadyRecipes
+                    allRecipes = readyRecipes + almostReadyRecipes,
+                    storeBoughtRecipes = storeBoughtRecipes
                 )
             }
         }
@@ -749,14 +756,23 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
                 Text("${recipe.sodium}mg Na", fontSize = 12.sp, color = Color(0xFF9CA3AF))
             }
 
-            // Core ingredient match info
+            // Core ingredient match info (or store-bought label)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
-                fontSize = 11.sp,
-                color = if (isReady) CalorieKoGreen else CalorieKoOrange,
-                fontWeight = FontWeight.Medium
-            )
+            if (recipe.coreTotalCount > 0) {
+                Text(
+                    "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
+                    fontSize = 11.sp,
+                    color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                Text(
+                    "🛒 Store-Bought Item",
+                    fontSize = 11.sp,
+                    color = Color(0xFF0284C7),
+                    fontWeight = FontWeight.Medium
+                )
+            }
 
             if (recipe.missingCoreIngredients.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -813,7 +829,8 @@ fun MealPlanCalendarSection(
     plannedMeals: List<PlannedMealEntity>,
     weeklyCalories: Int,
     avgDailySodium: Int,
-    allRecipes: List<DishResult>
+    allRecipes: List<DishResult>,
+    storeBoughtRecipes: List<DishResult> = emptyList()
 ) {
     // --- Dialog states ---
     val showAddDialog = remember { mutableStateOf(false) }
@@ -894,6 +911,9 @@ fun MealPlanCalendarSection(
 
     // Check if the entire displayed week is editable (has at least one editable day)
     val hasEditableDay = days.indices.any { viewModel.isDayEditable(it) }
+
+    // Combined recipe list for calendar pickers (recipes + store-bought)
+    val allAvailableRecipes = allRecipes + storeBoughtRecipes
 
     Column(modifier = Modifier.padding(16.dp)) {
         // Section Title
@@ -1238,13 +1258,14 @@ fun MealPlanCalendarSection(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Quick Add — only show when the displayed week has editable days
-        if (allRecipes.isNotEmpty() && hasEditableDay) {
+        if (allAvailableRecipes.isNotEmpty() && hasEditableDay) {
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Quick Add to Calendar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
                     Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(allRecipes.take(5)) { recipe ->
+                        items(allAvailableRecipes.take(5)) { recipe ->
+                            val isStoreBought = recipe.coreTotalCount == 0
                             SuggestionChip(
                                 onClick = {
                                     recipeToAdd.value = recipe
@@ -1252,10 +1273,18 @@ fun MealPlanCalendarSection(
                                 },
                                 label = { Text("${getDishEmoji(recipe.dishLabel)} ${recipe.inlineDishName()}") },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = if (recipe.missingCoreIngredients.isEmpty()) Color(0xFFECFDF5) else Color(0xFFFFEDD5),
+                                    containerColor = when {
+                                        isStoreBought -> Color(0xFFF0F9FF)
+                                        recipe.missingCoreIngredients.isEmpty() -> Color(0xFFECFDF5)
+                                        else -> Color(0xFFFFEDD5)
+                                    },
                                     labelColor = Color(0xFF1F2937)
                                 ),
-                                border = BorderStroke(1.dp, if (recipe.missingCoreIngredients.isEmpty()) CalorieKoGreen else CalorieKoOrange)
+                                border = BorderStroke(1.dp, when {
+                                    isStoreBought -> Color(0xFF0284C7)
+                                    recipe.missingCoreIngredients.isEmpty() -> CalorieKoGreen
+                                    else -> CalorieKoOrange
+                                })
                             )
                         }
                     }
@@ -1458,7 +1487,7 @@ fun MealPlanCalendarSection(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Add Dish button (only when editable)
-                    if (allRecipes.isNotEmpty() && isEditable) {
+                    if (allAvailableRecipes.isNotEmpty() && isEditable) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1544,7 +1573,7 @@ fun MealPlanCalendarSection(
     // ================================================================
     // "Add Dish to this slot" — recipe picker (from Meal Detail Dialog)
     // ================================================================
-    if (showAddDishToSlot.value && allRecipes.isNotEmpty()) {
+    if (showAddDishToSlot.value && allAvailableRecipes.isNotEmpty()) {
         val dayIdx = detailDayIndex.intValue
         val slot = detailSlot.value
         val existingDishLabels = plannedMeals
@@ -1556,7 +1585,7 @@ fun MealPlanCalendarSection(
             title = { Text("Add Dish to ${days[dayIdx].first} ${days[dayIdx].second} $slot") },
             text = {
                 Column(modifier = Modifier.heightIn(max = 300.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                    allRecipes.forEach { recipe ->
+                    allAvailableRecipes.forEach { recipe ->
                         val alreadyAdded = recipe.dishLabel in existingDishLabels
                         Surface(
                             modifier = Modifier
@@ -1981,6 +2010,11 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         Surface(color = Color(0xFFEDE9FE), shape = RoundedCornerShape(50)) {
                             Text("\uD83D\uDCC5 Planned Dish", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color(0xFF7C3AED), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
+                    } else if (recipe.coreTotalCount == 0) {
+                        // Store-bought item — no ingredients
+                        Surface(color = Color(0xFFF0F9FF), shape = RoundedCornerShape(50)) {
+                            Text("🛒 Store-Bought Item", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color(0xFF0284C7), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     } else {
                         // Core ingredient match info (only relevant when browsing recipes)
                         Text(
@@ -2239,18 +2273,45 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             ingredientHasAlternatives = ingredientHasAlternatives + (key to hasAlts)
         }
 
-        // Ingredients List
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            if (!hasSubstitutions && !isViewOnly) {
-                Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+        // Ingredients List (hidden for store-bought items)
+        if (recipe.coreTotalCount > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                if (!hasSubstitutions && !isViewOnly) {
+                    Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                }
             }
+            Spacer(modifier = Modifier.height(12.dp))
+        } else {
+            // Store-bought info card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🛒", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("Store-Bought Item", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0369A1))
+                        Text(
+                            "This is a pre-cooked item with no recipe. Nutritional values are sourced directly from the USDA.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF0284C7),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
-        Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             recipe.ingredientDetails.forEach { detail ->
                 val isMissingCore = recipe.missingCoreIngredients.contains(detail.name)
