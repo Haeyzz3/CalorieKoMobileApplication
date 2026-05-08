@@ -126,7 +126,7 @@ fun HowWeCalculateScreen(
                 initiallyExpanded = true
             ) {
                 BodyText(
-                    "All nutritional values in CalorieKo are sourced from the "
+                    "The primary source of nutritional data in CalorieKo is the "
                 )
                 BoldBodyText("USDA FoodData Central (FDC)")
                 BodyText(
@@ -136,9 +136,79 @@ fun HowWeCalculateScreen(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 BodyText(
-                    "Each of the 88 ingredients in our system is individually mapped to a " +
-                    "specific USDA FDC entry by its unique FDC ID, ensuring full traceability " +
-                    "back to the original laboratory-analyzed data."
+                    "Of the 91 ingredients in our system, the majority are individually mapped " +
+                    "to a specific USDA FDC entry by its unique FDC ID. A small number of " +
+                    "Filipino-specific ingredients use nutritionally similar USDA entries as " +
+                    "proxies, and one commercial product (Sinigang Mix) uses manufacturer " +
+                    "label data. See \"Ingredient Data Transparency\" below for full details."
+                )
+            }
+
+            // ── Section: Ingredient Data Transparency ──
+            ExpandableSection(
+                icon = Icons.Default.Info,
+                iconColor = Color(0xFFF59E0B),
+                title = "Ingredient Data Transparency",
+                subtitle = "How do we handle Filipino-specific ingredients?"
+            ) {
+                BoldBodyText("Proxy Ingredients")
+                Spacer(modifier = Modifier.height(6.dp))
+                BodyText(
+                    "Some Filipino ingredients \u2014 such as calamansi, galunggong (round scad), " +
+                    "and pansit-pansitan \u2014 do not have entries in the USDA database. For these, " +
+                    "we use the closest nutritionally similar ingredient available:"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BulletPoint(
+                    title = "Calamansi",
+                    body = "Approximated from Lemon Juice"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Galunggong",
+                    body = "Approximated from Atlantic Mackerel"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Pansit-pansitan",
+                    body = "Approximated from Watercress"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Cane & Coconut Vinegar",
+                    body = "Approximated from Cider Vinegar"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Tinapa",
+                    body = "Approximated from Atlantic Herring"
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BulletPoint(
+                    title = "Lato & Guso Seaweed",
+                    body = "Approximated from Agar and Irish Moss Seaweed respectively"
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                BodyText(
+                    "Proxies are selected based on the closest available nutritional profile. " +
+                    "While not exact, they provide scientifically reasonable approximations."
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                BoldBodyText("Commercial Products")
+                Spacer(modifier = Modifier.height(6.dp))
+                BodyText(
+                    "One ingredient \u2014 Sinigang Mix (Knorr) \u2014 uses nutritional values taken " +
+                    "directly from the manufacturer\u2019s product label, as no equivalent USDA entry exists."
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                BoldBodyText("How to Identify Proxies")
+                Spacer(modifier = Modifier.height(6.dp))
+                BodyText(
+                    "In the Ingredient Browser (Pantry \u2192 Browse All Ingredients), tap any " +
+                    "ingredient to expand its nutritional detail. Proxy ingredients display " +
+                    "an amber note indicating the source of their data."
                 )
             }
 
@@ -333,8 +403,10 @@ fun HowWeCalculateScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 BulletPoint(
                     title = "Ingredient differences",
-                    body = "Filipino produce varieties may differ slightly from the USDA reference " +
-                           "values, which are based on US market samples."
+                    body = "Filipino produce varieties may differ from the USDA reference " +
+                           "values, which are based on US market samples. Additionally, some " +
+                           "Filipino-specific ingredients have no USDA entry and use nutritionally " +
+                           "similar proxies (see \"Ingredient Data Transparency\" above)."
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 BulletPoint(
@@ -413,7 +485,7 @@ fun HowWeCalculateScreen(
                             color = Color(0xFF6B7280)
                         )
                         Text(
-                            text = "The authoritative source for all ingredient nutritional data used in this app.",
+                            text = "The primary source for ingredient nutritional data used in this app.",
                             fontSize = 12.sp,
                             color = Color(0xFF9CA3AF),
                             lineHeight = 16.sp,
