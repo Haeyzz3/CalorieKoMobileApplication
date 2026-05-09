@@ -613,10 +613,16 @@ fun AppNavigation() {
                 firestoreSyncRepo = firestoreSyncRepo,
                 appContext = context.applicationContext
             )
+            val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                activityLogDao = db.activityLogDao(),
+                userDao = db.userDao(),
+                appContext = context.applicationContext
+            )
             val profileViewModel: com.calorieko.app.viewmodel.ProfileViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ProfileViewModel.provideFactory(
                     auth = auth,
                     userRepository = userRepo,
+                    activityRepository = activityRepo,
                     mealLogDao = db.mealLogDao(),
                     activityLogDao = db.activityLogDao()
                 )

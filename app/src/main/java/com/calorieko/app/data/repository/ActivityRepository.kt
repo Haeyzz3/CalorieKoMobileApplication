@@ -70,6 +70,16 @@ class ActivityRepository(
 
     // ── User Data Lookups ──
 
+    /** Fetch the cumulative number of logged workouts for profile milestones. */
+    suspend fun getTotalWorkoutsCount(uid: String): Int {
+        return activityLogDao.getTotalWorkoutsCount(uid)
+    }
+
+    /** Fetch activity timestamps for streak calculation without loading full rows. */
+    suspend fun getLogTimestampsForUser(uid: String): List<Long> {
+        return activityLogDao.getLogTimestampsForUser(uid)
+    }
+
     /** Fetch the user's weight for MET calorie calculations. */
     suspend fun getUserWeight(uid: String): Double {
         return userDao.getUser(uid)?.weight ?: 70.0

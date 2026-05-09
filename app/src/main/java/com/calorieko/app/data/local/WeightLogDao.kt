@@ -37,7 +37,7 @@ interface WeightLogDao {
     )
     suspend fun getLatestOnOrBefore(uid: String, epochDay: Long): WeightLogEntity?
 
-    @Query("SELECT * FROM weight_log_table WHERE uid = :uid ORDER BY date_epoch_day ASC")
+    @Query("SELECT * FROM weight_log_table WHERE uid = :uid ORDER BY date_epoch_day ASC, timestamp ASC")
     suspend fun getAllWeightLogsForUser(uid: String): List<WeightLogEntity>
 
     @Query(

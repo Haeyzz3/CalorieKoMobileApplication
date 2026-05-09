@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,7 +69,7 @@ import kotlin.math.roundToInt
 private data class DayCalorieData(val dayLabel: String, val intake: Int, val burned: Int)
 private data class DaySodiumData(val dayLabel: String, val sodium: Int)
 private data class DayStepsData(val dayLabel: String, val steps: Int)
-private data class DayWeightData(val dayLabel: String, val weight: Double)
+private data class DayWeightData(val dayLabel: String, val weight: Double, val epochDay: Long)
 private data class TopFoodItem(val name: String, val frequency: Int, val avgCalories: Int, val avgSodium: Int)
 
 /**
@@ -254,76 +255,41 @@ private fun buildWeightChartData(
     userWeight: Double,
     viewMode: String
 ): List<DayWeightData> {
-    val sortedLogs = weightLogs.sortedBy { it.dateEpochDay }
-    if (sortedLogs.isEmpty()) {
-        val today = Calendar.getInstance()
-        return listOf(
-            DayWeightData(
-                "${today.get(Calendar.MONTH) + 1}/${today.get(Calendar.DAY_OF_MONTH)}",
-                userWeight
+    val today = java.time.LocalDate.now()
+    val endEpochDay = today.toEpochDay()
+    val startEpochDay = selectedRangeStartEpochDay(viewMode)
+    val sortedLogs = weightLogs
+        .filter { it.weightKg > 0.0 && it.dateEpochDay <= endEpochDay }
+        .groupBy { it.dateEpochDay }
+        .map { (_, logs) -> logs.maxBy { it.timestamp } }
+        .sortedBy { it.dateEpochDay }
+
+    val rangeLogs = sortedLogs.filter { it.dateEpochDay in startEpochDay..endEpochDay }
+    val baseline = sortedLogs.lastOrNull { it.dateEpochDay < startEpochDay }
+    val points = when {
+        rangeLogs.isNotEmpty() -> (listOfNotNull(baseline) + rangeLogs)
+            .distinctBy { it.dateEpochDay }
+            .sortedBy { it.dateEpochDay }
+        sortedLogs.isNotEmpty() -> listOf(sortedLogs.last())
+        else -> listOf(
+            WeightLogEntity(
+                uid = "",
+                dateEpochDay = endEpochDay,
+                weightKg = userWeight,
+                timestamp = System.currentTimeMillis(),
+                updatedAt = 0L,
+                syncStatus = 1
             )
         )
     }
 
-    var logIndex = 0
-    var carriedWeight: Double? = null
-
-    fun weightAt(epochDay: Long): Double? {
-        while (logIndex < sortedLogs.size && sortedLogs[logIndex].dateEpochDay <= epochDay) {
-            carriedWeight = sortedLogs[logIndex].weightKg
-            logIndex++
-        }
-        return carriedWeight
-    }
-
-    val targetDays: List<Pair<Long, String>> = when (viewMode) {
-        "7_days" -> (6 downTo 0).map { daysAgo ->
-            val cal = Calendar.getInstance()
-            cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
-            val epochDay = java.time.LocalDate.of(
-                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
-            ).toEpochDay()
-            epochDay to "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        }
-        "30_days" -> (3 downTo 0).map { weeksAgo ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-            val endCal = cal.clone() as Calendar
-            endCal.add(Calendar.DAY_OF_YEAR, 6)
-            val today = Calendar.getInstance()
-            if (endCal.after(today)) endCal.timeInMillis = today.timeInMillis
-            val epochDay = java.time.LocalDate.of(
-                endCal.get(Calendar.YEAR), endCal.get(Calendar.MONTH) + 1, endCal.get(Calendar.DAY_OF_MONTH)
-            ).toEpochDay()
-            epochDay to label
-        }
-        "90_days" -> (2 downTo 0).map { monthsAgo ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.DAY_OF_MONTH, 1)
-            cal.add(Calendar.MONTH, -monthsAgo)
-            val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(cal.timeInMillis))
-            val endCal = cal.clone() as Calendar
-            endCal.add(Calendar.MONTH, 1)
-            endCal.add(Calendar.DAY_OF_YEAR, -1)
-            val today = Calendar.getInstance()
-            if (endCal.after(today)) endCal.timeInMillis = today.timeInMillis
-            val epochDay = java.time.LocalDate.of(
-                endCal.get(Calendar.YEAR), endCal.get(Calendar.MONTH) + 1, endCal.get(Calendar.DAY_OF_MONTH)
-            ).toEpochDay()
-            epochDay to label
-        }
-        else -> emptyList()
-    }
-
-    return targetDays.mapNotNull { (epochDay, label) ->
-        weightAt(epochDay)?.let { DayWeightData(label, it) }
-    }.ifEmpty {
-        sortedLogs.takeLast(1).map { log ->
-            val date = java.time.LocalDate.ofEpochDay(log.dateEpochDay)
-            DayWeightData("${date.monthValue}/${date.dayOfMonth}", log.weightKg)
-        }
+    return points.map { log ->
+        val date = java.time.LocalDate.ofEpochDay(log.dateEpochDay)
+        DayWeightData(
+            dayLabel = "${date.monthValue}/${date.dayOfMonth}",
+            weight = log.weightKg,
+            epochDay = log.dateEpochDay
+        )
     }
 }
 
@@ -832,6 +798,8 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
         "90_days" -> "Monthly Net Average"
         else -> "Daily Net Average"
     }
+    val intakeColor = RingEaten
+    val burnedColor = RingBurned
 
     // Animate bars growing up
     val animProgress = remember { Animatable(0f) }
@@ -929,11 +897,11 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
                 data.forEachIndexed { index, day ->
                     val cx = leftPad + barGroupW * (index + 0.5f)
                     val intakeH = (day.intake.toFloat() / yMax) * drawH * progress
-                    if (intakeH > 0) drawRoundRect(RingEaten,
+                    if (intakeH > 0) drawRoundRect(intakeColor,
                         Offset(cx - barW - gap / 2, drawH - intakeH), Size(barW, intakeH),
                         CornerRadius(cornerR, cornerR))
                     val burnedH = (day.burned.toFloat() / yMax) * drawH * progress
-                    if (burnedH > 0) drawRoundRect(RingBurned,
+                    if (burnedH > 0) drawRoundRect(burnedColor,
                         Offset(cx + gap / 2, drawH - burnedH), Size(barW, burnedH),
                         CornerRadius(cornerR, cornerR))
                     drawContext.canvas.nativeCanvas.drawText(
@@ -944,10 +912,10 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
             Spacer(modifier = Modifier.height(14.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(10.dp).background(RingEaten, CircleShape))
+                Box(Modifier.size(10.dp).background(intakeColor, CircleShape))
                 Spacer(Modifier.width(6.dp)); Text("Intake", fontSize = 12.sp, color = Color(0xFF6B7280))
                 Spacer(Modifier.width(20.dp))
-                Box(Modifier.size(10.dp).background(RingBurned, CircleShape))
+                Box(Modifier.size(10.dp).background(burnedColor, CircleShape))
                 Spacer(Modifier.width(6.dp)); Text("Burned", fontSize = 12.sp, color = Color(0xFF6B7280))
             }
 
@@ -982,6 +950,8 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
         "90_days" -> "Monthly Avg Sodium"
         else -> "Daily Avg Sodium"
     }
+    val sodiumColor = RingSodium
+    val limitColor = RingBurned
 
     val lineProgress = remember { Animatable(0f) }
     LaunchedEffect(data) {
@@ -1011,10 +981,10 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Warning, null, Modifier.size(12.dp), Color(0xFFEF4444))
+                        Icon(Icons.Filled.Warning, null, Modifier.size(12.dp), limitColor)
                         Spacer(Modifier.width(4.dp))
                         Text("$daysOverLimit day${if (daysOverLimit > 1) "s" else ""} over limit",
-                            fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFFDC2626))
+                            fontSize = 11.sp, fontWeight = FontWeight.Medium, color = limitColor)
                     }
                 }
             }
@@ -1039,7 +1009,7 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                     textAlign = android.graphics.Paint.Align.RIGHT; isAntiAlias = true
                 }
                 val limitLabelPaint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.parseColor("#EF4444")
+                    color = limitColor.toArgb()
                     textSize = with(density) { 9.sp.toPx() }
                     textAlign = android.graphics.Paint.Align.RIGHT; isAntiAlias = true
                 }
@@ -1056,7 +1026,7 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                 }
 
                 val limitY = drawH - (drawH * (dailyLimit.toFloat() / yMax.toFloat()))
-                drawLine(Color(0xFFEF4444), Offset(leftPad, limitY), Offset(chartW, limitY),
+                drawLine(limitColor, Offset(leftPad, limitY), Offset(chartW, limitY),
                     with(density) { 2.dp.toPx() }, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
                 drawContext.canvas.nativeCanvas.drawText("Limit: ${dailyLimit}mg",
                     chartW - with(density) { 4.dp.toPx() },
@@ -1082,9 +1052,9 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                             path.lineTo(from.x + (to.x - from.x) * frac, from.y + (to.y - from.y) * frac)
                         }
                     }
-                    drawPath(path, RingSodium, style = Stroke(with(density) { 3.dp.toPx() }, cap = StrokeCap.Round))
+                    drawPath(path, sodiumColor, style = Stroke(with(density) { 3.dp.toPx() }, cap = StrokeCap.Round))
                     for (i in 0 until drawnCount.coerceAtMost(totalPoints)) {
-                        drawCircle(RingSodium, with(density) { 5.dp.toPx() }, points[i])
+                        drawCircle(sodiumColor, with(density) { 5.dp.toPx() }, points[i])
                         drawCircle(Color.White, with(density) { 2.5.dp.toPx() }, points[i])
                     }
                     data.forEachIndexed { index, day ->
@@ -1095,13 +1065,28 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                 }
             }
 
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(10.dp).background(sodiumColor, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text("Sodium", fontSize = 12.sp, color = Color(0xFF6B7280))
+                Spacer(Modifier.width(20.dp))
+                Box(Modifier.size(10.dp).background(limitColor, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text("Daily Limit", fontSize = 12.sp, color = Color(0xFF6B7280))
+            }
+
             Spacer(Modifier.height(14.dp)); HorizontalDivider(color = Color(0xFFF1F5F9))
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 Text(footerLabel, fontSize = 13.sp, color = Color(0xFF94A3B8))
                 Text("$average mg", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (average > dailyLimit) Color(0xFFDC2626) else Color(0xFF16A34A))
+                    color = if (average > dailyLimit) limitColor else sodiumColor)
             }
         }
     }
@@ -1172,8 +1157,16 @@ private fun WeightTrackingCard(data: List<DayWeightData>) {
                 }
 
                 if (data.isNotEmpty()) {
-                    val points = data.mapIndexed { index, day ->
-                        val x = leftPad + (drawW / (data.size - 1).coerceAtLeast(1)) * index
+                    val minEpoch = data.minOf { it.epochDay }
+                    val maxEpoch = data.maxOf { it.epochDay }
+                    fun xFor(day: DayWeightData): Float {
+                        if (minEpoch == maxEpoch) return leftPad + drawW / 2f
+                        val fraction = (day.epochDay - minEpoch).toFloat() / (maxEpoch - minEpoch).toFloat()
+                        return leftPad + drawW * fraction
+                    }
+
+                    val points = data.map { day ->
+                        val x = xFor(day)
                         val y = drawH - (drawH * ((day.weight - minW) / range)).toFloat()
                         Offset(x, y)
                     }
@@ -1196,10 +1189,12 @@ private fun WeightTrackingCard(data: List<DayWeightData>) {
                         drawCircle(Color(0xFF4CAF50), with(density) { 5.dp.toPx() }, points[i])
                         drawCircle(Color.White, with(density) { 2.5.dp.toPx() }, points[i])
                     }
+                    val labelStride = (data.size / 6).coerceAtLeast(1)
                     data.forEachIndexed { index, day ->
-                        val x = leftPad + (drawW / (data.size - 1).coerceAtLeast(1)) * index
-                        drawContext.canvas.nativeCanvas.drawText(
-                            day.dayLabel, x, chartH - with(density) { 4.dp.toPx() }, labelPaint)
+                        if (index % labelStride == 0 || index == data.lastIndex) {
+                            drawContext.canvas.nativeCanvas.drawText(
+                                day.dayLabel, xFor(day), chartH - with(density) { 4.dp.toPx() }, labelPaint)
+                        }
                     }
                 }
             }
@@ -1414,21 +1409,21 @@ private fun EntryRow(
             entry.intakeCalories > 0 -> Triple(
                 "%,d".format(entry.intakeCalories),
                 "kcal in",
-                Color(0xFF16A34A)
+                RingEaten
             )
             entry.burnedCalories > 0 -> Triple(
                 "\u2212%,d".format(entry.burnedCalories),  // − sign (not minus)
                 "kcal out",
-                Color(0xFFFF9800)
+                RingBurned
             )
             else -> Triple("\u2014", "", Color(0xFF94A3B8))  // em dash for truly empty
         }
         "Sodium Trend" -> when {
             entry.sodium > 2300 -> Triple(
-                "%,d".format(entry.sodium), "mg", Color(0xFFDC2626)
+                "%,d".format(entry.sodium), "mg", RingBurned
             )
             entry.sodium > 0 -> Triple(
-                "%,d".format(entry.sodium), "mg", Color(0xFF0F172A)
+                "%,d".format(entry.sodium), "mg", RingSodium
             )
             else -> Triple("\u2014", "", Color(0xFF94A3B8))
         }

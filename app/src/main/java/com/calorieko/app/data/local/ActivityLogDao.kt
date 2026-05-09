@@ -35,6 +35,9 @@ interface ActivityLogDao {
     @Query("SELECT COUNT(*) FROM activity_log_table WHERE uid = :uid AND type = 'workout'")
     suspend fun getTotalWorkoutsCount(uid: String): Int
 
+    @Query("SELECT timestamp FROM activity_log_table WHERE uid = :uid ORDER BY timestamp DESC")
+    suspend fun getLogTimestampsForUser(uid: String): List<Long>
+
     @Query("SELECT COUNT(*) FROM activity_log_table WHERE uid = :uid AND photoUri IS NOT NULL AND photoUri != ''")
     suspend fun getWorkoutsWithPhotoCount(uid: String): Int
 

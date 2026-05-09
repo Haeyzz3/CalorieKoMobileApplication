@@ -136,7 +136,7 @@ fun upgradedBadgeIcon(badgeId: Int, level: Int): ImageVector {
             2 -> Icons.Default.Scale
             else -> Icons.Default.AutoAwesome
         }
-        // Workout Warrior: Bolt → FitnessCenter → MilitaryTech
+        // Workout: Bolt → FitnessCenter → MilitaryTech
         3 -> when (level) {
             1 -> Icons.Default.Bolt
             2 -> Icons.Default.FitnessCenter
@@ -173,6 +173,8 @@ fun tierRingColor(level: Int): Color = when (level) {
 }
 
 // Helper: convert cm to imperial string e.g. 162 cm → "5'4""
+private fun baseBadgeId(id: Int): Int = if (id >= 10) id / 10 else id
+
 fun cmToImperial(cm: Double): String {
     val totalInches = cm / 2.54
     val feet = (totalInches / 12).toInt()
@@ -217,6 +219,7 @@ fun ProfileScreen(
     // ── Collect ViewModel State ──
     val userProfile by viewModel.userProfile.collectAsState()
     val badgeStats by viewModel.badgeStats.collectAsState()
+    val profileUiState by viewModel.uiState.collectAsState()
     val displayName by viewModel.displayName.collectAsState()
     val memberSince by viewModel.memberSince.collectAsState()
     val computedStreak by viewModel.computedStreak.collectAsState()
@@ -276,7 +279,12 @@ fun ProfileScreen(
 
                 // Pass streak, real badge stats, and milestonesTier for progressive leveling
                 val tier = userProfile?.milestonesTier ?: 1
-                MilestonesSection(userData.streak, badgeStats, tier)
+                MilestonesSection(
+                    currentStreak = userData.streak,
+                    stats = badgeStats,
+                    milestonesTier = tier,
+                    workoutCount = profileUiState.totalWorkouts
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -548,11 +556,16 @@ fun HealthGoalsSection(goalCode: String, onEditProfile: () -> Unit = {}) {
 
 // --- 4. Milestones Section (Leveled, Progressive) ---
 @Composable
-fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int = 1) {
+fun MilestonesSection(
+    currentStreak: Int,
+    stats: BadgeStats,
+    milestonesTier: Int = 1,
+    workoutCount: Int = stats.totalWorkouts
+) {
     var selectedBadge by remember { mutableStateOf<Badge?>(null) }
 
     // Build LeveledBadges — thresholds scale by milestonesTier
-    val leveledBadges = remember(currentStreak, stats, milestonesTier) {
+    val leveledBadges = remember(currentStreak, stats, milestonesTier, workoutCount) {
         listOf(
             buildLeveledBadge(1, "Consistent Logger", "Day Streak",
                 Icons.Default.CalendarToday, Color(0xFFDBEAFE), Color(0xFF2563EB),
@@ -562,9 +575,9 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
                 Icons.Default.MonitorWeight, Color(0xFFDCFCE7), Color(0xFF16A34A),
                 stats.totalMeals, listOf(10, 25, 50), milestonesTier),
 
-            buildLeveledBadge(3, "Workout Warrior", "Workouts Logged",
+            buildLeveledBadge(3, "Workout", "Workouts Logged",
                 Icons.Default.Bolt, Color(0xFFFEF3C7), Color(0xFFD97706),
-                stats.totalWorkouts, listOf(5, 10, 15), milestonesTier),
+                workoutCount, listOf(5, 10, 15), milestonesTier),
 
             buildLeveledBadge(4, "Photo Logger", "Photos Snapped",
                 Icons.Default.CameraAlt, Color(0xFFF3E8FF), Color(0xFF9333EA),
@@ -604,7 +617,7 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
     }
 
     // ── Expand each badge into individual level entries ──
-    // If "Workout Warrior" is Lv 3, this creates 3 earned cards:
+    // If "Workout" is Lv 3, this creates 3 earned cards:
     //   Lv 1 — Bronze, Lv 2 — Silver, Lv 3 — Gold
     // Each level uses a progressively upgraded icon.
     // Plus one "In Progress" card for the next unearned level per badge type.
@@ -641,6 +654,19 @@ fun MilestonesSection(currentStreak: Int, stats: BadgeStats, milestonesTier: Int
                 progress = lb.currentProgress,
                 max = lb.nextLevelThreshold,
                 level = nextLevel
+            ))
+        } else if (lb.id == 3) {
+            inProgress.add(Badge(
+                id = lb.id,
+                name = lb.name,
+                description = "Lv ${lb.currentLevel} â€” ${levelLabel(lb.currentLevel)}",
+                icon = upgradedBadgeIcon(lb.id, lb.currentLevel),
+                colorBg = badgeBg(lb.id),
+                colorIcon = badgeIconColor(lb.id),
+                earned = false,
+                progress = workoutCount,
+                max = lb.levelThresholds.last(),
+                level = lb.currentLevel
             ))
         }
     }
@@ -853,8 +879,13 @@ fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+                val progressLabel = if (badge.progress >= badge.max) {
+                    "${badge.progress}/${badge.max} complete  (100%)"
+                } else {
+                    "${badge.progress}/${badge.max} to next level  (${(progressTarget * 100).toInt()}%)"
+                }
                 Text(
-                    "${badge.progress}/${badge.max} to next level  (${(progressTarget * 100).toInt()}%)",
+                    progressLabel,
                     fontSize = 11.sp, color = Color(0xFF4B5563)
                 )
             }
@@ -865,7 +896,8 @@ fun InProgressBadgeCard(badge: Badge, onClick: () -> Unit = {}) {
 // ═══════════════════════ BADGE DETAIL DIALOG ═══════════════════════
 @Composable
 fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
-    val progressFraction = badge.progress.toFloat() / badge.max.toFloat()
+    val baseId = baseBadgeId(badge.id)
+    val progressFraction = (badge.progress.toFloat() / badge.max.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
     val progressPercent = (progressFraction * 100).toInt()
 
     val animatedProgress = remember { Animatable(0f) }
@@ -876,12 +908,12 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
         )
     }
 
-    val detailDescription = when (badge.id) {
+    val detailDescription = when (baseId) {
         1 -> "Build a habit! Log your activities for 3 consecutive days to start building your long-term fitness routine."
         2 -> "Log your meals using the smart scale to track accurate nutrition data. The more meals you log, the better your insights become."
-        3 -> "Maintain a daily streak by logging at least one meal every day. Consistency is the key to achieving your health goals!"
+        3 -> "Log your workouts to see how exercise impacts your daily calorie balance. Every workout brings you closer to your fitness goals."
         4 -> "Take photos of your meals for AI-powered food recognition. This helps build a visual diary of your nutrition journey."
-        5 -> "Log your workouts to see how exercise impacts your daily calorie balance. Every workout brings you closer to your fitness goals."
+        5 -> "Maintain a daily streak by logging at least one meal every day. Consistency is the key to achieving your health goals!"
         6 -> "The ultimate achievement! Maintain a 30-day streak to prove your dedication to a healthier lifestyle."
         else -> "Complete the challenge to earn this badge."
     }
@@ -889,10 +921,10 @@ fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
     val tip = if (badge.earned) {
         " Congratulations! You've earned this badge through your dedication and consistency."
     } else {
-        when (badge.id) {
-            4 -> "📸 Tip: Use the camera button on the Log Meal screen to snap a photo of your next meal!"
-            5 -> "💪 Tip: Head to Log Workout and record your next exercise session."
-            6 -> "🔥 Tip: Keep your daily streak alive! Log at least one meal each day to build toward 30 days."
+        when (baseId) {
+            3 -> "Tip: Head to Log Workout and record your next exercise session."
+            4 -> "Tip: Use the camera button on the Log Meal screen to snap a photo of your next meal!"
+            5 -> "Tip: Keep your daily streak alive! Log at least one meal each day to build toward 30 days."
             else -> "Keep going! You're ${badge.max - badge.progress} away from earning this badge."
         }
     }

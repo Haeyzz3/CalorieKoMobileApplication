@@ -159,7 +159,7 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     private var movementMode = MovementMode.FOOT
 
-    // ── Location State (observable by the UI) ──
+    // ── Location State (observable by the UI) ──//
     private val _isTracking = MutableStateFlow(false)
     val isTracking: StateFlow<Boolean> = _isTracking.asStateFlow()
 

@@ -135,15 +135,13 @@ class ProgressViewModel(
                     uid, startTime, endTime
                 )
 
-                // 6. Fetch dated weight measurements. Include the most recent
-                // measurement before the range so charts can carry the user's
-                // real starting weight forward without rewriting old days.
-                val startEpochDay = startDate.toEpochDay()
+                // 6. Fetch historical weight measurements. The chart should
+                // plot actual dated logs, not duplicate the current profile
+                // weight across the selected range.
                 val endEpochDay = today.toEpochDay()
-                val baselineWeight = weightLogDao.getLatestOnOrBefore(uid, startEpochDay - 1)
-                val rangeWeights = weightLogDao.getWeightLogsForRange(uid, startEpochDay, endEpochDay)
-                val weights = (listOfNotNull(baselineWeight) + rangeWeights)
-                    .distinctBy { it.dateEpochDay }
+                val weights = weightLogDao.getAllWeightLogsForUser(uid)
+                    .groupBy { it.dateEpochDay }
+                    .map { (_, logs) -> logs.maxBy { it.timestamp } }
                     .sortedBy { it.dateEpochDay }
                 _weightLogs.value = weights.ifEmpty {
                     listOf(
