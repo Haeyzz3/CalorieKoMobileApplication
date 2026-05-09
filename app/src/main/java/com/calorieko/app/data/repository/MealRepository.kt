@@ -127,12 +127,15 @@ class MealRepository(
      * 2. Subtract those nutrients from the DailyNutritionSummaryEntity
      * 3. Delete from Room (CASCADE deletes child MealLogItemEntity rows)
      *
+     * Returns the updated [DailyNutritionSummaryEntity] so the caller can
+     * sync it to Firestore alongside the meal log deletion.
+     *
      * ⚠️ Firestore sync is handled by the ViewModel after UI reload to keep
      * this operation fast and responsive, especially offline.
      */
-    suspend fun deleteMealLogLocally(uid: String, mealLogId: Long) {
+    suspend fun deleteMealLogLocally(uid: String, mealLogId: Long): DailyNutritionSummaryEntity? {
         // 1. Fetch the meal with items before deleting
-        val mealWithItems = mealLogDao.getMealLogWithItems(mealLogId) ?: return
+        val mealWithItems = mealLogDao.getMealLogWithItems(mealLogId) ?: return null
         val items = mealWithItems.items
         val mealType = mealWithItems.mealLog.mealType
 
@@ -145,6 +148,7 @@ class MealRepository(
             .toLocalDate()
         val epochDay = mealDate.toEpochDay()
         val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, epochDay)
+        var updatedSummary: DailyNutritionSummaryEntity? = null
         if (existing != null) {
             val updated = existing.copy(
                 updatedAt = System.currentTimeMillis(),
@@ -171,9 +175,12 @@ class MealRepository(
                 snacksCalories = if (mealType == "Snacks") (existing.snacksCalories - deletedCalories).coerceAtLeast(0f) else existing.snacksCalories
             )
             dailyNutritionSummaryDao.upsertSummary(updated)
+            updatedSummary = updated
         }
 
         // 3. Delete from Room (CASCADE deletes child items automatically)
         mealLogDao.deleteMealLog(mealLogId)
+
+        return updatedSummary
     }
 }
