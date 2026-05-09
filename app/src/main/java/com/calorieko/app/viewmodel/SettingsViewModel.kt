@@ -60,6 +60,7 @@ class SettingsViewModel(
         data class SyncError(val message: String) : Event()
         data class SyncPartial(val message: String) : Event()
         data object WipeProgressSuccess : Event()
+        data class WipeProgressError(val message: String) : Event()
         data object LogoutReady : Event()
         data object AccountDeleted : Event()
         data class AccountDeletionError(val message: String) : Event()
@@ -179,10 +180,29 @@ class SettingsViewModel(
      * user's profile and settings (name, age, weight, height, etc.).
      *
      * Also resets the delta sync timestamp so the next sync is a full sync.
+     *
+     * Requires network connectivity: the Firestore wipe MUST succeed before
+     * local Room data is cleared. Without this guard, Room would be wiped
+     * while stale data persists in Firestore, causing "zombie" entries to
+     * reappear after a fresh login.
      */
     fun wipeProgress() {
         val uid = auth.currentUser?.uid
         if (_isWipingProgress.value) return
+
+        // ── Network guard: refuse to wipe if offline ──
+        // The Firestore deletion MUST succeed before we clear Room.
+        // If we clear Room while offline, the cloud data survives and
+        // reappears on the next login / cloud restore.
+        if (!NetworkUtils.isOnline(appContext)) {
+            viewModelScope.launch {
+                _events.send(Event.WipeProgressError(
+                    "No internet connection. Please connect to the internet and try again " +
+                    "so your cloud data can be cleared."
+                ))
+            }
+            return
+        }
 
         _isWipingProgress.value = true
 
@@ -195,7 +215,9 @@ class SettingsViewModel(
                     WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
 
                     // 2. Wipe Firestore cloud progress data (sub-collections only;
-                    //    the user profile document at users/{uid} is preserved)
+                    //    the user profile document at users/{uid} is preserved).
+                    //    This MUST complete before Room is cleared — otherwise stale
+                    //    cloud data survives and reappears on fresh login.
                     if (uid != null) {
                         firestoreSyncRepo.wipeAllUserData(uid)
                     }
@@ -213,14 +235,22 @@ class SettingsViewModel(
                     // 5. Clear last-sync display timestamp
                     syncPrefs.edit().remove(KEY_LAST_SYNC).apply()
                     _lastSyncedAt.value = formatSyncTimestamp(0L)
+
+                    // 6. Cancel SyncWorker AGAIN after Room tables are cleared.
+                    //    Room change observers or ViewModel recompositions during
+                    //    the wipe may have re-enqueued a new SyncWorker via
+                    //    AutoSyncManager.triggerSync(). Cancel it to prevent
+                    //    the worker from pushing empty/stale state to Firestore.
+                    WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
                 }
                 _isWipingProgress.value = false
                 _events.send(Event.WipeProgressSuccess)
             } catch (e: Exception) {
                 _isWipingProgress.value = false
                 e.printStackTrace()
-                // Still emit success since partial wipe may have occurred
-                _events.send(Event.WipeProgressSuccess)
+                _events.send(Event.WipeProgressError(
+                    "Failed to clear cloud data. Please check your internet connection and try again."
+                ))
             }
         }
     }

@@ -195,6 +195,14 @@ fun SettingsScreen(
                         "All meals, activities, and plans have been cleared."
                     )
                 }
+                is SettingsViewModel.Event.WipeProgressError -> {
+                    showWipeDialog = false
+                    showBanner(
+                        NotificationType.ERROR,
+                        "Reset Failed",
+                        event.message
+                    )
+                }
                 is SettingsViewModel.Event.LogoutReady -> {
                     onLogout()
                 }
