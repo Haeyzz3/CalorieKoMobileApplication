@@ -379,6 +379,9 @@ fun ExploreScreen(
                 },
                 onAddToPantry = {
                     viewModel.addCoreIngredientsToPantry(selectedDish.value!!.dishLabel)
+                },
+                onAddSingleIngredient = { ingredientKey ->
+                    viewModel.addSingleIngredientToPantry(ingredientKey)
                 }
             )
         }
@@ -547,7 +550,8 @@ private fun ExploreDishDetailContent(
     viewModel: ExploreViewModel,
     pantryItems: List<String>,
     onClose: () -> Unit,
-    onAddToPantry: () -> Unit
+    onAddToPantry: () -> Unit,
+    onAddSingleIngredient: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var ingredientDetails by remember { mutableStateOf<List<IngredientInfo>>(emptyList()) }
@@ -899,6 +903,11 @@ private fun ExploreDishDetailContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(bgColor, RoundedCornerShape(8.dp))
+                            .then(
+                                if (!isInPantry) Modifier.clickable {
+                                    onAddSingleIngredient(detail.ingredientKey)
+                                } else Modifier
+                            )
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -930,6 +939,10 @@ private fun ExploreDishDetailContent(
                             if (detail.portionQuantity.isNotBlank()) {
                                 Text(detail.portionQuantity, fontSize = 12.sp, color = Color(0xFF6B7280))
                             }
+                            // Tap hint for missing ingredients
+                            if (!isInPantry) {
+                                Text("Tap to add to pantry", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                            }
                         }
                         // Core / Optional badge
                         Surface(
@@ -960,7 +973,8 @@ private fun ExploreDishDetailContent(
         if (ingredientDetails.isNotEmpty()) {
             val coreCount = ingredientDetails.count { it.type == "core" }
             val coreInPantryCount = ingredientDetails.count { it.type == "core" && it.ingredientKey in pantryItems }
-            val allCoreInPantry = coreInPantryCount == coreCount
+            val missingCoreCount = coreCount - coreInPantryCount
+            val allCoreInPantry = missingCoreCount == 0
 
             Surface(
                 onClick = {
@@ -987,7 +1001,7 @@ private fun ExploreDishDetailContent(
                         }
                     } else {
                         Text(
-                            "Add $coreCount Core Ingredients to Pantry",
+                            "Add $missingCoreCount Core Ingredient${if (missingCoreCount > 1) "s" else ""} to Pantry",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White

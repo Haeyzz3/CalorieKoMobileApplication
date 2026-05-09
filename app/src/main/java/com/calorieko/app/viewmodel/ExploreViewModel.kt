@@ -215,6 +215,22 @@ class ExploreViewModel(
     }
 
     /**
+     * Adds a single ingredient to the user's pantry by its ingredient_key.
+     * Skips if already present (INSERT IGNORE).
+     */
+    fun addSingleIngredientToPantry(ingredientKey: String) {
+        val normalized = ingredientKey.trim().lowercase()
+        if (normalized.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            pantryDao.insertItem(PantryItem(ingredientName = normalized))
+            if (uid.isNotEmpty()) {
+                firestoreSyncRepo.syncPantryItemsBatch(uid, listOf(normalized))
+            }
+            _snackbarEvent.emit("✓ Added to Pantry")
+        }
+    }
+
+    /**
      * Returns the full DishRecipeEntity for a dish (for use in the detail bottom sheet).
      */
     suspend fun getDishRecipe(dishLabel: String): DishRecipeEntity? {

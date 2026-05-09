@@ -162,6 +162,9 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     // Clear Pantry Confirmation Dialog state
     val showClearPantryDialog = remember { mutableStateOf(false) }
 
+    // Single ingredient removal confirmation state (null = no dialog)
+    var ingredientPendingRemoval by remember { mutableStateOf<String?>(null) }
+
     // Collapsible pantry categories — tracks which categories are expanded
     val allPantryCategoryKeys = listOf("protein", "produce", "seasoning", "pantry_staple", "grain_starch")
     var expandedPantryCategories by remember { mutableStateOf(allPantryCategoryKeys.toSet()) }
@@ -481,7 +484,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                                                                     null,
                                                                     tint = Color(0xFF9CA3AF),
                                                                     modifier = Modifier.size(14.dp).clickable {
-                                                                        viewModel.removeIngredient(ingredient)
+                                                                        ingredientPendingRemoval = ingredient
                                                                     }
                                                                 )
                                                             }
@@ -625,6 +628,30 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                 }
             },
             dismissButton = { TextButton(onClick = { showClearPantryDialog.value = false }) { Text("Cancel") } }
+        )
+    }
+
+    // Single Ingredient Removal Confirmation Dialog
+    if (ingredientPendingRemoval != null) {
+        AlertDialog(
+            onDismissRequest = { ingredientPendingRemoval = null },
+            title = { Text("Remove Ingredient") },
+            text = {
+                Text("Remove ${viewModel.formatIngredientName(ingredientPendingRemoval!!)} from your pantry?")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.removeIngredient(ingredientPendingRemoval!!)
+                    ingredientPendingRemoval = null
+                }) {
+                    Text("Remove", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ingredientPendingRemoval = null }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
