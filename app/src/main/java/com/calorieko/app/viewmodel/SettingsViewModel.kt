@@ -189,12 +189,17 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    // 1. Wipe Firestore cloud progress data (sub-collections only;
+                    // 1. Cancel any pending/running SyncWorker to prevent race condition
+                    //    where a queued sync re-pushes data to Firestore AFTER the wipe.
+                    //    (This mirrors the cancellation pattern used in deleteAccount().)
+                    WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
+
+                    // 2. Wipe Firestore cloud progress data (sub-collections only;
                     //    the user profile document at users/{uid} is preserved)
                     if (uid != null) {
                         firestoreSyncRepo.wipeAllUserData(uid)
                     }
-                    // 2. Selectively clear progress tables in Room.
+                    // 3. Selectively clear progress tables in Room.
                     //    Preserves: user_profile (settings), FOOD_TABLE, DISH_INGREDIENTS_TABLE
                     db.activityLogDao().deleteAll()
                     db.mealLogDao().deleteAll()
@@ -203,9 +208,9 @@ class SettingsViewModel(
                     db.pantryDao().clearAllItems()
                     db.mealPlanDao().deleteAll()
                     db.weightLogDao().deleteAll()
-                    // 3. Reset delta sync timestamp (critical!)
+                    // 4. Reset delta sync timestamp (critical!)
                     apiSyncManager.resetSyncTimestamp()
-                    // 4. Clear last-sync display timestamp
+                    // 5. Clear last-sync display timestamp
                     syncPrefs.edit().remove(KEY_LAST_SYNC).apply()
                     _lastSyncedAt.value = formatSyncTimestamp(0L)
                 }
