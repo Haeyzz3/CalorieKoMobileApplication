@@ -371,8 +371,11 @@ class ManualLogViewModel(
     // ── Ingredient Breakdown & Substitution (shared with AI flow) ──
 
     /** Returns per-ingredient nutrition breakdown for a dish. */
-    suspend fun getIngredientBreakdown(dishLabel: String): Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown> {
-        return calculator.getIngredientBreakdown(dishLabel)
+    suspend fun getIngredientBreakdown(
+        dishLabel: String,
+        substitutions: Map<String, String> = emptyMap()
+    ): Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown> {
+        return calculator.getIngredientBreakdown(dishLabel, substitutions)
     }
 
     /** Returns substitution candidates for an ingredient. */

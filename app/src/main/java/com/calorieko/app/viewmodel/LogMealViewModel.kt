@@ -381,8 +381,11 @@ class LogMealViewModel(
     }
 
     /** Returns per-ingredient nutrition breakdown for a dish. */
-    suspend fun getIngredientBreakdown(dishLabel: String): Map<String, IngredientNutritionBreakdown> {
-        return calculator.getIngredientBreakdown(dishLabel)
+    suspend fun getIngredientBreakdown(
+        dishLabel: String,
+        substitutions: Map<String, String> = emptyMap()
+    ): Map<String, IngredientNutritionBreakdown> {
+        return calculator.getIngredientBreakdown(dishLabel, substitutions)
     }
 
     /** Returns same-subcategory substitution candidates for an ingredient. */

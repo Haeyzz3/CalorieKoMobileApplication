@@ -231,6 +231,8 @@ private fun MealModeSelectionContent(
                             color = Color(0xFF1E40AF),
                             lineHeight = 16.sp
                         )
+                        }
+                        }
                     }
                 }
             }
@@ -1321,7 +1323,7 @@ private fun ManualMealSummaryOverlay(
     // ── Ingredient bottom sheet state ──
     val scope = rememberCoroutineScope()
     var ingredientSheetDishIndex by remember { mutableStateOf(-1) }
-    var ingredientBreakdown by remember { mutableStateOf<Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown>>(emptyMap()) }
+    var ingredientBreakdown by remember { mutableStateOf<Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown>?>(null) }
     var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var substitutionCandidates by remember { mutableStateOf<List<com.calorieko.app.data.model.RawIngredientEntity>>(emptyList()) }
@@ -1444,7 +1446,7 @@ private fun ManualMealSummaryOverlay(
                                         .clickable {
                                             ingredientSheetDishIndex = index
                                             // Pre-populate substitutions from planned meal data
-                                            activeSubstitutions = if (dish.substitutionsJson.isNotBlank()) {
+                                            val substitutions = if (dish.substitutionsJson.isNotBlank()) {
                                                 try {
                                                     val obj = org.json.JSONObject(dish.substitutionsJson)
                                                     val map = mutableMapOf<String, String>()
@@ -1452,9 +1454,11 @@ private fun ManualMealSummaryOverlay(
                                                     map
                                                 } catch (_: Exception) { emptyMap() }
                                             } else emptyMap()
+                                            activeSubstitutions = substitutions
+                                            ingredientBreakdown = null
                                             scope.launch {
                                                 ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                    manualViewModel.getIngredientBreakdown(dish.dishLabel)
+                                                    manualViewModel.getIngredientBreakdown(dish.dishLabel, substitutions)
                                                 }
                                             }
                                         }
@@ -1591,10 +1595,10 @@ private fun ManualMealSummaryOverlay(
             // Determine if this is a planned-meal dish (view-only substitutions)
             val isFromMealPlan = dish.substitutionsJson.isNotBlank()
 
-            ModalBottomSheet(
+                ModalBottomSheet(
                 onDismissRequest = {
                     ingredientSheetDishIndex = -1
-                    ingredientBreakdown = emptyMap()
+                    ingredientBreakdown = null
                     substitutionTarget = null
                     substitutionCandidates = emptyList()
                 },
@@ -1660,9 +1664,15 @@ private fun ManualMealSummaryOverlay(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
-                    if (ingredientBreakdown.isEmpty()) {
-                        Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                    } else {
+                    val loadedIngredientBreakdown = ingredientBreakdown
+                    when {
+                        loadedIngredientBreakdown == null -> {
+                            Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                        }
+                        loadedIngredientBreakdown.isEmpty() -> {
+                            NoIngredientBreakdownState()
+                        }
+                        else -> {
 
                     // ── Substitution picker (only shown when NOT from meal plan) ──
                     if (!isFromMealPlan && substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
@@ -1702,8 +1712,9 @@ private fun ManualMealSummaryOverlay(
                                             // Reload breakdown
                                             scope.launch {
                                                 val label = dish.dishLabel.ifEmpty { return@launch }
+                                                ingredientBreakdown = null
                                                 ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                    manualViewModel.getIngredientBreakdown(label)
+                                                    manualViewModel.getIngredientBreakdown(label, newSubs)
                                                 }
                                             }
                                             substitutionTarget = null
@@ -1743,8 +1754,8 @@ private fun ManualMealSummaryOverlay(
                     Text("Ingredients", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                     Spacer(Modifier.height(8.dp))
 
-                    ingredientBreakdown.values.forEach { ing ->
-                        val substitutedWith = activeSubstitutions[ing.ingredientKey]
+                    loadedIngredientBreakdown.forEach { (originalIngredientKey, ing) ->
+                        val substitutedWith = activeSubstitutions[originalIngredientKey]
                         val isRemoved = substitutedWith == ManualLogViewModel.REMOVED_INGREDIENT
                         val isSubstituted = substitutedWith != null && !isRemoved
 
@@ -1831,9 +1842,9 @@ private fun ManualMealSummaryOverlay(
                                         Surface(
                                             onClick = {
                                                 scope.launch {
-                                                    substitutionTarget = ing.ingredientKey
+                                                    substitutionTarget = originalIngredientKey
                                                     substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        manualViewModel.getSubstitutesForIngredient(ing.ingredientKey)
+                                                        manualViewModel.getSubstitutesForIngredient(originalIngredientKey)
                                                     }
                                                     if (substitutionCandidates.isEmpty()) {
                                                         substitutionTarget = null
@@ -1877,7 +1888,8 @@ private fun ManualMealSummaryOverlay(
                             }
                         }
                     }
-                    } // end else (ingredientBreakdown loaded)
+                        } // end else (ingredientBreakdown loaded)
+                    }
                 }
             }
         }
@@ -2093,7 +2105,7 @@ private fun MealSummaryOverlay(
 
     // Ingredient detail bottom sheet state
     var ingredientSheetDishIndex by remember { mutableStateOf<Int?>(null) }
-    var ingredientBreakdown by remember { mutableStateOf<Map<String, IngredientNutritionBreakdown>>(emptyMap()) }
+    var ingredientBreakdown by remember { mutableStateOf<Map<String, IngredientNutritionBreakdown>?>(null) }
     var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -2216,11 +2228,17 @@ private fun MealSummaryOverlay(
                                     .fillMaxWidth()
                                     .clickable {
                                         ingredientSheetDishIndex = index
-                                        activeSubstitutions = emptyMap()
+                                        val substitutions = emptyMap<String, String>()
+                                        activeSubstitutions = substitutions
+                                        ingredientBreakdown = null
                                         scope.launch {
-                                            val mlLabel = dish.dishLabel.ifEmpty { return@launch }
+                                            val mlLabel = dish.dishLabel
+                                            if (mlLabel.isEmpty()) {
+                                                ingredientBreakdown = emptyMap()
+                                                return@launch
+                                            }
                                             ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                viewModel.getIngredientBreakdown(mlLabel)
+                                                viewModel.getIngredientBreakdown(mlLabel, substitutions)
                                             }
                                         }
                                     }
@@ -2357,6 +2375,7 @@ private fun MealSummaryOverlay(
             ModalBottomSheet(
                 onDismissRequest = {
                     ingredientSheetDishIndex = null
+                    ingredientBreakdown = null
                     substitutionTarget = null
                     substitutionCandidates = emptyList()
                 },
@@ -2374,9 +2393,15 @@ private fun MealSummaryOverlay(
                     Text("${dish.weightGrams.roundToInt()}g cooked portion", fontSize = 13.sp, color = Color(0xFF6B7280))
                     Spacer(Modifier.height(16.dp))
 
-                    if (ingredientBreakdown.isEmpty()) {
-                        Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                    } else {
+                    val loadedIngredientBreakdown = ingredientBreakdown
+                    when {
+                        loadedIngredientBreakdown == null -> {
+                            Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
+                        }
+                        loadedIngredientBreakdown.isEmpty() -> {
+                            NoIngredientBreakdownState()
+                        }
+                        else -> {
                         // Substitution picker
                         if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
                             Surface(
@@ -2406,8 +2431,9 @@ private fun MealSummaryOverlay(
                                                 // Reload breakdown
                                                 scope.launch {
                                                     val mlLabel = dish.dishLabel.ifEmpty { return@launch }
+                                                    ingredientBreakdown = null
                                                     ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        viewModel.getIngredientBreakdown(mlLabel)
+                                                        viewModel.getIngredientBreakdown(mlLabel, newSubs)
                                                     }
                                                 }
                                                 substitutionTarget = null
@@ -2439,8 +2465,8 @@ private fun MealSummaryOverlay(
                         Text("Ingredients", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                         Spacer(Modifier.height(8.dp))
 
-                        ingredientBreakdown.values.forEach { breakdown ->
-                            val isSwapped = activeSubstitutions.containsKey(breakdown.ingredientKey)
+                        loadedIngredientBreakdown.forEach { (originalIngredientKey, breakdown) ->
+                            val isSwapped = activeSubstitutions.containsKey(originalIngredientKey)
                             Surface(
                                 color = if (isSwapped) Color(0xFFF0F9FF) else Color(0xFFF9FAFB),
                                 shape = RoundedCornerShape(8.dp),
@@ -2460,9 +2486,9 @@ private fun MealSummaryOverlay(
                                         Surface(
                                             onClick = {
                                                 scope.launch {
-                                                    substitutionTarget = breakdown.ingredientKey
+                                                    substitutionTarget = originalIngredientKey
                                                     substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        viewModel.getSubstitutesForIngredient(breakdown.ingredientKey)
+                                                        viewModel.getSubstitutesForIngredient(originalIngredientKey)
                                                     }
                                                     if (substitutionCandidates.isEmpty()) {
                                                         substitutionTarget = null
@@ -2501,8 +2527,45 @@ private fun MealSummaryOverlay(
                                 }
                             }
                         }
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoIngredientBreakdownState() {
+    Surface(
+        color = Color(0xFFF9FAFB),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                Icons.Default.Restaurant,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    "No ingredient breakdown available",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF374151)
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "This dish uses direct nutrition data instead of recipe ingredients.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280)
+                )
             }
         }
     }
