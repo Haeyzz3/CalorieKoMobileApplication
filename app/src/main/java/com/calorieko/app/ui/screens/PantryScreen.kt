@@ -1930,7 +1930,11 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
     // --- Substitution state ---
     val allSubstitutions by viewModel.activeSubstitutions.collectAsState()
     val allSubNutrition by viewModel.substitutedNutrition.collectAsState()
-    val dishSubs = allSubstitutions[recipe.dishLabel] ?: emptyMap()
+    val dishSubs = if (isViewOnly) {
+        recipe.appliedSubstitutions
+    } else {
+        allSubstitutions[recipe.dishLabel] ?: emptyMap()
+    }
     val subNutrition = allSubNutrition[recipe.dishLabel]
     val hasSubstitutions = dishSubs.isNotEmpty()
 
@@ -2285,9 +2289,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         // Cache whether each ingredient has substitution alternatives (loaded on expand)
         var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
-        LaunchedEffect(recipe.dishLabel) {
+        LaunchedEffect(recipe.dishLabel, dishSubs) {
             ingredientBreakdown = withContext(Dispatchers.IO) {
-                viewModel.getIngredientBreakdown(recipe.dishLabel)
+                viewModel.getIngredientBreakdown(recipe.dishLabel, dishSubs)
             }
         }
 
@@ -2348,11 +2352,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
                 // Check if this ingredient has been substituted or removed
                 val substitutedWith = dishSubs[detail.ingredientKey]
-                val isRemoved = substitutedWith == PantryViewModel.REMOVED_INGREDIENT
-                val isSubstituted = substitutedWith != null && !isRemoved
+                val replacementKey = detail.replacementIngredientKey
+                    ?: substitutedWith?.takeUnless { it == PantryViewModel.REMOVED_INGREDIENT }
+                val isRemoved = detail.isRemoved || substitutedWith == PantryViewModel.REMOVED_INGREDIENT
+                val isSubstituted = replacementKey != null && !isRemoved
                 val effectiveDisplayName = when {
                     isRemoved -> detail.name
-                    isSubstituted -> viewModel.formatIngredientName(substitutedWith!!)
+                    isSubstituted -> detail.replacementName ?: viewModel.formatIngredientName(replacementKey!!)
                     else -> detail.name
                 }
                 val isOptional = detail.type == "optional"
@@ -2434,13 +2440,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             // Show original ingredient name if substituted
                             if (isSubstituted) {
                                 Text(
-                                    "\u21a9 ${detail.name}",
+                                    "Replaced ${detail.name}",
                                     fontSize = 11.sp,
                                     color = Color(0xFF0369A1)
                                 )
                             } else if (isRemoved) {
                                 Text(
-                                    "Removed from recipe",
+                                    if (isViewOnly) "Removed from customized recipe" else "Removed from recipe",
                                     fontSize = 11.sp,
                                     color = Color(0xFF9CA3AF)
                                 )
@@ -2454,7 +2460,20 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             }
                         }
                         // Badges
-                        if (isRemoved) {
+                        if (isViewOnly && (isRemoved || isSubstituted)) {
+                            Surface(
+                                color = if (isRemoved) Color(0xFFFEE2E2) else Color(0xFFBAE6FD),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    if (isRemoved) "Removed" else "Swapped",
+                                    fontSize = 9.sp,
+                                    color = if (isRemoved) Color(0xFFDC2626) else Color(0xFF0C4A6E),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        } else if (isRemoved) {
                             Surface(
                                 onClick = { viewModel.removeSubstitution(recipe.dishLabel, detail.ingredientKey) },
                                 color = Color(0xFFFEE2E2),

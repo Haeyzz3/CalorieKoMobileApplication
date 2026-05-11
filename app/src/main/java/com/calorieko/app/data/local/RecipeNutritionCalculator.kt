@@ -165,6 +165,7 @@ class RecipeNutritionCalculator(
 
         for (ri in recipeIngredients) {
             val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+            if (effectiveKey == REMOVED_INGREDIENT) continue
             val ingredient = rawIngredientDao.getByKey(effectiveKey) ?: continue
 
             // nutrient_amount = (raw_weight_grams / 100) × nutrients_per_100g
@@ -250,7 +251,8 @@ class RecipeNutritionCalculator(
      * @return Map of ingredientKey → [IngredientNutritionBreakdown]
      */
     suspend fun getIngredientBreakdown(
-        dishLabel: String
+        dishLabel: String,
+        substitutions: Map<String, String> = emptyMap()
     ): Map<String, IngredientNutritionBreakdown> {
         val recipeIngredients = recipeIngredientDao.getIngredientsForDish(dishLabel)
         if (recipeIngredients.isEmpty()) return emptyMap()
@@ -272,14 +274,17 @@ class RecipeNutritionCalculator(
                 ?: recipeIngredients.first()
 
             for (ri in recipeIngredients) {
-                val ingredient = rawIngredientDao.getByKey(ri.ingredientKey)
+                val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+                if (effectiveKey == REMOVED_INGREDIENT) continue
+
+                val ingredient = rawIngredientDao.getByKey(effectiveKey)
                 val displayName = ingredient?.displayName
-                    ?: ri.ingredientKey.replace("_", " ").replaceFirstChar { it.uppercase() }
+                    ?: effectiveKey.replace("_", " ").replaceFirstChar { it.uppercase() }
 
                 if (ri.ingredientKey == primary.ingredientKey) {
                     // Primary ingredient gets full dish nutrition
                     result[ri.ingredientKey] = IngredientNutritionBreakdown(
-                        ingredientKey = ri.ingredientKey,
+                        ingredientKey = effectiveKey,
                         displayName = displayName,
                         rawWeightGrams = dish.perServingWeightG,
                         calories = perServing.calories,
@@ -292,7 +297,7 @@ class RecipeNutritionCalculator(
                     // Supporting ingredients (water, oil for frying) show 0 — they're accounted
                     // for in the dish-level values already
                     result[ri.ingredientKey] = IngredientNutritionBreakdown(
-                        ingredientKey = ri.ingredientKey,
+                        ingredientKey = effectiveKey,
                         displayName = displayName,
                         rawWeightGrams = 0f,
                         calories = 0f,
@@ -310,7 +315,10 @@ class RecipeNutritionCalculator(
         val result = mutableMapOf<String, IngredientNutritionBreakdown>()
 
         for (ri in recipeIngredients) {
-            val ingredient = rawIngredientDao.getByKey(ri.ingredientKey) ?: continue
+            val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+            if (effectiveKey == REMOVED_INGREDIENT) continue
+
+            val ingredient = rawIngredientDao.getByKey(effectiveKey) ?: continue
             val factor = ri.rawWeightGrams / 100f
 
             // If same ingredient appears in multiple steps, aggregate
@@ -326,7 +334,7 @@ class RecipeNutritionCalculator(
                 )
             } else {
                 result[ri.ingredientKey] = IngredientNutritionBreakdown(
-                    ingredientKey = ri.ingredientKey,
+                    ingredientKey = effectiveKey,
                     displayName = ingredient.displayName,
                     rawWeightGrams = ri.rawWeightGrams,
                     calories = ingredient.calories * factor,
@@ -348,6 +356,10 @@ class RecipeNutritionCalculator(
     suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
         val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
         return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
+    }
+
+    private companion object {
+        const val REMOVED_INGREDIENT = "__REMOVED__"
     }
 }
 

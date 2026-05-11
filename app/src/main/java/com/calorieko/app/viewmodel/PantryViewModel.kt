@@ -49,7 +49,10 @@ data class IngredientInfo(
     val category: String,       // "protein", "produce", "seasoning", "pantry_staple"
     val portionQuantity: String, // e.g. "5 cups", "" if not specified
     val preparationMethod: String, // e.g. "sliced", "" if not specified
-    val step: Int                // 1-based step number
+    val step: Int,               // 1-based step number
+    val replacementIngredientKey: String? = null,
+    val replacementName: String? = null,
+    val isRemoved: Boolean = false
 )
 
 /**
@@ -84,7 +87,8 @@ data class DishResult(
     // Source attribution
     val dataSource: String = "USDA_FDC",
     // FNRI serving size description (e.g., "1 1/2 cups")
-    val servingSizeDescription: String = ""
+    val servingSizeDescription: String = "",
+    val appliedSubstitutions: Map<String, String> = emptyMap()
 )
 
 /**
@@ -908,42 +912,47 @@ class PantryViewModel(
                 vitaminC = nutrition.vitaminC,
                 calcium = nutrition.calcium,
                 iron = nutrition.iron,
-                servingSizeDescription = dishDisplayNames.servingSizeDescription
+                servingSizeDescription = dishDisplayNames.servingSizeDescription,
+                appliedSubstitutions = parseSubstitutionsJson(substitutionsJson)
             )
         }
 
         val details = pantryDao.getIngredientDetailsForDish(dishLabel)
         val subs = parseSubstitutionsJson(substitutionsJson)
 
-        // Apply substitutions to ingredient names if present, filtering out removed ones
-        val finalIngredients = if (subs.isNotEmpty()) {
-            allIngredients.mapNotNull { name ->
-                val mapped = subs[name] ?: name
-                if (mapped == REMOVED_INGREDIENT) null else mapped
-            }
-        } else allIngredients
-
         val ingredientInfoList = run {
-            // Resolve display names for all ingredient keys, including substituted ones
-            val allKeys = details.map { detail ->
-                subs[detail.ingredient_name] ?: detail.ingredient_name
-            }.filter { it != REMOVED_INGREDIENT }.distinct()
+            // Resolve display names for original and substituted ingredient keys.
+            val allKeys = details.flatMap { detail ->
+                val mapped = subs[detail.ingredient_name]
+                listOfNotNull(
+                    detail.ingredient_name,
+                    mapped?.takeUnless { it == REMOVED_INGREDIENT }
+                )
+            }.distinct()
             val displayNameMap = resolveDisplayNames(allKeys)
 
-            details.mapNotNull { detail ->
+            details.map { detail ->
                 val mapped = subs[detail.ingredient_name] ?: detail.ingredient_name
-                if (mapped == REMOVED_INGREDIENT) return@mapNotNull null
+                val isRemoved = mapped == REMOVED_INGREDIENT
+                val replacementKey = mapped.takeUnless { isRemoved || it == detail.ingredient_name }
                 IngredientInfo(
-                    name = displayNameMap[mapped] ?: mapped,
-                    ingredientKey = mapped,
+                    name = displayNameMap[detail.ingredient_name] ?: detail.ingredient_name,
+                    ingredientKey = detail.ingredient_name,
                     type = detail.ingredient_type,
                     category = detail.ingredient_category,
                     portionQuantity = detail.portion_quantity,
                     preparationMethod = detail.preparation_method,
-                    step = detail.step
+                    step = detail.step,
+                    replacementIngredientKey = replacementKey,
+                    replacementName = replacementKey?.let { displayNameMap[it] ?: it },
+                    isRemoved = isRemoved
                 )
             }
         }
+
+        val finalIngredients = ingredientInfoList
+            .filterNot { it.isRemoved }
+            .map { it.replacementName ?: it.name }
 
         // Use recalculated nutrition when substitutions are present
         val nutrition = if (subs.isNotEmpty()) {
@@ -995,7 +1004,8 @@ class PantryViewModel(
             vitaminC = nutrition.vitaminC,
             calcium = nutrition.calcium,
             iron = nutrition.iron,
-            servingSizeDescription = dishDisplayNames.servingSizeDescription
+            servingSizeDescription = dishDisplayNames.servingSizeDescription,
+            appliedSubstitutions = subs
         )
     }
 
@@ -1030,9 +1040,16 @@ class PantryViewModel(
         var totalSodium = 0
 
         for (meal in meals) {
-            val nutrition = getDishNutrition(meal.dishLabel)
-            totalCalories += nutrition.calories
-            totalSodium += nutrition.sodium
+            val substitutions = parseSubstitutionsJson(meal.substitutionsJson)
+            if (substitutions.isNotEmpty()) {
+                val nutrition = calculator.calculateWithSubstitution(meal.dishLabel, substitutions)
+                totalCalories += nutrition.calories.toInt()
+                totalSodium += nutrition.sodium.toInt()
+            } else {
+                val nutrition = getDishNutrition(meal.dishLabel)
+                totalCalories += nutrition.calories
+                totalSodium += nutrition.sodium
+            }
         }
 
         _weeklyCalories.value = totalCalories
@@ -1245,8 +1262,11 @@ class PantryViewModel(
      * Returns per-ingredient nutrition breakdown for a dish.
      * Each entry shows how many calories/protein/fat/carbs that ingredient contributes.
      */
-    suspend fun getIngredientBreakdown(dishLabel: String): Map<String, IngredientNutritionBreakdown> {
-        return calculator.getIngredientBreakdown(dishLabel)
+    suspend fun getIngredientBreakdown(
+        dishLabel: String,
+        substitutions: Map<String, String> = emptyMap()
+    ): Map<String, IngredientNutritionBreakdown> {
+        return calculator.getIngredientBreakdown(dishLabel, substitutions)
     }
 
     /**
