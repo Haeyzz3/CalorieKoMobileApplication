@@ -385,10 +385,8 @@ class ManualLogViewModel(
 
     /** Applies substitutions to a dish and recalculates its nutrition. */
     fun applySubstitutionToDish(dishIndex: Int, substitutions: Map<String, String>) {
-        val current = _loggedDishes.value.toMutableList()
-        val dish = current.getOrNull(dishIndex) ?: return
-
         viewModelScope.launch {
+            val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return@launch
             val newNutrients = withContext(Dispatchers.IO) {
                 calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams, substitutions)
             }
@@ -404,11 +402,37 @@ class ManualLogViewModel(
                 vitaminA = newNutrients.vitaminA,
                 vitaminC = newNutrients.vitaminC,
                 calcium = newNutrients.calcium,
-                iron = newNutrients.iron
+                iron = newNutrients.iron,
+                substitutionsJson = substitutionsToJson(substitutions)
             )
-            current[dishIndex] = updated
-            _loggedDishes.value = current
+            _loggedDishes.update { list ->
+                list.toMutableList().also { current ->
+                    if (dishIndex in current.indices) current[dishIndex] = updated
+                }
+            }
         }
+    }
+
+    fun removeIngredientFromDish(dishIndex: Int, ingredientKey: String) {
+        updateDishCustomizations(dishIndex) { current ->
+            current[ingredientKey] = REMOVED_INGREDIENT
+        }
+    }
+
+    fun removeSubstitutionFromDish(dishIndex: Int, ingredientKey: String) {
+        updateDishCustomizations(dishIndex) { current ->
+            current.remove(ingredientKey)
+        }
+    }
+
+    private fun updateDishCustomizations(
+        dishIndex: Int,
+        transform: (MutableMap<String, String>) -> Unit
+    ) {
+        val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
+        val current = parseSubstitutionsJson(dish.substitutionsJson).toMutableMap()
+        transform(current)
+        applySubstitutionToDish(dishIndex, current)
     }
 
     /**
@@ -467,6 +491,11 @@ class ManualLogViewModel(
         } catch (_: Exception) {
             emptyMap()
         }
+    }
+
+    private fun substitutionsToJson(substitutions: Map<String, String>): String {
+        if (substitutions.isEmpty()) return ""
+        return org.json.JSONObject(substitutions as Map<*, *>).toString()
     }
 
     private fun defaultWeightText(dish: DishRecipeEntity): String {

@@ -97,6 +97,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1324,6 +1325,7 @@ private fun ManualMealSummaryOverlay(
     var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var substitutionCandidates by remember { mutableStateOf<List<com.calorieko.app.data.model.RawIngredientEntity>>(emptyList()) }
+    var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
@@ -1453,6 +1455,7 @@ private fun ManualMealSummaryOverlay(
                                             } else emptyMap()
                                             activeSubstitutions = substitutions
                                             ingredientBreakdown = null
+                                            ingredientHasAlternatives = emptyMap()
                                             scope.launch {
                                                 ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                     manualViewModel.getIngredientBreakdown(dish.dishLabel, substitutions)
@@ -1598,6 +1601,7 @@ private fun ManualMealSummaryOverlay(
                     ingredientBreakdown = null
                     substitutionTarget = null
                     substitutionCandidates = emptyList()
+                    ingredientHasAlternatives = emptyMap()
                 },
                 sheetState = manualSheetState,
                 containerColor = Color.White
@@ -1662,6 +1666,18 @@ private fun ManualMealSummaryOverlay(
                     )
 
                     val loadedIngredientBreakdown = ingredientBreakdown
+                    LaunchedEffect(loadedIngredientBreakdown) {
+                        val loaded = loadedIngredientBreakdown ?: return@LaunchedEffect
+                        val missingKeys = loaded.keys.filterNot { ingredientHasAlternatives.containsKey(it) }
+                        if (missingKeys.isNotEmpty()) {
+                            val alternatives = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                missingKeys.associateWith { key ->
+                                    manualViewModel.getSubstitutesForIngredient(key).isNotEmpty()
+                                }
+                            }
+                            ingredientHasAlternatives = ingredientHasAlternatives + alternatives
+                        }
+                    }
                     when {
                         loadedIngredientBreakdown == null -> {
                             Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
@@ -1672,7 +1688,7 @@ private fun ManualMealSummaryOverlay(
                         else -> {
 
                     // ── Substitution picker (only shown when NOT from meal plan) ──
-                    if (!isFromMealPlan && substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
+                    if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
                         Surface(
                             color = Color(0xFFF0F9FF),
                             shape = RoundedCornerShape(12.dp),
@@ -1753,12 +1769,14 @@ private fun ManualMealSummaryOverlay(
 
                     loadedIngredientBreakdown.forEach { (originalIngredientKey, ing) ->
                         val substitutedWith = activeSubstitutions[originalIngredientKey]
-                        val isRemoved = substitutedWith == ManualLogViewModel.REMOVED_INGREDIENT
-                        val isSubstituted = substitutedWith != null && !isRemoved
+                        val isRemoved = ing.isRemoved || substitutedWith == ManualLogViewModel.REMOVED_INGREDIENT
+                        val isSubstituted = !isRemoved && (ing.replacementIngredientKey != null || substitutedWith != null)
+                        val isOptional = ing.ingredientType == "optional"
+                        val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
 
                         val effectiveName = when {
-                            isRemoved -> ing.displayName  // show original name with strikethrough
-                            isSubstituted -> manualViewModel.formatIngredientName(substitutedWith!!)
+                            isRemoved -> ing.originalDisplayName
+                            isSubstituted -> ing.replacementDisplayName ?: substitutedWith?.let { manualViewModel.formatIngredientName(it) } ?: ing.displayName
                             else -> ing.displayName
                         }
 
@@ -1823,7 +1841,7 @@ private fun ManualMealSummaryOverlay(
                                                 )
                                                 Spacer(Modifier.width(4.dp))
                                                 Text(
-                                                    "Replaces ${ing.displayName}",
+                                                    "Replaces ${ing.originalDisplayName}",
                                                     fontSize = 10.sp,
                                                     color = Color(0xFF0284C7)
                                                 )
@@ -1835,23 +1853,76 @@ private fun ManualMealSummaryOverlay(
                                     }
 
                                     // Swap button — only shown when NOT from meal plan and NOT removed
-                                    if (!isFromMealPlan && !isRemoved) {
+                                    if (isRemoved || isSubstituted) {
                                         Surface(
                                             onClick = {
+                                                val newSubs = activeSubstitutions.toMutableMap()
+                                                newSubs.remove(originalIngredientKey)
+                                                activeSubstitutions = newSubs
+                                                manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, newSubs)
                                                 scope.launch {
-                                                    substitutionTarget = originalIngredientKey
-                                                    substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        manualViewModel.getSubstitutesForIngredient(originalIngredientKey)
-                                                    }
-                                                    if (substitutionCandidates.isEmpty()) {
-                                                        substitutionTarget = null
+                                                    val label = dish.dishLabel.ifEmpty { return@launch }
+                                                    ingredientBreakdown = null
+                                                    ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        manualViewModel.getIngredientBreakdown(label, newSubs)
                                                     }
                                                 }
                                             },
-                                            color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                            color = if (isRemoved) Color(0xFFFEE2E2) else Color(0xFFBAE6FD),
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
-                                            Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
+                                            Text(
+                                                "Undo",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isRemoved) Color(0xFFDC2626) else Color(0xFF0C4A6E),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    } else {
+                                        if (hasSubstitutionAlternatives) {
+                                            Surface(
+                                                onClick = {
+                                                    scope.launch {
+                                                        substitutionTarget = originalIngredientKey
+                                                        substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                            manualViewModel.getSubstitutesForIngredient(originalIngredientKey)
+                                                        }
+                                                        if (substitutionCandidates.isEmpty()) {
+                                                            substitutionTarget = null
+                                                            ingredientHasAlternatives = ingredientHasAlternatives + (originalIngredientKey to false)
+                                                        }
+                                                    }
+                                                },
+                                                color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
+                                            }
+                                        }
+                                        if (isOptional) {
+                                            if (hasSubstitutionAlternatives) {
+                                                Spacer(Modifier.width(6.dp))
+                                            }
+                                            Surface(
+                                                onClick = {
+                                                    val newSubs = activeSubstitutions.toMutableMap()
+                                                    newSubs[originalIngredientKey] = ManualLogViewModel.REMOVED_INGREDIENT
+                                                    activeSubstitutions = newSubs
+                                                    manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, newSubs)
+                                                    scope.launch {
+                                                        val label = dish.dishLabel.ifEmpty { return@launch }
+                                                        ingredientBreakdown = null
+                                                        ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                            manualViewModel.getIngredientBreakdown(label, newSubs)
+                                                        }
+                                                    }
+                                                },
+                                                color = Color(0xFFEF4444).copy(alpha = 0.08f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Icon(Icons.Default.Delete, "Remove", tint = Color(0xFFEF4444), modifier = Modifier.padding(4.dp).size(16.dp))
+                                            }
                                         }
                                     }
                                 }
@@ -2106,6 +2177,7 @@ private fun MealSummaryOverlay(
     var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -2225,9 +2297,10 @@ private fun MealSummaryOverlay(
                                     .fillMaxWidth()
                                     .clickable {
                                         ingredientSheetDishIndex = index
-                                        val substitutions = emptyMap<String, String>()
+                                        val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
                                         activeSubstitutions = substitutions
                                         ingredientBreakdown = null
+                                        ingredientHasAlternatives = emptyMap()
                                         scope.launch {
                                             val mlLabel = dish.dishLabel
                                             if (mlLabel.isEmpty()) {
@@ -2375,6 +2448,7 @@ private fun MealSummaryOverlay(
                     ingredientBreakdown = null
                     substitutionTarget = null
                     substitutionCandidates = emptyList()
+                    ingredientHasAlternatives = emptyMap()
                 },
                 sheetState = sheetState,
                 containerColor = Color.White
@@ -2391,6 +2465,18 @@ private fun MealSummaryOverlay(
                     Spacer(Modifier.height(16.dp))
 
                     val loadedIngredientBreakdown = ingredientBreakdown
+                    LaunchedEffect(loadedIngredientBreakdown) {
+                        val loaded = loadedIngredientBreakdown ?: return@LaunchedEffect
+                        val missingKeys = loaded.keys.filterNot { ingredientHasAlternatives.containsKey(it) }
+                        if (missingKeys.isNotEmpty()) {
+                            val alternatives = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                missingKeys.associateWith { key ->
+                                    viewModel.getSubstitutesForIngredient(key).isNotEmpty()
+                                }
+                            }
+                            ingredientHasAlternatives = ingredientHasAlternatives + alternatives
+                        }
+                    }
                     when {
                         loadedIngredientBreakdown == null -> {
                             Text("Loading ingredients...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
@@ -2463,10 +2549,20 @@ private fun MealSummaryOverlay(
                         Spacer(Modifier.height(8.dp))
 
                         loadedIngredientBreakdown.forEach { (originalIngredientKey, breakdown) ->
-                            val isSwapped = activeSubstitutions.containsKey(originalIngredientKey)
+                            val substitutedWith = activeSubstitutions[originalIngredientKey]
+                            val isRemoved = breakdown.isRemoved || substitutedWith == LogMealViewModel.REMOVED_INGREDIENT
+                            val isSubstituted = !isRemoved && (breakdown.replacementIngredientKey != null || substitutedWith != null)
+                            val isOptional = breakdown.ingredientType == "optional"
+                            val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
+                            val effectiveName = when {
+                                isRemoved -> breakdown.originalDisplayName
+                                isSubstituted -> breakdown.replacementDisplayName ?: substitutedWith?.let { viewModel.formatIngredientName(it) } ?: breakdown.displayName
+                                else -> breakdown.displayName
+                            }
                             Surface(
-                                color = if (isSwapped) Color(0xFFF0F9FF) else Color(0xFFF9FAFB),
+                                color = if (isSubstituted) Color(0xFFF0F9FF) else Color(0xFFF9FAFB),
                                 shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, if (isSubstituted) Color(0xFFBAE6FD) else Color.Transparent),
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
                             ) {
                                 Column(modifier = Modifier.padding(10.dp)) {
@@ -2476,49 +2572,120 @@ private fun MealSummaryOverlay(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(breakdown.displayName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                                            Text("${breakdown.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                            Text(
+                                                effectiveName,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (isSubstituted) FontWeight.Medium else FontWeight.Normal,
+                                                color = when {
+                                                    isRemoved -> Color(0xFF6B7280)
+                                                    isSubstituted -> Color(0xFF0C4A6E)
+                                                    else -> Color(0xFF374151)
+                                                },
+                                                textDecoration = if (isRemoved) TextDecoration.LineThrough else TextDecoration.None
+                                            )
+                                            when {
+                                                isSubstituted -> Text("Replaces ${breakdown.originalDisplayName}", fontSize = 10.sp, color = Color(0xFF0284C7))
+                                                isRemoved -> Text("Removed from recipe", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                                                breakdown.portionQuantity.isNotBlank() -> Text(breakdown.portionQuantity, fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                                else -> Text("${breakdown.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                            }
                                         }
-                                        // Swap button
-                                        Surface(
-                                            onClick = {
-                                                scope.launch {
-                                                    substitutionTarget = originalIngredientKey
-                                                    substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        viewModel.getSubstitutesForIngredient(originalIngredientKey)
+                                        if (isRemoved || isSubstituted) {
+                                            Surface(
+                                                onClick = {
+                                                    val newSubs = activeSubstitutions.toMutableMap()
+                                                    newSubs.remove(originalIngredientKey)
+                                                    activeSubstitutions = newSubs
+                                                    viewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                                    scope.launch {
+                                                        val mlLabel = dish.dishLabel.ifEmpty { return@launch }
+                                                        ingredientBreakdown = null
+                                                        ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                            viewModel.getIngredientBreakdown(mlLabel, newSubs)
+                                                        }
                                                     }
-                                                    if (substitutionCandidates.isEmpty()) {
-                                                        substitutionTarget = null
-                                                    }
+                                                },
+                                                color = if (isRemoved) Color(0xFFFEE2E2) else Color(0xFFBAE6FD),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    "Undo",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isRemoved) Color(0xFFDC2626) else Color(0xFF0C4A6E),
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        } else {
+                                            if (hasSubstitutionAlternatives) {
+                                                Surface(
+                                                    onClick = {
+                                                        scope.launch {
+                                                            substitutionTarget = originalIngredientKey
+                                                            substitutionCandidates = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                                viewModel.getSubstitutesForIngredient(originalIngredientKey)
+                                                            }
+                                                            if (substitutionCandidates.isEmpty()) {
+                                                                substitutionTarget = null
+                                                                ingredientHasAlternatives = ingredientHasAlternatives + (originalIngredientKey to false)
+                                                            }
+                                                        }
+                                                    },
+                                                    color = Color(0xFF0284C7).copy(alpha = 0.08f),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
                                                 }
-                                            },
-                                            color = Color(0xFF0284C7).copy(alpha = 0.08f),
-                                            shape = RoundedCornerShape(4.dp)
-                                        ) {
-                                            Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
+                                            }
+                                            if (isOptional) {
+                                                if (hasSubstitutionAlternatives) {
+                                                    Spacer(Modifier.width(6.dp))
+                                                }
+                                                Surface(
+                                                    onClick = {
+                                                        val newSubs = activeSubstitutions.toMutableMap()
+                                                        newSubs[originalIngredientKey] = LogMealViewModel.REMOVED_INGREDIENT
+                                                        activeSubstitutions = newSubs
+                                                        viewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                                        scope.launch {
+                                                            val mlLabel = dish.dishLabel.ifEmpty { return@launch }
+                                                            ingredientBreakdown = null
+                                                            ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                                viewModel.getIngredientBreakdown(mlLabel, newSubs)
+                                                            }
+                                                        }
+                                                    },
+                                                    color = Color(0xFFEF4444).copy(alpha = 0.08f),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Delete, "Remove", tint = Color(0xFFEF4444), modifier = Modifier.padding(4.dp).size(16.dp))
+                                                }
+                                            }
                                         }
                                     }
-                                    Spacer(Modifier.height(6.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                        Column {
-                                            Text("${breakdown.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                                            Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                        }
-                                        Column {
-                                            Text("${breakdown.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
-                                            Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                        }
-                                        Column {
-                                            Text("${breakdown.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
-                                            Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                        }
-                                        Column {
-                                            Text("${breakdown.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
-                                            Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
-                                        }
-                                        Column {
-                                            Text("${breakdown.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
-                                            Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                    if (!isRemoved) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                            Column {
+                                                Text("${breakdown.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                                Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                            }
+                                            Column {
+                                                Text("${breakdown.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                                Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                            }
+                                            Column {
+                                                Text("${breakdown.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                                Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                            }
+                                            Column {
+                                                Text("${breakdown.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                                Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                            }
+                                            Column {
+                                                Text("${breakdown.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                                Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                                            }
                                         }
                                     }
                                 }
@@ -2565,6 +2732,18 @@ private fun NoIngredientBreakdownState() {
                 )
             }
         }
+    }
+}
+
+private fun parseSubstitutionsJson(json: String): Map<String, String> {
+    if (json.isBlank()) return emptyMap()
+    return try {
+        val obj = org.json.JSONObject(json)
+        val map = mutableMapOf<String, String>()
+        obj.keys().forEach { key -> map[key] = obj.getString(key) }
+        map
+    } catch (_: Exception) {
+        emptyMap()
     }
 }
 

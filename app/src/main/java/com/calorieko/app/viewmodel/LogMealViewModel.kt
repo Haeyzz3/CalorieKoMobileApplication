@@ -407,8 +407,8 @@ class LogMealViewModel(
                 calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams, substitutions)
             }
             _loggedDishes.update { list ->
-                list.toMutableList().also {
-                    it[dishIndex] = dish.copy(
+                list.toMutableList().also { current ->
+                    if (dishIndex in current.indices) current[dishIndex] = dish.copy(
                         calories = nutrients.calories,
                         protein = nutrients.protein,
                         carbs = nutrients.carbs,
@@ -420,11 +420,51 @@ class LogMealViewModel(
                         vitaminA = nutrients.vitaminA,
                         vitaminC = nutrients.vitaminC,
                         calcium = nutrients.calcium,
-                        iron = nutrients.iron
+                        iron = nutrients.iron,
+                        substitutionsJson = substitutionsToJson(substitutions)
                     )
                 }
             }
         }
+    }
+
+    fun removeIngredientFromDish(dishIndex: Int, ingredientKey: String) {
+        updateDishCustomizations(dishIndex) { current ->
+            current[ingredientKey] = REMOVED_INGREDIENT
+        }
+    }
+
+    fun removeSubstitutionFromDish(dishIndex: Int, ingredientKey: String) {
+        updateDishCustomizations(dishIndex) { current ->
+            current.remove(ingredientKey)
+        }
+    }
+
+    private fun updateDishCustomizations(
+        dishIndex: Int,
+        transform: (MutableMap<String, String>) -> Unit
+    ) {
+        val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
+        val current = parseSubstitutionsJson(dish.substitutionsJson).toMutableMap()
+        transform(current)
+        applySubstitutionToDish(dishIndex, current)
+    }
+
+    private fun parseSubstitutionsJson(json: String): Map<String, String> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, String>()
+            obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    private fun substitutionsToJson(substitutions: Map<String, String>): String {
+        if (substitutions.isEmpty()) return ""
+        return org.json.JSONObject(substitutions as Map<*, *>).toString()
     }
 
     /**
@@ -448,6 +488,7 @@ class LogMealViewModel(
 
     companion object {
         const val CONFIDENCE_THRESHOLD = 0.70f
+        const val REMOVED_INGREDIENT = "__REMOVED__"
 
         fun provideFactory(
             dishRecipeDao: DishRecipeDao,
