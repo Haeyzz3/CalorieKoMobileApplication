@@ -237,9 +237,6 @@ private fun MealModeSelectionContent(
                 }
             }
         }
-    }
-}
-
 @Composable
 private fun MealModeCard(
     icon: ImageVector,
