@@ -33,10 +33,16 @@ class FoodDatabaseCallback(
         databaseProvider().let { database ->
             scope.launch(Dispatchers.IO) {
                 // Legacy CSV seeding (kept for backward compatibility)
+                // Re-seeds when table is empty OR when the CSV asset has been updated
+                // (tracked by CURRENT_CSV_REFERENCE_VERSION).
                 val dishCount = database.pantryDao().getDishIngredientCount()
                 val foodCount = database.foodDao().getAllFoods().size
-                if (dishCount == 0 || foodCount == 0) {
+                val csvSeededVersion = seedPrefs.getInt(KEY_CSV_REFERENCE_VERSION, 0)
+                if (dishCount == 0 || foodCount == 0 || csvSeededVersion < CURRENT_CSV_REFERENCE_VERSION) {
                     populateDatabase(context, database.foodDao(), database.pantryDao())
+                    seedPrefs.edit()
+                        .putInt(KEY_CSV_REFERENCE_VERSION, CURRENT_CSV_REFERENCE_VERSION)
+                        .apply()
                 }
 
                 // New JSON seeding for raw ingredient tables (Phase 2)
@@ -71,7 +77,9 @@ class FoodDatabaseCallback(
     companion object {
         private const val REFERENCE_DATA_PREFS = "reference_data_seed"
         private const val KEY_JSON_REFERENCE_VERSION = "json_reference_version"
-        private const val CURRENT_JSON_REFERENCE_VERSION = 2
+        private const val CURRENT_JSON_REFERENCE_VERSION = 3
+        private const val KEY_CSV_REFERENCE_VERSION = "csv_reference_version"
+        private const val CURRENT_CSV_REFERENCE_VERSION = 1
     }
 }
 
