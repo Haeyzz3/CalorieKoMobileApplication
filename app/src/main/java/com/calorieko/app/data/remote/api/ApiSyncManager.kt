@@ -95,7 +95,10 @@ class ApiSyncManager(
             val activityLogs = activityLogDao.getLogsModifiedSince(uid, lastSync)
             val mealLogsWithItems = mealLogDao.getMealLogsWithItemsModifiedSince(uid, lastSync)
             val nutritionSummaries = dailyNutritionSummaryDao.getSummariesModifiedSince(uid, lastSync)
-            val weightLogs = weightLogDao.getWeightLogsModifiedSince(uid, lastSync)
+            // Weight logs are append-only and small. Send the full set so an
+            // older backend that ignored weight_logs can be backfilled after it
+            // is fixed; the server upserts by timestamp so this stays idempotent.
+            val weightLogs = weightLogDao.getAllWeightLogsForUser(uid)
 
             Log.d(TAG, "Delta payload: profile=${profile != null}, " +
                     "activities=${activityLogs.size}, meals=${mealLogsWithItems.size}, " +
