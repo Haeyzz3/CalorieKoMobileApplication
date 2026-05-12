@@ -107,6 +107,7 @@ import com.calorieko.app.viewmodel.DishResult
 import com.calorieko.app.viewmodel.PantryViewModel
 import com.calorieko.app.viewmodel.ProofType
 import com.calorieko.app.viewmodel.WeekInfo
+import com.calorieko.app.util.PortionScaler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1938,6 +1939,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
     val subNutrition = allSubNutrition[recipe.dishLabel]
     val hasSubstitutions = dishSubs.isNotEmpty()
 
+    // --- Serving scaling state ---
+    val scaledServingsMap by viewModel.scaledServings.collectAsState()
+    val targetServings = scaledServingsMap[recipe.dishLabel] ?: recipe.originalServings
+    val multiplier = targetServings.toFloat() / recipe.originalServings.toFloat().coerceAtLeast(1f)
+    val isScaled = targetServings != recipe.originalServings
+    val maxServings = maxOf(recipe.originalServings * 4, 20)
+
     // Substitution picker state
     var substitutionTarget by remember { mutableStateOf<String?>(null) }  // ingredientKey being substituted
     var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
@@ -2074,6 +2082,86 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        // ── Serving Size Scaling Card ──
+        if (recipe.coreTotalCount > 0 && !isViewOnly) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = if (isScaled) Color(0xFFF0FDF4) else Color(0xFFF9FAFB)),
+                border = BorderStroke(1.dp, if (isScaled) CalorieKoGreen.copy(alpha = 0.3f) else Color(0xFFE5E7EB)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Servings", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                            Text(
+                                "Original: ${recipe.originalServings} serving${if (recipe.originalServings > 1) "s" else ""}",
+                                fontSize = 11.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                onClick = { if (targetServings > 1) viewModel.setTargetServings(recipe.dishLabel, targetServings - 1) },
+                                color = if (targetServings > 1) CalorieKoGreen.copy(alpha = 0.12f) else Color(0xFFF3F4F6),
+                                shape = CircleShape,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text("\u2013", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (targetServings > 1) CalorieKoGreen else Color(0xFFD1D5DB))
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                "$targetServings",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isScaled) CalorieKoGreen else Color(0xFF374151)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Surface(
+                                onClick = { if (targetServings < maxServings) viewModel.setTargetServings(recipe.dishLabel, targetServings + 1) },
+                                color = if (targetServings < maxServings) CalorieKoGreen.copy(alpha = 0.12f) else Color(0xFFF3F4F6),
+                                shape = CircleShape,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (targetServings < maxServings) CalorieKoGreen else Color(0xFFD1D5DB))
+                                }
+                            }
+                        }
+                    }
+                    // Total recipe weight
+                    if (recipe.perServingWeightG > 0f) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Total recipe: \u2248 ${(recipe.perServingWeightG * targetServings).toInt()}g",
+                            fontSize = 12.sp,
+                            color = if (isScaled) CalorieKoGreen else Color(0xFF6B7280),
+                            fontWeight = if (isScaled) FontWeight.Medium else FontWeight.Normal
+                        )
+                    }
+                    // Reset link
+                    if (isScaled) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Reset to original",
+                            fontSize = 11.sp,
+                            color = CalorieKoGreen,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable { viewModel.resetTargetServings(recipe.dishLabel) }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Nutrition Cards
         if (recipe.calories > 0) {
@@ -2459,11 +2547,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     color = Color(0xFF9CA3AF)
                                 )
                             } else if (detail.portionQuantity.isNotBlank()) {
-                                // Portion quantity
+                                // Portion quantity (scaled by multiplier)
+                                val scaledPortion = PortionScaler.scale(detail.portionQuantity, multiplier)
                                 Text(
-                                    detail.portionQuantity,
+                                    scaledPortion,
                                     fontSize = 12.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = if (isScaled) CalorieKoGreen else Color(0xFF6B7280),
+                                    fontWeight = if (isScaled) FontWeight.Medium else FontWeight.Normal
                                 )
                             }
                         }
@@ -2523,31 +2613,31 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         ) {
                             if (breakdown != null) {
                                 Text(
-                                    "${breakdown.rawWeightGrams.toInt()}g raw",
+                                    "${(breakdown.rawWeightGrams * multiplier).toInt()}g raw",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF6B7280)
+                                    color = if (isScaled) CalorieKoGreen else Color(0xFF6B7280)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Column {
-                                        Text("${breakdown.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                        Text("${(breakdown.calories * multiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                                         Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${breakdown.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                        Text("${(breakdown.protein * multiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
                                         Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${breakdown.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                        Text("${(breakdown.carbs * multiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
                                         Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${breakdown.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                        Text("${(breakdown.fat * multiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
                                         Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${breakdown.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                        Text("${(breakdown.sodium * multiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
                                         Text("mg sod.", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                 }

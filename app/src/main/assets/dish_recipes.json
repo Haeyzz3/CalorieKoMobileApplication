@@ -85,7 +85,7 @@
   },
   {
     "dish_label": "tinapa_ginisa",
-    "name_en": "Saut�ed Smoked Fish",
+    "name_en": "Sauteed Smoked Fish",
     "name_ph": "Ginisang Tinapa",
     "category": "Fish",
     "cooking_method": "sauteed",
@@ -1010,7 +1010,7 @@
   {
     "dish_label": "humba_pork",
     "name_en": "Braised Pork",
-    "name_ph": "Humb�",
+    "name_ph": "Humba",
     "category": "Main Dish",
     "cooking_method": "braised",
     "servings": 5,

@@ -90,6 +90,8 @@ data class DishResult(
     val servingSizeDescription: String = "",
     // Per-serving weight in grams (cooked_weight_g / servings)
     val perServingWeightG: Float = 0f,
+    // Original serving count from DishRecipeEntity (baseline for scaling)
+    val originalServings: Int = 1,
     val appliedSubstitutions: Map<String, String> = emptyMap()
 )
 
@@ -104,6 +106,7 @@ data class WeekInfo(
     val isPast: Boolean,            // true if entire week is before current week
     val isBeyondHorizon: Boolean    // true if beyond 8-week planning cap
 )
+
 
 class PantryViewModel(
     private val auth: FirebaseAuth,
@@ -244,7 +247,8 @@ class PantryViewModel(
         val namePh: String,
         val nameEn: String,
         val servingSizeDescription: String = "",
-        val perServingWeightG: Float = 0f
+        val perServingWeightG: Float = 0f,
+        val servings: Int = 1
     ) {
         val primaryName: String
             get() = namePh.ifBlank { nameEn }
@@ -285,7 +289,8 @@ class PantryViewModel(
                     namePh = recipe.namePh,
                     nameEn = recipe.nameEn,
                     servingSizeDescription = recipe.servingSizeDescription,
-                    perServingWeightG = recipe.perServingWeightG
+                    perServingWeightG = recipe.perServingWeightG,
+                    servings = recipe.servings
                 )
             }
         }
@@ -526,7 +531,8 @@ class PantryViewModel(
                 calcium = nutrition.calcium,
                 iron = nutrition.iron,
                 servingSizeDescription = dishDisplayNames.servingSizeDescription,
-                perServingWeightG = dishDisplayNames.perServingWeightG
+                perServingWeightG = dishDisplayNames.perServingWeightG,
+                originalServings = dishDisplayNames.servings
             )
 
             if (info.core_matched >= info.core_total) {
@@ -590,7 +596,8 @@ class PantryViewModel(
                 calcium = nutrition.calcium,
                 iron = nutrition.iron,
                 servingSizeDescription = dishDisplayNames.servingSizeDescription,
-                perServingWeightG = dishDisplayNames.perServingWeightG
+                perServingWeightG = dishDisplayNames.perServingWeightG,
+                originalServings = dishDisplayNames.servings
             )
         }
     }
@@ -919,6 +926,7 @@ class PantryViewModel(
                 calcium = nutrition.calcium,
                 iron = nutrition.iron,
                 servingSizeDescription = dishDisplayNames.servingSizeDescription,
+                originalServings = dishDisplayNames.servings,
                 appliedSubstitutions = parseSubstitutionsJson(substitutionsJson)
             )
         }
@@ -1011,6 +1019,7 @@ class PantryViewModel(
             calcium = nutrition.calcium,
             iron = nutrition.iron,
             servingSizeDescription = dishDisplayNames.servingSizeDescription,
+            originalServings = dishDisplayNames.servings,
             appliedSubstitutions = subs
         )
     }
@@ -1066,14 +1075,8 @@ class PantryViewModel(
     // Helpers
     // ============================================================
 
-    /**
-     * Gets nutritional data for a dish by looking up the DISH_RECIPES_TABLE.
-     * Returns per-serving nutrient values.
-     * Results are cached to avoid repeated DB lookups.
-     */
     private suspend fun getDishNutrition(dishLabel: String): DishNutritionInfo {
         _dishNutritionCache[dishLabel]?.let { return it }
-
         val recipe = dishRecipeDao.getByDishLabel(dishLabel)
         val info = if (recipe != null) {
             DishNutritionInfo(
@@ -1091,58 +1094,43 @@ class PantryViewModel(
                 iron = recipe.ironPerServing
             )
         } else {
-            // Dish exists in ingredients table but not in recipes table — no nutrition data available
             DishNutritionInfo(0, 0, 0, 0, 0f, 0f, 0, 0f, 0f, 0f, 0f, 0f)
         }
-
         _dishNutritionCache[dishLabel] = info
         return info
     }
 
     private suspend fun getDishDisplayNames(dishLabel: String): DishDisplayNames {
         _dishDisplayNameCache[dishLabel]?.let { return it }
-
         val recipe = dishRecipeDao.getByDishLabel(dishLabel)
         val names = if (recipe != null) {
             DishDisplayNames(
                 namePh = recipe.namePh,
                 nameEn = recipe.nameEn,
                 servingSizeDescription = recipe.servingSizeDescription,
-                perServingWeightG = recipe.perServingWeightG
+                perServingWeightG = recipe.perServingWeightG,
+                servings = recipe.servings
             )
         } else {
             val fallback = formatDishName(dishLabel)
-            DishDisplayNames(
-                namePh = fallback,
-                nameEn = ""
-            )
+            DishDisplayNames(namePh = fallback, nameEn = "")
         }
-
         _dishDisplayNameCache[dishLabel] = names
         return names
     }
 
-    /**
-     * Converts a dish label like "sinigang_pork" to "Sinigang Pork".
-     */
     private fun formatDishName(label: String): String {
         return label.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
     }
 
-    /**
-     * Returns the Monday of the current week as an ISO date string.
-     */
     private fun getWeekStartDate(): String {
         return LocalDate.now()
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
     }
 
-    /**
-     * Returns the furthest Monday that users can plan ahead to (8 weeks from current week).
-     */
     private fun getMaxPlanningWeekStart(): String {
         return LocalDate.now()
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -1150,10 +1138,6 @@ class PantryViewModel(
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
     }
 
-    /**
-     * Computes day-of-month values for the grid column headers.
-     * E.g., for week starting 2026-04-28: [("Mon", 28), ("Tue", 29), ...]
-     */
     private fun computeWeekDayDates(weekStart: String): List<Pair<String, Int>> {
         val startDate = LocalDate.parse(weekStart)
         val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -1162,9 +1146,6 @@ class PantryViewModel(
         }
     }
 
-    /**
-     * Computes which column index (0-6) is today, or null if today is not in the displayed week.
-     */
     private fun computeTodayColumnIndex(weekStart: String): Int? {
         val startDate = LocalDate.parse(weekStart)
         val today = LocalDate.now()
@@ -1172,14 +1153,10 @@ class PantryViewModel(
         return if (daysBetween in 0..6) daysBetween else null
     }
 
-    /**
-     * Computes all week-start Mondays that overlap with the given month.
-     */
     private fun computeWeeksInMonth(yearMonth: YearMonth): List<String> {
         val firstDayOfMonth = yearMonth.atDay(1)
         val lastDayOfMonth = yearMonth.atEndOfMonth()
         val firstMonday = firstDayOfMonth.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
         val weekStarts = mutableListOf<String>()
         var current = firstMonday
         while (!current.isAfter(lastDayOfMonth)) {
@@ -1189,27 +1166,20 @@ class PantryViewModel(
         return weekStarts
     }
 
-    /**
-     * Recomputes the week scrubber pills with meal counts for the displayed month.
-     */
     private suspend fun recomputeWeekScrubberData() {
         val month = _displayedMonth.value
         val weekStartDates = computeWeeksInMonth(month)
         val currentWeek = getWeekStartDate()
         val maxWeek = getMaxPlanningWeekStart()
-
         val mealCounts = if (weekStartDates.isNotEmpty()) {
             mealPlanDao.getMealCountsForWeeks(weekStartDates)
                 .associate { it.weekStartDate to it.count }
         } else emptyMap()
-
         val labelFormatter = DateTimeFormatter.ofPattern("MMM d")
-
         _weeksInMonth.value = weekStartDates.map { weekStart ->
             val start = LocalDate.parse(weekStart)
             val end = start.plusDays(6)
             val label = "${start.format(labelFormatter)} \u2013 ${end.dayOfMonth}"
-
             WeekInfo(
                 weekStartDate = weekStart,
                 label = label,
@@ -1221,45 +1191,42 @@ class PantryViewModel(
         }
     }
 
-    /**
-     * Formats an ingredient key for display.
-     *
-     * Resolves the authoritative display name from [_displayNameCache]
-     * (sourced from RAW_INGREDIENTS_TABLE) if available.
-     * Falls back to naive formatting ("cooking_oil" → "Cooking Oil") for
-     * keys not found in the cache (e.g., user-typed free-form ingredients).
-     */
     fun formatIngredientName(name: String): String {
-        // Check the display name cache first (authoritative USDA names)
         _displayNameCache[name]?.let { return it }
-        // Fallback: naive underscore-split formatting for unrecognized keys
         return name.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
     }
 
     // ============================================================
+    // Recipe Serving Scaling
+    // ============================================================
+
+    private val _scaledServings = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val scaledServings: StateFlow<Map<String, Int>> = _scaledServings.asStateFlow()
+
+    fun setTargetServings(dishLabel: String, target: Int) {
+        val current = _scaledServings.value.toMutableMap()
+        current[dishLabel] = target.coerceAtLeast(1)
+        _scaledServings.value = current
+    }
+
+    fun resetTargetServings(dishLabel: String) {
+        val current = _scaledServings.value.toMutableMap()
+        current.remove(dishLabel)
+        _scaledServings.value = current
+    }
+
+    // ============================================================
     // Ingredient Substitution
     // ============================================================
 
-    /**
-     * Active substitutions per dish. Key = dishLabel, Value = map of originalKey → replacementKey.
-     * Ephemeral — not persisted, resets when user closes the detail sheet.
-     */
     private val _activeSubstitutions = MutableStateFlow<Map<String, Map<String, String>>>(emptyMap())
     val activeSubstitutions: StateFlow<Map<String, Map<String, String>>> = _activeSubstitutions.asStateFlow()
 
-    /**
-     * Recalculated per-serving nutrition for dishes with active substitutions.
-     * Key = dishLabel, Value = NutritionResult with the substituted values.
-     */
     private val _substitutedNutrition = MutableStateFlow<Map<String, NutritionResult>>(emptyMap())
     val substitutedNutrition: StateFlow<Map<String, NutritionResult>> = _substitutedNutrition.asStateFlow()
 
-    /**
-     * Returns all substitute candidates for an ingredient (same sub_category).
-     * Returns empty list if the ingredient has no alternatives.
-     */
     suspend fun getSubstitutesForIngredient(ingredientKey: String): List<RawIngredientEntity> {
         val ingredient = rawIngredientDao.getByKey(ingredientKey) ?: return emptyList()
         return rawIngredientDao.getSubstituteCandidates(ingredient.subCategory, ingredientKey)
