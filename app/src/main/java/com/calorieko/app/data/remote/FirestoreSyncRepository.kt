@@ -92,7 +92,7 @@ class FirestoreSyncRepository {
             db.collection(USERS_COLLECTION)
                 .document(uid)
                 .collection("weightLogs")
-                .document(log.dateEpochDay.toString())
+                .document(log.timestamp.toString())
                 .set(data)
                 .await()
             Log.d(TAG, "Weight log ${log.dateEpochDay} synced for $uid")
@@ -117,7 +117,7 @@ class FirestoreSyncRepository {
                         "timestamp" to log.timestamp,
                         "updatedAt" to log.updatedAt
                     )
-                    batch.set(collectionRef.document(log.dateEpochDay.toString()), data)
+                    batch.set(collectionRef.document(log.timestamp.toString()), data)
                 }
                 batch.commit().await()
             }
@@ -860,13 +860,17 @@ class FirestoreSyncRepository {
                     val epochDay = (doc.get("dateEpochDay") as? Number)?.toLong()
                         ?: doc.id.toLongOrNull()
                         ?: return@mapNotNull null
+                    val documentTimestamp = doc.id.toLongOrNull()?.takeIf { it > 1_000_000_000_000L }
+                    val timestamp = (doc.get("timestamp") as? Number)?.toLong()
+                        ?: documentTimestamp
+                        ?: epochDay * 86_400_000L
                     WeightLogEntity(
                         uid = uid,
                         dateEpochDay = epochDay,
                         weightKg = (doc.get("weightKg") as? Number)?.toDouble()
                             ?: (doc.get("weight_kg") as? Number)?.toDouble()
                             ?: return@mapNotNull null,
-                        timestamp = (doc.get("timestamp") as? Number)?.toLong() ?: 0L,
+                        timestamp = timestamp,
                         updatedAt = (doc.get("updatedAt") as? Number)?.toLong()
                             ?: (doc.get("updated_at") as? Number)?.toLong()
                             ?: 0L,

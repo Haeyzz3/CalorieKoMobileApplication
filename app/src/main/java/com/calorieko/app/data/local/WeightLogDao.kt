@@ -31,7 +31,7 @@ interface WeightLogDao {
         SELECT * FROM weight_log_table
         WHERE uid = :uid
           AND date_epoch_day <= :epochDay
-        ORDER BY date_epoch_day DESC
+        ORDER BY date_epoch_day DESC, timestamp DESC
         LIMIT 1
         """
     )
@@ -56,8 +56,8 @@ interface WeightLogDao {
     @Query("SELECT * FROM weight_log_table WHERE uid = :uid AND sync_status = 0 ORDER BY date_epoch_day ASC")
     suspend fun getUnsyncedWeightLogs(uid: String): List<WeightLogEntity>
 
-    @Query("UPDATE weight_log_table SET sync_status = 1 WHERE uid = :uid AND date_epoch_day IN (:dateEpochDays)")
-    suspend fun markAsSynced(uid: String, dateEpochDays: List<Long>)
+    @Query("UPDATE weight_log_table SET sync_status = 1 WHERE uid = :uid AND timestamp IN (:timestamps)")
+    suspend fun markAsSynced(uid: String, timestamps: List<Long>)
 
     @Query("DELETE FROM weight_log_table")
     suspend fun deleteAll()

@@ -5,7 +5,7 @@ import androidx.room.Entity
 
 @Entity(
     tableName = "weight_log_table",
-    primaryKeys = ["uid", "date_epoch_day"]
+    primaryKeys = ["uid", "timestamp"]
 )
 data class WeightLogEntity(
     val uid: String,

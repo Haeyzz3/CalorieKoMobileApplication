@@ -93,11 +93,14 @@ fun ProgressRings(
                         .padding(4.dp)
                 ) {
                     // Primary Metric: Consumed (Green)
+                    // Scale down if eaten calories are 5+ digits
+                    val caloriesFontSize = if (caloriesCurrent >= 10000) 26.sp else 32.sp
                     Text(
                         text = "~$caloriesCurrent",
-                        fontSize = 32.sp,
+                        fontSize = caloriesFontSize,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
+                        color = Color(0xFF2E7D32),
+                        maxLines = 1
                     )
                     Text(
                         text = "/ $caloriesTarget kcal in",
@@ -105,38 +108,55 @@ fun ProgressRings(
                         color = Color.Gray
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // Secondary Metrics Side-by-Side (Red & Orange)
+                    // Dynamically scale font size when either value reaches 4+ digits
+                    val secondaryFontSize = when {
+                        caloriesBurned >= 10000 || sodiumCurrent >= 10000 -> 14.sp
+                        caloriesBurned >= 1000 || sodiumCurrent >= 1000 -> 17.sp
+                        else -> 22.sp
+                    }
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Text(
                                 text = "~$caloriesBurned",
-                                fontSize = 22.sp,
+                                fontSize = secondaryFontSize,
                                 fontWeight = FontWeight.Bold,
-                                color = RingBurned
+                                color = RingBurned,
+                                maxLines = 1
                             )
                             Text(
                                 text = "/ $caloriesBurnedTarget out",
                                 fontSize = 9.sp,
-                                color = Color.Gray
+                                color = Color.Gray,
+                                maxLines = 1
                             )
                         }
 
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Text(
                                 text = "~$sodiumCurrent",
-                                fontSize = 22.sp,
+                                fontSize = secondaryFontSize,
                                 fontWeight = FontWeight.Bold,
-                                color = RingSodium
+                                color = RingSodium,
+                                maxLines = 1
                             )
                             Text(
                                 text = "/ $sodiumTarget Na",
                                 fontSize = 9.sp,
-                                color = Color.Gray
+                                color = Color.Gray,
+                                maxLines = 1
                             )
                         }
                     }

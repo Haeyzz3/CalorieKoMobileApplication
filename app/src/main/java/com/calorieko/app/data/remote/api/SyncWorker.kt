@@ -157,7 +157,7 @@ class SyncWorker(
                 try {
                     val firestoreRepo = FirestoreSyncRepository()
                     firestoreRepo.syncWeightLogsBatch(uid, unsyncedWeightLogs)
-                    weightLogDao.markAsSynced(uid, unsyncedWeightLogs.map { it.dateEpochDay })
+                    weightLogDao.markAsSynced(uid, unsyncedWeightLogs.map { it.timestamp })
                     Log.d(TAG, "Weight log Firestore sync complete for ${unsyncedWeightLogs.size} rows.")
                 } catch (e: Exception) {
                     Log.w(TAG, "Weight log Firestore sync failed (non-fatal): ${e.message}")

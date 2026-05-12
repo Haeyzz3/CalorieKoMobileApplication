@@ -38,7 +38,7 @@ import kotlinx.coroutines.CoroutineScope
         RecipeIngredientEntity::class,
         WeightLogEntity::class
     ],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -509,6 +509,51 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Migration 26 -> 27: Make weight logs append-only.
+         *
+         * The old primary key was (uid, date_epoch_day), so saving a new weight on
+         * an existing date replaced the previous measurement. Timestamp is now part
+         * of the identity so the progress screen can show real history.
+         */
+        val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS weight_log_table_new (
+                        uid TEXT NOT NULL,
+                        date_epoch_day INTEGER NOT NULL,
+                        weight_kg REAL NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        sync_status INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(uid, timestamp)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    INSERT OR IGNORE INTO weight_log_table_new (
+                        uid,
+                        date_epoch_day,
+                        weight_kg,
+                        timestamp,
+                        updated_at,
+                        sync_status
+                    )
+                    SELECT
+                        uid,
+                        date_epoch_day,
+                        weight_kg,
+                        timestamp,
+                        updated_at,
+                        sync_status
+                    FROM weight_log_table
+                """.trimIndent())
+
+                db.execSQL("DROP TABLE weight_log_table")
+                db.execSQL("ALTER TABLE weight_log_table_new RENAME TO weight_log_table")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -519,7 +564,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

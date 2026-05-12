@@ -69,7 +69,7 @@ import kotlin.math.roundToInt
 private data class DayCalorieData(val dayLabel: String, val intake: Int, val burned: Int)
 private data class DaySodiumData(val dayLabel: String, val sodium: Int)
 private data class DayStepsData(val dayLabel: String, val steps: Int)
-private data class DayWeightData(val dayLabel: String, val weight: Double, val epochDay: Long)
+private data class DayWeightData(val dayLabel: String, val weight: Double, val epochDay: Long, val timestamp: Long)
 private data class TopFoodItem(val name: String, val frequency: Int, val avgCalories: Int, val avgSodium: Int)
 
 /**
@@ -260,18 +260,13 @@ private fun buildWeightChartData(
     val startEpochDay = selectedRangeStartEpochDay(viewMode)
     val sortedLogs = weightLogs
         .filter { it.weightKg > 0.0 && it.dateEpochDay <= endEpochDay }
-        .groupBy { it.dateEpochDay }
-        .map { (_, logs) -> logs.maxBy { it.timestamp } }
-        .sortedBy { it.dateEpochDay }
+        .sortedWith(compareBy<WeightLogEntity> { it.timestamp }.thenBy { it.dateEpochDay })
 
     val rangeLogs = sortedLogs.filter { it.dateEpochDay in startEpochDay..endEpochDay }
-    val baseline = sortedLogs.lastOrNull { it.dateEpochDay < startEpochDay }
-    val points = when {
-        rangeLogs.isNotEmpty() -> (listOfNotNull(baseline) + rangeLogs)
-            .distinctBy { it.dateEpochDay }
-            .sortedBy { it.dateEpochDay }
-        sortedLogs.isNotEmpty() -> listOf(sortedLogs.last())
-        else -> listOf(
+    val points: List<WeightLogEntity> = when {
+        rangeLogs.isNotEmpty() -> rangeLogs
+            .sortedWith(compareBy<WeightLogEntity> { it.timestamp }.thenBy { it.dateEpochDay })
+        sortedLogs.isEmpty() && userWeight > 0.0 -> listOf(
             WeightLogEntity(
                 uid = "",
                 dateEpochDay = endEpochDay,
@@ -281,6 +276,7 @@ private fun buildWeightChartData(
                 syncStatus = 1
             )
         )
+        else -> emptyList()
     }
 
     return points.map { log ->
@@ -288,7 +284,8 @@ private fun buildWeightChartData(
         DayWeightData(
             dayLabel = "${date.monthValue}/${date.dayOfMonth}",
             weight = log.weightKg,
-            epochDay = log.dateEpochDay
+            epochDay = log.dateEpochDay,
+            timestamp = log.timestamp
         )
     }
 }
@@ -300,6 +297,40 @@ private fun selectedRangeStartEpochDay(viewMode: String): Long {
         else -> 7
     }
     return java.time.LocalDate.now().minusDays((daysBack - 1).toLong()).toEpochDay()
+}
+
+private fun epochDayStartMillis(epochDay: Long): Long {
+    val date = java.time.LocalDate.ofEpochDay(epochDay)
+    val cal = Calendar.getInstance()
+    cal.set(date.year, date.monthValue - 1, date.dayOfMonth, 0, 0, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
+}
+
+private fun weightAxisTicks(viewMode: String): List<Pair<Long, String>> {
+    val startEpochDay = selectedRangeStartEpochDay(viewMode)
+    val endEpochDay = java.time.LocalDate.now().toEpochDay()
+    val tickEpochDays = when (viewMode) {
+        "30_days" -> listOf(
+            startEpochDay,
+            startEpochDay + 7,
+            startEpochDay + 14,
+            startEpochDay + 21,
+            endEpochDay
+        )
+        "90_days" -> listOf(
+            startEpochDay,
+            startEpochDay + 30,
+            startEpochDay + 60,
+            endEpochDay
+        )
+        else -> (startEpochDay..endEpochDay).toList()
+    }.map { it.coerceIn(startEpochDay, endEpochDay) }.distinct()
+
+    return tickEpochDays.map { epochDay ->
+        val date = java.time.LocalDate.ofEpochDay(epochDay)
+        epochDayStartMillis(epochDay) to "${date.monthValue}/${date.dayOfMonth}"
+    }
 }
 
 /**
@@ -345,9 +376,8 @@ private fun buildDayEntriesFromSummaries(
     val fullDateFmt = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault())
     val dayNameFmt = SimpleDateFormat("EEEE", Locale.getDefault())
 
-    // Collect all unique epoch days from both sources
+    // Collect daily nutrition/workout rows separately from append-only weight rows.
     val nutritionByEpochDay = nutritionSummaries.associateBy { it.dateEpochDay }
-    val weightByEpochDay = weightLogs.associateBy { it.dateEpochDay }
     val workoutsByEpochDay = workoutLogs.groupBy { log ->
         val cal = Calendar.getInstance()
         cal.timeInMillis = log.timestamp
@@ -356,9 +386,9 @@ private fun buildDayEntriesFromSummaries(
         ).toEpochDay()
     }
 
-    val allDays = (nutritionByEpochDay.keys + workoutsByEpochDay.keys + weightByEpochDay.keys).distinct()
+    val allDays = (nutritionByEpochDay.keys + workoutsByEpochDay.keys).distinct()
 
-    return allDays.map { epochDay ->
+    val dailyEntries = allDays.map { epochDay ->
         val date = java.time.LocalDate.ofEpochDay(epochDay)
         val cal = Calendar.getInstance()
         cal.set(date.year, date.monthValue - 1, date.dayOfMonth, 0, 0, 0)
@@ -376,15 +406,44 @@ private fun buildDayEntriesFromSummaries(
             burnedCalories = dayWorkouts.sumOf { it.calories },
             sodium = nutrition?.totalSodium?.toInt() ?: 0,
             steps = dayWorkouts.sumOf { it.steps ?: 0 },
-            weightKg = weightByEpochDay[epochDay]?.weightKg
+            weightKg = null
         )
-    }.sortedByDescending { it.timestamp }
+    }
+
+    val weightEntries = weightLogs
+        .filter { it.weightKg > 0.0 }
+        .map { log ->
+            val date = java.time.LocalDate.ofEpochDay(log.dateEpochDay)
+            val cal = Calendar.getInstance()
+            cal.set(date.year, date.monthValue - 1, date.dayOfMonth, 0, 0, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            val dayTs = cal.timeInMillis
+
+            DayEntry(
+                timestamp = log.timestamp.takeIf { it > 0L } ?: dayTs,
+                fullDate = fullDateFmt.format(Date(dayTs)),
+                dayName = dayNameFmt.format(Date(dayTs)),
+                intakeCalories = 0,
+                burnedCalories = 0,
+                sodium = 0,
+                steps = 0,
+                weightKg = log.weightKg
+            )
+        }
+
+    return (dailyEntries + weightEntries).sortedByDescending { it.timestamp }
 }
 
 // ==================== MAIN SCREEN ====================
 
 @Composable
 fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
+    // Refresh data every time this screen becomes active so that new weight
+    // entries (or any other logged data) are reflected immediately.
+    LaunchedEffect(Unit) {
+        viewModel.loadData()
+    }
+
     // ── Collect ViewModel State ──
     val weeklyLogs by viewModel.weeklyLogs.collectAsState()
     val nutritionSummaries by viewModel.nutritionSummaries.collectAsState()
@@ -410,7 +469,10 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     }
     val weightEntriesInRange = remember(weightLogs, viewMode) {
         val startEpochDay = selectedRangeStartEpochDay(viewMode)
-        weightLogs.filter { it.dateEpochDay >= startEpochDay }
+        val endEpochDay = java.time.LocalDate.now().toEpochDay()
+        weightLogs
+            .filter { it.dateEpochDay in startEpochDay..endEpochDay }
+            .sortedWith(compareBy<WeightLogEntity> { it.dateEpochDay }.thenBy { it.timestamp })
     }
     val topFoods = remember(mealLogsWithItems) {
         mealLogsWithItems
@@ -472,7 +534,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
                             "Calorie Balance" -> CalorieBalanceCard(data = calorieData, viewMode = viewMode)
                             "Sodium Trend" -> SodiumTrendCard(data = sodiumData, dailyLimit = 2300, viewMode = viewMode)
                             "Daily Steps" -> DailyStepsCard(data = stepsData, viewMode = viewMode)
-                            "Weight & Body Metrics" -> WeightTrackingCard(data = weightData)
+                            "Weight & Body Metrics" -> WeightTrackingCard(data = weightData, viewMode = viewMode)
                             "Dietary Insights" -> DietaryInsightsCard(foods = topFoods)
                         }
                     }
@@ -1095,7 +1157,7 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
 // ==================== WEIGHT & BODY METRICS ====================
 
 @Composable
-private fun WeightTrackingCard(data: List<DayWeightData>) {
+private fun WeightTrackingCard(data: List<DayWeightData>, viewMode: String) {
     val startWeight = data.firstOrNull()?.weight ?: 0.0
     val endWeight = data.lastOrNull()?.weight ?: 0.0
     val weightChange = endWeight - startWeight
@@ -1108,9 +1170,13 @@ private fun WeightTrackingCard(data: List<DayWeightData>) {
     val minW = (data.minOfOrNull { it.weight } ?: 70.0) - 2.0
     val maxW = (data.maxOfOrNull { it.weight } ?: 76.0) + 2.0
     val range = (maxW - minW).coerceAtLeast(0.1)
+    val axisStartMillis = epochDayStartMillis(selectedRangeStartEpochDay(viewMode))
+    val axisEndMillis = epochDayStartMillis(java.time.LocalDate.now().toEpochDay() + 1) - 1L
+    val axisDurationMillis = (axisEndMillis - axisStartMillis).coerceAtLeast(1L)
+    val axisTicks = weightAxisTicks(viewMode)
 
     val lineProgress = remember { Animatable(0f) }
-    LaunchedEffect(data) {
+    LaunchedEffect(data, viewMode) {
         lineProgress.snapTo(0f)
         lineProgress.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
     }
@@ -1157,16 +1223,15 @@ private fun WeightTrackingCard(data: List<DayWeightData>) {
                 }
 
                 if (data.isNotEmpty()) {
-                    val minEpoch = data.minOf { it.epochDay }
-                    val maxEpoch = data.maxOf { it.epochDay }
-                    fun xFor(day: DayWeightData): Float {
-                        if (minEpoch == maxEpoch) return leftPad + drawW / 2f
-                        val fraction = (day.epochDay - minEpoch).toFloat() / (maxEpoch - minEpoch).toFloat()
+                    fun xForTimestamp(timestamp: Long): Float {
+                        val fraction = ((timestamp - axisStartMillis).toDouble() / axisDurationMillis.toDouble())
+                            .coerceIn(0.0, 1.0)
+                            .toFloat()
                         return leftPad + drawW * fraction
                     }
 
                     val points = data.map { day ->
-                        val x = xFor(day)
+                        val x = xForTimestamp(day.timestamp)
                         val y = drawH - (drawH * ((day.weight - minW) / range)).toFloat()
                         Offset(x, y)
                     }
@@ -1189,12 +1254,13 @@ private fun WeightTrackingCard(data: List<DayWeightData>) {
                         drawCircle(Color(0xFF4CAF50), with(density) { 5.dp.toPx() }, points[i])
                         drawCircle(Color.White, with(density) { 2.5.dp.toPx() }, points[i])
                     }
-                    val labelStride = (data.size / 6).coerceAtLeast(1)
-                    data.forEachIndexed { index, day ->
-                        if (index % labelStride == 0 || index == data.lastIndex) {
-                            drawContext.canvas.nativeCanvas.drawText(
-                                day.dayLabel, xFor(day), chartH - with(density) { 4.dp.toPx() }, labelPaint)
-                        }
+                    axisTicks.forEach { (timestamp, label) ->
+                        drawContext.canvas.nativeCanvas.drawText(
+                            label,
+                            xForTimestamp(timestamp),
+                            chartH - with(density) { 4.dp.toPx() },
+                            labelPaint
+                        )
                     }
                 }
             }

@@ -140,9 +140,8 @@ class ProgressViewModel(
                 // weight across the selected range.
                 val endEpochDay = today.toEpochDay()
                 val weights = weightLogDao.getAllWeightLogsForUser(uid)
-                    .groupBy { it.dateEpochDay }
-                    .map { (_, logs) -> logs.maxBy { it.timestamp } }
-                    .sortedBy { it.dateEpochDay }
+                    .filter { it.weightKg > 0.0 }
+                    .sortedWith(compareBy<WeightLogEntity> { it.dateEpochDay }.thenBy { it.timestamp })
                 _weightLogs.value = weights.ifEmpty {
                     listOf(
                         WeightLogEntity(
