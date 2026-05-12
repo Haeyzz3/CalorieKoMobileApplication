@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -1307,7 +1308,8 @@ private fun ManualMealSummaryOverlay(
     onConfirmMeal: () -> Unit,
     onCancel: () -> Unit,
     isConfirming: Boolean = false,
-    manualViewModel: ManualLogViewModel? = null
+    manualViewModel: ManualLogViewModel? = null,
+    isPlannedMeal: Boolean = false
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1572,15 +1574,45 @@ private fun ManualMealSummaryOverlay(
                         )
                     }
                     Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = onAddMore,
-                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Add More Dishes", fontWeight = FontWeight.SemiBold)
+                    if (isPlannedMeal) {
+                        // Informational banner for planned meal restrictions
+                        Surface(
+                            color = Color(0xFFF0F9FF),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFDBEAFE)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "Further adjustments cannot be made to planned meals here. " +
+                                        "Please modify your planned meals in the Pantry Screen prior to logging.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF1E40AF),
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    } else {
+                        Button(
+                            onClick = onAddMore,
+                            colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add More Dishes", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
@@ -1688,7 +1720,7 @@ private fun ManualMealSummaryOverlay(
                         else -> {
 
                     // ── Substitution picker (only shown when NOT from meal plan) ──
-                    if (substitutionTarget != null && substitutionCandidates.isNotEmpty()) {
+                    if (substitutionTarget != null && substitutionCandidates.isNotEmpty() && !isPlannedMeal) {
                         Surface(
                             color = Color(0xFFF0F9FF),
                             shape = RoundedCornerShape(12.dp),
@@ -1764,6 +1796,33 @@ private fun ManualMealSummaryOverlay(
                     }
 
                     // ── Ingredient list ──
+                    if (isPlannedMeal) {
+                        Surface(
+                            color = Color(0xFFFFF7ED),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFED7AA)),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFFEA580C),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Ingredient adjustments are managed in the Pantry Screen.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF9A3412),
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+                    }
                     Text("Ingredients", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                     Spacer(Modifier.height(8.dp))
 
@@ -1853,7 +1912,7 @@ private fun ManualMealSummaryOverlay(
                                     }
 
                                     // Swap button — only shown when NOT from meal plan and NOT removed
-                                    if (isRemoved || isSubstituted) {
+                                    if ((isRemoved || isSubstituted) && !isPlannedMeal) {
                                         Surface(
                                             onClick = {
                                                 val newSubs = activeSubstitutions.toMutableMap()
@@ -1880,7 +1939,7 @@ private fun ManualMealSummaryOverlay(
                                             )
                                         }
                                     } else {
-                                        if (hasSubstitutionAlternatives) {
+                                        if (hasSubstitutionAlternatives && !isPlannedMeal) {
                                             Surface(
                                                 onClick = {
                                                     scope.launch {
@@ -1900,7 +1959,7 @@ private fun ManualMealSummaryOverlay(
                                                 Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
                                             }
                                         }
-                                        if (isOptional) {
+                                        if (isOptional && !isPlannedMeal) {
                                             if (hasSubstitutionAlternatives) {
                                                 Spacer(Modifier.width(6.dp))
                                             }
@@ -2784,7 +2843,8 @@ fun QuickLogScreen(
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
             isConfirming = isConfirming,
-            manualViewModel = viewModel
+            manualViewModel = viewModel,
+            isPlannedMeal = true
         )
     } else if (showSummary && dishes.isEmpty()) {
         // Error state: recipe not found or all dishes failed to load
