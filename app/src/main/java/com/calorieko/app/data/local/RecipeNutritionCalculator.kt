@@ -108,6 +108,48 @@ class RecipeNutritionCalculator(
     }
 
     /**
+     * Recalculates dish nutrition with per-ingredient tweaks AND substitutions.
+     *
+     * Tweaks are multipliers on each ingredient's `raw_weight_grams` (e.g., 2.0 = double).
+     * Substitutions swap one ingredient key for another (existing Phase 1 behaviour).
+     *
+     * @return Pair of (per-serving NutritionResult, new total raw weight in grams).
+     *         The caller can use the raw weight with [DishRecipeEntity.dishYieldFactor]
+     *         to estimate the new cooked/per-serving weight.
+     */
+    suspend fun calculateWithTweaks(
+        dishLabel: String,
+        tweaks: Map<String, Float>,
+        substitutions: Map<String, String> = emptyMap()
+    ): Pair<NutritionResult, Float> {
+        val dish = dishRecipeDao.getByDishLabel(dishLabel)
+            ?: return Pair(NutritionResult.ZERO, 0f)
+
+        val recipeIngredients = recipeIngredientDao.getIngredientsForDish(dishLabel)
+        if (recipeIngredients.isEmpty()) return Pair(NutritionResult.ZERO, 0f)
+
+        var totalRaw = NutritionResult.ZERO
+        var totalRawWeightG = 0f
+
+        for (ri in recipeIngredients) {
+            val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+            if (effectiveKey == REMOVED_INGREDIENT) continue
+            val ingredient = rawIngredientDao.getByKey(effectiveKey) ?: continue
+
+            val tweakMultiplier = tweaks[ri.ingredientKey] ?: 1f
+            val adjustedWeight = ri.rawWeightGrams * tweakMultiplier
+            val factor = adjustedWeight / 100f
+
+            totalRaw = totalRaw + (rawIngredientToNutrition(ingredient) * factor)
+            totalRawWeightG += adjustedWeight
+        }
+
+        val servings = dish.servings.coerceAtLeast(1)
+        val perServing = totalRaw * (1f / servings)
+        return Pair(perServing, totalRawWeightG)
+    }
+
+    /**
      * Calculates per-cooked-100g nutrient values for a dish.
      */
     suspend fun calculatePer100gCooked(dishLabel: String): NutritionResult {

@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -1311,5 +1313,119 @@ class PantryViewModel(
      */
     fun removeIngredient(dishLabel: String, ingredientKey: String) {
         applySubstitution(dishLabel, ingredientKey, REMOVED_INGREDIENT)
+    }
+
+    // ============================================================
+    // Individual Ingredient Tweaking
+    // ============================================================
+
+    /** Per-ingredient multipliers: dishLabel → (ingredientKey → multiplier). */
+    private val _ingredientTweaks = MutableStateFlow<Map<String, Map<String, Float>>>(emptyMap())
+    val ingredientTweaks: StateFlow<Map<String, Map<String, Float>>> = _ingredientTweaks.asStateFlow()
+
+    /** Tweaked per-serving nutrition (replaces base/sub nutrition when tweaks are active). */
+    private val _tweakedNutrition = MutableStateFlow<Map<String, NutritionResult>>(emptyMap())
+    val tweakedNutrition: StateFlow<Map<String, NutritionResult>> = _tweakedNutrition.asStateFlow()
+
+    /** Estimated per-serving weight in grams when tweaks alter the raw weight total. */
+    private val _tweakedPerServingWeight = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val tweakedPerServingWeight: StateFlow<Map<String, Float>> = _tweakedPerServingWeight.asStateFlow()
+
+    /** Debounce job for tweak recalculations — cancelled and restarted on each slider move. */
+    private var tweakRecalcJob: Job? = null
+
+    /**
+     * Sets the multiplier for a specific ingredient in a dish.
+     *
+     * The tweak map update is immediate (slider stays responsive), but the
+     * expensive nutrition recalculation is debounced by 150ms to avoid
+     * Room query thrashing during rapid slider adjustments.
+     *
+     * @param dishLabel the dish being customized
+     * @param ingredientKey the ingredient being tweaked
+     * @param multiplier the tweak multiplier (1.0 = original, 2.0 = double, etc.)
+     */
+    fun setIngredientTweak(dishLabel: String, ingredientKey: String, multiplier: Float) {
+        // Update the tweak map immediately so the UI slider stays responsive
+        val current = _ingredientTweaks.value.toMutableMap()
+        val dishTweaks = (current[dishLabel] ?: emptyMap()).toMutableMap()
+
+        if (multiplier == 1f) dishTweaks.remove(ingredientKey)
+        else dishTweaks[ingredientKey] = multiplier
+
+        if (dishTweaks.isEmpty()) current.remove(dishLabel)
+        else current[dishLabel] = dishTweaks
+
+        _ingredientTweaks.value = current
+
+        // Debounce the expensive recalculation
+        tweakRecalcJob?.cancel()
+        tweakRecalcJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(150L)
+            recalculateTweakedNutrition(dishLabel)
+        }
+    }
+
+    /**
+     * Resets a single ingredient tweak back to 1× (original).
+     */
+    fun resetIngredientTweak(dishLabel: String, ingredientKey: String) {
+        setIngredientTweak(dishLabel, ingredientKey, 1f)
+    }
+
+    /**
+     * Clears all ingredient tweaks for a dish, resetting to original recipe.
+     */
+    fun clearIngredientTweaks(dishLabel: String) {
+        val current = _ingredientTweaks.value.toMutableMap()
+        current.remove(dishLabel)
+        _ingredientTweaks.value = current
+
+        val currentNutrition = _tweakedNutrition.value.toMutableMap()
+        currentNutrition.remove(dishLabel)
+        _tweakedNutrition.value = currentNutrition
+
+        val currentWeights = _tweakedPerServingWeight.value.toMutableMap()
+        currentWeights.remove(dishLabel)
+        _tweakedPerServingWeight.value = currentWeights
+    }
+
+    /**
+     * Runs the full recalculation for a tweaked dish.
+     * Called after the debounce delay elapses.
+     */
+    private suspend fun recalculateTweakedNutrition(dishLabel: String) {
+        val tweaks = _ingredientTweaks.value[dishLabel] ?: emptyMap()
+        val subs = _activeSubstitutions.value[dishLabel] ?: emptyMap()
+
+        if (tweaks.isEmpty()) {
+            // No tweaks left — clear the tweaked state
+            val currentNutrition = _tweakedNutrition.value.toMutableMap()
+            currentNutrition.remove(dishLabel)
+            _tweakedNutrition.value = currentNutrition
+
+            val currentWeights = _tweakedPerServingWeight.value.toMutableMap()
+            currentWeights.remove(dishLabel)
+            _tweakedPerServingWeight.value = currentWeights
+            return
+        }
+
+        val (perServingNutrition, newTotalRawWeightG) =
+            calculator.calculateWithTweaks(dishLabel, tweaks, subs)
+
+        // Emit tweaked nutrition
+        val currentNutrition = _tweakedNutrition.value.toMutableMap()
+        currentNutrition[dishLabel] = perServingNutrition
+        _tweakedNutrition.value = currentNutrition
+
+        // Estimate new per-serving weight using the yield factor
+        val dish = dishRecipeDao.getByDishLabel(dishLabel) ?: return
+        val yieldFactor = if (dish.dishYieldFactor > 0f) dish.dishYieldFactor else 1f
+        val newCookedWeight = newTotalRawWeightG * yieldFactor
+        val newPerServingWeight = newCookedWeight / dish.servings.coerceAtLeast(1)
+
+        val currentWeights = _tweakedPerServingWeight.value.toMutableMap()
+        currentWeights[dishLabel] = newPerServingWeight
+        _tweakedPerServingWeight.value = currentWeights
     }
 }

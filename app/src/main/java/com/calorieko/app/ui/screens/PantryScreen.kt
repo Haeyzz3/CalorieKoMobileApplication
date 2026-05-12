@@ -1946,24 +1946,81 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
     val isScaled = targetServings != recipe.originalServings
     val maxServings = maxOf(recipe.originalServings * 4, 20)
 
+    // --- Individual ingredient tweak state ---
+    val allTweaks by viewModel.ingredientTweaks.collectAsState()
+    val dishTweaks = allTweaks[recipe.dishLabel] ?: emptyMap()
+    val hasTweaks = dishTweaks.isNotEmpty()
+    val tweakedNutritionMap by viewModel.tweakedNutrition.collectAsState()
+    val tweakedNutrition = tweakedNutritionMap[recipe.dishLabel]
+    val tweakedWeightMap by viewModel.tweakedPerServingWeight.collectAsState()
+    val tweakedPerServingWeight = tweakedWeightMap[recipe.dishLabel]
+
     // Substitution picker state
     var substitutionTarget by remember { mutableStateOf<String?>(null) }  // ingredientKey being substituted
     var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
     var isLoadingCandidates by remember { mutableStateOf(false) }
 
-    // Effective nutrition: use substituted values if available, else original
-    val effectiveCalories = if (hasSubstitutions && subNutrition != null) subNutrition.calories.toInt() else recipe.calories
-    val effectiveProtein = if (hasSubstitutions && subNutrition != null) subNutrition.protein.toInt() else recipe.protein
-    val effectiveCarbs = if (hasSubstitutions && subNutrition != null) subNutrition.carbs.toInt() else recipe.carbs
-    val effectiveFats = if (hasSubstitutions && subNutrition != null) subNutrition.fat.toInt() else recipe.fats
-    val effectiveSodium = if (hasSubstitutions && subNutrition != null) subNutrition.sodium.toInt() else recipe.sodium
-    val effectiveFiber = if (hasSubstitutions && subNutrition != null) subNutrition.fiber else recipe.fiber
-    val effectiveSugar = if (hasSubstitutions && subNutrition != null) subNutrition.sugar else recipe.sugar
-    val effectivePotassium = if (hasSubstitutions && subNutrition != null) subNutrition.potassium else recipe.potassium
-    val effectiveVitaminA = if (hasSubstitutions && subNutrition != null) subNutrition.vitaminA else recipe.vitaminA
-    val effectiveVitaminC = if (hasSubstitutions && subNutrition != null) subNutrition.vitaminC else recipe.vitaminC
-    val effectiveCalcium = if (hasSubstitutions && subNutrition != null) subNutrition.calcium else recipe.calcium
-    val effectiveIron = if (hasSubstitutions && subNutrition != null) subNutrition.iron else recipe.iron
+    // Effective nutrition: tweaks > subs > original
+    val effectiveCalories = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.calories.toInt()
+        hasSubstitutions && subNutrition != null -> subNutrition.calories.toInt()
+        else -> recipe.calories
+    }
+    val effectiveProtein = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.protein.toInt()
+        hasSubstitutions && subNutrition != null -> subNutrition.protein.toInt()
+        else -> recipe.protein
+    }
+    val effectiveCarbs = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.carbs.toInt()
+        hasSubstitutions && subNutrition != null -> subNutrition.carbs.toInt()
+        else -> recipe.carbs
+    }
+    val effectiveFats = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.fat.toInt()
+        hasSubstitutions && subNutrition != null -> subNutrition.fat.toInt()
+        else -> recipe.fats
+    }
+    val effectiveSodium = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.sodium.toInt()
+        hasSubstitutions && subNutrition != null -> subNutrition.sodium.toInt()
+        else -> recipe.sodium
+    }
+    val effectiveFiber = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.fiber
+        hasSubstitutions && subNutrition != null -> subNutrition.fiber
+        else -> recipe.fiber
+    }
+    val effectiveSugar = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.sugar
+        hasSubstitutions && subNutrition != null -> subNutrition.sugar
+        else -> recipe.sugar
+    }
+    val effectivePotassium = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.potassium
+        hasSubstitutions && subNutrition != null -> subNutrition.potassium
+        else -> recipe.potassium
+    }
+    val effectiveVitaminA = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.vitaminA
+        hasSubstitutions && subNutrition != null -> subNutrition.vitaminA
+        else -> recipe.vitaminA
+    }
+    val effectiveVitaminC = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.vitaminC
+        hasSubstitutions && subNutrition != null -> subNutrition.vitaminC
+        else -> recipe.vitaminC
+    }
+    val effectiveCalcium = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.calcium
+        hasSubstitutions && subNutrition != null -> subNutrition.calcium
+        else -> recipe.calcium
+    }
+    val effectiveIron = when {
+        hasTweaks && tweakedNutrition != null -> tweakedNutrition.iron
+        hasSubstitutions && subNutrition != null -> subNutrition.iron
+        else -> recipe.iron
+    }
 
     val caloriePercent = if (userCalorieTarget > 0) (effectiveCalories / userCalorieTarget.toFloat()) else 0f
     val sodiumPercent = if (userSodiumLimit > 0) (effectiveSodium / userSodiumLimit.toFloat()) else 0f
@@ -2136,14 +2193,21 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             }
                         }
                     }
-                    // Total recipe weight
-                    if (recipe.perServingWeightG > 0f) {
+                    // Total recipe weight (tweak-aware)
+                    val totalWeightPerServing = if (hasTweaks && tweakedPerServingWeight != null) tweakedPerServingWeight else recipe.perServingWeightG
+                    if (totalWeightPerServing > 0f) {
                         Spacer(modifier = Modifier.height(8.dp))
+                        val totalWeightText = "Total recipe: \u2248 ${(totalWeightPerServing * targetServings).toInt()}g" +
+                            if (hasTweaks) " (est.)" else ""
                         Text(
-                            "Total recipe: \u2248 ${(recipe.perServingWeightG * targetServings).toInt()}g",
+                            totalWeightText,
                             fontSize = 12.sp,
-                            color = if (isScaled) CalorieKoGreen else Color(0xFF6B7280),
-                            fontWeight = if (isScaled) FontWeight.Medium else FontWeight.Normal
+                            color = when {
+                                hasTweaks -> Color(0xFF7C3AED)
+                                isScaled -> CalorieKoGreen
+                                else -> Color(0xFF6B7280)
+                            },
+                            fontWeight = if (isScaled || hasTweaks) FontWeight.Medium else FontWeight.Normal
                         )
                     }
                     // Reset link
@@ -2210,23 +2274,80 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
+            // Ingredient Tweaks Active Banner
+            if (hasTweaks && !isViewOnly) {
+                Surface(
+                    color = Color(0xFFF5F3FF),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFDDD6FE)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("\uD83C\uDF9A\uFE0F", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "${dishTweaks.size} Ingredient${if (dishTweaks.size > 1) "s" else ""} Tweaked",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF5B21B6)
+                            )
+                            Text(
+                                "Per-serving nutrition recalculated",
+                                fontSize = 11.sp,
+                                color = Color(0xFF7C3AED)
+                            )
+                        }
+                        Surface(
+                            onClick = { viewModel.clearIngredientTweaks(recipe.dishLabel) },
+                            color = Color(0xFF7C3AED).copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "Reset",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF7C3AED),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Text("Per Serving Nutrition", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-            if (recipe.perServingWeightG > 0f) {
+            // Per-serving weight: show tweaked estimate with (est.) when tweaks active
+            val displayPerServingWeight = if (hasTweaks && tweakedPerServingWeight != null) {
+                tweakedPerServingWeight
+            } else {
+                recipe.perServingWeightG
+            }
+            if (displayPerServingWeight > 0f) {
                 Text(
-                    "\u2248 ${recipe.perServingWeightG.toInt()}g per serving",
+                    if (hasTweaks) "\u2248 ${displayPerServingWeight.toInt()}g per serving (est.)"
+                    else "\u2248 ${displayPerServingWeight.toInt()}g per serving",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF6B7280)
+                    color = if (hasTweaks) Color(0xFF7C3AED) else Color(0xFF6B7280)
                 )
             }
             Text(
                 when {
+                    hasTweaks -> "Updated with ingredient adjustments"
                     hasSubstitutions -> "Updated with substitutions"
                     recipe.servingSizeDescription.isNotBlank() -> "1 serving \u2248 ${recipe.servingSizeDescription}"
                     else -> "Values per single serving"
                 },
                 fontSize = 12.sp,
-                color = if (hasSubstitutions) Color(0xFF0284C7) else Color(0xFF9CA3AF)
+                color = when {
+                    hasTweaks -> Color(0xFF7C3AED)
+                    hasSubstitutions -> Color(0xFF0284C7)
+                    else -> Color(0xFF9CA3AF)
+                }
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(
@@ -2409,8 +2530,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                if (!hasSubstitutions && !isViewOnly) {
-                    Text("Tap to customize", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                if (!hasSubstitutions && !hasTweaks && !isViewOnly) {
+                    Text("Tap to customize & adjust", fontSize = 11.sp, color = Color(0xFF9CA3AF))
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -2547,13 +2668,20 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     color = Color(0xFF9CA3AF)
                                 )
                             } else if (detail.portionQuantity.isNotBlank()) {
-                                // Portion quantity (scaled by multiplier)
-                                val scaledPortion = PortionScaler.scale(detail.portionQuantity, multiplier)
+                                // Portion quantity (scaled by serving multiplier × ingredient tweak)
+                                val ingredientTweakMultiplier = dishTweaks[detail.ingredientKey] ?: 1f
+                                val combinedMultiplier = multiplier * ingredientTweakMultiplier
+                                val isTweaked = ingredientTweakMultiplier != 1f
+                                val scaledPortion = PortionScaler.scale(detail.portionQuantity, combinedMultiplier)
                                 Text(
                                     scaledPortion,
                                     fontSize = 12.sp,
-                                    color = if (isScaled) CalorieKoGreen else Color(0xFF6B7280),
-                                    fontWeight = if (isScaled) FontWeight.Medium else FontWeight.Normal
+                                    color = when {
+                                        isTweaked -> Color(0xFF7C3AED)
+                                        isScaled -> CalorieKoGreen
+                                        else -> Color(0xFF6B7280)
+                                    },
+                                    fontWeight = if (isScaled || isTweaked) FontWeight.Medium else FontWeight.Normal
                                 )
                             }
                         }
@@ -2612,36 +2740,86 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 .padding(start = 44.dp, end = 12.dp, top = 4.dp, bottom = 10.dp)
                         ) {
                             if (breakdown != null) {
+                                val bkTweakMult = dishTweaks[detail.ingredientKey] ?: 1f
+                                val bkCombinedMult = multiplier * bkTweakMult
+                                val bkIsTweaked = bkTweakMult != 1f
+                                val bkHighlightColor = when {
+                                    bkIsTweaked -> Color(0xFF7C3AED)
+                                    isScaled -> CalorieKoGreen
+                                    else -> Color(0xFF6B7280)
+                                }
                                 Text(
-                                    "${(breakdown.rawWeightGrams * multiplier).toInt()}g raw",
+                                    "${(breakdown.rawWeightGrams * bkCombinedMult).toInt()}g raw",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (isScaled) CalorieKoGreen else Color(0xFF6B7280)
+                                    color = bkHighlightColor
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Column {
-                                        Text("${(breakdown.calories * multiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                        Text("${(breakdown.calories * bkCombinedMult).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                                         Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${(breakdown.protein * multiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                        Text("${(breakdown.protein * bkCombinedMult).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
                                         Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${(breakdown.carbs * multiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                        Text("${(breakdown.carbs * bkCombinedMult).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
                                         Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${(breakdown.fat * multiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                        Text("${(breakdown.fat * bkCombinedMult).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
                                         Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                     Column {
-                                        Text("${(breakdown.sodium * multiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                        Text("${(breakdown.sodium * bkCombinedMult).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
                                         Text("mg sod.", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
+
+                                // --- Ingredient Tweak Stepper ---
+                                if (!isViewOnly && !isRemoved && !PortionScaler.isQualitative(detail.portionQuantity)) {
+                                    val tweakSteps = listOf(0.5f, 1f, 1.5f, 2f, 3f, 4f)
+                                    val tweakLabels = listOf("\u00BD\u00d7", "1\u00d7", "1\u00BD\u00d7", "2\u00d7", "3\u00d7", "4\u00d7")
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "Adjust amount",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF6B7280)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        tweakSteps.forEachIndexed { index, step ->
+                                            val isActive = bkTweakMult == step
+                                            Surface(
+                                                onClick = {
+                                                    viewModel.setIngredientTweak(
+                                                        recipe.dishLabel,
+                                                        detail.ingredientKey,
+                                                        step
+                                                    )
+                                                },
+                                                color = when {
+                                                    isActive && step != 1f -> Color(0xFF7C3AED)
+                                                    isActive -> Color(0xFF374151)
+                                                    else -> Color(0xFFE5E7EB)
+                                                },
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    tweakLabels[index],
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isActive) Color.White else Color(0xFF6B7280),
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             // Action buttons row (hidden in view-only mode)
                             if (!isViewOnly) {
