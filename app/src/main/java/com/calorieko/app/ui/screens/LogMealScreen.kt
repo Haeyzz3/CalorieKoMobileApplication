@@ -130,6 +130,8 @@ import com.calorieko.app.viewmodel.LogMealViewModel
 import com.calorieko.app.viewmodel.ManualLogEvent
 import com.calorieko.app.viewmodel.ManualLogViewModel
 import com.calorieko.app.viewmodel.PantryDeductionItem
+import com.calorieko.app.viewmodel.PlannedWeightMethod
+import com.calorieko.app.viewmodel.canConfirmPlannedQuickLog
 import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
@@ -1127,19 +1129,27 @@ private fun DishSelectionContent(
 
 @Composable
 private fun WeightInputContent(
-    dish: DishRecipeEntity,
+    dish: DishRecipeEntity?,
     weightText: String,
     onWeightChange: (String) -> Unit,
-    onChangeDish: () -> Unit,
-    onAddDish: () -> Unit
+    onChangeDish: (() -> Unit)?,
+    onAddDish: () -> Unit,
+    actionText: String = "Add Dish",
+    progressText: String? = null,
+    dishLabelFallback: String = ""
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val scrollState = rememberScrollState()
     val parsedWeight = weightText.toFloatOrNull() ?: 0f
-    val estimatedCalories = if (parsedWeight > 0f && dish.cookedWeightG > 0f)
+    val estimatedCalories = if (parsedWeight > 0f && dish != null && dish.cookedWeightG > 0f)
         (parsedWeight / dish.cookedWeightG) * dish.calPerServing * dish.servings
     else 0f
     val isValid = parsedWeight > 0f
+    val primaryName = dish?.namePh?.ifBlank { dish.nameEn }
+        ?: dishLabelFallback.replace("_", " ").replaceFirstChar { it.uppercase() }
+    val secondaryName = dish?.nameEn?.takeIf { it.isNotBlank() && it != primaryName }
+    val category = dish?.category ?: "Planned meal"
+    val caloriesPerServing = dish?.calPerServing ?: 0f
 
     Column(
         modifier = Modifier
@@ -1156,6 +1166,15 @@ private fun WeightInputContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
+                if (progressText != null) {
+                    Text(
+                        progressText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = CalorieKoGreen,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1163,41 +1182,45 @@ private fun WeightInputContent(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            dish.namePh,
+                            primaryName,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F2937)
                         )
-                        if (dish.nameEn != dish.namePh && dish.nameEn.isNotBlank()) {
+                        if (secondaryName != null) {
                             Text(
-                                dish.nameEn,
+                                secondaryName,
                                 fontSize = 13.sp,
                                 color = Color(0xFF9CA3AF)
                             )
                         }
                     }
-                    TextButton(onClick = onChangeDish) {
-                        Text("Change", color = CalorieKoOrange, maxLines = 1, softWrap = false)
+                    onChangeDish?.let { changeDish ->
+                        TextButton(onClick = changeDish) {
+                            Text("Change", color = CalorieKoOrange, maxLines = 1, softWrap = false)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(50)) {
                         Text(
-                            dish.category,
+                            category,
                             fontSize = 11.sp,
                             color = Color(0xFF4B5563),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
-                    Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
-                        Text(
-                            "${dish.calPerServing.fmt()} kcal/serving",
-                            fontSize = 11.sp,
-                            color = CalorieKoGreen,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                    if (caloriesPerServing > 0f) {
+                        Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
+                            Text(
+                                "${caloriesPerServing.fmt()} kcal/serving",
+                                fontSize = 11.sp,
+                                color = CalorieKoGreen,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1311,7 +1334,7 @@ private fun WeightInputContent(
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                "Add Dish",
+                actionText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -1335,7 +1358,9 @@ private fun ManualMealSummaryOverlay(
     onCancel: () -> Unit,
     isConfirming: Boolean = false,
     manualViewModel: ManualLogViewModel? = null,
-    isPlannedMeal: Boolean = false
+    isPlannedMeal: Boolean = false,
+    canConfirmMeal: Boolean = dishes.isNotEmpty(),
+    confirmDisabledReason: String? = null
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1444,8 +1469,10 @@ private fun ManualMealSummaryOverlay(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                IconButton(onClick = { onRemoveDish(index) }) {
-                                    Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                if (!isPlannedMeal) {
+                                    IconButton(onClick = { onRemoveDish(index) }) {
+                                        Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                    }
                                 }
                             }
 
@@ -1587,7 +1614,7 @@ private fun ManualMealSummaryOverlay(
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Button(
                         onClick = onConfirmMeal,
-                        enabled = dishes.isNotEmpty() && !isConfirming,
+                        enabled = canConfirmMeal && !isConfirming,
                         colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -1597,6 +1624,16 @@ private fun ManualMealSummaryOverlay(
                         Text(
                             if (isConfirming) "Saving..." else "Confirm Meal",
                             fontWeight = FontWeight.Bold, fontSize = 16.sp
+                        )
+                    }
+                    if (confirmDisabledReason != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            confirmDisabledReason,
+                            fontSize = 12.sp,
+                            color = Color(0xFF6B7280),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -1651,7 +1688,7 @@ private fun ManualMealSummaryOverlay(
         val dish = dishes.getOrNull(ingredientSheetDishIndex)
         if (dish != null) {
             // Determine if this is a planned-meal dish (view-only substitutions)
-            val isFromMealPlan = dish.substitutionsJson.isNotBlank()
+            val isFromMealPlan = isPlannedMeal || dish.substitutionsJson.isNotBlank()
 
                 ModalBottomSheet(
                 onDismissRequest = {
@@ -2998,7 +3035,9 @@ fun QuickLogScreen(
     dishLabel: String,
     mealSlot: String,
     onBack: () -> Unit,
-    onMealConfirmed: () -> Unit
+    onMealConfirmed: () -> Unit,
+    bleScaleManager: BleScaleManager,
+    onNavigateToPairing: () -> Unit = {}
 ) {
     val dishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
@@ -3006,6 +3045,26 @@ fun QuickLogScreen(
     val isConfirming by viewModel.isConfirming.collectAsState()
     val showPantryDeduction by viewModel.showPantryDeduction.collectAsState()
     val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
+    val plannedEntries by viewModel.plannedQuickLogEntries.collectAsState()
+    val plannedMethod by viewModel.plannedWeightMethod.collectAsState()
+    val plannedIndex by viewModel.plannedWeightIndex.collectAsState()
+    val isPlannedQuickLog by viewModel.isPlannedQuickLog.collectAsState()
+    val currentPlannedRecipe by viewModel.currentPlannedRecipe.collectAsState()
+    val plannedManualWeightText by viewModel.plannedManualWeightText.collectAsState()
+    val plannedScaleWeight by viewModel.plannedScaleWeight.collectAsState()
+    val plannedScaleWeightStable by viewModel.plannedScaleWeightStable.collectAsState()
+    val connectionState by bleScaleManager.connectionState.collectAsState()
+    val liveWeight by bleScaleManager.liveWeight.collectAsState()
+
+    LaunchedEffect(connectionState) {
+        viewModel.updatePlannedScaleConnectionStatus(
+            connectionState is com.calorieko.app.ble.BleConnectionState.Connected
+        )
+    }
+
+    LaunchedEffect(liveWeight) {
+        viewModel.updatePlannedScaleWeight(liveWeight)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -3021,7 +3080,58 @@ fun QuickLogScreen(
             onConfirm = { selectedKeys -> viewModel.confirmPantryDeduction(selectedKeys) },
             onSkip = { viewModel.skipPantryDeduction() }
         )
+    } else if (isPlannedQuickLog && plannedEntries.isNotEmpty() && plannedMethod == null) {
+        PlannedWeightMethodSelectionContent(
+            mealSlot = mealSlot.ifBlank { mealType },
+            dishCount = plannedEntries.size,
+            onSelectScale = { viewModel.selectPlannedWeightMethod(PlannedWeightMethod.SMART_SCALE) },
+            onSelectManual = { viewModel.selectPlannedWeightMethod(PlannedWeightMethod.MANUAL) },
+            onBack = onBack
+        )
+    } else if (isPlannedQuickLog && !showSummary) {
+        val currentEntry = plannedEntries.getOrNull(plannedIndex)
+        if (currentEntry == null) {
+            QuickLogErrorState(
+                title = "No planned dish found",
+                message = "This planned meal could not be loaded.",
+                onBack = onBack
+            )
+        } else if (plannedMethod == PlannedWeightMethod.MANUAL) {
+            PlannedManualWeightContent(
+                recipe = currentPlannedRecipe,
+                entry = currentEntry,
+                weightText = plannedManualWeightText,
+                progressText = "Dish ${plannedIndex + 1} of ${plannedEntries.size}",
+                onWeightChange = { viewModel.setCurrentPlannedManualWeight(it) },
+                onAddWeight = { viewModel.logCurrentPlannedDishWithManualWeight() },
+                onBack = onBack
+            )
+        } else {
+            PlannedScaleWeightContent(
+                recipe = currentPlannedRecipe,
+                entry = currentEntry,
+                progressText = "Dish ${plannedIndex + 1} of ${plannedEntries.size}",
+                connectionState = connectionState,
+                weight = plannedScaleWeight,
+                isStable = plannedScaleWeightStable,
+                onTare = { bleScaleManager.sendTareCommand() },
+                onUseWeight = { viewModel.logCurrentPlannedDishWithScaleWeight(plannedScaleWeight) },
+                onNavigateToPairing = onNavigateToPairing,
+                onBack = onBack
+            )
+        }
     } else if (showSummary && dishes.isNotEmpty()) {
+        val requiredCount = plannedEntries.size
+        val canConfirm = if (isPlannedQuickLog) {
+            canConfirmPlannedQuickLog(requiredCount, dishes)
+        } else {
+            dishes.isNotEmpty()
+        }
+        val disabledReason = if (isPlannedQuickLog && !canConfirm) {
+            "Enter a positive weight for every planned dish before confirming."
+        } else {
+            null
+        }
         ManualMealSummaryOverlay(
             dishes = dishes,
             mealType = mealType,
@@ -3032,36 +3142,17 @@ fun QuickLogScreen(
             onCancel = onBack,
             isConfirming = isConfirming,
             manualViewModel = viewModel,
-            isPlannedMeal = true
+            isPlannedMeal = isPlannedQuickLog,
+            canConfirmMeal = canConfirm,
+            confirmDisabledReason = disabledReason
         )
     } else if (showSummary && dishes.isEmpty()) {
         // Error state: recipe not found or all dishes failed to load
-        Box(
-            modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                androidx.compose.material3.Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = Color(0xFFEA580C),
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(Modifier.height(16.dp))
-                Text("Dish not found in recipes", fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = Color(0xFF1F2937))
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "\"${dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }}\" could not be loaded.",
-                    fontSize = 14.sp, color = Color(0xFF6B7280),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
-                Spacer(Modifier.height(24.dp))
-                androidx.compose.material3.OutlinedButton(onClick = onBack) {
-                    Text("Go Back")
-                }
-            }
-        }
+        QuickLogErrorState(
+            title = "No dishes ready to log",
+            message = "\"${dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }}\" could not be prepared.",
+            onBack = onBack
+        )
     } else {
         // Loading state while the dish is being pre-computed
         Box(
@@ -3073,6 +3164,273 @@ fun QuickLogScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() },
                     fontSize = 14.sp, color = Color(0xFF9CA3AF))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlannedWeightMethodSelectionContent(
+    mealSlot: String,
+    dishCount: Int,
+    onSelectScale: () -> Unit,
+    onSelectManual: () -> Unit,
+    onBack: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            Surface(color = Color.White, shadowElevation = 1.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Weigh Planned Meal",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                "$mealSlot - $dishCount planned dish${if (dishCount == 1) "" else "es"}",
+                color = Color(0xFF6B7280),
+                fontSize = 14.sp
+            )
+            MealModeCard(
+                icon = Icons.Default.MonitorWeight,
+                secondaryIcon = null,
+                title = "Smart Scale",
+                description = "Use the connected scale and confirm each stable weight.",
+                tags = listOf("Connected Scale", "Stable Capture"),
+                accentColor = CalorieKoGreen,
+                accentBgColor = Color(0xFFDCFCE7),
+                onClick = onSelectScale
+            )
+            MealModeCard(
+                icon = Icons.Default.Edit,
+                secondaryIcon = null,
+                title = "Manual Entry",
+                description = "Type the actual cooked weight for each planned dish.",
+                tags = listOf("No Scale Needed", "Dish by Dish"),
+                accentColor = CalorieKoOrange,
+                accentBgColor = Color(0xFFFFF7ED),
+                onClick = onSelectManual
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlannedManualWeightContent(
+    recipe: DishRecipeEntity?,
+    entry: com.calorieko.app.viewmodel.QuickLogDishEntry,
+    weightText: String,
+    progressText: String,
+    onWeightChange: (String) -> Unit,
+    onAddWeight: () -> Unit,
+    onBack: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            Surface(color = Color.White, shadowElevation = 1.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Restaurant, contentDescription = null, tint = CalorieKoGreen)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Manual Weight", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            WeightInputContent(
+                dish = recipe,
+                weightText = weightText,
+                onWeightChange = onWeightChange,
+                onChangeDish = null,
+                onAddDish = onAddWeight,
+                actionText = "Use This Weight",
+                progressText = progressText,
+                dishLabelFallback = entry.dishLabel
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlannedScaleWeightContent(
+    recipe: DishRecipeEntity?,
+    entry: com.calorieko.app.viewmodel.QuickLogDishEntry,
+    progressText: String,
+    connectionState: com.calorieko.app.ble.BleConnectionState,
+    weight: Float,
+    isStable: Boolean,
+    onTare: () -> Unit,
+    onUseWeight: () -> Unit,
+    onNavigateToPairing: () -> Unit,
+    onBack: () -> Unit
+) {
+    val isConnected = connectionState is com.calorieko.app.ble.BleConnectionState.Connected
+    val canUseWeight = isConnected && isStable && weight > 0f
+    val dishName = recipe?.namePh?.ifBlank { recipe.nameEn }
+        ?: entry.dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
+    val statusText = when {
+        !isConnected -> "Scale disconnected"
+        weight <= 0f -> "Place the dish on the scale"
+        isStable -> "Stable"
+        else -> "Stabilizing..."
+    }
+
+    Scaffold(
+        topBar = {
+            Surface(color = Color.White, shadowElevation = 1.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.MonitorWeight, contentDescription = null, tint = CalorieKoGreen)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Smart Scale Weight", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(progressText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+            Spacer(Modifier.height(8.dp))
+            Text(dishName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), textAlign = TextAlign.Center)
+            recipe?.nameEn?.takeIf { it.isNotBlank() && it != dishName }?.let { englishName ->
+                Text(englishName, fontSize = 13.sp, color = Color(0xFF9CA3AF), textAlign = TextAlign.Center)
+            }
+            Spacer(Modifier.height(32.dp))
+            Surface(
+                color = Color.White,
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.MonitorWeight,
+                        contentDescription = null,
+                        tint = if (isConnected) CalorieKoGreen else Color(0xFF9CA3AF),
+                        modifier = Modifier.size(42.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(statusText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "${weight.roundToInt()}g",
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (canUseWeight) CalorieKoGreen else Color(0xFF1F2937)
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onTare,
+                    enabled = isConnected,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Zero Scale")
+                }
+                if (!isConnected) {
+                    Button(
+                        onClick = onNavigateToPairing,
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange)
+                    ) {
+                        Text("Pair Scale", fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Button(
+                        onClick = onUseWeight,
+                        enabled = canUseWeight,
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CalorieKoGreen,
+                            disabledContainerColor = Color(0xFFD1D5DB)
+                        )
+                    ) {
+                        Text("Use This Weight", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickLogErrorState(
+    title: String,
+    message: String,
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = Color(0xFFEA580C),
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+            Spacer(Modifier.height(8.dp))
+            Text(
+                message,
+                fontSize = 14.sp,
+                color = Color(0xFF6B7280),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+            Spacer(Modifier.height(24.dp))
+            OutlinedButton(onClick = onBack) {
+                Text("Go Back")
             }
         }
     }

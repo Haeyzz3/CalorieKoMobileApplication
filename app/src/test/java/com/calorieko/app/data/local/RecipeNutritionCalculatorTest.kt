@@ -69,6 +69,34 @@ class RecipeNutritionCalculatorTest {
         assertEquals(20f, chicken.protein, 0.001f)
     }
 
+    @Test
+    fun calculatePortionNutrition_scalesDishNutritionByCookedWeight() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculatePortionNutrition("test_dish", cookedWeightGrams = 75f)
+
+        assertEquals(110f, nutrients.calories, 0.001f)
+        assertEquals(10.5f, nutrients.protein, 0.001f)
+        assertEquals(2f, nutrients.carbs, 0.001f)
+        assertEquals(2.5f, nutrients.fat, 0.001f)
+    }
+
+    @Test
+    fun calculatePortionNutrition_withSubstitutionsScalesSubstitutedRecipeNutrition() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculatePortionNutrition(
+            dishLabel = "test_dish",
+            cookedWeightGrams = 75f,
+            substitutions = mapOf("onion" to "garlic")
+        )
+
+        assertEquals(125f, nutrients.calories, 0.001f)
+        assertEquals(11.5f, nutrients.protein, 0.001f)
+        assertEquals(5f, nutrients.carbs, 0.001f)
+        assertEquals(2.5f, nutrients.fat, 0.001f)
+    }
+
     private fun testCalculator(): RecipeNutritionCalculator =
         RecipeNutritionCalculator(
             dishRecipeDao = FakeDishRecipeDao,

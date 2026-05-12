@@ -845,7 +845,9 @@ fun AppNavigation() {
                 dishLabel = dishLabel,
                 mealSlot = mealSlot,
                 onBack = { navController.popBackStack() },
-                onMealConfirmed = { navController.popBackStack() }
+                onMealConfirmed = { navController.popBackStack() },
+                bleScaleManager = bleScaleManager,
+                onNavigateToPairing = { navController.navigate("scalePairing/settings") }
             )
         }
 
@@ -893,7 +895,9 @@ fun AppNavigation() {
                 dishLabel = bridgeDishes.firstOrNull()?.dishLabel ?: "",
                 mealSlot = bridgeSlot,
                 onBack = { navController.popBackStack() },
-                onMealConfirmed = { navController.popBackStack() }
+                onMealConfirmed = { navController.popBackStack() },
+                bleScaleManager = bleScaleManager,
+                onNavigateToPairing = { navController.navigate("scalePairing/settings") }
             )
         }
 

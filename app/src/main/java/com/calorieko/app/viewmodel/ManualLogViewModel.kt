@@ -10,12 +10,15 @@ import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LoggedDish
+import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.MealRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalTime
+import kotlin.math.abs
 
 /** One-shot navigation/UI events emitted by ManualLogViewModel. */
 sealed interface ManualLogEvent {
@@ -37,6 +41,16 @@ data class QuickLogDishEntry(
     val dishLabel: String,
     val substitutionsJson: String = ""
 )
+
+enum class PlannedWeightMethod {
+    SMART_SCALE,
+    MANUAL
+}
+
+fun canConfirmPlannedQuickLog(requiredCount: Int, dishes: List<LoggedDish>): Boolean =
+    requiredCount > 0 &&
+        dishes.size == requiredCount &&
+        dishes.all { it.weightGrams > 0f }
 
 /**
  * Represents a pantry ingredient that was used in a confirmed meal.
@@ -105,6 +119,30 @@ class ManualLogViewModel(
     private val _showSummary = MutableStateFlow(false)
     val showSummary: StateFlow<Boolean> = _showSummary.asStateFlow()
 
+    private val _plannedQuickLogEntries = MutableStateFlow<List<QuickLogDishEntry>>(emptyList())
+    val plannedQuickLogEntries: StateFlow<List<QuickLogDishEntry>> = _plannedQuickLogEntries.asStateFlow()
+
+    private val _plannedWeightMethod = MutableStateFlow<PlannedWeightMethod?>(null)
+    val plannedWeightMethod: StateFlow<PlannedWeightMethod?> = _plannedWeightMethod.asStateFlow()
+
+    private val _plannedWeightIndex = MutableStateFlow(0)
+    val plannedWeightIndex: StateFlow<Int> = _plannedWeightIndex.asStateFlow()
+
+    private val _isPlannedQuickLog = MutableStateFlow(false)
+    val isPlannedQuickLog: StateFlow<Boolean> = _isPlannedQuickLog.asStateFlow()
+
+    private val _currentPlannedRecipe = MutableStateFlow<DishRecipeEntity?>(null)
+    val currentPlannedRecipe: StateFlow<DishRecipeEntity?> = _currentPlannedRecipe.asStateFlow()
+
+    private val _plannedManualWeightText = MutableStateFlow("")
+    val plannedManualWeightText: StateFlow<String> = _plannedManualWeightText.asStateFlow()
+
+    private val _plannedScaleWeight = MutableStateFlow(0f)
+    val plannedScaleWeight: StateFlow<Float> = _plannedScaleWeight.asStateFlow()
+
+    private val _plannedScaleWeightStable = MutableStateFlow(false)
+    val plannedScaleWeightStable: StateFlow<Boolean> = _plannedScaleWeightStable.asStateFlow()
+
     private val _pantryDeductionItems = MutableStateFlow<List<PantryDeductionItem>>(emptyList())
     val pantryDeductionItems: StateFlow<List<PantryDeductionItem>> = _pantryDeductionItems.asStateFlow()
 
@@ -115,6 +153,10 @@ class ManualLogViewModel(
 
     private val _isConfirming = MutableStateFlow(false)
     val isConfirming: StateFlow<Boolean> = _isConfirming.asStateFlow()
+
+    private var plannedWeightStabilizationJob: Job? = null
+    private var plannedStabilizationTargetWeight = 0f
+    private val plannedWeightTolerance = 3.0f
 
     // ── One-shot events ──
 
@@ -233,163 +275,187 @@ class ManualLogViewModel(
     }
 
     /**
-     * Quick-log shortcut from planned meals: pre-selects the dish,
-     * calculates one standard serving, and shows the summary.
-     * Now supports substitutions from the meal plan.
+     * Quick-log shortcut from planned meals. The dish remains pending until
+     * the user enters the actual consumed weight.
      */
     fun quickLogFromPlan(dishLabel: String, mealSlot: String, substitutionsJson: String = "") {
-        // Override meal type immediately to prevent time-based mismatch
-        _mealType.value = mealSlot
-
-        viewModelScope.launch {
-            val recipe = withContext(Dispatchers.IO) {
-                dishRecipeDao.getByDishLabel(dishLabel)
-            }
-
-            if (recipe == null) {
-                // Fallback: create minimal entry so UI doesn't freeze
-                val displayName = dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
-                _loggedDishes.update { it + LoggedDish(
-                    dishNameEn = displayName,
-                    dishNamePh = displayName,
-                    weightGrams = 100f,
-                    confidence = 0.5f,
-                    foodId = 0,
-                    dishLabel = dishLabel,
-                    calories = 0f, protein = 0f, carbs = 0f, fat = 0f,
-                    fiber = 0f, sugar = 0f, saturatedFat = 0f,
-                    polyunsaturatedFat = 0f, monounsaturatedFat = 0f,
-                    transFat = 0f, cholesterol = 0f, sodium = 0f,
-                    potassium = 0f, vitaminA = 0f, vitaminC = 0f,
-                    calcium = 0f, iron = 0f
-                ) }
-                _showSummary.value = true
-                return@launch
-            }
-
-            val subs = parseSubstitutionsJson(substitutionsJson)
-
-            val nutrients = withContext(Dispatchers.IO) {
-                if (subs.isNotEmpty()) {
-                    calculator.calculateWithSubstitution(dishLabel, subs)
-                } else {
-                    calculator.calculatePerServingNutrition(dishLabel)
-                }
-            }
-
-            // Standard serving weight = cooked_weight / servings
-            val servingWeight = if (recipe.servings > 0) recipe.cookedWeightG / recipe.servings else recipe.cookedWeightG
-
-            val dish = LoggedDish(
-                dishNameEn = recipe.nameEn,
-                dishNamePh = recipe.namePh,
-                weightGrams = servingWeight,
-                confidence = 1.0f,
-                foodId = 0,
-                dishLabel = recipe.dishLabel,
-                calories = nutrients.calories,
-                protein = nutrients.protein,
-                carbs = nutrients.carbs,
-                fat = nutrients.fat,
-                fiber = nutrients.fiber,
-                sugar = nutrients.sugar,
-                saturatedFat = 0f,
-                polyunsaturatedFat = 0f,
-                monounsaturatedFat = 0f,
-                transFat = 0f,
-                cholesterol = 0f,
-                sodium = nutrients.sodium,
-                potassium = nutrients.potassium,
-                vitaminA = nutrients.vitaminA,
-                vitaminC = nutrients.vitaminC,
-                calcium = nutrients.calcium,
-                iron = nutrients.iron,
-                substitutionsJson = substitutionsJson
-            )
-            _loggedDishes.update { it + dish }
-            _showSummary.value = true
-        }
+        initializePlannedQuickLog(
+            mealSlot = mealSlot,
+            dishEntries = listOf(QuickLogDishEntry(dishLabel, substitutionsJson))
+        )
     }
 
     /**
-     * Quick-log shortcut for an entire meal slot (multiple dishes at once).
-     * Pre-loads all dishes with substitution-aware nutrition and shows summary.
+     * Quick-log shortcut for an entire meal slot. Dishes remain pending until
+     * each planned dish receives an actual consumed weight.
      */
     fun quickLogSlotFromPlan(mealSlot: String, dishEntries: List<QuickLogDishEntry>) {
-        // Override meal type immediately to prevent time-based mismatch
+        initializePlannedQuickLog(mealSlot = mealSlot, dishEntries = dishEntries)
+    }
+
+    private fun initializePlannedQuickLog(mealSlot: String, dishEntries: List<QuickLogDishEntry>) {
         _mealType.value = mealSlot
+        _plannedQuickLogEntries.value = dishEntries
+        _plannedWeightMethod.value = null
+        _plannedWeightIndex.value = 0
+        _isPlannedQuickLog.value = dishEntries.isNotEmpty()
+        _loggedDishes.value = emptyList()
+        _showSummary.value = false
+        _selectedDish.value = null
+        _manualWeightText.value = ""
+        _plannedManualWeightText.value = ""
+        resetPlannedScaleState()
+        refreshCurrentPlannedRecipe()
+    }
+
+    private fun refreshCurrentPlannedRecipe() {
+        val entry = _plannedQuickLogEntries.value.getOrNull(_plannedWeightIndex.value)
+        if (entry == null) {
+            _currentPlannedRecipe.value = null
+            return
+        }
 
         viewModelScope.launch {
-            val loggedDishList = mutableListOf<LoggedDish>()
-            for (entry in dishEntries) {
-                val recipe = withContext(Dispatchers.IO) {
-                    dishRecipeDao.getByDishLabel(entry.dishLabel)
-                }
-
-                if (recipe == null) {
-                    // Fallback: create minimal entry so no dish is silently skipped
-                    val displayName = entry.dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
-                    loggedDishList.add(LoggedDish(
-                        dishNameEn = displayName,
-                        dishNamePh = displayName,
-                        weightGrams = 100f,
-                        confidence = 0.5f,
-                        foodId = 0,
-                        dishLabel = entry.dishLabel,
-                        calories = 0f, protein = 0f, carbs = 0f, fat = 0f,
-                        fiber = 0f, sugar = 0f, saturatedFat = 0f,
-                        polyunsaturatedFat = 0f, monounsaturatedFat = 0f,
-                        transFat = 0f, cholesterol = 0f, sodium = 0f,
-                        potassium = 0f, vitaminA = 0f, vitaminC = 0f,
-                        calcium = 0f, iron = 0f
-                    ))
-                    continue
-                }
-
-                val subs = parseSubstitutionsJson(entry.substitutionsJson)
-                val nutrients = withContext(Dispatchers.IO) {
-                    if (subs.isNotEmpty()) {
-                        calculator.calculateWithSubstitution(entry.dishLabel, subs)
-                    } else {
-                        calculator.calculatePerServingNutrition(entry.dishLabel)
-                    }
-                }
-
-                val servingWeight = if (recipe.servings > 0)
-                    recipe.cookedWeightG / recipe.servings else recipe.cookedWeightG
-
-                loggedDishList.add(LoggedDish(
-                    dishNameEn = recipe.nameEn,
-                    dishNamePh = recipe.namePh,
-                    weightGrams = servingWeight,
-                    confidence = 1.0f,
-                    foodId = 0,
-                    dishLabel = recipe.dishLabel,
-                    calories = nutrients.calories,
-                    protein = nutrients.protein,
-                    carbs = nutrients.carbs,
-                    fat = nutrients.fat,
-                    fiber = nutrients.fiber,
-                    sugar = nutrients.sugar,
-                    saturatedFat = 0f,
-                    polyunsaturatedFat = 0f,
-                    monounsaturatedFat = 0f,
-                    transFat = 0f,
-                    cholesterol = 0f,
-                    sodium = nutrients.sodium,
-                    potassium = nutrients.potassium,
-                    vitaminA = nutrients.vitaminA,
-                    vitaminC = nutrients.vitaminC,
-                    calcium = nutrients.calcium,
-                    iron = nutrients.iron,
-                    substitutionsJson = entry.substitutionsJson
-                ))
+            _currentPlannedRecipe.value = withContext(Dispatchers.IO) {
+                dishRecipeDao.getByDishLabel(entry.dishLabel)
             }
-            _loggedDishes.update { it + loggedDishList }
-            _showSummary.value = true
         }
     }
 
+    fun selectPlannedWeightMethod(method: PlannedWeightMethod) {
+        _plannedWeightMethod.value = method
+        _plannedManualWeightText.value = ""
+        resetPlannedScaleState()
+    }
+
+    fun setCurrentPlannedManualWeight(text: String) {
+        _plannedManualWeightText.value = text
+    }
+
+    fun updatePlannedScaleConnectionStatus(connected: Boolean) {
+        if (!connected) {
+            resetPlannedScaleState()
+        }
+    }
+
+    fun updatePlannedScaleWeight(realWeight: Float) {
+        _plannedScaleWeight.value = realWeight
+
+        if (abs(realWeight - plannedStabilizationTargetWeight) > plannedWeightTolerance) {
+            _plannedScaleWeightStable.value = false
+            plannedStabilizationTargetWeight = realWeight
+
+            plannedWeightStabilizationJob?.cancel()
+            plannedWeightStabilizationJob = viewModelScope.launch {
+                delay(1500)
+                _plannedScaleWeight.value = plannedStabilizationTargetWeight
+                _plannedScaleWeightStable.value = true
+            }
+        }
+    }
+
+    fun logCurrentPlannedDishWithManualWeight() {
+        val weightGrams = _plannedManualWeightText.value.toFloatOrNull() ?: return
+        if (weightGrams <= 0f) return
+        logCurrentPlannedDish(weightGrams)
+    }
+
+    fun logCurrentPlannedDishWithScaleWeight(weightGrams: Float) {
+        if (weightGrams <= 0f) return
+        logCurrentPlannedDish(weightGrams)
+    }
+
+    private fun logCurrentPlannedDish(weightGrams: Float) {
+        val entry = _plannedQuickLogEntries.value.getOrNull(_plannedWeightIndex.value) ?: return
+        viewModelScope.launch {
+            val loggedDish = withContext(Dispatchers.IO) {
+                buildLoggedDishFromPlannedEntry(entry, weightGrams)
+            }
+            _loggedDishes.update { it + loggedDish }
+            advancePlannedWeightStep()
+        }
+    }
+
+    private suspend fun buildLoggedDishFromPlannedEntry(
+        entry: QuickLogDishEntry,
+        cookedWeightGrams: Float
+    ): LoggedDish {
+        val recipe = dishRecipeDao.getByDishLabel(entry.dishLabel)
+        val substitutions = parseSubstitutionsJson(entry.substitutionsJson)
+        val nutrients = if (recipe != null) {
+            val calculated = if (substitutions.isNotEmpty()) {
+                calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams, substitutions)
+            } else {
+                calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams)
+            }
+
+            if (substitutions.isNotEmpty() && calculated == NutritionResult.ZERO) {
+                calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams)
+            } else {
+                calculated
+            }
+        } else {
+            NutritionResult.ZERO
+        }
+
+        val displayName = recipe?.namePh?.ifBlank { recipe.nameEn }
+            ?: entry.dishLabel.replace("_", " ").replaceFirstChar { it.uppercase() }
+        val englishName = recipe?.nameEn?.ifBlank { displayName } ?: displayName
+        val filipinoName = recipe?.namePh?.ifBlank { displayName } ?: displayName
+
+        return LoggedDish(
+            dishNameEn = englishName,
+            dishNamePh = filipinoName,
+            weightGrams = cookedWeightGrams,
+            confidence = 1.0f,
+            foodId = 0,
+            dishLabel = recipe?.dishLabel ?: entry.dishLabel,
+            calories = nutrients.calories,
+            protein = nutrients.protein,
+            carbs = nutrients.carbs,
+            fat = nutrients.fat,
+            fiber = nutrients.fiber,
+            sugar = nutrients.sugar,
+            saturatedFat = 0f,
+            polyunsaturatedFat = 0f,
+            monounsaturatedFat = 0f,
+            transFat = 0f,
+            cholesterol = 0f,
+            sodium = nutrients.sodium,
+            potassium = nutrients.potassium,
+            vitaminA = nutrients.vitaminA,
+            vitaminC = nutrients.vitaminC,
+            calcium = nutrients.calcium,
+            iron = nutrients.iron,
+            substitutionsJson = entry.substitutionsJson
+        )
+    }
+
+    private fun advancePlannedWeightStep() {
+        val nextIndex = _plannedWeightIndex.value + 1
+        _plannedManualWeightText.value = ""
+        resetPlannedScaleState()
+
+        if (nextIndex >= _plannedQuickLogEntries.value.size) {
+            _plannedWeightIndex.value = nextIndex
+            _currentPlannedRecipe.value = null
+            _showSummary.value = true
+        } else {
+            _plannedWeightIndex.value = nextIndex
+            refreshCurrentPlannedRecipe()
+        }
+    }
+
+    private fun resetPlannedScaleState() {
+        plannedWeightStabilizationJob?.cancel()
+        plannedStabilizationTargetWeight = 0f
+        _plannedScaleWeight.value = 0f
+        _plannedScaleWeightStable.value = false
+    }
+
+    fun canConfirmCurrentPlannedQuickLog(): Boolean =
+        !_isPlannedQuickLog.value ||
+            canConfirmPlannedQuickLog(_plannedQuickLogEntries.value.size, _loggedDishes.value)
 
 
     // ── Ingredient Breakdown & Substitution (shared with AI flow) ──
@@ -481,6 +547,8 @@ class ManualLogViewModel(
     }
 
     fun confirmMeal() {
+        if (_isPlannedQuickLog.value && !canConfirmCurrentPlannedQuickLog()) return
+
         // Guard: prevent duplicate submissions from rapid taps
         if (_isConfirming.value) return
         _isConfirming.value = true
