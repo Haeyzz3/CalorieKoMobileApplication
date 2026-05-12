@@ -2123,6 +2123,14 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             }
 
             Text("Per Serving Nutrition", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+            if (recipe.perServingWeightG > 0f) {
+                Text(
+                    "\u2248 ${recipe.perServingWeightG.toInt()}g per serving",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF6B7280)
+                )
+            }
             Text(
                 when {
                     hasSubstitutions -> "Updated with substitutions"

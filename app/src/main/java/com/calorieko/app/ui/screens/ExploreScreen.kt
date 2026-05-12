@@ -621,6 +621,14 @@ private fun ExploreDishDetailContent(
 
         // Quick Nutrition Summary
         Text("Per Serving Nutrition", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+        if (dish.perServingWeightG > 0f) {
+            Text(
+                "≈ ${dish.perServingWeightG.toInt()}g per serving",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF6B7280)
+            )
+        }
         if (dish.servingSizeDescription.isNotBlank()) {
             Text(
                 "1 serving \u2248 ${dish.servingSizeDescription}",

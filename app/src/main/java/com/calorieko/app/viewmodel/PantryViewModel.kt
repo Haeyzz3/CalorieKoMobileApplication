@@ -88,6 +88,8 @@ data class DishResult(
     val dataSource: String = "USDA_FDC",
     // FNRI serving size description (e.g., "1 1/2 cups")
     val servingSizeDescription: String = "",
+    // Per-serving weight in grams (cooked_weight_g / servings)
+    val perServingWeightG: Float = 0f,
     val appliedSubstitutions: Map<String, String> = emptyMap()
 )
 
@@ -241,7 +243,8 @@ class PantryViewModel(
     private data class DishDisplayNames(
         val namePh: String,
         val nameEn: String,
-        val servingSizeDescription: String = ""
+        val servingSizeDescription: String = "",
+        val perServingWeightG: Float = 0f
     ) {
         val primaryName: String
             get() = namePh.ifBlank { nameEn }
@@ -281,7 +284,8 @@ class PantryViewModel(
                 _dishDisplayNameCache[recipe.dishLabel] = DishDisplayNames(
                     namePh = recipe.namePh,
                     nameEn = recipe.nameEn,
-                    servingSizeDescription = recipe.servingSizeDescription
+                    servingSizeDescription = recipe.servingSizeDescription,
+                    perServingWeightG = recipe.perServingWeightG
                 )
             }
         }
@@ -521,7 +525,8 @@ class PantryViewModel(
                 vitaminC = nutrition.vitaminC,
                 calcium = nutrition.calcium,
                 iron = nutrition.iron,
-                servingSizeDescription = dishDisplayNames.servingSizeDescription
+                servingSizeDescription = dishDisplayNames.servingSizeDescription,
+                perServingWeightG = dishDisplayNames.perServingWeightG
             )
 
             if (info.core_matched >= info.core_total) {
@@ -584,7 +589,8 @@ class PantryViewModel(
                 vitaminC = nutrition.vitaminC,
                 calcium = nutrition.calcium,
                 iron = nutrition.iron,
-                servingSizeDescription = dishDisplayNames.servingSizeDescription
+                servingSizeDescription = dishDisplayNames.servingSizeDescription,
+                perServingWeightG = dishDisplayNames.perServingWeightG
             )
         }
     }
@@ -1101,7 +1107,8 @@ class PantryViewModel(
             DishDisplayNames(
                 namePh = recipe.namePh,
                 nameEn = recipe.nameEn,
-                servingSizeDescription = recipe.servingSizeDescription
+                servingSizeDescription = recipe.servingSizeDescription,
+                perServingWeightG = recipe.perServingWeightG
             )
         } else {
             val fallback = formatDishName(dishLabel)
