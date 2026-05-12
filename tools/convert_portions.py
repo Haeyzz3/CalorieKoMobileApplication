@@ -1,11 +1,19 @@
 """
-CalorieKo — Gram Conversion Script
-====================================
-Phase 1, Step 3: Converts all portion quantities from dish_ingredients.csv
-to raw_weight_grams using USDA portion data and standard conversions.
+CalorieKo — Gram Conversion Script  [DEPRECATED]
+====================================================
+⚠️  DEPRECATED: This script is superseded by scripts/generate_dish_jsons.py,
+    which is the canonical pipeline for generating both recipe_ingredients.json
+    and dish_recipes.json. The ingredient-specific lookup tables from this file
+    have been merged into generate_dish_jsons.py.
+
+    This file is kept for reference only. Do not use it to regenerate data.
+
+Original description:
+    Phase 1, Step 3: Converts all portion quantities from dish_ingredients.csv
+    to raw_weight_grams using USDA portion data and standard conversions.
 
 Usage:
-    python convert_portions.py
+    python convert_portions.py  (deprecated — use scripts/generate_dish_jsons.py)
 
 Input:
     ../app/src/main/assets/dish_ingredients.csv

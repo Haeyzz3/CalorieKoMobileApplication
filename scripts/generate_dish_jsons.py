@@ -72,6 +72,71 @@ PIECE_WEIGHT = {
     "oregano_leaves": 0.5, "laurel_leaves": 0.6, "tanglad": 25,
 }
 
+# ─── Ingredient-specific weight lookups (USDA-aligned) ───
+# These take priority over density-based conversion when available.
+# Sourced from USDA portion data and convert_portions.py lookup tables.
+
+# Grams per cup
+CUP_WEIGHT = {
+    # Proteins (cubed/sliced)
+    "tuna_fish": 150.0, "tinapa_fish": 140.0,
+    "pork_liempo": 225.0, "chicken_breast": 140.0,
+    "pork_tenderloin": 140.0, "pork_shoulder": 225.0,
+    "ground_pork": 225.0, "pork_belly": 225.0,
+    # Produce - leafy (loosely packed)
+    "kangkong_leaves": 30.0, "malunggay_leaves": 25.0,
+    "kamote_tops_green": 30.0, "pechay": 70.0,
+    "pansit-pansitan": 45.0, "alugbati": 30.0,
+    # Produce - chunky/cubed
+    "tomato": 180.0, "tomato_red": 180.0,
+    "onion_red": 160.0, "onion_white": 160.0, "onion_bombay": 160.0,
+    "ginger": 120.0, "cucumber": 133.0, "ampalaya": 120.0,
+    "gabi": 140.0, "sitaw": 100.0, "upo": 120.0,
+    "sayote": 135.0, "squash": 140.0, "okra": 100.0,
+    "eggplant": 82.0, "cauliflower": 100.0, "carrot": 128.0,
+    "baguio_beans": 100.0, "bell_pepper_red": 149.0,
+    "papaya_green": 140.0, "mango_unripe": 165.0,
+    "potato": 150.0, "green_peas": 145.0, "radish": 116.0,
+    "spring_onion": 100.0,
+    # Seaweed
+    "lato_seaweed": 80.0, "guso_seaweed": 80.0,
+    # Liquids
+    "cooking_oil": 218.0, "vinegar_cane": 239.0, "vinegar_white": 239.0,
+    "calamansi_juice": 244.0, "water": 236.6, "soy_sauce": 255.0,
+    "tomato_sauce": 245.0,
+    # Seasonings/pantry
+    "alamang_bagoong": 240.0, "garlic": 136.0,
+    "cornstarch": 128.0, "all_purpose_flour": 125.0,
+    "sugar_brown": 220.0, "sugar_white": 200.0, "raisins": 145.0,
+    "salt_iodized": 292.0, "black_beans": 240.0,
+    # Grains/noodles
+    "rice_bigas": 185.0, "brown_rice": 185.0,
+}
+
+# Grams per tablespoon
+TBSP_WEIGHT = {
+    "garlic": 8.5, "onion_bombay": 10.0, "onion_red": 10.0,
+    "onion_white": 10.0, "spring_onion": 6.3,
+    "cooking_oil": 13.6, "patis": 18.0, "soy_sauce": 16.0,
+    "vinegar_cane": 15.0, "vinegar_white": 15.0,
+    "calamansi_juice": 15.0, "water": 14.8,
+    "sugar_brown": 13.8, "sugar_white": 12.5,
+    "cornstarch": 8.0, "all_purpose_flour": 7.8,
+    "salt_iodized": 18.0, "alamang_bagoong": 15.0,
+    "tomato_sauce": 15.3,
+}
+
+# Grams per teaspoon
+TSP_WEIGHT = {
+    "salt_iodized": 6.0, "black_pepper": 2.3,
+    "sugar_brown": 4.6, "sugar_white": 4.2,
+    "thyme": 1.4, "oregano_leaves": 1.0,
+    "food_coloring_orange": 2.0, "cornstarch": 2.7,
+    "cooking_oil": 4.5, "patis": 6.0, "soy_sauce": 5.3,
+    "vinegar_cane": 5.0, "vinegar_white": 5.0,
+    "sinigang_mix": 3.0,
+}
+
 # ─── Cooking yield factors by method ───
 YIELD_FACTORS = {
     "deep_fried": 0.9, "pan_fried": 0.8, "stir_fried": 0.78,
@@ -151,6 +216,27 @@ DISH_SERVINGS = {
     "egg_scrambled": 1,
 }
 
+# ─── Serving size descriptions (informational, displayed in UI) ───
+SERVING_SIZE_DESCRIPTIONS = {
+    "kwekwek": "1 pc egg + 1/3 cup salad",
+    "kinilaw_tuna": "1 cup",
+    "tinapa_ginisa": "1 cup",
+    "egg_ampalaya": "1 1/4 cups",
+    "sinigang_pork": "1 1/2 cups",
+    "menudo": "3/4 cup",
+    "udong": "1 1/3 cups",
+    "sinabawang_bangus": "1 pc fish + 3/4 cup vegetables + 1/4 cup soup",
+    "galunggong_grilled": "2 pieces",
+    "tilapia_fried": "1 piece",
+    "pinakbet": "1 cup",
+    "chopseuy": "3 matchbox size chicken + 1 1/4 cups vegetables",
+    "chicken_tinola": "3 matchbox size chicken + 1 cup vegetables",
+    "sinuglaw_pork": "1 cup salad + 1/4 cup pork",
+    "linatan": "1/3 cup meat + 3/4 cup vegetables",
+    "lawuy": "1 cup vegetables + 1 cup soup",
+    "humba_pork": "1/2 cup pork + 3 tbsps sauce",
+}
+
 
 def parse_quantity(qty_str):
     """Parse a portion quantity string like '2 1/2 cups' into (number, unit)."""
@@ -210,6 +296,10 @@ def parse_quantity(qty_str):
     if m:
         return eval_fraction(m.group(1).strip()), m.group(2)
     
+    # Handle "pinch" or "dash" — map to 1/8 tsp equivalent
+    if s in ("pinch", "dash"):
+        return 0.125, "tsp"
+    
     return None, None
 
 
@@ -258,8 +348,19 @@ def portion_to_grams(ingredient_key, qty_str):
             return num * 10
         return num * 100  # default pack size
     
-    # Volume units
+    # Volume units — 2-tier conversion:
+    #   Tier 1: Ingredient-specific weight lookup (USDA-aligned)
+    #   Tier 2: Density × volume fallback
     if unit in VOLUME_ML:
+        # Tier 1: check ingredient-specific lookup tables
+        if unit in ("cup", "cups") and ingredient_key in CUP_WEIGHT:
+            return num * CUP_WEIGHT[ingredient_key]
+        if unit in ("tbsp", "tbsps", "tablespoon", "tablespoons") and ingredient_key in TBSP_WEIGHT:
+            return num * TBSP_WEIGHT[ingredient_key]
+        if unit in ("tsp", "tsps", "teaspoon", "teaspoons") and ingredient_key in TSP_WEIGHT:
+            return num * TSP_WEIGHT[ingredient_key]
+        
+        # Tier 2: density fallback for ingredients without specific lookups
         ml = num * VOLUME_ML[unit]
         density = DENSITY.get(ingredient_key, 0.6)  # default density
         return ml * density
@@ -453,6 +554,7 @@ def main():
             "total_nutrients_raw": total_nutrients_rounded,
             "per_serving_nutrients": per_serving_nutrients,
             "ingredient_count": ingredient_count,
+            "serving_size_description": SERVING_SIZE_DESCRIPTIONS.get(label, ""),
         })
     
     # Write outputs

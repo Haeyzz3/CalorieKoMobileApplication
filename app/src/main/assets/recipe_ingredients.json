@@ -14,7 +14,7 @@
     "ingredient_key": "cornstarch",
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 16.2,
+    "raw_weight_grams": 16.0,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -24,7 +24,7 @@
     "ingredient_key": "cornstarch",
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 43.2,
+    "raw_weight_grams": 42.7,
     "portion_original": "1/3 cup",
     "preparation_method": "",
     "step": 2
@@ -74,7 +74,7 @@
     "ingredient_key": "food_coloring_orange",
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 0.6,
+    "raw_weight_grams": 0.5,
     "portion_original": "1/4 tsp",
     "preparation_method": "powder",
     "step": 1
@@ -94,7 +94,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 552.0,
+    "raw_weight_grams": 545.0,
     "portion_original": "2 1/2 cups",
     "preparation_method": "",
     "step": 1
@@ -104,7 +104,7 @@
     "ingredient_key": "onion_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -114,7 +114,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 10.9,
+    "raw_weight_grams": 8.5,
     "portion_original": "1 tbsp",
     "preparation_method": "chopped",
     "step": 1
@@ -124,7 +124,7 @@
     "ingredient_key": "vinegar_cane",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 120.0,
+    "raw_weight_grams": 119.5,
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
@@ -134,7 +134,7 @@
     "ingredient_key": "sugar_brown",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 4.1,
+    "raw_weight_grams": 4.6,
     "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
@@ -154,7 +154,7 @@
     "ingredient_key": "cucumber",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 97.2,
+    "raw_weight_grams": 99.8,
     "portion_original": "3/4 cup",
     "preparation_method": "quarter cut",
     "step": 1
@@ -164,7 +164,7 @@
     "ingredient_key": "lato_seaweed",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 118.8,
+    "raw_weight_grams": 120.0,
     "portion_original": "1 1/2 cups",
     "preparation_method": "cleaned & sliced",
     "step": 1
@@ -174,7 +174,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 30.0,
+    "raw_weight_grams": 29.6,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -184,7 +184,7 @@
     "ingredient_key": "tuna_fish",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 270.0,
+    "raw_weight_grams": 225.0,
     "portion_original": "1 1/2 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -194,7 +194,7 @@
     "ingredient_key": "vinegar_white",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 180.0,
+    "raw_weight_grams": 179.2,
     "portion_original": "3/4 cup",
     "preparation_method": "",
     "step": 1
@@ -204,7 +204,7 @@
     "ingredient_key": "vinegar_white",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 60.0,
+    "raw_weight_grams": 59.8,
     "portion_original": "1/4 cup",
     "preparation_method": "",
     "step": 2
@@ -214,7 +214,7 @@
     "ingredient_key": "guso_seaweed",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 475.2,
+    "raw_weight_grams": 480.0,
     "portion_original": "6 cups",
     "preparation_method": "fresh & trimmed",
     "step": 1
@@ -224,7 +224,7 @@
     "ingredient_key": "onion_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 53.6,
+    "raw_weight_grams": 53.3,
     "portion_original": "1/3 cup",
     "preparation_method": "sliced",
     "step": 1
@@ -244,7 +244,7 @@
     "ingredient_key": "ginger",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 53.6,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/3 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -254,7 +254,7 @@
     "ingredient_key": "calamansi_juice",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 60.0,
+    "raw_weight_grams": 61.0,
     "portion_original": "1/4 cup",
     "preparation_method": "freshly squeezed",
     "step": 1
@@ -284,7 +284,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 480.0,
+    "raw_weight_grams": 473.2,
     "portion_original": "2 cups",
     "preparation_method": "",
     "step": 1
@@ -294,7 +294,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 27.6,
+    "raw_weight_grams": 27.2,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -304,7 +304,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 10.1,
+    "raw_weight_grams": 10.0,
     "portion_original": "1 tbsp",
     "preparation_method": "chopped",
     "step": 1
@@ -314,7 +314,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 10.9,
+    "raw_weight_grams": 8.5,
     "portion_original": "1 tbsp",
     "preparation_method": "chopped",
     "step": 1
@@ -324,7 +324,7 @@
     "ingredient_key": "tinapa_fish",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 348.0,
+    "raw_weight_grams": 350.0,
     "portion_original": "2 1/2 cups",
     "preparation_method": "smoked & flaked",
     "step": 1
@@ -334,7 +334,7 @@
     "ingredient_key": "eggplant",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 180.0,
+    "raw_weight_grams": 102.5,
     "portion_original": "1 1/4 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -344,7 +344,7 @@
     "ingredient_key": "okra",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 180.0,
+    "raw_weight_grams": 125.0,
     "portion_original": "1 1/4 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -354,7 +354,7 @@
     "ingredient_key": "squash",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 180.0,
+    "raw_weight_grams": 175.0,
     "portion_original": "1 1/4 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -364,7 +364,7 @@
     "ingredient_key": "sitaw",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 180.0,
+    "raw_weight_grams": 125.0,
     "portion_original": "1 1/4 cups",
     "preparation_method": "cut into 2-inch pieces",
     "step": 1
@@ -374,7 +374,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 480.0,
+    "raw_weight_grams": 473.2,
     "portion_original": "2 cups",
     "preparation_method": "",
     "step": 1
@@ -394,7 +394,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 27.6,
+    "raw_weight_grams": 27.2,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -404,7 +404,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 10.1,
+    "raw_weight_grams": 10.0,
     "portion_original": "1 tbsp",
     "preparation_method": "chopped",
     "step": 1
@@ -414,7 +414,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 10.9,
+    "raw_weight_grams": 8.5,
     "portion_original": "1 tbsp",
     "preparation_method": "chopped",
     "step": 1
@@ -434,7 +434,7 @@
     "ingredient_key": "ampalaya",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 499.2,
+    "raw_weight_grams": 480.0,
     "portion_original": "4 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -444,7 +444,7 @@
     "ingredient_key": "malunggay_leaves",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 50.4,
+    "raw_weight_grams": 25.0,
     "portion_original": "1 cup",
     "preparation_method": "",
     "step": 1
@@ -484,7 +484,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 110.4,
+    "raw_weight_grams": 109.0,
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
@@ -494,7 +494,7 @@
     "ingredient_key": "onion_white",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "sliced",
     "step": 1
@@ -514,7 +514,7 @@
     "ingredient_key": "pork_liempo",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 720.0,
+    "raw_weight_grams": 900.0,
     "portion_original": "4 cups",
     "preparation_method": "lean & sliced",
     "step": 1
@@ -524,7 +524,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 1440.0,
+    "raw_weight_grams": 1419.6,
     "portion_original": "6 cups",
     "preparation_method": "",
     "step": 1
@@ -534,7 +534,7 @@
     "ingredient_key": "gabi",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 302.4,
+    "raw_weight_grams": 280.0,
     "portion_original": "2 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -544,7 +544,7 @@
     "ingredient_key": "sitaw",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 302.4,
+    "raw_weight_grams": 300.0,
     "portion_original": "3 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -564,7 +564,7 @@
     "ingredient_key": "patis",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 33.0,
+    "raw_weight_grams": 36.0,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -584,7 +584,7 @@
     "ingredient_key": "kangkong_leaves",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 882.0,
+    "raw_weight_grams": 525.0,
     "portion_original": "17 1/2 cups",
     "preparation_method": "stem & sliced",
     "step": 1
@@ -594,7 +594,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 73.6,
+    "raw_weight_grams": 72.7,
     "portion_original": "1/3 cup",
     "preparation_method": "",
     "step": 1
@@ -604,7 +604,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 21.9,
+    "raw_weight_grams": 17.0,
     "portion_original": "2 tbsps",
     "preparation_method": "chopped",
     "step": 1
@@ -614,7 +614,7 @@
     "ingredient_key": "onion_white",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -624,7 +624,7 @@
     "ingredient_key": "pork_liempo",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 720.0,
+    "raw_weight_grams": 900.0,
     "portion_original": "4 cups",
     "preparation_method": "lean & ground",
     "step": 1
@@ -654,7 +654,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 240.0,
+    "raw_weight_grams": 236.6,
     "portion_original": "1 cup",
     "preparation_method": "",
     "step": 1
@@ -674,7 +674,7 @@
     "ingredient_key": "potato",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 529.2,
+    "raw_weight_grams": 525.0,
     "portion_original": "3 1/2 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -684,7 +684,7 @@
     "ingredient_key": "bell_pepper_red",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 46.4,
+    "raw_weight_grams": 49.7,
     "portion_original": "1/3 cup",
     "preparation_method": "strips",
     "step": 1
@@ -694,7 +694,7 @@
     "ingredient_key": "sugar_white",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 25.5,
+    "raw_weight_grams": 25.0,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -704,7 +704,7 @@
     "ingredient_key": "green_peas",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 378.0,
+    "raw_weight_grams": 362.5,
     "portion_original": "2 1/2 cups",
     "preparation_method": "frozen",
     "step": 1
@@ -724,7 +724,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 73.6,
+    "raw_weight_grams": 72.7,
     "portion_original": "1/3 cup",
     "preparation_method": "",
     "step": 1
@@ -734,7 +734,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 21.9,
+    "raw_weight_grams": 17.0,
     "portion_original": "2 tbsps",
     "preparation_method": "chopped",
     "step": 1
@@ -744,7 +744,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -754,7 +754,7 @@
     "ingredient_key": "upo",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 374.4,
+    "raw_weight_grams": 360.0,
     "portion_original": "3 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -764,7 +764,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 300.0,
+    "raw_weight_grams": 295.8,
     "portion_original": "1 1/4 cups",
     "preparation_method": "",
     "step": 1
@@ -814,7 +814,7 @@
     "ingredient_key": "kamote_tops_green",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 302.4,
+    "raw_weight_grams": 180.0,
     "portion_original": "6 cups",
     "preparation_method": "",
     "step": 1
@@ -824,7 +824,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 27.6,
+    "raw_weight_grams": 27.2,
     "portion_original": "1/8 cup",
     "preparation_method": "",
     "step": 1
@@ -834,7 +834,7 @@
     "ingredient_key": "ginger",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 20.1,
+    "raw_weight_grams": 15.0,
     "portion_original": "1/8 cup",
     "preparation_method": "strips",
     "step": 1
@@ -844,7 +844,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 16.4,
+    "raw_weight_grams": 12.8,
     "portion_original": "1 1/2 tbsps",
     "preparation_method": "crushed & chopped",
     "step": 1
@@ -854,7 +854,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 20.1,
+    "raw_weight_grams": 20.0,
     "portion_original": "1/8 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -864,7 +864,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 720.0,
+    "raw_weight_grams": 709.8,
     "portion_original": "3 cups",
     "preparation_method": "",
     "step": 1
@@ -884,7 +884,7 @@
     "ingredient_key": "sayote",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 313.2,
+    "raw_weight_grams": 303.8,
     "portion_original": "2 1/4 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -904,7 +904,7 @@
     "ingredient_key": "pechay",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 382.8,
+    "raw_weight_grams": 385.0,
     "portion_original": "5 1/2 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -954,7 +954,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 220.8,
+    "raw_weight_grams": 218.0,
     "portion_original": "1 cup",
     "preparation_method": "",
     "step": 1
@@ -964,7 +964,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 41.4,
+    "raw_weight_grams": 40.8,
     "portion_original": "3 tbsps",
     "preparation_method": "",
     "step": 1
@@ -974,7 +974,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 32.9,
+    "raw_weight_grams": 25.5,
     "portion_original": "3 tbsps",
     "preparation_method": "crushed & chopped",
     "step": 1
@@ -984,7 +984,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 30.2,
+    "raw_weight_grams": 30.0,
     "portion_original": "3 tbsps",
     "preparation_method": "chopped",
     "step": 1
@@ -1004,7 +1004,7 @@
     "ingredient_key": "alamang_bagoong",
     "ingredient_type": "core",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 33.0,
+    "raw_weight_grams": 30.0,
     "portion_original": "1/8 cup",
     "preparation_method": "",
     "step": 1
@@ -1014,7 +1014,7 @@
     "ingredient_key": "squash",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 348.0,
+    "raw_weight_grams": 350.0,
     "portion_original": "2 1/2 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -1024,7 +1024,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 240.0,
+    "raw_weight_grams": 236.6,
     "portion_original": "1 cup",
     "preparation_method": "",
     "step": 1
@@ -1034,7 +1034,7 @@
     "ingredient_key": "okra",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 151.2,
+    "raw_weight_grams": 150.0,
     "portion_original": "1 1/2 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1044,7 +1044,7 @@
     "ingredient_key": "sitaw",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 201.6,
+    "raw_weight_grams": 200.0,
     "portion_original": "2 cups",
     "preparation_method": "cut into 1\"",
     "step": 1
@@ -1054,7 +1054,7 @@
     "ingredient_key": "eggplant",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 201.6,
+    "raw_weight_grams": 164.0,
     "portion_original": "2 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1064,7 +1064,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 41.4,
+    "raw_weight_grams": 40.8,
     "portion_original": "3 tbsps",
     "preparation_method": "",
     "step": 1
@@ -1074,7 +1074,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 32.9,
+    "raw_weight_grams": 25.5,
     "portion_original": "3 tbsps",
     "preparation_method": "crushed & chopped",
     "step": 1
@@ -1084,7 +1084,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 30.2,
+    "raw_weight_grams": 30.0,
     "portion_original": "3 tbsps",
     "preparation_method": "chopped",
     "step": 1
@@ -1094,7 +1094,7 @@
     "ingredient_key": "chicken_breast",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 482.4,
+    "raw_weight_grams": 420.0,
     "portion_original": "3 cups",
     "preparation_method": "fillet & strips",
     "step": 1
@@ -1104,7 +1104,7 @@
     "ingredient_key": "soy_sauce",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 86.4,
+    "raw_weight_grams": 85.0,
     "portion_original": "1/3 cup",
     "preparation_method": "",
     "step": 1
@@ -1134,7 +1134,7 @@
     "ingredient_key": "sugar_white",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 25.5,
+    "raw_weight_grams": 25.0,
     "portion_original": "2 tbsps",
     "preparation_method": "",
     "step": 1
@@ -1144,7 +1144,7 @@
     "ingredient_key": "cauliflower",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 302.4,
+    "raw_weight_grams": 300.0,
     "portion_original": "3 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1154,7 +1154,7 @@
     "ingredient_key": "carrot",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 259.2,
+    "raw_weight_grams": 256.0,
     "portion_original": "2 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1164,7 +1164,7 @@
     "ingredient_key": "baguio_beans",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 201.6,
+    "raw_weight_grams": 200.0,
     "portion_original": "2 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1174,7 +1174,7 @@
     "ingredient_key": "bell_pepper_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 69.6,
+    "raw_weight_grams": 74.5,
     "portion_original": "1/2 cup",
     "preparation_method": "strips",
     "step": 1
@@ -1184,7 +1184,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 120.0,
+    "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
@@ -1194,7 +1194,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 41.4,
+    "raw_weight_grams": 40.8,
     "portion_original": "3 tbsps",
     "preparation_method": "",
     "step": 1
@@ -1204,7 +1204,7 @@
     "ingredient_key": "ginger",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 30.0,
     "portion_original": "1/4 cup",
     "preparation_method": "crushed",
     "step": 1
@@ -1214,7 +1214,7 @@
     "ingredient_key": "onion_bombay",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 30.2,
+    "raw_weight_grams": 30.0,
     "portion_original": "3 tbsps",
     "preparation_method": "chopped",
     "step": 1
@@ -1224,7 +1224,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 32.9,
+    "raw_weight_grams": 25.5,
     "portion_original": "3 tbsps",
     "preparation_method": "crushed & chopped",
     "step": 1
@@ -1234,7 +1234,7 @@
     "ingredient_key": "chicken_breast",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 482.4,
+    "raw_weight_grams": 420.0,
     "portion_original": "3 cups",
     "preparation_method": "fillet & sliced",
     "step": 1
@@ -1254,7 +1254,7 @@
     "ingredient_key": "papaya_green",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 452.4,
+    "raw_weight_grams": 455.0,
     "portion_original": "3 1/4 cups",
     "preparation_method": "unripe & sliced",
     "step": 1
@@ -1264,7 +1264,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 1200.0,
+    "raw_weight_grams": 1183.0,
     "portion_original": "5 cups",
     "preparation_method": "",
     "step": 1
@@ -1274,7 +1274,7 @@
     "ingredient_key": "malunggay_leaves",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 151.2,
+    "raw_weight_grams": 75.0,
     "portion_original": "3 cups",
     "preparation_method": "",
     "step": 1
@@ -1294,7 +1294,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 13.8,
+    "raw_weight_grams": 13.6,
     "portion_original": "1 tbsps",
     "preparation_method": "",
     "step": 1
@@ -1314,7 +1314,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 10.9,
+    "raw_weight_grams": 8.5,
     "portion_original": "1 tbsps",
     "preparation_method": "grated",
     "step": 1
@@ -1324,7 +1324,7 @@
     "ingredient_key": "thyme",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 1.8,
+    "raw_weight_grams": 1.4,
     "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
@@ -1354,7 +1354,7 @@
     "ingredient_key": "mango_unripe",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 281.4,
+    "raw_weight_grams": 288.8,
     "portion_original": "1 3/4 cups",
     "preparation_method": "unripe & strips",
     "step": 1
@@ -1364,7 +1364,7 @@
     "ingredient_key": "cucumber",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 172.8,
+    "raw_weight_grams": 177.3,
     "portion_original": "1 1/3 cups",
     "preparation_method": "sliced into thin quarters",
     "step": 1
@@ -1394,7 +1394,7 @@
     "ingredient_key": "pansit-pansitan",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 30.0,
+    "raw_weight_grams": 22.5,
     "portion_original": "1/2 cup",
     "preparation_method": "blanched",
     "step": 1
@@ -1404,7 +1404,7 @@
     "ingredient_key": "onion_red",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 20.1,
+    "raw_weight_grams": 20.0,
     "portion_original": "2 tbsps",
     "preparation_method": "sliced into thin quarters",
     "step": 1
@@ -1414,7 +1414,7 @@
     "ingredient_key": "radish",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 90.0,
+    "raw_weight_grams": 87.0,
     "portion_original": "3/4 cup",
     "preparation_method": "sliced into thin quarters",
     "step": 1
@@ -1434,7 +1434,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 14.0,
+    "raw_weight_grams": 13.6,
     "portion_original": "1 tbsp",
     "preparation_method": "",
     "step": 1
@@ -1444,8 +1444,8 @@
     "ingredient_key": "salt_iodized",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 1.0,
-    "portion_original": "pinch",
+    "raw_weight_grams": 0.8,
+    "portion_original": "1/8 tsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1464,7 +1464,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 14.0,
+    "raw_weight_grams": 13.6,
     "portion_original": "1 tbsp",
     "preparation_method": "",
     "step": 1
@@ -1474,8 +1474,8 @@
     "ingredient_key": "salt_iodized",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 1.0,
-    "portion_original": "pinch",
+    "raw_weight_grams": 0.8,
+    "portion_original": "1/8 tsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1483,8 +1483,8 @@
     "dish_label": "rice_well_milled",
     "ingredient_key": "rice_bigas",
     "ingredient_type": "core",
-    "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 65.0,
+    "ingredient_category": "grain_starch",
+    "raw_weight_grams": 61.7,
     "portion_original": "1/3 cup",
     "preparation_method": "",
     "step": 1
@@ -1494,7 +1494,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 130.0,
+    "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
@@ -1514,7 +1514,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 5.0,
+    "raw_weight_grams": 4.5,
     "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
@@ -1534,7 +1534,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 200.0,
+    "raw_weight_grams": 0.0,
     "portion_original": "enough to cover",
     "preparation_method": "",
     "step": 1
@@ -1554,7 +1554,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 10.0,
+    "raw_weight_grams": 9.0,
     "portion_original": "2 tsps",
     "preparation_method": "",
     "step": 1
@@ -1564,8 +1564,8 @@
     "ingredient_key": "salt_iodized",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 1.0,
-    "portion_original": "pinch",
+    "raw_weight_grams": 0.8,
+    "portion_original": "1/8 tsp",
     "preparation_method": "",
     "step": 1
   },
@@ -1584,7 +1584,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 5.0,
+    "raw_weight_grams": 4.5,
     "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
@@ -1604,7 +1604,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 5.0,
+    "raw_weight_grams": 4.5,
     "portion_original": "1 tsp",
     "preparation_method": "",
     "step": 1
@@ -1614,7 +1614,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 13.8,
+    "raw_weight_grams": 13.6,
     "portion_original": "1 Tbsp",
     "preparation_method": "",
     "step": 1
@@ -1624,7 +1624,7 @@
     "ingredient_key": "onion_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "sliced",
     "step": 1
@@ -1644,7 +1644,7 @@
     "ingredient_key": "pork_tenderloin",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 281.4,
+    "raw_weight_grams": 245.0,
     "portion_original": "1 3/4 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1654,7 +1654,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 960.0,
+    "raw_weight_grams": 946.4,
     "portion_original": "4 cups",
     "preparation_method": "",
     "step": 1
@@ -1664,7 +1664,7 @@
     "ingredient_key": "patis",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 11.0,
+    "raw_weight_grams": 12.0,
     "portion_original": "2 tsps",
     "preparation_method": "",
     "step": 1
@@ -1704,7 +1704,7 @@
     "ingredient_key": "gabi",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 302.4,
+    "raw_weight_grams": 280.0,
     "portion_original": "2 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -1714,7 +1714,7 @@
     "ingredient_key": "sitaw",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 302.4,
+    "raw_weight_grams": 300.0,
     "portion_original": "3 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1724,7 +1724,7 @@
     "ingredient_key": "bell_pepper_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 46.4,
+    "raw_weight_grams": 49.7,
     "portion_original": "1/3 cup",
     "preparation_method": "cubed",
     "step": 1
@@ -1734,7 +1734,7 @@
     "ingredient_key": "spring_onion",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 33.6,
+    "raw_weight_grams": 33.3,
     "portion_original": "1/3 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -1744,7 +1744,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 27.6,
+    "raw_weight_grams": 27.2,
     "portion_original": "2 Tbsps",
     "preparation_method": "",
     "step": 1
@@ -1754,7 +1754,7 @@
     "ingredient_key": "onion_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "sliced",
     "step": 1
@@ -1764,7 +1764,7 @@
     "ingredient_key": "ginger",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 53.6,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/3 cup",
     "preparation_method": "crushed",
     "step": 1
@@ -1774,7 +1774,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 1200.0,
+    "raw_weight_grams": 1183.0,
     "portion_original": "5 cups",
     "preparation_method": "",
     "step": 1
@@ -1794,7 +1794,7 @@
     "ingredient_key": "squash",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 278.4,
+    "raw_weight_grams": 280.0,
     "portion_original": "2 cups",
     "preparation_method": "cubed",
     "step": 1
@@ -1804,7 +1804,7 @@
     "ingredient_key": "okra",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 100.8,
+    "raw_weight_grams": 100.0,
     "portion_original": "1 cup",
     "preparation_method": "sliced",
     "step": 1
@@ -1814,7 +1814,7 @@
     "ingredient_key": "eggplant",
     "ingredient_type": "core",
     "ingredient_category": "produce",
-    "raw_weight_grams": 100.8,
+    "raw_weight_grams": 82.0,
     "portion_original": "1 cup",
     "preparation_method": "sliced",
     "step": 1
@@ -1844,7 +1844,7 @@
     "ingredient_key": "alugbati",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 151.2,
+    "raw_weight_grams": 90.0,
     "portion_original": "3 cups",
     "preparation_method": "leaves and stem",
     "step": 1
@@ -1854,7 +1854,7 @@
     "ingredient_key": "water",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 720.0,
+    "raw_weight_grams": 709.8,
     "portion_original": "3 cups",
     "preparation_method": "",
     "step": 1
@@ -1864,7 +1864,7 @@
     "ingredient_key": "cooking_oil",
     "ingredient_type": "optional",
     "ingredient_category": "pantry_staple",
-    "raw_weight_grams": 13.8,
+    "raw_weight_grams": 13.6,
     "portion_original": "1 tbsp",
     "preparation_method": "",
     "step": 1
@@ -1874,7 +1874,7 @@
     "ingredient_key": "pork_liempo",
     "ingredient_type": "core",
     "ingredient_category": "protein",
-    "raw_weight_grams": 450.0,
+    "raw_weight_grams": 562.5,
     "portion_original": "2 1/2 cups",
     "preparation_method": "sliced",
     "step": 1
@@ -1884,7 +1884,7 @@
     "ingredient_key": "garlic",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 43.8,
+    "raw_weight_grams": 34.0,
     "portion_original": "1/4 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -1894,7 +1894,7 @@
     "ingredient_key": "onion_red",
     "ingredient_type": "optional",
     "ingredient_category": "produce",
-    "raw_weight_grams": 40.2,
+    "raw_weight_grams": 40.0,
     "portion_original": "1/4 cup",
     "preparation_method": "chopped",
     "step": 1
@@ -1924,7 +1924,7 @@
     "ingredient_key": "black_pepper",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 2.2,
+    "raw_weight_grams": 2.3,
     "portion_original": "1 tsp",
     "preparation_method": "whole & lightly crushed",
     "step": 1
@@ -1934,7 +1934,7 @@
     "ingredient_key": "soy_sauce",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 129.6,
+    "raw_weight_grams": 127.5,
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
@@ -1944,7 +1944,7 @@
     "ingredient_key": "sugar_brown",
     "ingredient_type": "optional",
     "ingredient_category": "seasoning",
-    "raw_weight_grams": 99.6,
+    "raw_weight_grams": 110.0,
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
