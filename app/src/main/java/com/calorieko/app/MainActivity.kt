@@ -779,7 +779,10 @@ fun AppNavigation() {
                     rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
-                    calculator = calculator
+                    calculator = calculator,
+                    pantryDao = db.pantryDao(),
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    appContext = context.applicationContext
                 )
             )
             val manualLogViewModel: com.calorieko.app.viewmodel.ManualLogViewModel = viewModel(
@@ -788,7 +791,10 @@ fun AppNavigation() {
                     rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
-                    calculator = calculator
+                    calculator = calculator,
+                    pantryDao = db.pantryDao(),
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    appContext = context.applicationContext
                 )
             )
             LogMealScreenWithManual(
@@ -824,7 +830,10 @@ fun AppNavigation() {
                     rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
-                    calculator = calculator
+                    calculator = calculator,
+                    pantryDao = db.pantryDao(),
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    appContext = context.applicationContext
                 )
             )
             // Pre-select the planned dish
@@ -861,7 +870,10 @@ fun AppNavigation() {
                     rawIngredientDao = db.rawIngredientDao(),
                     auth = auth,
                     mealRepository = mealRepo,
-                    calculator = calculator
+                    calculator = calculator,
+                    pantryDao = db.pantryDao(),
+                    firestoreSyncRepo = firestoreSyncRepo,
+                    appContext = context.applicationContext
                 )
             )
 

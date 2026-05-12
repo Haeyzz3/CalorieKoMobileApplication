@@ -1,13 +1,17 @@
 package com.calorieko.app.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
+import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LoggedDish
+import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.MealRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalTime
 
 /** One-shot navigation/UI events emitted by ManualLogViewModel. */
@@ -31,6 +36,16 @@ sealed interface ManualLogEvent {
 data class QuickLogDishEntry(
     val dishLabel: String,
     val substitutionsJson: String = ""
+)
+
+/**
+ * Represents a pantry ingredient that was used in a confirmed meal.
+ * Shown after meal confirmation so the user can opt in to removing it.
+ */
+data class PantryDeductionItem(
+    val ingredientKey: String,
+    val displayName: String,
+    val usedInDishes: List<String>
 )
 
 /**
@@ -52,7 +67,10 @@ class ManualLogViewModel(
     private val rawIngredientDao: RawIngredientDao,
     private val auth: FirebaseAuth,
     private val mealRepository: MealRepository,
-    private val calculator: RecipeNutritionCalculator
+    private val calculator: RecipeNutritionCalculator,
+    private val pantryDao: PantryDao,
+    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     // --- Display name cache: ingredient_key → display_name from RAW_INGREDIENTS_TABLE ---
@@ -86,6 +104,12 @@ class ManualLogViewModel(
 
     private val _showSummary = MutableStateFlow(false)
     val showSummary: StateFlow<Boolean> = _showSummary.asStateFlow()
+
+    private val _pantryDeductionItems = MutableStateFlow<List<PantryDeductionItem>>(emptyList())
+    val pantryDeductionItems: StateFlow<List<PantryDeductionItem>> = _pantryDeductionItems.asStateFlow()
+
+    private val _showPantryDeduction = MutableStateFlow(false)
+    val showPantryDeduction: StateFlow<Boolean> = _showPantryDeduction.asStateFlow()
 
     // ── Confirm guard (prevents duplicate submissions) ──
 
@@ -471,8 +495,93 @@ class ManualLogViewModel(
             withContext(Dispatchers.IO) {
                 mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value)
             }
+            val deductionItems = computePantryOverlap()
+            if (deductionItems.isNotEmpty()) {
+                _pantryDeductionItems.value = deductionItems
+                _showPantryDeduction.value = true
+            } else {
+                _events.send(ManualLogEvent.MealConfirmed)
+            }
+        }
+    }
+
+    // --- Pantry Deduction ---
+
+    private suspend fun computePantryOverlap(): List<PantryDeductionItem> {
+        val pantryItems = withContext(Dispatchers.IO) { pantryDao.getAllItemsList() }.toSet()
+        if (pantryItems.isEmpty()) return emptyList()
+
+        val usedIngredients = linkedMapOf<String, Pair<String, MutableList<String>>>()
+
+        for (dish in _loggedDishes.value) {
+            if (dish.dishLabel.isBlank()) continue
+
+            val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
+            val breakdown = withContext(Dispatchers.IO) {
+                calculator.getIngredientBreakdown(dish.dishLabel, substitutions)
+            }
+            if (breakdown.isEmpty()) continue
+
+            val dishDisplayName = dish.dishNamePh.ifBlank { dish.dishNameEn }
+                .ifBlank { formatIngredientName(dish.dishLabel) }
+
+            for ((_, info) in breakdown) {
+                if (info.isRemoved) continue
+
+                val effectiveKey = info.replacementIngredientKey ?: info.ingredientKey
+                if (effectiveKey in pantryItems) {
+                    val existing = usedIngredients.getOrPut(effectiveKey) {
+                        info.displayName to mutableListOf()
+                    }
+                    existing.second.add(dishDisplayName)
+                }
+            }
+        }
+
+        return usedIngredients.map { (key, value) ->
+            PantryDeductionItem(
+                ingredientKey = key,
+                displayName = value.first,
+                usedInDishes = value.second.distinct()
+            )
+        }.sortedBy { it.displayName.lowercase() }
+    }
+
+    fun confirmPantryDeduction(selectedKeys: Set<String>) {
+        if (selectedKeys.isEmpty()) {
+            skipPantryDeduction()
+            return
+        }
+
+        viewModelScope.launch {
+            val uid = auth.currentUser?.uid ?: ""
+            withContext(Dispatchers.IO) {
+                pantryDao.deleteItems(selectedKeys.toList())
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try {
+                            selectedKeys.forEach { firestoreSyncRepo.deletePantryItem(uid, it) }
+                        } catch (_: Exception) {
+                        }
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+            }
+            finishPantryDeduction()
             _events.send(ManualLogEvent.MealConfirmed)
         }
+    }
+
+    fun skipPantryDeduction() {
+        viewModelScope.launch {
+            finishPantryDeduction()
+            _events.send(ManualLogEvent.MealConfirmed)
+        }
+    }
+
+    private fun finishPantryDeduction() {
+        _showPantryDeduction.value = false
+        _pantryDeductionItems.value = emptyList()
     }
 
     // ── Substitution Helpers ──
@@ -520,12 +629,24 @@ class ManualLogViewModel(
             rawIngredientDao: RawIngredientDao,
             auth: FirebaseAuth,
             mealRepository: MealRepository,
-            calculator: RecipeNutritionCalculator
+            calculator: RecipeNutritionCalculator,
+            pantryDao: PantryDao,
+            firestoreSyncRepo: FirestoreSyncRepository,
+            appContext: Context
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ManualLogViewModel::class.java)) {
-                    return ManualLogViewModel(dishRecipeDao, rawIngredientDao, auth, mealRepository, calculator) as T
+                    return ManualLogViewModel(
+                        dishRecipeDao,
+                        rawIngredientDao,
+                        auth,
+                        mealRepository,
+                        calculator,
+                        pantryDao,
+                        firestoreSyncRepo,
+                        appContext
+                    ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

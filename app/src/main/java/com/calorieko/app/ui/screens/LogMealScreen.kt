@@ -63,9 +63,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -126,6 +129,7 @@ import com.calorieko.app.viewmodel.LogMealEvent
 import com.calorieko.app.viewmodel.LogMealViewModel
 import com.calorieko.app.viewmodel.ManualLogEvent
 import com.calorieko.app.viewmodel.ManualLogViewModel
+import com.calorieko.app.viewmodel.PantryDeductionItem
 import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
@@ -456,6 +460,8 @@ private fun AiScaleMealContent(
     val loggedDishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
     val isScaleConnected by viewModel.isScaleConnected.collectAsState()
+    val showPantryDeduction by viewModel.showPantryDeduction.collectAsState()
+    val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
 
     val connectionState by bleScaleManager.connectionState.collectAsState()
     LaunchedEffect(connectionState) {
@@ -465,6 +471,15 @@ private fun AiScaleMealContent(
     val realWeight by bleScaleManager.liveWeight.collectAsState()
     LaunchedEffect(realWeight) {
         viewModel.updateRealWeight(realWeight)
+    }
+
+    if (showPantryDeduction && pantryDeductionItems.isNotEmpty()) {
+        PantryDeductionScreen(
+            deductionItems = pantryDeductionItems,
+            onConfirm = { selectedKeys -> viewModel.confirmPantryDeduction(selectedKeys) },
+            onSkip = { viewModel.skipPantryDeduction() }
+        )
+        return
     }
 
     // ── Permission denied fallback ──
@@ -898,8 +913,19 @@ private fun ManualMealContent(
     val loggedDishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
     val showSummary by viewModel.showSummary.collectAsState()
+    val showPantryDeduction by viewModel.showPantryDeduction.collectAsState()
+    val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
 
     val isConfirming by viewModel.isConfirming.collectAsState()
+
+    if (showPantryDeduction && pantryDeductionItems.isNotEmpty()) {
+        PantryDeductionScreen(
+            deductionItems = pantryDeductionItems,
+            onConfirm = { selectedKeys -> viewModel.confirmPantryDeduction(selectedKeys) },
+            onSkip = { viewModel.skipPantryDeduction() }
+        )
+        return
+    }
 
     // ── Meal Summary overlay ──
     if (showSummary) {
@@ -2208,6 +2234,160 @@ private fun InfoRow(label: String, value: String) {
 // Meal Summary Overlay (AI flow — original)
 // ───────────────────────────────────────────────────────────────
 
+@Composable
+private fun PantryDeductionScreen(
+    deductionItems: List<PantryDeductionItem>,
+    onConfirm: (selectedKeys: Set<String>) -> Unit,
+    onSkip: () -> Unit
+) {
+    val checkedItems = remember(deductionItems) {
+        mutableStateMapOf<String, Boolean>().apply {
+            deductionItems.forEach { item -> put(item.ingredientKey, false) }
+        }
+    }
+    val selectedKeys = checkedItems.filterValues { it }.keys.toSet()
+    val selectedCount = selectedKeys.size
+
+    Scaffold(
+        topBar = {
+            Surface(color = Color.White, shadowElevation = 2.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = onSkip) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Skip pantry update")
+                    }
+                    Text("Update Pantry", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Spacer(Modifier.size(48.dp))
+                }
+            }
+        },
+        bottomBar = {
+            Surface(color = Color.White, shadowElevation = 8.dp) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = { onConfirm(selectedKeys) },
+                        enabled = selectedCount > 0,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CalorieKoGreen,
+                            disabledContainerColor = Color(0xFFE5E7EB),
+                            disabledContentColor = Color(0xFF9CA3AF)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Text(
+                            text = if (selectedCount == 1) "Remove & Finish" else "Remove $selectedCount Items & Finish",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onSkip,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Text("Skip - Keep All", color = Color(0xFF4B5563), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            Surface(
+                color = Color(0xFFF0FDF4),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(Icons.Default.Restaurant, null, tint = CalorieKoGreen, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "Did you use up any of these ingredients?",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF14532D)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Check the pantry items you want to remove, or skip to keep everything.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF166534),
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(deductionItems, key = { it.ingredientKey }) { item ->
+                    val checked = checkedItems[item.ingredientKey] == true
+                    Surface(
+                        onClick = { checkedItems[item.ingredientKey] = !checked },
+                        color = Color.White,
+                        shape = RoundedCornerShape(16.dp),
+                        shadowElevation = 1.dp,
+                        border = if (checked) BorderStroke(1.dp, CalorieKoGreen.copy(alpha = 0.45f)) else null
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { isChecked -> checkedItems[item.ingredientKey] = isChecked },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = CalorieKoGreen,
+                                    uncheckedColor = Color(0xFF9CA3AF)
+                                )
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    item.displayName,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1F2937)
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Used in: ${item.usedInDishes.joinToString(", ")}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF6B7280),
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MealSummaryOverlay(
@@ -2824,6 +3004,8 @@ fun QuickLogScreen(
     val mealType by viewModel.mealType.collectAsState()
     val showSummary by viewModel.showSummary.collectAsState()
     val isConfirming by viewModel.isConfirming.collectAsState()
+    val showPantryDeduction by viewModel.showPantryDeduction.collectAsState()
+    val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -2833,7 +3015,13 @@ fun QuickLogScreen(
         }
     }
 
-    if (showSummary && dishes.isNotEmpty()) {
+    if (showPantryDeduction && pantryDeductionItems.isNotEmpty()) {
+        PantryDeductionScreen(
+            deductionItems = pantryDeductionItems,
+            onConfirm = { selectedKeys -> viewModel.confirmPantryDeduction(selectedKeys) },
+            onSkip = { viewModel.skipPantryDeduction() }
+        )
+    } else if (showSummary && dishes.isNotEmpty()) {
         ManualMealSummaryOverlay(
             dishes = dishes,
             mealType = mealType,
