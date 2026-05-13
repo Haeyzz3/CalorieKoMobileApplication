@@ -456,14 +456,34 @@ private fun ExploreDishCard(
             .clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Top Row: Emoji
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
+            // Top Row: Emoji + Source Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Text(text = getDishEmoji(dish.dishLabel), fontSize = 24.sp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = getDishEmoji(dish.dishLabel), fontSize = 24.sp)
+                }
+                // Source badge: USDA (green) or Community (purple)
+                val isCommunity = dish.dataSource == "COMMUNITY"
+                Surface(
+                    color = if (isCommunity) Color(0xFFEDE9FE) else Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        if (isCommunity) "Community" else "USDA",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCommunity) Color(0xFF7C3AED) else Color(0xFF2E7D32),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -567,9 +587,11 @@ private fun ExploreDishDetailContent(
         isLoadingDetails = false
     }
 
-    // All nutritional data is now USDA — use consistent USDA green
-    val sourceTextColor = Color(0xFF2E7D32)
-    val sourceBgColor = Color(0xFFE8F5E9)
+    // Determine source-based colors
+    val isCommunity = dish.dataSource == "COMMUNITY"
+    val sourceTextColor = if (isCommunity) Color(0xFF7C3AED) else Color(0xFF2E7D32)
+    val sourceBgColor = if (isCommunity) Color(0xFFF3F0FF) else Color(0xFFE8F5E9)
+    val sourceIcon = if (isCommunity) Icons.Default.Description else Icons.Default.VerifiedUser
 
     Column(
         modifier = Modifier
@@ -696,7 +718,7 @@ private fun ExploreDishDetailContent(
                 // Source info header
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.VerifiedUser,
+                        sourceIcon,
                         null,
                         tint = sourceTextColor,
                         modifier = Modifier.size(20.dp)
@@ -716,6 +738,20 @@ private fun ExploreDishDetailContent(
                         )
                     }
                 }
+
+                // Community dishes: flat nutrition notice, no USDA proof buttons
+                if (isCommunity) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Per 100g flat nutrition \u2014 no ingredient breakdown available",
+                        fontSize = 11.sp,
+                        color = sourceTextColor.copy(alpha = 0.7f),
+                        fontStyle = FontStyle.Italic
+                    )
+                }
+
+                // USDA action row — only for non-Community dishes
+                if (!isCommunity) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -853,6 +889,7 @@ private fun ExploreDishDetailContent(
                         }
                     }
                 }
+                } // end if (!isCommunity)
             }
         }
 

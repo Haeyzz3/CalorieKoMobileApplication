@@ -9,6 +9,7 @@ import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.ApiSyncManager
 import com.calorieko.app.data.remote.api.ApiSyncResult
+import com.calorieko.app.data.remote.api.FoodCatalogSyncManager
 import com.calorieko.app.data.remote.api.RetrofitClient
 import com.calorieko.app.BuildConfig
 import com.calorieko.app.util.NetworkUtils
@@ -91,6 +92,13 @@ class SettingsViewModel(
     )
     val lastSyncedAt: StateFlow<String> = _lastSyncedAt.asStateFlow()
 
+    // ── Last Food Catalog Synced Timestamp ──
+
+    private val _lastFoodCatalogSyncedAt = MutableStateFlow(
+        formatSyncTimestamp(syncPrefs.getLong(KEY_LAST_FOOD_CATALOG_SYNC, 0L))
+    )
+    val lastFoodCatalogSyncedAt: StateFlow<String> = _lastFoodCatalogSyncedAt.asStateFlow()
+
     // ── Lazy API Sync Manager ──
 
     private val apiSyncManager: ApiSyncManager by lazy {
@@ -134,6 +142,12 @@ class SettingsViewModel(
                     // ══════════════════════════════════════════════════
                     if (NetworkUtils.isOnline(appContext)) {
                         apiResult = apiSyncManager.syncToBackend(uid)
+                        
+                        // Also trigger food catalog sync if activity sync was successful
+                        if (apiResult is ApiSyncResult.Success) {
+                            val foodSyncManager = FoodCatalogSyncManager(appContext, apiSyncManager.getApiService())
+                            foodSyncManager.pullFoodCatalog()
+                        }
                     }
                 }
 
@@ -144,6 +158,11 @@ class SettingsViewModel(
                     val now = System.currentTimeMillis()
                     syncPrefs.edit().putLong(KEY_LAST_SYNC, now).apply()
                     _lastSyncedAt.value = formatSyncTimestamp(now)
+
+                    // Also refresh food catalog timestamp (may have been updated by SyncWorker)
+                    _lastFoodCatalogSyncedAt.value = formatSyncTimestamp(
+                        syncPrefs.getLong(KEY_LAST_FOOD_CATALOG_SYNC, 0L)
+                    )
                 }
 
                 // ── Report outcome ──
@@ -401,6 +420,7 @@ class SettingsViewModel(
 
     companion object {
         private const val KEY_LAST_SYNC = "last_successful_sync_ms"
+        private const val KEY_LAST_FOOD_CATALOG_SYNC = "last_food_catalog_sync_ms"
 
         /**
          * Formats a sync timestamp into a human-readable relative string.

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
+import com.calorieko.app.data.local.FoodDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
@@ -12,7 +13,6 @@ import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.remote.FirestoreSyncRepository
-import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.MealRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +79,7 @@ object QuickLogBridge {
 class ManualLogViewModel(
     private val dishRecipeDao: DishRecipeDao,
     private val rawIngredientDao: RawIngredientDao,
+    private val foodDao: FoodDao,
     private val auth: FirebaseAuth,
     private val mealRepository: MealRepository,
     private val calculator: RecipeNutritionCalculator,
@@ -168,8 +169,38 @@ class ManualLogViewModel(
     init {
         viewModelScope.launch {
             val dishes = withContext(Dispatchers.IO) { dishRecipeDao.getAllDishRecipes() }
-            _allDishes.value = dishes
-            _filteredDishes.value = dishes
+            val systemBLabels = dishes.map { it.dishLabel }.toSet()
+
+            // Merge admin-added dishes from FOOD_TABLE that don't exist in System B.
+            // Synthesize DishRecipeEntity objects so they integrate into the existing
+            // search/filter/select flow without changing the UI layer.
+            val adminDishes = withContext(Dispatchers.IO) {
+                foodDao.getAllFoods()
+                    .filter { it.mlLabel !in systemBLabels && it.mlLabel != "negative" }
+                    .map { food ->
+                        DishRecipeEntity(
+                            dishLabel = food.mlLabel,
+                            nameEn = food.nameEn,
+                            namePh = food.namePh,
+                            category = food.category,
+                            cookingMethod = "",
+                            servings = 1,
+                            totalRawWeightG = 100f,
+                            dishYieldFactor = 1f,
+                            cookedWeightG = 100f,
+                            perServingWeightG = 100f,
+                            ingredientCount = 0,
+                            calPerServing = food.caloriesPer100g,
+                            proteinPerServing = food.proteinPer100g,
+                            carbsPerServing = food.carbsPer100g,
+                            fatPerServing = food.fatPer100g,
+                            sodiumPerServing = food.sodiumPer100g
+                        )
+                    }
+            }
+
+            _allDishes.value = dishes + adminDishes
+            _filteredDishes.value = dishes + adminDishes
         }
     }
 
@@ -225,9 +256,37 @@ class ManualLogViewModel(
         if (weightGrams <= 0f) return
 
         viewModelScope.launch {
-            val nutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(recipe.dishLabel, weightGrams)
+            // Fix: Use DishRecipeDao existence check (not calories == 0f) to determine
+            // whether this dish has System B (USDA) ingredient-level nutrition data.
+            val hasSystemBData = withContext(Dispatchers.IO) {
+                dishRecipeDao.getByDishLabel(recipe.dishLabel) != null
             }
+
+            val nutrients = if (hasSystemBData) {
+                // System B path: full ingredient-level nutrition via RecipeNutritionCalculator
+                withContext(Dispatchers.IO) {
+                    calculator.calculatePortionNutrition(recipe.dishLabel, weightGrams)
+                }
+            } else {
+                // System A path: scale flat per-100g values by weight
+                // (admin-added dishes without USDA ingredient data)
+                val scale = weightGrams / 100f
+                NutritionResult(
+                    calories = recipe.calPerServing * scale,
+                    protein = recipe.proteinPerServing * scale,
+                    carbs = recipe.carbsPerServing * scale,
+                    fat = recipe.fatPerServing * scale,
+                    fiber = 0f,
+                    sugar = 0f,
+                    sodium = recipe.sodiumPerServing * scale,
+                    potassium = 0f,
+                    vitaminA = 0f,
+                    vitaminC = 0f,
+                    calcium = 0f,
+                    iron = 0f
+                )
+            }
+
             val dish = LoggedDish(
                 dishNameEn = recipe.nameEn,
                 dishNamePh = recipe.namePh,
@@ -695,6 +754,7 @@ class ManualLogViewModel(
         fun provideFactory(
             dishRecipeDao: DishRecipeDao,
             rawIngredientDao: RawIngredientDao,
+            foodDao: FoodDao,
             auth: FirebaseAuth,
             mealRepository: MealRepository,
             calculator: RecipeNutritionCalculator,
@@ -708,6 +768,7 @@ class ManualLogViewModel(
                     return ManualLogViewModel(
                         dishRecipeDao,
                         rawIngredientDao,
+                        foodDao,
                         auth,
                         mealRepository,
                         calculator,

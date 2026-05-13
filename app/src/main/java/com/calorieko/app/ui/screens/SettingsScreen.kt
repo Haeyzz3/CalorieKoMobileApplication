@@ -137,6 +137,7 @@ fun SettingsScreen(
     val isWipingProgress by viewModel.isWipingProgress.collectAsState()
     val isDeletingAccount by viewModel.isDeletingAccount.collectAsState()
     val lastSyncedAt by viewModel.lastSyncedAt.collectAsState()
+    val lastFoodCatalogSyncedAt by viewModel.lastFoodCatalogSyncedAt.collectAsState()
 
     // State for the notification banner system
     var showNotificationBanner by remember { mutableStateOf(false) }
@@ -373,7 +374,7 @@ fun SettingsScreen(
                         SettingsRow(
                             icon = Icons.Default.Sync,
                             title = if (isSyncing) "Syncing..." else "Sync Data",
-                            subtitle = if (isSyncing) "Backing up to cloud..." else "Last synced: $lastSyncedAt",
+                            subtitle = if (isSyncing) "Backing up to cloud..." else "Last synced: $lastSyncedAt\nFood catalog: $lastFoodCatalogSyncedAt",
                             iconColor = CalorieKoGreen,
                             onClick = {
                                 viewModel.syncAllData()

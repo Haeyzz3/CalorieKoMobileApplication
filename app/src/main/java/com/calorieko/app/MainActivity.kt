@@ -748,6 +748,7 @@ fun AppNavigation() {
                     dishRecipeDao = db.dishRecipeDao(),
                     pantryDao = db.pantryDao(),
                     rawIngredientDao = db.rawIngredientDao(),
+                    foodDao = db.foodDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
@@ -789,6 +790,7 @@ fun AppNavigation() {
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
                     dishRecipeDao = db.dishRecipeDao(),
                     rawIngredientDao = db.rawIngredientDao(),
+                    foodDao = db.foodDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator,
@@ -828,6 +830,7 @@ fun AppNavigation() {
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
                     dishRecipeDao = db.dishRecipeDao(),
                     rawIngredientDao = db.rawIngredientDao(),
+                    foodDao = db.foodDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator,
@@ -870,6 +873,7 @@ fun AppNavigation() {
                 factory = com.calorieko.app.viewmodel.ManualLogViewModel.provideFactory(
                     dishRecipeDao = db.dishRecipeDao(),
                     rawIngredientDao = db.rawIngredientDao(),
+                    foodDao = db.foodDao(),
                     auth = auth,
                     mealRepository = mealRepo,
                     calculator = calculator,

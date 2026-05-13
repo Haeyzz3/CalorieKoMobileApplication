@@ -33,16 +33,20 @@ class FoodDatabaseCallback(
         databaseProvider().let { database ->
             scope.launch(Dispatchers.IO) {
                 // Legacy CSV seeding (kept for backward compatibility)
-                // Re-seeds when table is empty OR when the CSV asset has been updated
-                // (tracked by CURRENT_CSV_REFERENCE_VERSION).
+                // Guard: skip FOOD_TABLE CSV re-seeding if server sync has already run.
+                // Once the admin server has pushed food data, it becomes the authority.
+                val hasSyncedFromServer = seedPrefs.getBoolean(KEY_FOOD_CATALOG_SYNCED, false)
                 val dishCount = database.pantryDao().getDishIngredientCount()
                 val foodCount = database.foodDao().getAllFoods().size
-                val csvSeededVersion = seedPrefs.getInt(KEY_CSV_REFERENCE_VERSION, 0)
-                if (dishCount == 0 || foodCount == 0 || csvSeededVersion < CURRENT_CSV_REFERENCE_VERSION) {
+                if (!hasSyncedFromServer && (dishCount == 0 || foodCount == 0)) {
                     populateDatabase(context, database.foodDao(), database.pantryDao())
-                    seedPrefs.edit()
-                        .putInt(KEY_CSV_REFERENCE_VERSION, CURRENT_CSV_REFERENCE_VERSION)
-                        .apply()
+                } else if (dishCount == 0) {
+                    // Even after server sync, DISH_INGREDIENTS_TABLE still needs CSV seeding
+                    // (it's not synced from server)
+                    context.assets.open("dish_ingredients.csv").use { inputStream ->
+                        val dishIngredients = FoodCsvParser.parseDishIngredients(inputStream)
+                        database.pantryDao().insertAllDishIngredients(dishIngredients)
+                    }
                 }
 
                 // New JSON seeding for raw ingredient tables (Phase 2)
@@ -77,9 +81,8 @@ class FoodDatabaseCallback(
     companion object {
         private const val REFERENCE_DATA_PREFS = "reference_data_seed"
         private const val KEY_JSON_REFERENCE_VERSION = "json_reference_version"
-        private const val CURRENT_JSON_REFERENCE_VERSION = 3
-        private const val KEY_CSV_REFERENCE_VERSION = "csv_reference_version"
-        private const val CURRENT_CSV_REFERENCE_VERSION = 1
+        const val KEY_FOOD_CATALOG_SYNCED = "food_catalog_synced"
+        private const val CURRENT_JSON_REFERENCE_VERSION = 2
     }
 }
 
@@ -156,9 +159,17 @@ suspend fun seedFromJson(context: Context, database: AppDatabase) {
  * Safe to call multiple times — checks row counts before re-seeding.
  */
 suspend fun ensureReferenceDataSeeded(context: Context, foodDao: FoodDao, pantryDao: PantryDao) {
+    val seedPrefs = context.getSharedPreferences("reference_data_seed", Context.MODE_PRIVATE)
+    val hasSyncedFromServer = seedPrefs.getBoolean(FoodDatabaseCallback.KEY_FOOD_CATALOG_SYNCED, false)
     val dishCount = pantryDao.getDishIngredientCount()
     val foodCount = foodDao.getAllFoods().size
-    if (dishCount == 0 || foodCount == 0) {
+    if (!hasSyncedFromServer && (dishCount == 0 || foodCount == 0)) {
         populateDatabase(context, foodDao, pantryDao)
+    } else if (dishCount == 0) {
+        // DISH_INGREDIENTS_TABLE still needs CSV seeding (not synced from server)
+        context.assets.open("dish_ingredients.csv").use { inputStream ->
+            val dishIngredients = FoodCsvParser.parseDishIngredients(inputStream)
+            pantryDao.insertAllDishIngredients(dishIngredients)
+        }
     }
 }
