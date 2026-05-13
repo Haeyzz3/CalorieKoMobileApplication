@@ -187,7 +187,7 @@ class ExploreViewModel(
                         carbs = food.carbsPer100g.toInt(),
                         fats = food.fatPer100g.toInt(),
                         sodium = food.sodiumPer100g.toInt(),
-                        dataSource = "COMMUNITY",
+                        dataSource = food.dataSource,
                         ingredientCount = 0,
                         ingredientNames = emptyList(),
                         servings = 1,
@@ -307,6 +307,7 @@ class ExploreViewModel(
      */
     fun getSourceDisplayLabel(source: String): String = when (source) {
         "COMMUNITY" -> "CalorieKo Community Database"
+        "DOST_FNRI_FCT" -> "DOST-FNRI Food Composition Table"
         else -> "USDA FoodData Central"
     }
 
@@ -315,6 +316,7 @@ class ExploreViewModel(
      */
     fun getSourceBadgeLabel(source: String): String = when (source) {
         "COMMUNITY" -> "Community"
+        "DOST_FNRI_FCT" -> "DOST-FNRI"
         else -> "USDA"
     }
 

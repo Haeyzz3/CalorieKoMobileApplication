@@ -53,12 +53,23 @@ interface FoodDao {
      */
     @Transaction
     suspend fun syncFromServer(serverFoods: List<FoodItem>, protectedLabels: Set<String>) {
-        // Filter out USDA-verified dishes — never overwrite them
-        val adminOnlyFoods = serverFoods.filter { it.mlLabel !in protectedLabels }
-        if (adminOnlyFoods.isEmpty()) return
+        // 1. Get all labels currently in the local database
+        val allLocalLabels = getAllMlLabels()
+        
+        // 2. Identify labels that are NOT protected (admin-added or seeded data)
+        val adminLabelsInDb = allLocalLabels.filter { it !in protectedLabels }
+        
+        // 3. Delete all local admin-managed records to ensure deletions on server are reflected
+        if (adminLabelsInDb.isNotEmpty()) {
+            deleteByMlLabels(adminLabelsInDb)
+        }
 
-        val adminLabels = adminOnlyFoods.map { it.mlLabel }
-        deleteByMlLabels(adminLabels)
-        insertAll(adminOnlyFoods)
+        // 4. Filter server foods to exclude protected ones (safety check)
+        val foodsToInsert = serverFoods.filter { it.mlLabel !in protectedLabels }
+        
+        // 5. Insert the fresh catalog from server
+        if (foodsToInsert.isNotEmpty()) {
+            insertAll(foodsToInsert)
+        }
     }
 }

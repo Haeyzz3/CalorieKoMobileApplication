@@ -470,20 +470,6 @@ private fun ExploreDishCard(
                 ) {
                     Text(text = getDishEmoji(dish.dishLabel), fontSize = 24.sp)
                 }
-                // Source badge: USDA (green) or Community (purple)
-                val isCommunity = dish.dataSource == "COMMUNITY"
-                Surface(
-                    color = if (isCommunity) Color(0xFFEDE9FE) else Color(0xFFE8F5E9),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        if (isCommunity) "Community" else "USDA",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isCommunity) Color(0xFF7C3AED) else Color(0xFF2E7D32),
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -586,12 +572,6 @@ private fun ExploreDishDetailContent(
         }
         isLoadingDetails = false
     }
-
-    // Determine source-based colors
-    val isCommunity = dish.dataSource == "COMMUNITY"
-    val sourceTextColor = if (isCommunity) Color(0xFF7C3AED) else Color(0xFF2E7D32)
-    val sourceBgColor = if (isCommunity) Color(0xFFF3F0FF) else Color(0xFFE8F5E9)
-    val sourceIcon = if (isCommunity) Icons.Default.Description else Icons.Default.VerifiedUser
 
     Column(
         modifier = Modifier
@@ -708,6 +688,13 @@ private fun ExploreDishDetailContent(
             viewModel.getRecipeSourceDocument(dish.dishLabel)
         }
 
+        // Determine source-based colors
+        val isCommunity = dish.dataSource == "COMMUNITY"
+        val isUsda = dish.dataSource.startsWith("USDA")
+        val sourceTextColor = if (isCommunity) Color(0xFF7C3AED) else if (isUsda) Color(0xFF2E7D32) else Color(0xFF0369A1)
+        val sourceBgColor = if (isCommunity) Color(0xFFF3F0FF) else if (isUsda) Color(0xFFE8F5E9) else Color(0xFFF0F9FF)
+        val sourceIcon = if (isCommunity) Icons.Default.Description else Icons.Default.VerifiedUser
+
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = sourceBgColor),
@@ -750,18 +737,18 @@ private fun ExploreDishDetailContent(
                     )
                 }
 
-                // USDA action row — only for non-Community dishes
+                // Action row — only for non-Community dishes
                 if (!isCommunity) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // USDA action row
+                // Action row
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Primary: View USDA proof (for single-ingredient dishes)
-                    if (proofDoc.type != ProofType.NONE) {
+                    if (isUsda && proofDoc.type != ProofType.NONE) {
                         Surface(
                             onClick = {
                                 when (proofDoc.type) {
@@ -787,7 +774,7 @@ private fun ExploreDishDetailContent(
                         }
                     }
 
-                    // Secondary: Visit USDA Database
+                    // Secondary: Visit Database
                     Surface(
                         onClick = {
                             val url = viewModel.getSourceUrl(dish.dataSource)
@@ -800,7 +787,7 @@ private fun ExploreDishDetailContent(
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .then(
-                                if (proofDoc.type != ProofType.NONE) Modifier.weight(1f)
+                                if (isUsda && proofDoc.type != ProofType.NONE) Modifier.weight(1f)
                                 else Modifier.fillMaxWidth()
                             )
                             .height(38.dp)
@@ -894,8 +881,6 @@ private fun ExploreDishDetailContent(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-
-        // Ingredients List
         if (dish.ingredientCount > 0) {
             Text("Ingredients", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
         }
