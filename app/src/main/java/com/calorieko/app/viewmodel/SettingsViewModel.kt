@@ -9,6 +9,7 @@ import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.ApiSyncManager
 import com.calorieko.app.data.remote.api.ApiSyncResult
+import com.calorieko.app.data.remote.api.FoodCatalogSyncManager
 import com.calorieko.app.data.remote.api.RetrofitClient
 import com.calorieko.app.BuildConfig
 import com.calorieko.app.util.NetworkUtils
@@ -141,6 +142,12 @@ class SettingsViewModel(
                     // ══════════════════════════════════════════════════
                     if (NetworkUtils.isOnline(appContext)) {
                         apiResult = apiSyncManager.syncToBackend(uid)
+                        
+                        // Also trigger food catalog sync if activity sync was successful
+                        if (apiResult is ApiSyncResult.Success) {
+                            val foodSyncManager = FoodCatalogSyncManager(appContext, apiSyncManager.getApiService())
+                            foodSyncManager.pullFoodCatalog()
+                        }
                     }
                 }
 

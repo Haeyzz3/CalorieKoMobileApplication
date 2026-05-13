@@ -57,6 +57,8 @@ class ApiSyncManager(
         private const val KEY_LAST_SYNC_TIMESTAMP = "last_successful_sync_timestamp"
     }
 
+    fun getApiService(): CalorieKoApiService = apiService
+
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
