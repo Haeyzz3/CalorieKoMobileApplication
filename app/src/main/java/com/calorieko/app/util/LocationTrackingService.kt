@@ -57,7 +57,7 @@ import kotlin.math.roundToInt
  * The elapsed duration is computed from [SystemClock.elapsedRealtime()] anchored
  * at tracking start time, minus accumulated pause durations. This is immune to
  * Thread.sleep drift and provides wall-clock accuracy regardless of CPU scheduling.
- *
+
  * ── GPS Warm-Up ──
  * The first few seconds of GPS data are buffered before selecting the most accurate
  * reading as the route anchor point. This prevents stale cell-tower or cached locations
@@ -144,7 +144,6 @@ class LocationTrackingService : Service(), SensorEventListener {
         @Volatile
         var lastKnownPoint: Pair<Double, Double>? = null
     }
-
     // ── Binder for Compose UI ──
     inner class LocalBinder : Binder() {
         fun getService(): LocationTrackingService = this@LocationTrackingService

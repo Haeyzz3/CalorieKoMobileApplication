@@ -139,6 +139,7 @@ class RecipeNutritionCalculatorTest {
         override suspend fun getByCategory(category: String): List<DishRecipeEntity> = listOf(dish)
         override suspend fun searchByName(query: String): List<DishRecipeEntity> = listOf(dish)
         override suspend fun getCount(): Int = 1
+        override suspend fun getAllDishLabels(): List<String> = listOf(dish.dishLabel)
         override suspend fun getStoreBoughtDishes(): List<DishRecipeEntity> = emptyList()
         override suspend fun deleteAll() = Unit
     }
