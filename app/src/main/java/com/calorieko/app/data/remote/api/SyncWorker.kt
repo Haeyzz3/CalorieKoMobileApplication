@@ -6,7 +6,10 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.calorieko.app.BuildConfig
 import com.calorieko.app.CalorieKoApplication
+import com.calorieko.app.data.local.FoodDatabaseCallback
 import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.tasks.await
 
 /**
  * WorkManager [CoroutineWorker] that performs offline-first background sync.
@@ -19,6 +22,7 @@ import com.calorieko.app.data.remote.FirestoreSyncRepository
  * 2. **Push to Firestore** via [FirestoreSyncRepository.syncActivityLogsBatch]
  * 3. **Push to Laravel** via [ApiSyncManager.syncToBackend] (delta sync)
  * 4. **Mark records as synced** in Room (sync_status = 1)
+ * 5. **Pull food catalog** from admin server (server → mobile, non-fatal)
  *
  * If any step fails, the worker returns [Result.retry] so WorkManager applies
  * exponential backoff (30s → 60s → 120s → ... capped at 5h).
@@ -184,6 +188,52 @@ class SyncWorker(
                         val syncedIds = unsyncedLogs.map { it.id }
                         activityLogDao.markAsSynced(syncedIds)
                         Log.d(TAG, "Marked ${syncedIds.size} activity logs as synced (status=1).")
+                    }
+
+                    // ── Step 5: Pull food catalog from admin server ──
+                    // Non-fatal — if the pull fails, the app continues using
+                    // CSV-seeded or previously-synced food data.
+                    // USDA-verified dishes (System B) are NEVER overwritten.
+                    try {
+                        val token = FirebaseAuth.getInstance()
+                            .currentUser?.getIdToken(true)?.await()?.token
+                        if (token != null) {
+                            val foodResponse = apiService.getFoodCatalog("Bearer $token")
+                            if (foodResponse.isSuccessful && foodResponse.body()?.success == true) {
+                                val serverFoods = foodResponse.body()!!.foods
+
+                                // Get USDA-protected labels (dishes with System B recipes)
+                                val protectedLabels = db.dishRecipeDao()
+                                    .getAllDishLabels().toSet()
+
+                                val foodDao = db.foodDao()
+                                foodDao.syncFromServer(
+                                    serverFoods.map { it.toFoodItem() },
+                                    protectedLabels
+                                )
+
+                                // Mark as synced (prevents CSV re-seeding on next app open)
+                                val seedPrefs = applicationContext.getSharedPreferences(
+                                    "reference_data_seed", Context.MODE_PRIVATE
+                                )
+                                seedPrefs.edit()
+                                    .putBoolean(FoodDatabaseCallback.KEY_FOOD_CATALOG_SYNCED, true)
+                                    .apply()
+
+                                // Persist food catalog last-synced timestamp
+                                val syncPrefs = applicationContext.getSharedPreferences(
+                                    "sync_prefs", Context.MODE_PRIVATE
+                                )
+                                syncPrefs.edit()
+                                    .putLong("last_food_catalog_sync_ms", System.currentTimeMillis())
+                                    .apply()
+
+                                val adminCount = serverFoods.count { it.mlLabel !in protectedLabels }
+                                Log.d(TAG, "Food catalog synced: ${serverFoods.size} total, $adminCount admin-added (${protectedLabels.size} USDA-protected skipped).")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Food catalog pull failed (non-fatal, existing data remains): ${e.message}")
                     }
 
                     Result.success()

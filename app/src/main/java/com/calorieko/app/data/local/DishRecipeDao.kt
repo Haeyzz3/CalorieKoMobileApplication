@@ -32,6 +32,10 @@ interface DishRecipeDao {
     @Query("SELECT COUNT(*) FROM DISH_RECIPES_TABLE")
     suspend fun getCount(): Int
 
+    /** Returns all dish_label values. Used for USDA protection during food catalog sync. */
+    @Query("SELECT dish_label FROM DISH_RECIPES_TABLE")
+    suspend fun getAllDishLabels(): List<String>
+
     /** Returns dishes with no ingredients (store-bought items like Lechon Manok). */
     @Query("SELECT * FROM DISH_RECIPES_TABLE WHERE ingredient_count = 0 ORDER BY name_en ASC")
     suspend fun getStoreBoughtDishes(): List<DishRecipeEntity>

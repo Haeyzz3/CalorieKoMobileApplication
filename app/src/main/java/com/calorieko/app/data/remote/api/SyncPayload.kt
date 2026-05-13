@@ -152,3 +152,59 @@ data class SyncConflict(
     @SerializedName("entity_id") val entityId: String,
     @SerializedName("reason") val reason: String
 )
+
+// ── Food Catalog (Server → Mobile) ──
+
+data class FoodCatalogResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("foods") val foods: List<SyncFoodItem>,
+    @SerializedName("count") val count: Int,
+    @SerializedName("server_timestamp") val serverTimestamp: Long
+)
+
+data class SyncFoodItem(
+    @SerializedName("food_id") val foodId: Int,
+    @SerializedName("name_en") val nameEn: String,
+    @SerializedName("name_ph") val namePh: String,
+    @SerializedName("category") val category: String,
+    @SerializedName("ml_label") val mlLabel: String,
+    @SerializedName("calories_per_100g") val caloriesPer100g: Float = 0f,
+    @SerializedName("protein_per_100g") val proteinPer100g: Float = 0f,
+    @SerializedName("carbs_per_100g") val carbsPer100g: Float = 0f,
+    @SerializedName("fiber_per_100g") val fiberPer100g: Float = 0f,
+    @SerializedName("sugar_per_100g") val sugarPer100g: Float = 0f,
+    @SerializedName("fat_per_100g") val fatPer100g: Float = 0f,
+    @SerializedName("saturated_fat_per_100g") val saturatedFatPer100g: Float = 0f,
+    @SerializedName("polyunsaturated_fat_per_100g") val polyunsaturatedFatPer100g: Float = 0f,
+    @SerializedName("monounsaturated_fat_per_100g") val monounsaturatedFatPer100g: Float = 0f,
+    @SerializedName("trans_fat_per_100g") val transFatPer100g: Float = 0f,
+    @SerializedName("cholesterol_per_100g") val cholesterolPer100g: Float = 0f,
+    @SerializedName("sodium_per_100g") val sodiumPer100g: Float = 0f,
+    @SerializedName("potassium_per_100g") val potassiumPer100g: Float = 0f,
+    @SerializedName("vitamin_a_per_100g") val vitaminAPer100g: Float = 0f,
+    @SerializedName("vitamin_c_per_100g") val vitaminCPer100g: Float = 0f,
+    @SerializedName("calcium_per_100g") val calciumPer100g: Float = 0f,
+    @SerializedName("iron_per_100g") val ironPer100g: Float = 0f,
+    @SerializedName("data_source") val dataSource: String = "DOST_FNRI_MENU_GUIDE"
+) {
+    /**
+     * Maps server response to the Room FoodItem entity.
+     * foodId = 0 lets Room auto-generate — the real identity key is ml_label.
+     */
+    fun toFoodItem(): com.calorieko.app.data.model.FoodItem = com.calorieko.app.data.model.FoodItem(
+        foodId = 0,
+        nameEn = nameEn, namePh = namePh,
+        category = category, mlLabel = mlLabel,
+        caloriesPer100g = caloriesPer100g, proteinPer100g = proteinPer100g,
+        carbsPer100g = carbsPer100g, fiberPer100g = fiberPer100g,
+        sugarPer100g = sugarPer100g, fatPer100g = fatPer100g,
+        saturatedFatPer100g = saturatedFatPer100g,
+        polyunsaturatedFatPer100g = polyunsaturatedFatPer100g,
+        monounsaturatedFatPer100g = monounsaturatedFatPer100g,
+        transFatPer100g = transFatPer100g, cholesterolPer100g = cholesterolPer100g,
+        sodiumPer100g = sodiumPer100g, potassiumPer100g = potassiumPer100g,
+        vitaminAPer100g = vitaminAPer100g, vitaminCPer100g = vitaminCPer100g,
+        calciumPer100g = calciumPer100g, ironPer100g = ironPer100g,
+        dataSource = dataSource
+    )
+}

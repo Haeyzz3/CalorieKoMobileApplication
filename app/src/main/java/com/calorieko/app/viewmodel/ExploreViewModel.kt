@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
+import com.calorieko.app.data.local.FoodDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.model.DishRecipeEntity
@@ -53,6 +54,7 @@ class ExploreViewModel(
     private val dishRecipeDao: DishRecipeDao,
     private val pantryDao: PantryDao,
     private val rawIngredientDao: RawIngredientDao,
+    private val foodDao: FoodDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) : ViewModel() {
@@ -66,13 +68,14 @@ class ExploreViewModel(
             dishRecipeDao: DishRecipeDao,
             pantryDao: PantryDao,
             rawIngredientDao: RawIngredientDao,
+            foodDao: FoodDao,
             firestoreSyncRepo: FirestoreSyncRepository,
             appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ExploreViewModel::class.java)) {
-                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, rawIngredientDao, firestoreSyncRepo, appContext) as T
+                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, rawIngredientDao, foodDao, firestoreSyncRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -139,7 +142,9 @@ class ExploreViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
 
+            // 1. Load System B dishes (USDA-verified, full ingredient-level nutrition)
             val recipes = dishRecipeDao.getAllDishRecipes()
+            val systemBLabels = recipes.map { it.dishLabel }.toSet()
             val dishes = recipes.map { recipe ->
                 val ingredientKeys = pantryDao.getIngredientsForDish(recipe.dishLabel)
                 // Resolve authoritative display names from RAW_INGREDIENTS_TABLE
@@ -165,7 +170,32 @@ class ExploreViewModel(
                 )
             }
 
-            _allDishes.value = dishes
+            // 2. Load admin-added dishes from FOOD_TABLE that DON'T exist in System B.
+            //    These are researcher-added via the admin panel and synced to mobile.
+            //    They show flat per-100g nutrition (no ingredient breakdown).
+            val allFoodItems = foodDao.getAllFoods()
+            val adminOnlyDishes = allFoodItems
+                .filter { it.mlLabel !in systemBLabels && it.mlLabel != "negative" }
+                .map { food ->
+                    ExploreDish(
+                        dishLabel = food.mlLabel,
+                        nameEn = food.nameEn,
+                        namePh = food.namePh,
+                        category = food.category,
+                        calories = food.caloriesPer100g.toInt(),
+                        protein = food.proteinPer100g.toInt(),
+                        carbs = food.carbsPer100g.toInt(),
+                        fats = food.fatPer100g.toInt(),
+                        sodium = food.sodiumPer100g.toInt(),
+                        dataSource = "COMMUNITY",
+                        ingredientCount = 0,
+                        ingredientNames = emptyList(),
+                        servings = 1,
+                        perServingWeightG = 100f
+                    )
+                }
+
+            _allDishes.value = dishes + adminOnlyDishes
             _isLoading.value = false
         }
     }
@@ -275,22 +305,25 @@ class ExploreViewModel(
      * (via the raw_ingredients.json pipeline), this always returns USDA
      * regardless of the legacy `dataSource` field on FoodItem.
      */
-    fun getSourceDisplayLabel(@Suppress("UNUSED_PARAMETER") source: String): String {
-        return "USDA FoodData Central"
+    fun getSourceDisplayLabel(source: String): String = when (source) {
+        "COMMUNITY" -> "CalorieKo Community Database"
+        else -> "USDA FoodData Central"
     }
 
     /**
      * Returns a short badge label for a data source key.
      */
-    fun getSourceBadgeLabel(@Suppress("UNUSED_PARAMETER") source: String): String {
-        return "USDA"
+    fun getSourceBadgeLabel(source: String): String = when (source) {
+        "COMMUNITY" -> "Community"
+        else -> "USDA"
     }
 
     /**
      * Returns the URL for the nutritional data source (USDA).
      */
-    fun getSourceUrl(@Suppress("UNUSED_PARAMETER") source: String): String {
-        return "https://fdc.nal.usda.gov/food-search"
+    fun getSourceUrl(source: String): String = when (source) {
+        "COMMUNITY" -> ""
+        else -> "https://fdc.nal.usda.gov/food-search"
     }
 
     /**

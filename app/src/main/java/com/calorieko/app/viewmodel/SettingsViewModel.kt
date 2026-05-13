@@ -91,6 +91,13 @@ class SettingsViewModel(
     )
     val lastSyncedAt: StateFlow<String> = _lastSyncedAt.asStateFlow()
 
+    // ── Last Food Catalog Synced Timestamp ──
+
+    private val _lastFoodCatalogSyncedAt = MutableStateFlow(
+        formatSyncTimestamp(syncPrefs.getLong(KEY_LAST_FOOD_CATALOG_SYNC, 0L))
+    )
+    val lastFoodCatalogSyncedAt: StateFlow<String> = _lastFoodCatalogSyncedAt.asStateFlow()
+
     // ── Lazy API Sync Manager ──
 
     private val apiSyncManager: ApiSyncManager by lazy {
@@ -144,6 +151,11 @@ class SettingsViewModel(
                     val now = System.currentTimeMillis()
                     syncPrefs.edit().putLong(KEY_LAST_SYNC, now).apply()
                     _lastSyncedAt.value = formatSyncTimestamp(now)
+
+                    // Also refresh food catalog timestamp (may have been updated by SyncWorker)
+                    _lastFoodCatalogSyncedAt.value = formatSyncTimestamp(
+                        syncPrefs.getLong(KEY_LAST_FOOD_CATALOG_SYNC, 0L)
+                    )
                 }
 
                 // ── Report outcome ──
@@ -401,6 +413,7 @@ class SettingsViewModel(
 
     companion object {
         private const val KEY_LAST_SYNC = "last_successful_sync_ms"
+        private const val KEY_LAST_FOOD_CATALOG_SYNC = "last_food_catalog_sync_ms"
 
         /**
          * Formats a sync timestamp into a human-readable relative string.
