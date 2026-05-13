@@ -12,6 +12,7 @@ import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.repository.DashboardRepository
 import com.calorieko.app.data.repository.MealRepository
 import com.calorieko.app.data.repository.NutritionalTarget
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -260,7 +261,7 @@ class DiaryViewModel(
                     }
                     
                     // Trigger WorkManager for syncing other pending changes
-                    com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
+                    AutoSyncManager.triggerSync(
                         appContext,
                         uid
                     )

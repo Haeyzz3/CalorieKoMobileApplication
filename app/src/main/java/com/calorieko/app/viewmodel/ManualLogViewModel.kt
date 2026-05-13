@@ -15,6 +15,7 @@ import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.repository.MealRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel

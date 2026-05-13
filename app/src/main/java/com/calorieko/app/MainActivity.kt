@@ -53,6 +53,7 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoTheme
 import com.calorieko.app.viewmodel.RestoreViewModel
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material3.TextButton
 import kotlinx.coroutines.launch
@@ -348,7 +349,7 @@ fun AppNavigation() {
                             firestoreSyncRepo.syncWeightLog(currentUser.uid, initialWeightLog)
 
                             // Auto-sync to Laravel backend
-                            com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
+                            AutoSyncManager.triggerSync(
                                 context.applicationContext, currentUser.uid
                             )
 

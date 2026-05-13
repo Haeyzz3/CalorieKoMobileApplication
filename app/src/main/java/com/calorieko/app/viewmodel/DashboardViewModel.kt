@@ -15,6 +15,7 @@ import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.repository.DashboardRepository
 import com.calorieko.app.data.repository.NutritionalTarget
 import com.calorieko.app.util.DurationFormatter
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -175,7 +176,7 @@ class DashboardViewModel(
             withContext(Dispatchers.IO) {
                 try {
                     uid?.let {
-                        com.calorieko.app.data.remote.api.AutoSyncManager.triggerSync(
+                        AutoSyncManager.triggerSync(
                             appContext, it
                         )
                     }
