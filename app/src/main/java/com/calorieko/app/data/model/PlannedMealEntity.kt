@@ -13,5 +13,11 @@ data class PlannedMealEntity(
     @ColumnInfo(name = "week_start_date") val weekStartDate: String,  // ISO format, e.g. "2026-03-16"
     @ColumnInfo(name = "meal_slot") val mealSlot: String,      // "Breakfast", "Lunch", "Dinner", "Snack"
     @ColumnInfo(name = "substitutions_json", defaultValue = "")
-    val substitutionsJson: String = ""  // JSON: {"black_pepper": "thyme", ...}
+    val substitutionsJson: String = "",  // JSON: {"black_pepper": "thyme", ...}
+
+    @ColumnInfo(name = "scaled_servings", defaultValue = "0")
+    val scaledServings: Int = 0,  // 0 = use original servings (no override)
+
+    @ColumnInfo(name = "tweaks_json", defaultValue = "")
+    val tweaksJson: String = ""   // JSON: {"garlic": 2.0, "onion": 0.5}
 )

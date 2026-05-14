@@ -635,11 +635,17 @@ class PantryViewModel(
         dishLabel: String,
         mealSlot: String,
         weekStartDate: String = _currentWeekStart.value,
-        substitutions: Map<String, String> = emptyMap()
+        substitutions: Map<String, String> = emptyMap(),
+        scaledServings: Int = 0,
+        tweaks: Map<String, Float> = emptyMap()
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val substitutionsJson = if (substitutions.isNotEmpty()) {
                 org.json.JSONObject(substitutions as Map<*, *>).toString()
+            } else ""
+
+            val tweaksJson = if (tweaks.isNotEmpty()) {
+                org.json.JSONObject(tweaks.mapValues { it.value.toDouble() } as Map<*, *>).toString()
             } else ""
 
             val meal = PlannedMealEntity(
@@ -647,7 +653,9 @@ class PantryViewModel(
                 dishLabel = dishLabel,
                 weekStartDate = weekStartDate,
                 mealSlot = mealSlot,
-                substitutionsJson = substitutionsJson
+                substitutionsJson = substitutionsJson,
+                scaledServings = scaledServings,
+                tweaksJson = tweaksJson
             )
             mealPlanDao.insertMeal(meal)
             if (uid.isNotEmpty()) {
@@ -895,7 +903,9 @@ class PantryViewModel(
      */
     suspend fun getDishResultByLabel(
         dishLabel: String,
-        substitutionsJson: String = ""
+        substitutionsJson: String = "",
+        scaledServings: Int = 0,
+        tweaksJson: String = ""
     ): DishResult? {
         val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
 
@@ -997,7 +1007,7 @@ class PantryViewModel(
         val recipeEntity = dishRecipeDao.getByDishLabel(dishLabel)
         val actualIngredientCount = recipeEntity?.ingredientCount ?: details.size
 
-        return DishResult(
+        val result = DishResult(
             dishLabel = dishLabel,
             dishName = dishDisplayNames.primaryName,
             dishNamePh = dishDisplayNames.namePh,
@@ -1024,6 +1034,23 @@ class PantryViewModel(
             originalServings = dishDisplayNames.servings,
             appliedSubstitutions = subs
         )
+
+        // Restore scaling state from persisted planned meal
+        if (scaledServings > 0) {
+            setTargetServings(dishLabel, scaledServings)
+        }
+
+        // Restore tweaking state from persisted planned meal
+        val tweaks = parseTweaksJson(tweaksJson)
+        if (tweaks.isNotEmpty()) {
+            val current = _ingredientTweaks.value.toMutableMap()
+            current[dishLabel] = tweaks
+            _ingredientTweaks.value = current
+            // Trigger recalculation immediately (no debounce needed at load time)
+            recalculateTweakedNutrition(dishLabel)
+        }
+
+        return result
     }
 
     /**
@@ -1036,6 +1063,22 @@ class PantryViewModel(
             val obj = org.json.JSONObject(json)
             val map = mutableMapOf<String, String>()
             obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    /**
+     * Parses a tweaks JSON string into a Map<String, Float>.
+     * Returns empty map if the string is blank or malformed.
+     */
+    private fun parseTweaksJson(json: String): Map<String, Float> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, Float>()
+            obj.keys().forEach { key -> map[key] = obj.getDouble(key).toFloat() }
             map
         } catch (_: Exception) {
             emptyMap()

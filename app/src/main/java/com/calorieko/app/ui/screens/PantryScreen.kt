@@ -1498,7 +1498,12 @@ fun MealPlanCalendarSection(
                                             .clickable {
                                                 scope.launch {
                                                     val result = withContext(Dispatchers.IO) {
-                                                        viewModel.getDishResultByLabel(meal.dishLabel, meal.substitutionsJson)
+                                                        viewModel.getDishResultByLabel(
+                                                            meal.dishLabel,
+                                                            meal.substitutionsJson,
+                                                            meal.scaledServings,
+                                                            meal.tweaksJson
+                                                        )
                                                     }
                                                     if (result != null) {
                                                         viewRecipeDishResult.value = result
@@ -2227,6 +2232,67 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
             Spacer(modifier = Modifier.height(16.dp))
         }
 
+        // ── Read-only Servings Info (for planned dish view) ──
+        if (recipe.coreTotalCount > 0 && isViewOnly && (isScaled || hasTweaks)) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Servings", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                            if (isScaled) {
+                                Text(
+                                    "Scaled from ${recipe.originalServings} \u2192 $targetServings serving${if (targetServings > 1) "s" else ""}",
+                                    fontSize = 11.sp, color = CalorieKoGreen
+                                )
+                            } else {
+                                Text(
+                                    "${recipe.originalServings} serving${if (recipe.originalServings > 1) "s" else ""}",
+                                    fontSize = 11.sp, color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+                        // Serving count badge
+                        Surface(
+                            color = if (isScaled) CalorieKoGreen else Color(0xFF374151),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "$targetServings", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                    // Total recipe weight
+                    val viewOnlyWeight = if (hasTweaks && tweakedPerServingWeight != null) tweakedPerServingWeight else recipe.perServingWeightG
+                    if (viewOnlyWeight > 0f) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Total recipe: \u2248 ${(viewOnlyWeight * targetServings).toInt()}g" +
+                                if (hasTweaks) " (est.)" else "",
+                            fontSize = 12.sp,
+                            color = when {
+                                hasTweaks -> Color(0xFF7C3AED)
+                                isScaled -> CalorieKoGreen
+                                else -> Color(0xFF6B7280)
+                            },
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         // Nutrition Cards
         if (recipe.calories > 0) {
             // Substitution Active Banner (not shown in view-only mode since subs are pre-applied)
@@ -2677,6 +2743,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     scaledPortion,
                                     fontSize = 12.sp,
                                     color = when {
+                                        isTweaked && isScaled -> Color(0xFF0D9488)
                                         isTweaked -> Color(0xFF7C3AED)
                                         isScaled -> CalorieKoGreen
                                         else -> Color(0xFF6B7280)
@@ -2744,6 +2811,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 val bkCombinedMult = multiplier * bkTweakMult
                                 val bkIsTweaked = bkTweakMult != 1f
                                 val bkHighlightColor = when {
+                                    bkIsTweaked && isScaled -> Color(0xFF0D9488)
                                     bkIsTweaked -> Color(0xFF7C3AED)
                                     isScaled -> CalorieKoGreen
                                     else -> Color(0xFF6B7280)
@@ -3286,7 +3354,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                             recipe.dishLabel,
                                             slot,
                                             targetWeekStart,
-                                            dishSubs
+                                            dishSubs,
+                                            scaledServings = if (isScaled) targetServings else 0,
+                                            tweaks = dishTweaks
                                         )
                                     }
                                     showSlotPickerForPlan.value = false
