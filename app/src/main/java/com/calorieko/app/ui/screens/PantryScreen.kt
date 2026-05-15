@@ -2269,11 +2269,11 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         }
 
         // ── Read-only Servings Info (for planned dish view) ──
-        if (recipe.coreTotalCount > 0 && isViewOnly && (isScaled || hasTweaks)) {
+        if (recipe.coreTotalCount > 0 && isViewOnly) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                colors = CardDefaults.cardColors(containerColor = if (isScaled) Color(0xFFF0FDF4) else Color(0xFFF9FAFB)),
+                border = BorderStroke(1.dp, if (isScaled) CalorieKoGreen.copy(alpha = 0.3f) else Color(0xFFE5E7EB)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -2308,12 +2308,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             )
                         }
                     }
-                    // Total recipe weight
+                    // Weight info
                     val viewOnlyWeight = if (hasTweaks && tweakedPerServingWeight != null) tweakedPerServingWeight else recipe.perServingWeightG
                     if (viewOnlyWeight > 0f) {
                         Spacer(modifier = Modifier.height(8.dp))
+                        // Per-serving weight
                         Text(
-                            "Total recipe: \u2248 ${(viewOnlyWeight * targetServings).toInt()}g" +
+                            "${viewOnlyWeight.toInt()}g per serving" +
                                 if (hasTweaks) " (est.)" else "",
                             fontSize = 12.sp,
                             color = when {
@@ -2322,6 +2323,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 else -> Color(0xFF6B7280)
                             },
                             fontWeight = FontWeight.Medium
+                        )
+                        // Total recipe weight
+                        Text(
+                            "Total recipe: \u2248 ${(viewOnlyWeight * targetServings).toInt()}g" +
+                                if (hasTweaks) " (est.)" else "",
+                            fontSize = 11.sp,
+                            color = Color(0xFF9CA3AF)
                         )
                     }
                 }
