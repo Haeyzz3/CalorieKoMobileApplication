@@ -2308,13 +2308,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             )
                         }
                     }
-                    // Weight info
+                    // Total recipe weight
                     val viewOnlyWeight = if (hasTweaks && tweakedPerServingWeight != null) tweakedPerServingWeight else recipe.perServingWeightG
                     if (viewOnlyWeight > 0f) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        // Per-serving weight
+
                         Text(
-                            "${viewOnlyWeight.toInt()}g per serving" +
+                            "Total recipe: \u2248 ${(viewOnlyWeight * targetServings).toInt()}g" +
                                 if (hasTweaks) " (est.)" else "",
                             fontSize = 12.sp,
                             color = when {
@@ -2323,13 +2323,6 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 else -> Color(0xFF6B7280)
                             },
                             fontWeight = FontWeight.Medium
-                        )
-                        // Total recipe weight
-                        Text(
-                            "Total recipe: \u2248 ${(viewOnlyWeight * targetServings).toInt()}g" +
-                                if (hasTweaks) " (est.)" else "",
-                            fontSize = 11.sp,
-                            color = Color(0xFF9CA3AF)
                         )
                     }
                 }

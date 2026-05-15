@@ -1047,6 +1047,7 @@ class PantryViewModel(
             iron = nutrition.iron,
             servingSizeDescription = dishDisplayNames.servingSizeDescription,
             originalServings = dishDisplayNames.servings,
+            perServingWeightG = dishDisplayNames.perServingWeightG,
             appliedSubstitutions = subs,
             appliedScaledServings = scaledServings,
             appliedTweaks = tweaks,
