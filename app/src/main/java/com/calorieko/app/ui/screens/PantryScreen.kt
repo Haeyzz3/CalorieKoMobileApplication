@@ -2286,7 +2286,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             Text("Servings", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                             if (isScaled) {
                                 Text(
-                                    "Scaled from ${recipe.originalServings} → $targetServings serving${if (targetServings > 1) "s" else ""}",
+                                    "Scaled from ${recipe.originalServings} to $targetServings serving${if (targetServings > 1) "s" else ""}",
                                     fontSize = 11.sp, color = CalorieKoGreen
                                 )
                             } else {
