@@ -2903,7 +2903,10 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                         color = Color(0xFF6B7280)
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
                                         tweakSteps.forEachIndexed { index, step ->
                                             val isActive = bkTweakMult == step
                                             Surface(
@@ -2919,14 +2922,17 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                                     isActive -> Color(0xFF374151)
                                                     else -> Color(0xFFE5E7EB)
                                                 },
-                                                shape = RoundedCornerShape(6.dp)
+                                                shape = RoundedCornerShape(6.dp),
+                                                modifier = Modifier.weight(1f)
                                             ) {
                                                 Text(
                                                     tweakLabels[index],
                                                     fontSize = 11.sp,
                                                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                                                     color = if (isActive) Color.White else Color(0xFF6B7280),
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp),
+                                                    textAlign = TextAlign.Center,
+                                                    maxLines = 1
                                                 )
                                             }
                                         }
