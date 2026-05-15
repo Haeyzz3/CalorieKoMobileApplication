@@ -352,7 +352,12 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                             onQuickLogSlot = { meals ->
                                 QuickLogBridge.pendingMealSlot = meals.first().mealSlot
                                 QuickLogBridge.pendingDishes = meals.map {
-                                    QuickLogDishEntry(it.dishLabel, it.substitutionsJson)
+                                    QuickLogDishEntry(
+                                        dishLabel = it.dishLabel,
+                                        substitutionsJson = it.substitutionsJson,
+                                        scaledServings = it.scaledServings,
+                                        tweaksJson = it.tweaksJson
+                                    )
                                 }
                                 onNavigate("logMeal/quickSlot")
                             }
@@ -631,7 +636,9 @@ fun TodayPlannedMealsCard(
 
                 // Individual dish items (no per-dish log button)
                 dishes.forEach { planned ->
-                    val hasCustomizations = planned.substitutionsJson.isNotBlank()
+                    val hasCustomizations = planned.substitutionsJson.isNotBlank() ||
+                        planned.scaledServings > 0 ||
+                        planned.tweaksJson.isNotBlank()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

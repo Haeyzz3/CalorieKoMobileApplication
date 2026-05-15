@@ -40,7 +40,9 @@ sealed interface ManualLogEvent {
 /** Data class for a planned dish to quick-log. */
 data class QuickLogDishEntry(
     val dishLabel: String,
-    val substitutionsJson: String = ""
+    val substitutionsJson: String = "",
+    val scaledServings: Int = 0,
+    val tweaksJson: String = ""
 )
 
 enum class PlannedWeightMethod {
@@ -338,10 +340,23 @@ class ManualLogViewModel(
      * Quick-log shortcut from planned meals. The dish remains pending until
      * the user enters the actual consumed weight.
      */
-    fun quickLogFromPlan(dishLabel: String, mealSlot: String, substitutionsJson: String = "") {
+    fun quickLogFromPlan(
+        dishLabel: String,
+        mealSlot: String,
+        substitutionsJson: String = "",
+        scaledServings: Int = 0,
+        tweaksJson: String = ""
+    ) {
         initializePlannedQuickLog(
             mealSlot = mealSlot,
-            dishEntries = listOf(QuickLogDishEntry(dishLabel, substitutionsJson))
+            dishEntries = listOf(
+                QuickLogDishEntry(
+                    dishLabel = dishLabel,
+                    substitutionsJson = substitutionsJson,
+                    scaledServings = scaledServings,
+                    tweaksJson = tweaksJson
+                )
+            )
         )
     }
 
@@ -442,14 +457,17 @@ class ManualLogViewModel(
     ): LoggedDish {
         val recipe = dishRecipeDao.getByDishLabel(entry.dishLabel)
         val substitutions = parseSubstitutionsJson(entry.substitutionsJson)
+        val tweaks = parseTweaksJson(entry.tweaksJson)
         val nutrients = if (recipe != null) {
-            val calculated = if (substitutions.isNotEmpty()) {
+            val calculated = if (tweaks.isNotEmpty()) {
+                calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams, substitutions, tweaks)
+            } else if (substitutions.isNotEmpty()) {
                 calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams, substitutions)
             } else {
                 calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams)
             }
 
-            if (substitutions.isNotEmpty() && calculated == NutritionResult.ZERO) {
+            if ((substitutions.isNotEmpty() || tweaks.isNotEmpty()) && calculated == NutritionResult.ZERO) {
                 calculator.calculatePortionNutrition(entry.dishLabel, cookedWeightGrams)
             } else {
                 calculated
@@ -724,6 +742,18 @@ class ManualLogViewModel(
             val obj = org.json.JSONObject(json)
             val map = mutableMapOf<String, String>()
             obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    private fun parseTweaksJson(json: String): Map<String, Float> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, Float>()
+            obj.keys().forEach { key -> map[key] = obj.getDouble(key).toFloat() }
             map
         } catch (_: Exception) {
             emptyMap()

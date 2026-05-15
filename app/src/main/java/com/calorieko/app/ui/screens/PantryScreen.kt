@@ -909,8 +909,18 @@ fun MealPlanCalendarSection(
             val dishResultMap = mutableMapOf<String, DishResult>()
             withContext(Dispatchers.IO) {
                 meals.forEach { meal ->
-                    nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(meal.dishLabel, meal.substitutionsJson)
-                    viewModel.getDishResultByLabel(meal.dishLabel, meal.substitutionsJson)?.let { result ->
+                    nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(
+                        meal.dishLabel,
+                        meal.substitutionsJson,
+                        meal.scaledServings,
+                        meal.tweaksJson
+                    )
+                    viewModel.getDishResultByLabel(
+                        meal.dishLabel,
+                        meal.substitutionsJson,
+                        meal.scaledServings,
+                        meal.tweaksJson
+                    )?.let { result ->
                         dishResultMap[meal.dishLabel] = result
                     }
                 }
@@ -1441,8 +1451,8 @@ fun MealPlanCalendarSection(
                                                 )
                                             }
                                         }
-                                        // Customized badge when substitutions are present
-                                        if (meal.substitutionsJson.isNotEmpty()) {
+                                        // Customized badge when persisted customization data is present
+                                        if (meal.substitutionsJson.isNotEmpty() || meal.scaledServings > 0 || meal.tweaksJson.isNotEmpty()) {
                                             Surface(
                                                 color = Color(0xFFFEF3C7),
                                                 shape = RoundedCornerShape(4.dp),
@@ -1941,24 +1951,38 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
     } else {
         allSubstitutions[recipe.dishLabel] ?: emptyMap()
     }
-    val subNutrition = allSubNutrition[recipe.dishLabel]
+    val subNutrition = if (isViewOnly) null else allSubNutrition[recipe.dishLabel]
     val hasSubstitutions = dishSubs.isNotEmpty()
 
     // --- Serving scaling state ---
     val scaledServingsMap by viewModel.scaledServings.collectAsState()
-    val targetServings = scaledServingsMap[recipe.dishLabel] ?: recipe.originalServings
+    val targetServings = if (isViewOnly) {
+        recipe.appliedScaledServings.takeIf { it > 0 } ?: recipe.originalServings
+    } else {
+        scaledServingsMap[recipe.dishLabel] ?: recipe.originalServings
+    }
     val multiplier = targetServings.toFloat() / recipe.originalServings.toFloat().coerceAtLeast(1f)
     val isScaled = targetServings != recipe.originalServings
     val maxServings = maxOf(recipe.originalServings * 4, 20)
 
     // --- Individual ingredient tweak state ---
     val allTweaks by viewModel.ingredientTweaks.collectAsState()
-    val dishTweaks = allTweaks[recipe.dishLabel] ?: emptyMap()
+    val dishTweaks = if (isViewOnly) {
+        recipe.appliedTweaks
+    } else {
+        allTweaks[recipe.dishLabel] ?: emptyMap()
+    }
     val hasTweaks = dishTweaks.isNotEmpty()
     val tweakedNutritionMap by viewModel.tweakedNutrition.collectAsState()
-    val tweakedNutrition = tweakedNutritionMap[recipe.dishLabel]
+    val tweakedNutrition = if (isViewOnly) null else tweakedNutritionMap[recipe.dishLabel]
     val tweakedWeightMap by viewModel.tweakedPerServingWeight.collectAsState()
-    val tweakedPerServingWeight = tweakedWeightMap[recipe.dishLabel]
+    val tweakedPerServingWeight = if (isViewOnly && recipe.appliedTweakedPerServingWeightG > 0f) {
+        recipe.appliedTweakedPerServingWeightG
+    } else if (isViewOnly) {
+        null
+    } else {
+        tweakedWeightMap[recipe.dishLabel]
+    }
 
     // Substitution picker state
     var substitutionTarget by remember { mutableStateOf<String?>(null) }  // ingredientKey being substituted
@@ -1967,61 +1991,73 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
     // Effective nutrition: tweaks > subs > original
     val effectiveCalories = when {
+        isViewOnly -> recipe.calories
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.calories.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.calories.toInt()
         else -> recipe.calories
     }
     val effectiveProtein = when {
+        isViewOnly -> recipe.protein
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.protein.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.protein.toInt()
         else -> recipe.protein
     }
     val effectiveCarbs = when {
+        isViewOnly -> recipe.carbs
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.carbs.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.carbs.toInt()
         else -> recipe.carbs
     }
     val effectiveFats = when {
+        isViewOnly -> recipe.fats
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.fat.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.fat.toInt()
         else -> recipe.fats
     }
     val effectiveSodium = when {
+        isViewOnly -> recipe.sodium
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.sodium.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.sodium.toInt()
         else -> recipe.sodium
     }
     val effectiveFiber = when {
+        isViewOnly -> recipe.fiber
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.fiber
         hasSubstitutions && subNutrition != null -> subNutrition.fiber
         else -> recipe.fiber
     }
     val effectiveSugar = when {
+        isViewOnly -> recipe.sugar
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.sugar
         hasSubstitutions && subNutrition != null -> subNutrition.sugar
         else -> recipe.sugar
     }
     val effectivePotassium = when {
+        isViewOnly -> recipe.potassium
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.potassium
         hasSubstitutions && subNutrition != null -> subNutrition.potassium
         else -> recipe.potassium
     }
     val effectiveVitaminA = when {
+        isViewOnly -> recipe.vitaminA
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.vitaminA
         hasSubstitutions && subNutrition != null -> subNutrition.vitaminA
         else -> recipe.vitaminA
     }
     val effectiveVitaminC = when {
+        isViewOnly -> recipe.vitaminC
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.vitaminC
         hasSubstitutions && subNutrition != null -> subNutrition.vitaminC
         else -> recipe.vitaminC
     }
     val effectiveCalcium = when {
+        isViewOnly -> recipe.calcium
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.calcium
         hasSubstitutions && subNutrition != null -> subNutrition.calcium
         else -> recipe.calcium
     }
     val effectiveIron = when {
+        isViewOnly -> recipe.iron
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.iron
         hasSubstitutions && subNutrition != null -> subNutrition.iron
         else -> recipe.iron

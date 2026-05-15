@@ -94,7 +94,10 @@ data class DishResult(
     val perServingWeightG: Float = 0f,
     // Original serving count from DishRecipeEntity (baseline for scaling)
     val originalServings: Int = 1,
-    val appliedSubstitutions: Map<String, String> = emptyMap()
+    val appliedSubstitutions: Map<String, String> = emptyMap(),
+    val appliedScaledServings: Int = 0,
+    val appliedTweaks: Map<String, Float> = emptyMap(),
+    val appliedTweakedPerServingWeightG: Float = 0f
 )
 
 /**
@@ -881,9 +884,19 @@ class PantryViewModel(
      * Used for inline display in the Meal Detail Dialog without loading full ingredient details.
      * When [substitutionsJson] is non-empty, nutrition is recalculated with the substitutions.
      */
-    suspend fun getCompactNutrition(dishLabel: String, substitutionsJson: String = ""): CompactDishNutrition {
+    @Suppress("UNUSED_PARAMETER")
+    suspend fun getCompactNutrition(
+        dishLabel: String,
+        substitutionsJson: String = "",
+        scaledServings: Int = 0,
+        tweaksJson: String = ""
+    ): CompactDishNutrition {
         val subs = parseSubstitutionsJson(substitutionsJson)
-        return if (subs.isNotEmpty()) {
+        val tweaks = parseTweaksJson(tweaksJson)
+        return if (tweaks.isNotEmpty()) {
+            val r = calculator.calculateWithTweaks(dishLabel, tweaks, subs).first
+            CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
+        } else if (subs.isNotEmpty()) {
             val r = calculator.calculateWithSubstitution(dishLabel, subs)
             CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
         } else {
@@ -907,6 +920,8 @@ class PantryViewModel(
         scaledServings: Int = 0,
         tweaksJson: String = ""
     ): DishResult? {
+        val subs = parseSubstitutionsJson(substitutionsJson)
+        val tweaks = parseTweaksJson(tweaksJson)
         val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
 
         // For dishes with no ingredients (store-bought), build from DISH_RECIPES_TABLE directly
@@ -939,12 +954,13 @@ class PantryViewModel(
                 iron = nutrition.iron,
                 servingSizeDescription = dishDisplayNames.servingSizeDescription,
                 originalServings = dishDisplayNames.servings,
-                appliedSubstitutions = parseSubstitutionsJson(substitutionsJson)
+                appliedSubstitutions = subs,
+                appliedScaledServings = scaledServings,
+                appliedTweaks = tweaks
             )
         }
 
         val details = pantryDao.getIngredientDetailsForDish(dishLabel)
-        val subs = parseSubstitutionsJson(substitutionsJson)
 
         val ingredientInfoList = run {
             // Resolve display names for original and substituted ingredient keys.
@@ -980,23 +996,17 @@ class PantryViewModel(
             .filterNot { it.isRemoved }
             .map { it.replacementName ?: it.name }
 
-        // Use recalculated nutrition when substitutions are present
-        val nutrition = if (subs.isNotEmpty()) {
-            val result = calculator.calculateWithSubstitution(dishLabel, subs)
-            DishNutritionInfo(
-                calories = result.calories.toInt(),
-                protein = result.protein.toInt(),
-                carbs = result.carbs.toInt(),
-                fats = result.fat.toInt(),
-                fiber = result.fiber.toFloat(),
-                sugar = result.sugar.toFloat(),
-                sodium = result.sodium.toInt(),
-                potassium = result.potassium.toFloat(),
-                vitaminA = result.vitaminA.toFloat(),
-                vitaminC = result.vitaminC.toFloat(),
-                calcium = result.calcium.toFloat(),
-                iron = result.iron.toFloat()
-            )
+        val tweakedResult = if (tweaks.isNotEmpty()) {
+            calculator.calculateWithTweaks(dishLabel, tweaks, subs)
+        } else {
+            null
+        }
+
+        // Use recalculated nutrition when substitutions or tweaks are present
+        val nutrition = if (tweakedResult != null) {
+            tweakedResult.first.toDishNutritionInfo()
+        } else if (subs.isNotEmpty()) {
+            calculator.calculateWithSubstitution(dishLabel, subs).toDishNutritionInfo()
         } else {
             getDishNutrition(dishLabel)
         }
@@ -1006,6 +1016,11 @@ class PantryViewModel(
         // Get actual ingredient count from recipe entity for accurate UI rendering
         val recipeEntity = dishRecipeDao.getByDishLabel(dishLabel)
         val actualIngredientCount = recipeEntity?.ingredientCount ?: details.size
+        val appliedTweakedPerServingWeight = if (tweakedResult != null) {
+            calculateTweakedPerServingWeight(dishLabel, tweakedResult.second)
+        } else {
+            0f
+        }
 
         val result = DishResult(
             dishLabel = dishLabel,
@@ -1032,23 +1047,11 @@ class PantryViewModel(
             iron = nutrition.iron,
             servingSizeDescription = dishDisplayNames.servingSizeDescription,
             originalServings = dishDisplayNames.servings,
-            appliedSubstitutions = subs
+            appliedSubstitutions = subs,
+            appliedScaledServings = scaledServings,
+            appliedTweaks = tweaks,
+            appliedTweakedPerServingWeightG = appliedTweakedPerServingWeight
         )
-
-        // Restore scaling state from persisted planned meal
-        if (scaledServings > 0) {
-            setTargetServings(dishLabel, scaledServings)
-        }
-
-        // Restore tweaking state from persisted planned meal
-        val tweaks = parseTweaksJson(tweaksJson)
-        if (tweaks.isNotEmpty()) {
-            val current = _ingredientTweaks.value.toMutableMap()
-            current[dishLabel] = tweaks
-            _ingredientTweaks.value = current
-            // Trigger recalculation immediately (no debounce needed at load time)
-            recalculateTweakedNutrition(dishLabel)
-        }
 
         return result
     }
@@ -1101,7 +1104,12 @@ class PantryViewModel(
 
         for (meal in meals) {
             val substitutions = parseSubstitutionsJson(meal.substitutionsJson)
-            if (substitutions.isNotEmpty()) {
+            val tweaks = parseTweaksJson(meal.tweaksJson)
+            if (tweaks.isNotEmpty()) {
+                val nutrition = calculator.calculateWithTweaks(meal.dishLabel, tweaks, substitutions).first
+                totalCalories += nutrition.calories.toInt()
+                totalSodium += nutrition.sodium.toInt()
+            } else if (substitutions.isNotEmpty()) {
                 val nutrition = calculator.calculateWithSubstitution(meal.dishLabel, substitutions)
                 totalCalories += nutrition.calories.toInt()
                 totalSodium += nutrition.sodium.toInt()
@@ -1471,4 +1479,26 @@ class PantryViewModel(
         currentWeights[dishLabel] = newPerServingWeight
         _tweakedPerServingWeight.value = currentWeights
     }
+
+    private suspend fun calculateTweakedPerServingWeight(dishLabel: String, totalRawWeightG: Float): Float {
+        val dish = dishRecipeDao.getByDishLabel(dishLabel) ?: return 0f
+        val yieldFactor = if (dish.dishYieldFactor > 0f) dish.dishYieldFactor else 1f
+        return (totalRawWeightG * yieldFactor) / dish.servings.coerceAtLeast(1)
+    }
+
+    private fun NutritionResult.toDishNutritionInfo(): DishNutritionInfo =
+        DishNutritionInfo(
+            calories = calories.toInt(),
+            protein = protein.toInt(),
+            carbs = carbs.toInt(),
+            fats = fat.toInt(),
+            fiber = fiber,
+            sugar = sugar,
+            sodium = sodium.toInt(),
+            potassium = potassium,
+            vitaminA = vitaminA,
+            vitaminC = vitaminC,
+            calcium = calcium,
+            iron = iron
+        )
 }
