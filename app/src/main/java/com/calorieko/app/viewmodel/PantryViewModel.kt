@@ -653,6 +653,11 @@ class PantryViewModel(
         tweaks: Map<String, Float> = emptyMap()
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isValidCopyTarget(weekStartDate, dayIndex) || mealSlot.isBlank()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                return@launch
+            }
+
             val substitutionsJson = if (substitutions.isNotEmpty()) {
                 org.json.JSONObject(substitutions as Map<*, *>).toString()
             } else ""
@@ -682,50 +687,102 @@ class PantryViewModel(
 
     fun removeDishFromSlot(dayIndex: Int, mealSlot: String, dishLabel: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.removeDish(dayIndex, _currentWeekStart.value, mealSlot, dishLabel)
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            mealPlanDao.removeDish(dayIndex, week, mealSlot, dishLabel)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot, dishLabel) } catch (_: Exception) {}
+                    try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, mealSlot, dishLabel) } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
         }
     }
 
     fun clearMealSlot(dayIndex: Int, mealSlot: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.clearSlot(dayIndex, _currentWeekStart.value, mealSlot)
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            mealPlanDao.clearSlot(dayIndex, week, mealSlot)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, _currentWeekStart.value, mealSlot) } catch (_: Exception) {}
+                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, week, mealSlot) } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $mealSlot."))
         }
     }
 
     fun clearMealDay(dayIndex: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.clearDay(dayIndex, _currentWeekStart.value)
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            mealPlanDao.clearDay(dayIndex, week)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, _currentWeekStart.value) } catch (_: Exception) {}
+                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week) } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared planned meals for ${formatDateLabel(week, dayIndex)}."))
         }
     }
 
     fun clearMealWeek() {
         viewModelScope.launch(Dispatchers.IO) {
             val week = _currentWeekStart.value
-            mealPlanDao.clearWeek(week)
+            val weekMeals = mealPlanDao.getMealsForWeekOneShot(week)
+            val editableDayIndices = (0..6).filter { isDayEditableForWeek(it, week) }
+            val clearableDayIndices = weekMeals
+                .filter { it.dayIndex in editableDayIndices }
+                .map { it.dayIndex }
+                .distinct()
+
+            if (clearableDayIndices.isEmpty()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            val clearedCount = weekMeals.count { it.dayIndex in clearableDayIndices }
+            val clearedWholeWeek = editableDayIndices.size == 7
+            if (clearedWholeWeek) {
+                mealPlanDao.clearWeek(week)
+            } else {
+                mealPlanDao.clearWeekDays(week, editableDayIndices)
+            }
+
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearWeekPlannedMeals(uid, week) } catch (_: Exception) {}
+                    try {
+                        if (clearedWholeWeek) {
+                            firestoreSyncRepo.clearWeekPlannedMeals(uid, week)
+                        } else {
+                            editableDayIndices.forEach { dayIndex ->
+                                firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week)
+                            }
+                        }
+                    } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $clearedCount planned dish${if (clearedCount == 1) "" else "es"}."))
         }
     }
 

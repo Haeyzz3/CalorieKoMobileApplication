@@ -125,6 +125,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
@@ -983,6 +984,8 @@ fun MealPlanCalendarSection(
 
     // Check if the entire displayed week is editable (has at least one editable day)
     val hasEditableDay = days.indices.any { viewModel.isDayEditable(it) }
+    val clearablePlannedMeals = plannedMeals.filter { viewModel.isDayEditable(it.dayIndex) }
+    val hasPastPlannedMeals = clearablePlannedMeals.size < plannedMeals.size
 
     // Combined recipe list for calendar pickers (recipes + store-bought)
     val allAvailableRecipes = allRecipes + storeBoughtRecipes
@@ -1155,13 +1158,20 @@ fun MealPlanCalendarSection(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 // Clear Week
-                if (plannedMeals.isNotEmpty()) {
+                if (clearablePlannedMeals.isNotEmpty()) {
                     Surface(
                         modifier = Modifier.clickable { showClearWeekDialog.value = true },
                         color = Color(0xFFFEE2E2),
                         shape = RoundedCornerShape(6.dp)
                     ) {
-                        Text("Clear Week", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.DeleteSweep, null, tint = Color(0xFFDC2626), modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear Week", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                        }
                     }
                 }
             }
@@ -2011,11 +2021,17 @@ fun MealPlanCalendarSection(
     // ================================================================
     // Clear Week Confirmation Dialog
     // ================================================================
-    if (showClearWeekDialog.value) {
+    if (showClearWeekDialog.value && clearablePlannedMeals.isNotEmpty()) {
+        val clearableCount = clearablePlannedMeals.size
+        val clearWeekMessage = if (hasPastPlannedMeals) {
+            "Are you sure you want to remove $clearableCount remaining planned dish${if (clearableCount == 1) "" else "es"}? Past planned meals will be kept."
+        } else {
+            "Are you sure you want to remove all $clearableCount planned dish${if (clearableCount == 1) "" else "es"} for this week?"
+        }
         AlertDialog(
             onDismissRequest = { showClearWeekDialog.value = false },
             title = { Text("Clear Week") },
-            text = { Text("Are you sure you want to remove all ${plannedMeals.size} planned dishes for this week?") },
+            text = { Text(clearWeekMessage) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearMealWeek()
