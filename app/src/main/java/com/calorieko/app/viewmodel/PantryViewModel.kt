@@ -20,9 +20,12 @@ import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -112,6 +115,10 @@ data class WeekInfo(
     val isBeyondHorizon: Boolean    // true if beyond 8-week planning cap
 )
 
+
+sealed interface PantryUiEvent {
+    data class Snackbar(val message: String) : PantryUiEvent
+}
 
 class PantryViewModel(
     private val auth: FirebaseAuth,
@@ -210,6 +217,9 @@ class PantryViewModel(
     // --- Today Indicator (null if today is not in the displayed week) ---
     private val _todayColumnIndex = MutableStateFlow<Int?>(null)
     val todayColumnIndex: StateFlow<Int?> = _todayColumnIndex.asStateFlow()
+
+    private val _uiEvents = MutableSharedFlow<PantryUiEvent>(extraBufferCapacity = 1)
+    val uiEvents: SharedFlow<PantryUiEvent> = _uiEvents.asSharedFlow()
 
     // --- Cache for dish nutritional data ---
     private val _dishNutritionCache = mutableMapOf<String, DishNutritionInfo>()
@@ -789,37 +799,137 @@ class PantryViewModel(
         return !dayDate.isBefore(LocalDate.now())
     }
 
-    /**
-     * Copies all meals from the currently selected week to the next week.
-     * Uses REPLACE strategy so duplicates are overwritten, not doubled.
-     */
-    fun copyWeekToNext() {
+    fun copyCurrentWeekToNextReplacing() {
         viewModelScope.launch(Dispatchers.IO) {
-            val sourceWeek = _currentWeekStart.value
-            val sourceDate = LocalDate.parse(sourceWeek)
-            val targetWeek = sourceDate.plusWeeks(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+            try {
+                val sourceWeek = _currentWeekStart.value
+                val sourceDate = LocalDate.parse(sourceWeek)
+                val targetWeekDate = sourceDate.plusWeeks(1)
+                val targetWeek = targetWeekDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-            // Don't copy beyond the planning horizon
-            if (targetWeek > getMaxPlanningWeekStart()) return@launch
-
-            val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
-            if (sourceMeals.isEmpty()) return@launch
-
-            val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
-            mealPlanDao.insertMeals(copiedMeals)
-
-            // Sync to Firestore
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try {
-                        copiedMeals.forEach { firestoreSyncRepo.syncPlannedMeal(uid, it) }
-                    } catch (_: Exception) {}
+                if (targetWeek < getWeekStartDate()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                    return@launch
                 }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
 
-            // Refresh scrubber density dots
-            recomputeWeekScrubberData()
+                if (targetWeek > getMaxPlanningWeekStart()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Next week is outside your planning range."))
+                    return@launch
+                }
+
+                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
+                if (sourceMeals.isEmpty()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("No meals to copy this week."))
+                    return@launch
+                }
+
+                val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
+                mealPlanDao.replaceWeek(targetWeek, copiedMeals)
+
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try {
+                            firestoreSyncRepo.clearWeekPlannedMeals(uid, targetWeek)
+                            firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
+                        } catch (_: Exception) {}
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+
+                recomputeWeekScrubberData()
+                _uiEvents.emit(PantryUiEvent.Snackbar("Copied week to ${formatWeekRange(targetWeek)}."))
+            } catch (_: Exception) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
+            }
+        }
+    }
+
+    fun copyMealSlot(
+        sourceWeekStart: String,
+        sourceDayIndex: Int,
+        sourceMealSlot: String,
+        targetWeekStart: String,
+        targetDayIndex: Int,
+        targetMealSlot: String
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (!isValidCopyTarget(targetWeekStart, targetDayIndex) || targetMealSlot.isBlank()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                    return@launch
+                }
+
+                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeekStart)
+                    .filter { it.dayIndex == sourceDayIndex && it.mealSlot == sourceMealSlot }
+
+                if (sourceMeals.isEmpty()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("No dishes found in this meal."))
+                    return@launch
+                }
+
+                val copiedMeals = sourceMeals.map {
+                    it.copy(
+                        weekStartDate = targetWeekStart,
+                        dayIndex = targetDayIndex,
+                        mealSlot = targetMealSlot
+                    )
+                }
+
+                mealPlanDao.replaceSlot(targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
+
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try {
+                            firestoreSyncRepo.deletePlannedMealSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot)
+                            firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
+                        } catch (_: Exception) {}
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+
+                recomputeWeekScrubberData()
+                val targetDateLabel = formatDateLabel(targetWeekStart, targetDayIndex)
+                _uiEvents.emit(PantryUiEvent.Snackbar("Copied $sourceMealSlot to $targetDateLabel $targetMealSlot."))
+            } catch (_: Exception) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
+            }
+        }
+    }
+
+    fun copySingleDish(
+        sourceMeal: PlannedMealEntity,
+        targetWeekStart: String,
+        targetDayIndex: Int,
+        targetMealSlot: String
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (!isValidCopyTarget(targetWeekStart, targetDayIndex) || targetMealSlot.isBlank()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                    return@launch
+                }
+
+                val copiedMeal = sourceMeal.copy(
+                    weekStartDate = targetWeekStart,
+                    dayIndex = targetDayIndex,
+                    mealSlot = targetMealSlot
+                )
+
+                mealPlanDao.insertMeal(copiedMeal)
+
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try { firestoreSyncRepo.syncPlannedMeal(uid, copiedMeal) } catch (_: Exception) {}
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+
+                recomputeWeekScrubberData()
+                val targetDateLabel = formatDateLabel(targetWeekStart, targetDayIndex)
+                _uiEvents.emit(PantryUiEvent.Snackbar("Copied ${formatIngredientName(sourceMeal.dishLabel)} to $targetDateLabel $targetMealSlot."))
+            } catch (_: Exception) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
+            }
         }
     }
 
@@ -1176,6 +1286,28 @@ class PantryViewModel(
     private fun formatDishName(label: String): String {
         return label.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+    }
+
+    private fun isValidCopyTarget(weekStartDate: String, dayIndex: Int): Boolean {
+        if (dayIndex !in 0..6) return false
+        val targetDate = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
+        return !targetDate.isBefore(LocalDate.now()) && weekStartDate <= getMaxPlanningWeekStart()
+    }
+
+    private fun formatDateLabel(weekStartDate: String, dayIndex: Int): String {
+        val targetDate = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
+        return targetDate.format(DateTimeFormatter.ofPattern("MMM d"))
+    }
+
+    private fun formatWeekRange(weekStartDate: String): String {
+        val start = LocalDate.parse(weekStartDate)
+        val end = start.plusDays(6)
+        val startFormatter = DateTimeFormatter.ofPattern("MMM d")
+        return if (start.month == end.month) {
+            "${start.format(startFormatter)}-${end.dayOfMonth}"
+        } else {
+            "${start.format(startFormatter)}-${end.format(startFormatter)}"
         }
     }
 

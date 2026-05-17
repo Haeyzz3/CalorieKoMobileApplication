@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.calorieko.app.data.model.PlannedMealEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -60,6 +61,29 @@ interface MealPlanDao {
     /** Batch insert meals (for copy-week). */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMeals(meals: List<PlannedMealEntity>)
+
+    /** Replaces all planned meals in a target week. */
+    @Transaction
+    suspend fun replaceWeek(weekStartDate: String, meals: List<PlannedMealEntity>) {
+        clearWeek(weekStartDate)
+        if (meals.isNotEmpty()) {
+            insertMeals(meals)
+        }
+    }
+
+    /** Replaces all planned meals in a target meal slot. */
+    @Transaction
+    suspend fun replaceSlot(
+        dayIndex: Int,
+        weekStartDate: String,
+        mealSlot: String,
+        meals: List<PlannedMealEntity>
+    ) {
+        clearSlot(dayIndex, weekStartDate, mealSlot)
+        if (meals.isNotEmpty()) {
+            insertMeals(meals)
+        }
+    }
 }
 
 /** Result class for week meal count query. */

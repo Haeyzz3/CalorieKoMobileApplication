@@ -62,6 +62,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
@@ -106,6 +108,7 @@ import com.calorieko.app.ui.theme.MacroFat
 import com.calorieko.app.viewmodel.DishProofDocument
 import com.calorieko.app.viewmodel.DishResult
 import com.calorieko.app.viewmodel.PantryViewModel
+import com.calorieko.app.viewmodel.PantryUiEvent
 import com.calorieko.app.viewmodel.ProofType
 import com.calorieko.app.viewmodel.WeekInfo
 import com.calorieko.app.util.PortionScaler
@@ -115,6 +118,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.ui.draw.alpha
@@ -153,6 +157,15 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     val selectedRecipe = remember { mutableStateOf<DishResult?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                is PantryUiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
 
     // Ingredient Browser Sheet state
     val showIngredientBrowser = remember { mutableStateOf(false) }
@@ -189,6 +202,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             BottomNavigation(activeTab = activeTab, onTabChange = {
                 activeTab = it
@@ -851,6 +865,17 @@ fun EmptyStateCard() {
     }
 }
 
+private sealed interface MealPlanCopySource {
+    data class Week(val sourceWeekStart: String) : MealPlanCopySource
+    data class MealSlot(
+        val sourceWeekStart: String,
+        val dayIndex: Int,
+        val mealSlot: String,
+        val dishCount: Int
+    ) : MealPlanCopySource
+    data class Dish(val meal: PlannedMealEntity) : MealPlanCopySource
+}
+
 // --- Meal Plan Calendar Section ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -944,6 +969,13 @@ fun MealPlanCalendarSection(
     val weekDayDates by viewModel.weekDayDates.collectAsState()
     val todayColumnIndex by viewModel.todayColumnIndex.collectAsState()
 
+    var copySource by remember { mutableStateOf<MealPlanCopySource?>(null) }
+    var copyTargetWeekStart by remember { mutableStateOf(currentWeekStart) }
+    var copyTargetDayIndex by remember { mutableIntStateOf(-1) }
+    var copyTargetSlot by remember { mutableStateOf<String?>(null) }
+    var copyTargetWeekMeals by remember { mutableStateOf<List<PlannedMealEntity>>(emptyList()) }
+    val showCopyWeekDialog = remember { mutableStateOf(false) }
+
     // Fallback day names if weekDayDates hasn't loaded yet
     val days = if (weekDayDates.isNotEmpty()) weekDayDates else listOf(
         "Mon" to 0, "Tue" to 0, "Wed" to 0, "Thu" to 0, "Fri" to 0, "Sat" to 0, "Sun" to 0
@@ -954,6 +986,29 @@ fun MealPlanCalendarSection(
 
     // Combined recipe list for calendar pickers (recipes + store-bought)
     val allAvailableRecipes = allRecipes + storeBoughtRecipes
+
+    fun openCopyTargetPicker(source: MealPlanCopySource) {
+        val todayWeek = viewModel.getCurrentWeekStartDate()
+        val maxWeek = viewModel.getMaxPlanningWeekStartPublic()
+        val displayedWeekHasEditableDay = currentWeekStart in todayWeek..maxWeek &&
+            days.indices.any { viewModel.isDayEditableForWeek(it, currentWeekStart) }
+        copySource = source
+        copyTargetWeekStart = if (displayedWeekHasEditableDay) currentWeekStart else todayWeek
+        copyTargetDayIndex = -1
+        copyTargetSlot = null
+    }
+
+    LaunchedEffect(copySource, copyTargetWeekStart, currentWeekStart, plannedMeals) {
+        copyTargetWeekMeals = if (copySource == null) {
+            emptyList()
+        } else if (copyTargetWeekStart == currentWeekStart) {
+            plannedMeals
+        } else {
+            withContext(Dispatchers.IO) {
+                viewModel.getPlannedMealsForWeekSnapshot(copyTargetWeekStart)
+            }
+        }
+    }
 
     Column(modifier = Modifier.padding(16.dp)) {
         // Section Title
@@ -1084,7 +1139,7 @@ fun MealPlanCalendarSection(
                 // Copy to Next Week
                 if (plannedMeals.isNotEmpty()) {
                     Surface(
-                        modifier = Modifier.clickable { viewModel.copyWeekToNext() },
+                        modifier = Modifier.clickable { showCopyWeekDialog.value = true },
                         color = Color(0xFFDBEAFE),
                         shape = RoundedCornerShape(6.dp)
                     ) {
@@ -1517,14 +1572,16 @@ fun MealPlanCalendarSection(
                                         }
 
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            "View Recipe \u25B8",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = CalorieKoGreen,
-                                            modifier = Modifier
-                                                .padding(start = 30.dp)
-                                                .clickable {
+                                        Row(
+                                            modifier = Modifier.padding(start = 30.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                "View Recipe \u25B8",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = CalorieKoGreen,
+                                                modifier = Modifier.clickable {
                                                     scope.launch {
                                                         val result = withContext(Dispatchers.IO) {
                                                             viewModel.getDishResultByLabel(
@@ -1541,7 +1598,19 @@ fun MealPlanCalendarSection(
                                                         }
                                                     }
                                                 }
-                                        )
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                "Copy Dish",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF3B82F6),
+                                                modifier = Modifier.clickable {
+                                                    showMealDetail.value = false
+                                                    openCopyTargetPicker(MealPlanCopySource.Dish(meal))
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1551,7 +1620,40 @@ fun MealPlanCalendarSection(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Column(modifier = Modifier.fillMaxWidth()) {
+                        if (slotMeals.isNotEmpty()) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showMealDetail.value = false
+                                        openCopyTargetPicker(
+                                            MealPlanCopySource.MealSlot(
+                                                sourceWeekStart = currentWeekStart,
+                                                dayIndex = dayIdx,
+                                                mealSlot = slot,
+                                                dishCount = slotMeals.size
+                                            )
+                                        )
+                                    },
+                                color = Color(0xFFDBEAFE),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Copy Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF3B82F6))
+                                }
+                            }
+                        }
+
                         if (allAvailableRecipes.isNotEmpty() && isEditable) {
+                            if (slotMeals.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1606,6 +1708,48 @@ fun MealPlanCalendarSection(
                 }
             }
         }
+    }
+
+    copySource?.let { source ->
+        MealPlanCopyTargetDialog(
+            source = source,
+            targetWeekStart = copyTargetWeekStart,
+            targetDayIndex = copyTargetDayIndex,
+            targetSlot = copyTargetSlot,
+            plannedMealsForTargetWeek = copyTargetWeekMeals,
+            onTargetWeekChange = {
+                copyTargetWeekStart = it
+                copyTargetDayIndex = -1
+                copyTargetSlot = null
+            },
+            onTargetDayChange = {
+                copyTargetDayIndex = it
+                copyTargetSlot = null
+            },
+            onTargetSlotChange = { copyTargetSlot = it },
+            onConfirm = {
+                when (source) {
+                    is MealPlanCopySource.Week -> Unit
+                    is MealPlanCopySource.MealSlot -> viewModel.copyMealSlot(
+                        sourceWeekStart = source.sourceWeekStart,
+                        sourceDayIndex = source.dayIndex,
+                        sourceMealSlot = source.mealSlot,
+                        targetWeekStart = copyTargetWeekStart,
+                        targetDayIndex = copyTargetDayIndex,
+                        targetMealSlot = copyTargetSlot.orEmpty()
+                    )
+                    is MealPlanCopySource.Dish -> viewModel.copySingleDish(
+                        sourceMeal = source.meal,
+                        targetWeekStart = copyTargetWeekStart,
+                        targetDayIndex = copyTargetDayIndex,
+                        targetMealSlot = copyTargetSlot.orEmpty()
+                    )
+                }
+                copySource = null
+            },
+            onDismiss = { copySource = null },
+            viewModel = viewModel
+        )
     }
 
     // ================================================================
@@ -1834,6 +1978,37 @@ fun MealPlanCalendarSection(
     }
 
     // ================================================================
+    // Copy Week Confirmation Dialog
+    // ================================================================
+    if (showCopyWeekDialog.value) {
+        val targetWeekStart = LocalDate.parse(currentWeekStart)
+            .plusWeeks(1)
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+        AlertDialog(
+            onDismissRequest = { showCopyWeekDialog.value = false },
+            title = { Text("Copy to Next Week?") },
+            text = {
+                Column {
+                    Text("Source: ${mealPlanWeekRangeLabel(currentWeekStart)}")
+                    Text("Target: ${mealPlanWeekRangeLabel(targetWeekStart)}")
+                    Text("${plannedMeals.size} dish${if (plannedMeals.size == 1) "" else "es"} will be copied.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Existing meals in the target week will be replaced.", color = Color(0xFFDC2626))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.copyCurrentWeekToNextReplacing()
+                    showCopyWeekDialog.value = false
+                }) {
+                    Text("Copy & Replace", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showCopyWeekDialog.value = false }) { Text("Cancel") } }
+        )
+    }
+
+    // ================================================================
     // Clear Week Confirmation Dialog
     // ================================================================
     if (showClearWeekDialog.value) {
@@ -1873,6 +2048,256 @@ fun MealPlanCalendarSection(
             },
 dismissButton = { TextButton(onClick = { showClearDayDialog.value = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun MealPlanCopyTargetDialog(
+    source: MealPlanCopySource,
+    targetWeekStart: String,
+    targetDayIndex: Int,
+    targetSlot: String?,
+    plannedMealsForTargetWeek: List<PlannedMealEntity>,
+    onTargetWeekChange: (String) -> Unit,
+    onTargetDayChange: (Int) -> Unit,
+    onTargetSlotChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    viewModel: PantryViewModel
+) {
+    val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+    val slotEmojis = mapOf("Breakfast" to "B", "Lunch" to "L", "Dinner" to "D", "Snack" to "S")
+    val slotColors = mapOf(
+        "Breakfast" to Color(0xFFFFF7ED),
+        "Lunch" to Color(0xFFECFDF5),
+        "Dinner" to Color(0xFFEDE9FE),
+        "Snack" to Color(0xFFFEF9C3)
+    )
+    val todayWeek = viewModel.getCurrentWeekStartDate()
+    val maxWeek = viewModel.getMaxPlanningWeekStartPublic()
+    val canGoBack = targetWeekStart > todayWeek
+    val nextWeek = LocalDate.parse(targetWeekStart).plusWeeks(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+    val canGoForward = nextWeek <= maxWeek
+    val targetWeekDayDates = viewModel.computeWeekDayDatesPublic(targetWeekStart)
+    val selectedSlotMeals = if (targetDayIndex >= 0 && targetSlot != null) {
+        plannedMealsForTargetWeek.filter { it.dayIndex == targetDayIndex && it.mealSlot == targetSlot }
+    } else {
+        emptyList()
+    }
+    val confirmEnabled = targetDayIndex in 0..6 && targetSlot != null &&
+        viewModel.isDayEditableForWeek(targetDayIndex, targetWeekStart)
+
+    val sourceSummary = when (source) {
+        is MealPlanCopySource.Week -> "Week of ${mealPlanWeekRangeLabel(source.sourceWeekStart)}"
+        is MealPlanCopySource.MealSlot -> {
+            val dishCount = source.dishCount
+            "${mealPlanDayLabel(source.sourceWeekStart, source.dayIndex)} ${source.mealSlot} - $dishCount dish${if (dishCount == 1) "" else "es"}"
+        }
+        is MealPlanCopySource.Dish -> {
+            val customized = source.meal.substitutionsJson.isNotEmpty() ||
+                source.meal.scaledServings > 0 ||
+                source.meal.tweaksJson.isNotEmpty()
+            buildString {
+                append(viewModel.formatIngredientName(source.meal.dishLabel))
+                if (customized) append(" - customized")
+            }
+        }
+    }
+
+    val conflictText = when (source) {
+        is MealPlanCopySource.Week -> ""
+        is MealPlanCopySource.MealSlot -> if (selectedSlotMeals.isNotEmpty()) {
+            "This will replace ${selectedSlotMeals.size} existing dish${if (selectedSlotMeals.size == 1) "" else "es"}."
+        } else {
+            "This will copy the meal into an empty slot."
+        }
+        is MealPlanCopySource.Dish -> {
+            val sameDishExists = selectedSlotMeals.any { it.dishLabel == source.meal.dishLabel }
+            when {
+                sameDishExists -> "This will replace the existing copy of this dish."
+                selectedSlotMeals.isNotEmpty() -> "This will add this dish to the selected meal."
+                else -> "This will copy the dish into an empty slot."
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (source is MealPlanCopySource.MealSlot) "Copy Meal" else "Copy Dish") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 460.dp)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+            ) {
+                Text(sourceSummary, fontSize = 13.sp, color = Color(0xFF6B7280))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Surface(
+                    color = Color(0xFFF9FAFB),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val prev = LocalDate.parse(targetWeekStart)
+                                    .minusWeeks(1)
+                                    .format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                if (prev >= todayWeek) onTargetWeekChange(prev)
+                            },
+                            enabled = canGoBack,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                contentDescription = "Previous week",
+                                tint = if (canGoBack) Color(0xFF374151) else Color(0xFFD1D5DB)
+                            )
+                        }
+                        Text(
+                            mealPlanWeekRangeLabel(targetWeekStart),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF374151),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        IconButton(
+                            onClick = {
+                                if (canGoForward) onTargetWeekChange(nextWeek)
+                            },
+                            enabled = canGoForward,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Next week",
+                                tint = if (canGoForward) Color(0xFF374151) else Color(0xFFD1D5DB)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Target day", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    targetWeekDayDates.forEachIndexed { index, (dayName, dateNum) ->
+                        val editable = viewModel.isDayEditableForWeek(index, targetWeekStart)
+                        val selected = targetDayIndex == index
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.alpha(if (editable) 1f else 0.4f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        when {
+                                            selected -> CalorieKoGreen
+                                            editable -> CalorieKoGreen.copy(alpha = 0.1f)
+                                            else -> Color(0xFFF3F4F6)
+                                        },
+                                        CircleShape
+                                    )
+                                    .clickable {
+                                        if (editable) onTargetDayChange(index)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    dayName.first().toString(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = when {
+                                        selected -> Color.White
+                                        editable -> CalorieKoGreen
+                                        else -> Color.Gray
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("$dateNum", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Target meal", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(6.dp))
+                mealSlots.forEach { slot ->
+                    val slotMeals = plannedMealsForTargetWeek.filter {
+                        it.dayIndex == targetDayIndex && it.mealSlot == slot
+                    }
+                    val selected = targetSlot == slot
+                    val canSelectSlot = targetDayIndex >= 0
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                            .alpha(if (canSelectSlot) 1f else 0.45f)
+                            .clickable {
+                                if (canSelectSlot) onTargetSlotChange(slot)
+                            },
+                        color = slotColors[slot] ?: Color(0xFFF3F4F6),
+                        shape = RoundedCornerShape(10.dp),
+                        border = if (selected) BorderStroke(1.5.dp, CalorieKoGreen) else null
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(slotEmojis[slot] ?: "", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(slot, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            if (slotMeals.isNotEmpty()) {
+                                Text(
+                                    "${slotMeals.size} dish${if (slotMeals.size == 1) "" else "es"}",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (targetSlot != null && conflictText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(conflictText, fontSize = 12.sp, color = Color(0xFF6B7280))
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (confirmEnabled) onConfirm()
+                },
+                enabled = confirmEnabled
+            ) {
+                Text("Copy")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+private fun mealPlanDayLabel(weekStartDate: String, dayIndex: Int): String {
+    val date = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
+    return date.format(DateTimeFormatter.ofPattern("MMM d"))
+}
+
+private fun mealPlanWeekRangeLabel(weekStartDate: String): String {
+    val start = LocalDate.parse(weekStartDate)
+    val end = start.plusDays(6)
+    val startFormatter = DateTimeFormatter.ofPattern("MMM d")
+    return if (start.month == end.month) {
+        "${start.format(startFormatter)}-${end.dayOfMonth}"
+    } else {
+        "${start.format(startFormatter)}-${end.format(startFormatter)}"
     }
 }
 
