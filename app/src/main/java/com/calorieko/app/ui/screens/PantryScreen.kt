@@ -92,6 +92,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.RawIngredientEntity
@@ -1349,180 +1350,199 @@ fun MealPlanCalendarSection(
         val totalCarbs = slotMeals.sumOf { nutrition[it.dishLabel]?.carbs ?: 0 }
         val totalFats = slotMeals.sumOf { nutrition[it.dishLabel]?.fats ?: 0 }
 
-        AlertDialog(
-            onDismissRequest = { showMealDetail.value = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(slotEmojis[slot] ?: "", fontSize = 20.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("${days[dayIdx].first} ${days[dayIdx].second} \u2014 $slot", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        if (slotMeals.isNotEmpty() && nutrition.isNotEmpty()) {
+        Dialog(onDismissRequest = { showMealDetail.value = false }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 640.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(slotEmojis[slot] ?: "", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""} \u00B7 $totalCalories kcal total",
-                                fontSize = 12.sp,
-                                color = Color.Gray
+                                "${days[dayIdx].first} ${days[dayIdx].second} \u2014 $slot",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
                             )
-                        } else if (slotMeals.isNotEmpty()) {
-                            Text("${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}", fontSize = 12.sp, color = Color.Gray)
-                        } else {
-                            Text("No dishes planned", fontSize = 12.sp, color = Color.Gray)
+                            if (slotMeals.isNotEmpty() && nutrition.isNotEmpty()) {
+                                Text(
+                                    "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""} \u00B7 $totalCalories kcal total",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            } else if (slotMeals.isNotEmpty()) {
+                                Text("${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}", fontSize = 12.sp, color = Color.Gray)
+                            } else {
+                                Text("No dishes planned", fontSize = 12.sp, color = Color.Gray)
+                            }
                         }
                     }
-                }
-            },
-            text = {
-                Column {
-                    if (slotMeals.isEmpty()) {
-                        Text(
-                            if (isEditable) "No dishes added to this meal yet. Tap below to add one!"
-                            else "No dishes were planned for this meal.",
-                            fontSize = 13.sp,
-                            color = Color.Gray,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        // Meal total macro bar (when nutrition loaded and multiple dishes)
-                        if (nutrition.isNotEmpty() && slotMeals.size > 1) {
-                            Surface(
-                                color = Color(0xFFF9FAFB),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("$totalCalories", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CalorieKoGreen)
-                                        Text("kcal", fontSize = 9.sp, color = Color.Gray)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalProtein}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
-                                        Text("protein", fontSize = 9.sp, color = Color.Gray)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalCarbs}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
-                                        Text("carbs", fontSize = 9.sp, color = Color.Gray)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalFats}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MacroFat)
-                                        Text("fat", fontSize = 9.sp, color = Color.Gray)
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        if (slotMeals.isEmpty()) {
+                            item {
+                                Text(
+                                    if (isEditable) "No dishes added to this meal yet. Tap below to add one!"
+                                    else "No dishes were planned for this meal.",
+                                    fontSize = 13.sp,
+                                    color = Color.Gray,
+                                    fontStyle = FontStyle.Italic,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        } else {
+                            if (nutrition.isNotEmpty() && slotMeals.size > 1) {
+                                item(key = "meal-total-macros") {
+                                    Surface(
+                                        color = Color(0xFFF9FAFB),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("$totalCalories", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CalorieKoGreen)
+                                                Text("kcal", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("${totalProtein}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                                Text("protein", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("${totalCarbs}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                                                Text("carbs", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("${totalFats}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MacroFat)
+                                                Text("fat", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Dish list with nutrition + View Recipe
-                        slotMeals.forEach { meal ->
-                            val dishNutrition = nutrition[meal.dishLabel]
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                color = slotColors[slot] ?: Color(0xFFF3F4F6),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-                                    // Row 1: Emoji + Name + Remove button
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val dishResult = slotDishDisplayResults[meal.dishLabel]
-                                        val primaryDishName = dishResult?.primaryDishName()
-                                            ?: viewModel.formatIngredientName(meal.dishLabel)
-                                        val secondaryDishName = dishResult?.secondaryDishName().orEmpty()
-                                        Text(getDishEmoji(meal.dishLabel), fontSize = 20.sp)
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                primaryDishName,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF374151),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            if (secondaryDishName.isNotBlank()) {
+                            items(slotMeals, key = { it.dishLabel }) { meal ->
+                                val dishNutrition = nutrition[meal.dishLabel]
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = slotColors[slot] ?: Color(0xFFF3F4F6),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val dishResult = slotDishDisplayResults[meal.dishLabel]
+                                            val primaryDishName = dishResult?.primaryDishName()
+                                                ?: viewModel.formatIngredientName(meal.dishLabel)
+                                            val secondaryDishName = dishResult?.secondaryDishName().orEmpty()
+                                            Text(getDishEmoji(meal.dishLabel), fontSize = 20.sp)
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    secondaryDishName,
-                                                    fontSize = 11.sp,
-                                                    color = Color(0xFF9CA3AF),
-                                                    fontStyle = FontStyle.Italic,
+                                                    primaryDishName,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color(0xFF374151),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
-                                            }
-                                        }
-                                        // Customized badge when persisted customization data is present
-                                        if (meal.substitutionsJson.isNotEmpty() || meal.scaledServings > 0 || meal.tweaksJson.isNotEmpty()) {
-                                            Surface(
-                                                color = Color(0xFFFEF3C7),
-                                                shape = RoundedCornerShape(4.dp),
-                                                modifier = Modifier.padding(start = 4.dp)
-                                            ) {
-                                                Text(
-                                                    "customized",
-                                                    fontSize = 8.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFD97706),
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                )
-                                            }
-                                        }
-                                        if (isEditable) {
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.removeDishFromSlot(dayIdx, slot, meal.dishLabel)
-                                                    if (slotMeals.size <= 1) {
-                                                        showMealDetail.value = false
-                                                    }
-                                                },
-                                                modifier = Modifier.size(28.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Close,
-                                                    contentDescription = "Remove dish",
-                                                    tint = Color(0xFF9CA3AF),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                    // Row 2: Inline nutrition
-                                    if (dishNutrition != null) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            "${dishNutrition.calories} kcal \u00B7 ${dishNutrition.protein}g P \u00B7 ${dishNutrition.carbs}g C \u00B7 ${dishNutrition.fats}g F",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF6B7280),
-                                            modifier = Modifier.padding(start = 30.dp)
-                                        )
-                                    }
-                                    // Row 3: View Recipe action
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        "View Recipe \u25B8",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = CalorieKoGreen,
-                                        modifier = Modifier
-                                            .padding(start = 30.dp)
-                                            .clickable {
-                                                scope.launch {
-                                                    val result = withContext(Dispatchers.IO) {
-                                                        viewModel.getDishResultByLabel(
-                                                            meal.dishLabel,
-                                                            meal.substitutionsJson,
-                                                            meal.scaledServings,
-                                                            meal.tweaksJson
-                                                        )
-                                                    }
-                                                    if (result != null) {
-                                                        viewRecipeDishResult.value = result
-                                                        showMealDetail.value = false
-                                                        showRecipeSheet.value = true
-                                                    }
+                                                if (secondaryDishName.isNotBlank()) {
+                                                    Text(
+                                                        secondaryDishName,
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFF9CA3AF),
+                                                        fontStyle = FontStyle.Italic,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
                                                 }
                                             }
-                                    )
+                                            if (meal.substitutionsJson.isNotEmpty() || meal.scaledServings > 0 || meal.tweaksJson.isNotEmpty()) {
+                                                Surface(
+                                                    color = Color(0xFFFEF3C7),
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    modifier = Modifier.padding(start = 4.dp)
+                                                ) {
+                                                    Text(
+                                                        "customized",
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFD97706),
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                            if (isEditable) {
+                                                IconButton(
+                                                    onClick = {
+                                                        viewModel.removeDishFromSlot(dayIdx, slot, meal.dishLabel)
+                                                        if (slotMeals.size <= 1) {
+                                                            showMealDetail.value = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Close,
+                                                        contentDescription = "Remove dish",
+                                                        tint = Color(0xFF9CA3AF),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (dishNutrition != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                "${dishNutrition.calories} kcal \u00B7 ${dishNutrition.protein}g P \u00B7 ${dishNutrition.carbs}g C \u00B7 ${dishNutrition.fats}g F",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF6B7280),
+                                                modifier = Modifier.padding(start = 30.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "View Recipe \u25B8",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = CalorieKoGreen,
+                                            modifier = Modifier
+                                                .padding(start = 30.dp)
+                                                .clickable {
+                                                    scope.launch {
+                                                        val result = withContext(Dispatchers.IO) {
+                                                            viewModel.getDishResultByLabel(
+                                                                meal.dishLabel,
+                                                                meal.substitutionsJson,
+                                                                meal.scaledServings,
+                                                                meal.tweaksJson
+                                                            )
+                                                        }
+                                                        if (result != null) {
+                                                            viewRecipeDishResult.value = result
+                                                            showMealDetail.value = false
+                                                            showRecipeSheet.value = true
+                                                        }
+                                                    }
+                                                }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1530,59 +1550,62 @@ fun MealPlanCalendarSection(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Add Dish button (only when editable)
-                    if (allAvailableRecipes.isNotEmpty() && isEditable) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    showMealDetail.value = false
-                                    showAddDishToSlot.value = true
-                                },
-                            color = Color(0xFFF3F4F6),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (allAvailableRecipes.isNotEmpty() && isEditable) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showMealDetail.value = false
+                                        showAddDishToSlot.value = true
+                                    },
+                                color = Color(0xFFF3F4F6),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(Icons.Default.Add, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Add Dish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.Add, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Add Dish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+                                }
                             }
                         }
-                    }
 
-                    // Clear Entire Meal button (only when there are dishes and day is editable)
-                    if (slotMeals.isNotEmpty() && isEditable) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.clearMealSlot(dayIdx, slot)
-                                    showMealDetail.value = false
-                                },
-                            color = Color(0xFFFEE2E2),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                        if (slotMeals.isNotEmpty() && isEditable) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.clearMealSlot(dayIdx, slot)
+                                        showMealDetail.value = false
+                                    },
+                                color = Color(0xFFFEE2E2),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("🗑", fontSize = 14.sp)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Clear Entire Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text("Clear Entire Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                                }
                             }
+                        }
+
+                        TextButton(
+                            onClick = { showMealDetail.value = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cancel")
                         }
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { showMealDetail.value = false }) { Text("Cancel") } }
-        )
+            }
+        }
     }
 
     // ================================================================
