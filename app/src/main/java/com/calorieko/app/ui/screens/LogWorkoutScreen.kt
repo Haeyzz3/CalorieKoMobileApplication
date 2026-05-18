@@ -918,8 +918,8 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         String.format(Locale.US, "%d:%02d", totalSeconds / 60, totalSeconds % 60)
     }
 
-    val hours = movingTimeSeconds / 3600.0
-    val caloriesBurned = if (movingTimeSeconds > 0) (selectedActivity.met * userWeight * hours).toInt() else 0
+    val hours = timeSeconds / 3600.0
+    val caloriesBurned = if (timeSeconds > 0) (selectedActivity.met * userWeight * hours).toInt() else 0
 
     if (showSummary) {
         if (showExpandedMap) {
