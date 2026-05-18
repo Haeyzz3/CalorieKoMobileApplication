@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.calorieko.app.data.model.PlannedMealEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -27,6 +28,10 @@ interface MealPlanDao {
 
     @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE week_start_date = :weekStartDate")
     suspend fun clearWeek(weekStartDate: String)
+
+    /** Removes meals for selected days within a week. */
+    @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE week_start_date = :weekStartDate AND day_index IN (:dayIndices)")
+    suspend fun clearWeekDays(weekStartDate: String, dayIndices: List<Int>)
 
     /** Removes all meals for a specific day within a week. */
     @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE day_index = :dayIndex AND week_start_date = :weekStartDate")
@@ -60,6 +65,29 @@ interface MealPlanDao {
     /** Batch insert meals (for copy-week). */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMeals(meals: List<PlannedMealEntity>)
+
+    /** Replaces all planned meals in a target week. */
+    @Transaction
+    suspend fun replaceWeek(weekStartDate: String, meals: List<PlannedMealEntity>) {
+        clearWeek(weekStartDate)
+        if (meals.isNotEmpty()) {
+            insertMeals(meals)
+        }
+    }
+
+    /** Replaces all planned meals in a target meal slot. */
+    @Transaction
+    suspend fun replaceSlot(
+        dayIndex: Int,
+        weekStartDate: String,
+        mealSlot: String,
+        meals: List<PlannedMealEntity>
+    ) {
+        clearSlot(dayIndex, weekStartDate, mealSlot)
+        if (meals.isNotEmpty()) {
+            insertMeals(meals)
+        }
+    }
 }
 
 /** Result class for week meal count query. */

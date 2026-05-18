@@ -87,7 +87,37 @@ fun RegisterScreen(
 
     // Validation
     val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-    val isPasswordValid = password.length >= 6
+    
+    // Strength Calculation
+    val passwordStrength = remember(password) {
+        if (password.isEmpty()) 0
+        else if (password.length < 8) 1
+        else {
+            val hasUpper = password.any { it.isUpperCase() }
+            val hasLower = password.any { it.isLowerCase() }
+            val hasNumbers = password.any { it.isDigit() }
+            val hasSymbols = password.any { !it.isLetterOrDigit() }
+            
+            // Penalty for common sequences like "123" or "abc"
+            val hasSequence = password.lowercase().windowed(3).any { chunk ->
+                val c1 = chunk[0]
+                val c2 = chunk[1]
+                val c3 = chunk[2]
+                (c2 == c1 + 1 && c3 == c2 + 1) || (c2 == c1 - 1 && c3 == c2 - 1)
+            }
+            
+            val hasAllRequired = hasUpper && hasLower && hasNumbers && hasSymbols
+            
+            when {
+                hasAllRequired && password.length >= 12 && !hasSequence -> 4
+                hasAllRequired && !hasSequence -> 3
+                (hasUpper || hasLower) && hasNumbers && !hasSequence -> 2
+                else -> 2 // Penalized if it has a sequence or missing types
+            }
+        }
+    }
+
+    val isPasswordValid = passwordStrength >= 3
     val doPasswordsMatch = password == confirmPassword && password.isNotEmpty()
     val isFormValid = isEmailValid && isPasswordValid && doPasswordsMatch
 
@@ -225,7 +255,7 @@ fun RegisterScreen(
                     viewModel.clearError()
                     },
                     label = { Text("Password") },
-                    placeholder = { Text("At least 6 characters", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
+                    placeholder = { Text("8+ chars, mix of A, a, 1, & !", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                     trailingIcon = {
                         val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
@@ -249,8 +279,20 @@ fun RegisterScreen(
                     ),
                     singleLine = true
                 )
+                
+                // Password Strength Meter
+                if (password.isNotEmpty()) {
+                    PasswordStrengthMeter(passwordStrength, password)
+                }
+
                 if (password.isNotEmpty() && !isPasswordValid) {
-                    ErrorText("Password must be at least 6 characters")
+                    val errorMsg = when {
+                        passwordStrength == 1 -> "Password must be at least 8 characters"
+                        password.lowercase().windowed(3).any { it[1] == it[0] + 1 && it[2] == it[1] + 1 } -> "Avoid simple sequences like '123' or 'abc'"
+                        passwordStrength == 2 -> "Mix uppercase, lowercase, numbers, and symbols"
+                        else -> "Password must be 'Good' or 'Strong'"
+                    }
+                    ErrorText(errorMsg)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -331,6 +373,85 @@ fun RegisterScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PasswordStrengthMeter(strength: Int, password: String) {
+    val strengthText = when (strength) {
+        1 -> "Weak"
+        2 -> "Fair"
+        3 -> "Good"
+        4 -> "Strong"
+        else -> ""
+    }
+    
+    val strengthColor = when (strength) {
+        1 -> Color(0xFFEF5350) // Matches RingBurned (Red)
+        2 -> com.calorieko.app.ui.theme.CalorieKoOrange
+        3 -> com.calorieko.app.ui.theme.CalorieKoLightGreen
+        4 -> com.calorieko.app.ui.theme.CalorieKoGreen
+        else -> Color.Transparent
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Password Security",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = strengthText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = strengthColor
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(6.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth().height(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            for (i in 1..4) {
+                val color = if (i <= strength) strengthColor else MaterialTheme.colorScheme.surfaceVariant
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(color, shape = RoundedCornerShape(100.dp)) // Fully rounded segments
+                )
+            }
+        }
+        
+        if (strength < 3 && strength > 0) {
+            val hasSequence = password.lowercase().windowed(3).any { chunk ->
+                val c1 = chunk[0]
+                val c2 = chunk[1]
+                val c3 = chunk[2]
+                (c2 == c1 + 1 && c3 == c2 + 1) || (c2 == c1 - 1 && c3 == c2 - 1)
+            }
+
+            val hint = when {
+                strength == 1 -> "Minimum 8 characters required"
+                hasSequence -> "Avoid common sequences (123, abc)"
+                strength == 2 -> "Use Uppercase, lowercase, numbers, & symbols"
+                else -> ""
+            }
+            Text(
+                text = hint,
+                fontSize = 11.sp,
+                color = strengthColor,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 }

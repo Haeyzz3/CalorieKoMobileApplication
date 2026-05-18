@@ -20,9 +20,12 @@ import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -94,7 +97,10 @@ data class DishResult(
     val perServingWeightG: Float = 0f,
     // Original serving count from DishRecipeEntity (baseline for scaling)
     val originalServings: Int = 1,
-    val appliedSubstitutions: Map<String, String> = emptyMap()
+    val appliedSubstitutions: Map<String, String> = emptyMap(),
+    val appliedScaledServings: Int = 0,
+    val appliedTweaks: Map<String, Float> = emptyMap(),
+    val appliedTweakedPerServingWeightG: Float = 0f
 )
 
 /**
@@ -109,6 +115,10 @@ data class WeekInfo(
     val isBeyondHorizon: Boolean    // true if beyond 8-week planning cap
 )
 
+
+sealed interface PantryUiEvent {
+    data class Snackbar(val message: String) : PantryUiEvent
+}
 
 class PantryViewModel(
     private val auth: FirebaseAuth,
@@ -207,6 +217,9 @@ class PantryViewModel(
     // --- Today Indicator (null if today is not in the displayed week) ---
     private val _todayColumnIndex = MutableStateFlow<Int?>(null)
     val todayColumnIndex: StateFlow<Int?> = _todayColumnIndex.asStateFlow()
+
+    private val _uiEvents = MutableSharedFlow<PantryUiEvent>(extraBufferCapacity = 1)
+    val uiEvents: SharedFlow<PantryUiEvent> = _uiEvents.asSharedFlow()
 
     // --- Cache for dish nutritional data ---
     private val _dishNutritionCache = mutableMapOf<String, DishNutritionInfo>()
@@ -635,11 +648,22 @@ class PantryViewModel(
         dishLabel: String,
         mealSlot: String,
         weekStartDate: String = _currentWeekStart.value,
-        substitutions: Map<String, String> = emptyMap()
+        substitutions: Map<String, String> = emptyMap(),
+        scaledServings: Int = 0,
+        tweaks: Map<String, Float> = emptyMap()
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (!isValidCopyTarget(weekStartDate, dayIndex) || mealSlot.isBlank()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                return@launch
+            }
+
             val substitutionsJson = if (substitutions.isNotEmpty()) {
                 org.json.JSONObject(substitutions as Map<*, *>).toString()
+            } else ""
+
+            val tweaksJson = if (tweaks.isNotEmpty()) {
+                org.json.JSONObject(tweaks.mapValues { it.value.toDouble() } as Map<*, *>).toString()
             } else ""
 
             val meal = PlannedMealEntity(
@@ -647,7 +671,9 @@ class PantryViewModel(
                 dishLabel = dishLabel,
                 weekStartDate = weekStartDate,
                 mealSlot = mealSlot,
-                substitutionsJson = substitutionsJson
+                substitutionsJson = substitutionsJson,
+                scaledServings = scaledServings,
+                tweaksJson = tweaksJson
             )
             mealPlanDao.insertMeal(meal)
             if (uid.isNotEmpty()) {
@@ -661,50 +687,102 @@ class PantryViewModel(
 
     fun removeDishFromSlot(dayIndex: Int, mealSlot: String, dishLabel: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.removeDish(dayIndex, _currentWeekStart.value, mealSlot, dishLabel)
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            mealPlanDao.removeDish(dayIndex, week, mealSlot, dishLabel)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, _currentWeekStart.value, mealSlot, dishLabel) } catch (_: Exception) {}
+                    try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, mealSlot, dishLabel) } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
         }
     }
 
     fun clearMealSlot(dayIndex: Int, mealSlot: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.clearSlot(dayIndex, _currentWeekStart.value, mealSlot)
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            mealPlanDao.clearSlot(dayIndex, week, mealSlot)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, _currentWeekStart.value, mealSlot) } catch (_: Exception) {}
+                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, week, mealSlot) } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $mealSlot."))
         }
     }
 
     fun clearMealDay(dayIndex: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            mealPlanDao.clearDay(dayIndex, _currentWeekStart.value)
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            mealPlanDao.clearDay(dayIndex, week)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, _currentWeekStart.value) } catch (_: Exception) {}
+                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week) } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared planned meals for ${formatDateLabel(week, dayIndex)}."))
         }
     }
 
     fun clearMealWeek() {
         viewModelScope.launch(Dispatchers.IO) {
             val week = _currentWeekStart.value
-            mealPlanDao.clearWeek(week)
+            val weekMeals = mealPlanDao.getMealsForWeekOneShot(week)
+            val editableDayIndices = (0..6).filter { isDayEditableForWeek(it, week) }
+            val clearableDayIndices = weekMeals
+                .filter { it.dayIndex in editableDayIndices }
+                .map { it.dayIndex }
+                .distinct()
+
+            if (clearableDayIndices.isEmpty()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+
+            val clearedCount = weekMeals.count { it.dayIndex in clearableDayIndices }
+            val clearedWholeWeek = editableDayIndices.size == 7
+            if (clearedWholeWeek) {
+                mealPlanDao.clearWeek(week)
+            } else {
+                mealPlanDao.clearWeekDays(week, editableDayIndices)
+            }
+
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearWeekPlannedMeals(uid, week) } catch (_: Exception) {}
+                    try {
+                        if (clearedWholeWeek) {
+                            firestoreSyncRepo.clearWeekPlannedMeals(uid, week)
+                        } else {
+                            editableDayIndices.forEach { dayIndex ->
+                                firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week)
+                            }
+                        }
+                    } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
+            recomputeWeekScrubberData()
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $clearedCount planned dish${if (clearedCount == 1) "" else "es"}."))
         }
     }
 
@@ -778,37 +856,137 @@ class PantryViewModel(
         return !dayDate.isBefore(LocalDate.now())
     }
 
-    /**
-     * Copies all meals from the currently selected week to the next week.
-     * Uses REPLACE strategy so duplicates are overwritten, not doubled.
-     */
-    fun copyWeekToNext() {
+    fun copyCurrentWeekToNextReplacing() {
         viewModelScope.launch(Dispatchers.IO) {
-            val sourceWeek = _currentWeekStart.value
-            val sourceDate = LocalDate.parse(sourceWeek)
-            val targetWeek = sourceDate.plusWeeks(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+            try {
+                val sourceWeek = _currentWeekStart.value
+                val sourceDate = LocalDate.parse(sourceWeek)
+                val targetWeekDate = sourceDate.plusWeeks(1)
+                val targetWeek = targetWeekDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-            // Don't copy beyond the planning horizon
-            if (targetWeek > getMaxPlanningWeekStart()) return@launch
-
-            val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
-            if (sourceMeals.isEmpty()) return@launch
-
-            val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
-            mealPlanDao.insertMeals(copiedMeals)
-
-            // Sync to Firestore
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try {
-                        copiedMeals.forEach { firestoreSyncRepo.syncPlannedMeal(uid, it) }
-                    } catch (_: Exception) {}
+                if (targetWeek < getWeekStartDate()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                    return@launch
                 }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
 
-            // Refresh scrubber density dots
-            recomputeWeekScrubberData()
+                if (targetWeek > getMaxPlanningWeekStart()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Next week is outside your planning range."))
+                    return@launch
+                }
+
+                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
+                if (sourceMeals.isEmpty()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("No meals to copy this week."))
+                    return@launch
+                }
+
+                val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
+                mealPlanDao.replaceWeek(targetWeek, copiedMeals)
+
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try {
+                            firestoreSyncRepo.clearWeekPlannedMeals(uid, targetWeek)
+                            firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
+                        } catch (_: Exception) {}
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+
+                recomputeWeekScrubberData()
+                _uiEvents.emit(PantryUiEvent.Snackbar("Copied week to ${formatWeekRange(targetWeek)}."))
+            } catch (_: Exception) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
+            }
+        }
+    }
+
+    fun copyMealSlot(
+        sourceWeekStart: String,
+        sourceDayIndex: Int,
+        sourceMealSlot: String,
+        targetWeekStart: String,
+        targetDayIndex: Int,
+        targetMealSlot: String
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (!isValidCopyTarget(targetWeekStart, targetDayIndex) || targetMealSlot.isBlank()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                    return@launch
+                }
+
+                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeekStart)
+                    .filter { it.dayIndex == sourceDayIndex && it.mealSlot == sourceMealSlot }
+
+                if (sourceMeals.isEmpty()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("No dishes found in this meal."))
+                    return@launch
+                }
+
+                val copiedMeals = sourceMeals.map {
+                    it.copy(
+                        weekStartDate = targetWeekStart,
+                        dayIndex = targetDayIndex,
+                        mealSlot = targetMealSlot
+                    )
+                }
+
+                mealPlanDao.replaceSlot(targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
+
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try {
+                            firestoreSyncRepo.deletePlannedMealSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot)
+                            firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
+                        } catch (_: Exception) {}
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+
+                recomputeWeekScrubberData()
+                val targetDateLabel = formatDateLabel(targetWeekStart, targetDayIndex)
+                _uiEvents.emit(PantryUiEvent.Snackbar("Copied $sourceMealSlot to $targetDateLabel $targetMealSlot."))
+            } catch (_: Exception) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
+            }
+        }
+    }
+
+    fun copySingleDish(
+        sourceMeal: PlannedMealEntity,
+        targetWeekStart: String,
+        targetDayIndex: Int,
+        targetMealSlot: String
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (!isValidCopyTarget(targetWeekStart, targetDayIndex) || targetMealSlot.isBlank()) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
+                    return@launch
+                }
+
+                val copiedMeal = sourceMeal.copy(
+                    weekStartDate = targetWeekStart,
+                    dayIndex = targetDayIndex,
+                    mealSlot = targetMealSlot
+                )
+
+                mealPlanDao.insertMeal(copiedMeal)
+
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try { firestoreSyncRepo.syncPlannedMeal(uid, copiedMeal) } catch (_: Exception) {}
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
+
+                recomputeWeekScrubberData()
+                val targetDateLabel = formatDateLabel(targetWeekStart, targetDayIndex)
+                _uiEvents.emit(PantryUiEvent.Snackbar("Copied ${formatIngredientName(sourceMeal.dishLabel)} to $targetDateLabel $targetMealSlot."))
+            } catch (_: Exception) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
+            }
         }
     }
 
@@ -873,9 +1051,19 @@ class PantryViewModel(
      * Used for inline display in the Meal Detail Dialog without loading full ingredient details.
      * When [substitutionsJson] is non-empty, nutrition is recalculated with the substitutions.
      */
-    suspend fun getCompactNutrition(dishLabel: String, substitutionsJson: String = ""): CompactDishNutrition {
+    @Suppress("UNUSED_PARAMETER")
+    suspend fun getCompactNutrition(
+        dishLabel: String,
+        substitutionsJson: String = "",
+        scaledServings: Int = 0,
+        tweaksJson: String = ""
+    ): CompactDishNutrition {
         val subs = parseSubstitutionsJson(substitutionsJson)
-        return if (subs.isNotEmpty()) {
+        val tweaks = parseTweaksJson(tweaksJson)
+        return if (tweaks.isNotEmpty()) {
+            val r = calculator.calculateWithTweaks(dishLabel, tweaks, subs).first
+            CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
+        } else if (subs.isNotEmpty()) {
             val r = calculator.calculateWithSubstitution(dishLabel, subs)
             CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
         } else {
@@ -895,8 +1083,12 @@ class PantryViewModel(
      */
     suspend fun getDishResultByLabel(
         dishLabel: String,
-        substitutionsJson: String = ""
+        substitutionsJson: String = "",
+        scaledServings: Int = 0,
+        tweaksJson: String = ""
     ): DishResult? {
+        val subs = parseSubstitutionsJson(substitutionsJson)
+        val tweaks = parseTweaksJson(tweaksJson)
         val allIngredients = pantryDao.getIngredientsForDish(dishLabel)
 
         // For dishes with no ingredients (store-bought), build from DISH_RECIPES_TABLE directly
@@ -929,12 +1121,13 @@ class PantryViewModel(
                 iron = nutrition.iron,
                 servingSizeDescription = dishDisplayNames.servingSizeDescription,
                 originalServings = dishDisplayNames.servings,
-                appliedSubstitutions = parseSubstitutionsJson(substitutionsJson)
+                appliedSubstitutions = subs,
+                appliedScaledServings = scaledServings,
+                appliedTweaks = tweaks
             )
         }
 
         val details = pantryDao.getIngredientDetailsForDish(dishLabel)
-        val subs = parseSubstitutionsJson(substitutionsJson)
 
         val ingredientInfoList = run {
             // Resolve display names for original and substituted ingredient keys.
@@ -970,23 +1163,17 @@ class PantryViewModel(
             .filterNot { it.isRemoved }
             .map { it.replacementName ?: it.name }
 
-        // Use recalculated nutrition when substitutions are present
-        val nutrition = if (subs.isNotEmpty()) {
-            val result = calculator.calculateWithSubstitution(dishLabel, subs)
-            DishNutritionInfo(
-                calories = result.calories.toInt(),
-                protein = result.protein.toInt(),
-                carbs = result.carbs.toInt(),
-                fats = result.fat.toInt(),
-                fiber = result.fiber.toFloat(),
-                sugar = result.sugar.toFloat(),
-                sodium = result.sodium.toInt(),
-                potassium = result.potassium.toFloat(),
-                vitaminA = result.vitaminA.toFloat(),
-                vitaminC = result.vitaminC.toFloat(),
-                calcium = result.calcium.toFloat(),
-                iron = result.iron.toFloat()
-            )
+        val tweakedResult = if (tweaks.isNotEmpty()) {
+            calculator.calculateWithTweaks(dishLabel, tweaks, subs)
+        } else {
+            null
+        }
+
+        // Use recalculated nutrition when substitutions or tweaks are present
+        val nutrition = if (tweakedResult != null) {
+            tweakedResult.first.toDishNutritionInfo()
+        } else if (subs.isNotEmpty()) {
+            calculator.calculateWithSubstitution(dishLabel, subs).toDishNutritionInfo()
         } else {
             getDishNutrition(dishLabel)
         }
@@ -996,8 +1183,13 @@ class PantryViewModel(
         // Get actual ingredient count from recipe entity for accurate UI rendering
         val recipeEntity = dishRecipeDao.getByDishLabel(dishLabel)
         val actualIngredientCount = recipeEntity?.ingredientCount ?: details.size
+        val appliedTweakedPerServingWeight = if (tweakedResult != null) {
+            calculateTweakedPerServingWeight(dishLabel, tweakedResult.second)
+        } else {
+            0f
+        }
 
-        return DishResult(
+        val result = DishResult(
             dishLabel = dishLabel,
             dishName = dishDisplayNames.primaryName,
             dishNamePh = dishDisplayNames.namePh,
@@ -1022,8 +1214,14 @@ class PantryViewModel(
             iron = nutrition.iron,
             servingSizeDescription = dishDisplayNames.servingSizeDescription,
             originalServings = dishDisplayNames.servings,
-            appliedSubstitutions = subs
+            perServingWeightG = dishDisplayNames.perServingWeightG,
+            appliedSubstitutions = subs,
+            appliedScaledServings = scaledServings,
+            appliedTweaks = tweaks,
+            appliedTweakedPerServingWeightG = appliedTweakedPerServingWeight
         )
+
+        return result
     }
 
     /**
@@ -1036,6 +1234,22 @@ class PantryViewModel(
             val obj = org.json.JSONObject(json)
             val map = mutableMapOf<String, String>()
             obj.keys().forEach { key -> map[key] = obj.getString(key) }
+            map
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    /**
+     * Parses a tweaks JSON string into a Map<String, Float>.
+     * Returns empty map if the string is blank or malformed.
+     */
+    private fun parseTweaksJson(json: String): Map<String, Float> {
+        if (json.isBlank()) return emptyMap()
+        return try {
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, Float>()
+            obj.keys().forEach { key -> map[key] = obj.getDouble(key).toFloat() }
             map
         } catch (_: Exception) {
             emptyMap()
@@ -1058,7 +1272,12 @@ class PantryViewModel(
 
         for (meal in meals) {
             val substitutions = parseSubstitutionsJson(meal.substitutionsJson)
-            if (substitutions.isNotEmpty()) {
+            val tweaks = parseTweaksJson(meal.tweaksJson)
+            if (tweaks.isNotEmpty()) {
+                val nutrition = calculator.calculateWithTweaks(meal.dishLabel, tweaks, substitutions).first
+                totalCalories += nutrition.calories.toInt()
+                totalSodium += nutrition.sodium.toInt()
+            } else if (substitutions.isNotEmpty()) {
                 val nutrition = calculator.calculateWithSubstitution(meal.dishLabel, substitutions)
                 totalCalories += nutrition.calories.toInt()
                 totalSodium += nutrition.sodium.toInt()
@@ -1124,6 +1343,28 @@ class PantryViewModel(
     private fun formatDishName(label: String): String {
         return label.split("_").joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+    }
+
+    private fun isValidCopyTarget(weekStartDate: String, dayIndex: Int): Boolean {
+        if (dayIndex !in 0..6) return false
+        val targetDate = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
+        return !targetDate.isBefore(LocalDate.now()) && weekStartDate <= getMaxPlanningWeekStart()
+    }
+
+    private fun formatDateLabel(weekStartDate: String, dayIndex: Int): String {
+        val targetDate = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
+        return targetDate.format(DateTimeFormatter.ofPattern("MMM d"))
+    }
+
+    private fun formatWeekRange(weekStartDate: String): String {
+        val start = LocalDate.parse(weekStartDate)
+        val end = start.plusDays(6)
+        val startFormatter = DateTimeFormatter.ofPattern("MMM d")
+        return if (start.month == end.month) {
+            "${start.format(startFormatter)}-${end.dayOfMonth}"
+        } else {
+            "${start.format(startFormatter)}-${end.format(startFormatter)}"
         }
     }
 
@@ -1428,4 +1669,26 @@ class PantryViewModel(
         currentWeights[dishLabel] = newPerServingWeight
         _tweakedPerServingWeight.value = currentWeights
     }
+
+    private suspend fun calculateTweakedPerServingWeight(dishLabel: String, totalRawWeightG: Float): Float {
+        val dish = dishRecipeDao.getByDishLabel(dishLabel) ?: return 0f
+        val yieldFactor = if (dish.dishYieldFactor > 0f) dish.dishYieldFactor else 1f
+        return (totalRawWeightG * yieldFactor) / dish.servings.coerceAtLeast(1)
+    }
+
+    private fun NutritionResult.toDishNutritionInfo(): DishNutritionInfo =
+        DishNutritionInfo(
+            calories = calories.toInt(),
+            protein = protein.toInt(),
+            carbs = carbs.toInt(),
+            fats = fat.toInt(),
+            fiber = fiber,
+            sugar = sugar,
+            sodium = sodium.toInt(),
+            potassium = potassium,
+            vitaminA = vitaminA,
+            vitaminC = vitaminC,
+            calcium = calcium,
+            iron = iron
+        )
 }

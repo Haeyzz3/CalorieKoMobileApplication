@@ -62,6 +62,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
@@ -92,6 +94,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.RawIngredientEntity
@@ -105,6 +108,7 @@ import com.calorieko.app.ui.theme.MacroFat
 import com.calorieko.app.viewmodel.DishProofDocument
 import com.calorieko.app.viewmodel.DishResult
 import com.calorieko.app.viewmodel.PantryViewModel
+import com.calorieko.app.viewmodel.PantryUiEvent
 import com.calorieko.app.viewmodel.ProofType
 import com.calorieko.app.viewmodel.WeekInfo
 import com.calorieko.app.util.PortionScaler
@@ -114,12 +118,14 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
@@ -152,6 +158,15 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     val selectedRecipe = remember { mutableStateOf<DishResult?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                is PantryUiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
 
     // Ingredient Browser Sheet state
     val showIngredientBrowser = remember { mutableStateOf(false) }
@@ -188,6 +203,7 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             BottomNavigation(activeTab = activeTab, onTabChange = {
                 activeTab = it
@@ -850,6 +866,17 @@ fun EmptyStateCard() {
     }
 }
 
+private sealed interface MealPlanCopySource {
+    data class Week(val sourceWeekStart: String) : MealPlanCopySource
+    data class MealSlot(
+        val sourceWeekStart: String,
+        val dayIndex: Int,
+        val mealSlot: String,
+        val dishCount: Int
+    ) : MealPlanCopySource
+    data class Dish(val meal: PlannedMealEntity) : MealPlanCopySource
+}
+
 // --- Meal Plan Calendar Section ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -909,8 +936,18 @@ fun MealPlanCalendarSection(
             val dishResultMap = mutableMapOf<String, DishResult>()
             withContext(Dispatchers.IO) {
                 meals.forEach { meal ->
-                    nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(meal.dishLabel, meal.substitutionsJson)
-                    viewModel.getDishResultByLabel(meal.dishLabel, meal.substitutionsJson)?.let { result ->
+                    nutritionMap[meal.dishLabel] = viewModel.getCompactNutrition(
+                        meal.dishLabel,
+                        meal.substitutionsJson,
+                        meal.scaledServings,
+                        meal.tweaksJson
+                    )
+                    viewModel.getDishResultByLabel(
+                        meal.dishLabel,
+                        meal.substitutionsJson,
+                        meal.scaledServings,
+                        meal.tweaksJson
+                    )?.let { result ->
                         dishResultMap[meal.dishLabel] = result
                     }
                 }
@@ -933,6 +970,13 @@ fun MealPlanCalendarSection(
     val weekDayDates by viewModel.weekDayDates.collectAsState()
     val todayColumnIndex by viewModel.todayColumnIndex.collectAsState()
 
+    var copySource by remember { mutableStateOf<MealPlanCopySource?>(null) }
+    var copyTargetWeekStart by remember { mutableStateOf(currentWeekStart) }
+    var copyTargetDayIndex by remember { mutableIntStateOf(-1) }
+    var copyTargetSlot by remember { mutableStateOf<String?>(null) }
+    var copyTargetWeekMeals by remember { mutableStateOf<List<PlannedMealEntity>>(emptyList()) }
+    val showCopyWeekDialog = remember { mutableStateOf(false) }
+
     // Fallback day names if weekDayDates hasn't loaded yet
     val days = if (weekDayDates.isNotEmpty()) weekDayDates else listOf(
         "Mon" to 0, "Tue" to 0, "Wed" to 0, "Thu" to 0, "Fri" to 0, "Sat" to 0, "Sun" to 0
@@ -940,9 +984,34 @@ fun MealPlanCalendarSection(
 
     // Check if the entire displayed week is editable (has at least one editable day)
     val hasEditableDay = days.indices.any { viewModel.isDayEditable(it) }
+    val clearablePlannedMeals = plannedMeals.filter { viewModel.isDayEditable(it.dayIndex) }
+    val hasPastPlannedMeals = clearablePlannedMeals.size < plannedMeals.size
 
     // Combined recipe list for calendar pickers (recipes + store-bought)
     val allAvailableRecipes = allRecipes + storeBoughtRecipes
+
+    fun openCopyTargetPicker(source: MealPlanCopySource) {
+        val todayWeek = viewModel.getCurrentWeekStartDate()
+        val maxWeek = viewModel.getMaxPlanningWeekStartPublic()
+        val displayedWeekHasEditableDay = currentWeekStart in todayWeek..maxWeek &&
+            days.indices.any { viewModel.isDayEditableForWeek(it, currentWeekStart) }
+        copySource = source
+        copyTargetWeekStart = if (displayedWeekHasEditableDay) currentWeekStart else todayWeek
+        copyTargetDayIndex = -1
+        copyTargetSlot = null
+    }
+
+    LaunchedEffect(copySource, copyTargetWeekStart, currentWeekStart, plannedMeals) {
+        copyTargetWeekMeals = if (copySource == null) {
+            emptyList()
+        } else if (copyTargetWeekStart == currentWeekStart) {
+            plannedMeals
+        } else {
+            withContext(Dispatchers.IO) {
+                viewModel.getPlannedMealsForWeekSnapshot(copyTargetWeekStart)
+            }
+        }
+    }
 
     Column(modifier = Modifier.padding(16.dp)) {
         // Section Title
@@ -1073,7 +1142,7 @@ fun MealPlanCalendarSection(
                 // Copy to Next Week
                 if (plannedMeals.isNotEmpty()) {
                     Surface(
-                        modifier = Modifier.clickable { viewModel.copyWeekToNext() },
+                        modifier = Modifier.clickable { showCopyWeekDialog.value = true },
                         color = Color(0xFFDBEAFE),
                         shape = RoundedCornerShape(6.dp)
                     ) {
@@ -1089,13 +1158,20 @@ fun MealPlanCalendarSection(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 // Clear Week
-                if (plannedMeals.isNotEmpty()) {
+                if (clearablePlannedMeals.isNotEmpty()) {
                     Surface(
                         modifier = Modifier.clickable { showClearWeekDialog.value = true },
                         color = Color(0xFFFEE2E2),
                         shape = RoundedCornerShape(6.dp)
                     ) {
-                        Text("Clear Week", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.DeleteSweep, null, tint = Color(0xFFDC2626), modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear Week", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                        }
                     }
                 }
             }
@@ -1339,175 +1415,213 @@ fun MealPlanCalendarSection(
         val totalCarbs = slotMeals.sumOf { nutrition[it.dishLabel]?.carbs ?: 0 }
         val totalFats = slotMeals.sumOf { nutrition[it.dishLabel]?.fats ?: 0 }
 
-        AlertDialog(
-            onDismissRequest = { showMealDetail.value = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(slotEmojis[slot] ?: "", fontSize = 20.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text("${days[dayIdx].first} ${days[dayIdx].second} \u2014 $slot", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        if (slotMeals.isNotEmpty() && nutrition.isNotEmpty()) {
+        Dialog(onDismissRequest = { showMealDetail.value = false }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 640.dp),
+                color = Color.White,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(slotEmojis[slot] ?: "", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""} \u00B7 $totalCalories kcal total",
-                                fontSize = 12.sp,
-                                color = Color.Gray
+                                "${days[dayIdx].first} ${days[dayIdx].second} \u2014 $slot",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
                             )
-                        } else if (slotMeals.isNotEmpty()) {
-                            Text("${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}", fontSize = 12.sp, color = Color.Gray)
-                        } else {
-                            Text("No dishes planned", fontSize = 12.sp, color = Color.Gray)
+                            if (slotMeals.isNotEmpty() && nutrition.isNotEmpty()) {
+                                Text(
+                                    "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""} \u00B7 $totalCalories kcal total",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            } else if (slotMeals.isNotEmpty()) {
+                                Text("${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}", fontSize = 12.sp, color = Color.Gray)
+                            } else {
+                                Text("No dishes planned", fontSize = 12.sp, color = Color.Gray)
+                            }
                         }
                     }
-                }
-            },
-            text = {
-                Column {
-                    if (slotMeals.isEmpty()) {
-                        Text(
-                            if (isEditable) "No dishes added to this meal yet. Tap below to add one!"
-                            else "No dishes were planned for this meal.",
-                            fontSize = 13.sp,
-                            color = Color.Gray,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        // Meal total macro bar (when nutrition loaded and multiple dishes)
-                        if (nutrition.isNotEmpty() && slotMeals.size > 1) {
-                            Surface(
-                                color = Color(0xFFF9FAFB),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("$totalCalories", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CalorieKoGreen)
-                                        Text("kcal", fontSize = 9.sp, color = Color.Gray)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalProtein}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
-                                        Text("protein", fontSize = 9.sp, color = Color.Gray)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalCarbs}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
-                                        Text("carbs", fontSize = 9.sp, color = Color.Gray)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("${totalFats}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MacroFat)
-                                        Text("fat", fontSize = 9.sp, color = Color.Gray)
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        if (slotMeals.isEmpty()) {
+                            item {
+                                Text(
+                                    if (isEditable) "No dishes added to this meal yet. Tap below to add one!"
+                                    else "No dishes were planned for this meal.",
+                                    fontSize = 13.sp,
+                                    color = Color.Gray,
+                                    fontStyle = FontStyle.Italic,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        } else {
+                            if (nutrition.isNotEmpty() && slotMeals.size > 1) {
+                                item(key = "meal-total-macros") {
+                                    Surface(
+                                        color = Color(0xFFF9FAFB),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("$totalCalories", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CalorieKoGreen)
+                                                Text("kcal", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("${totalProtein}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                                Text("protein", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("${totalCarbs}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                                                Text("carbs", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("${totalFats}g", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MacroFat)
+                                                Text("fat", fontSize = 9.sp, color = Color.Gray)
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Dish list with nutrition + View Recipe
-                        slotMeals.forEach { meal ->
-                            val dishNutrition = nutrition[meal.dishLabel]
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                color = slotColors[slot] ?: Color(0xFFF3F4F6),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-                                    // Row 1: Emoji + Name + Remove button
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val dishResult = slotDishDisplayResults[meal.dishLabel]
-                                        val primaryDishName = dishResult?.primaryDishName()
-                                            ?: viewModel.formatIngredientName(meal.dishLabel)
-                                        val secondaryDishName = dishResult?.secondaryDishName().orEmpty()
-                                        Text(getDishEmoji(meal.dishLabel), fontSize = 20.sp)
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                primaryDishName,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF374151),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            if (secondaryDishName.isNotBlank()) {
+                            items(slotMeals, key = { it.dishLabel }) { meal ->
+                                val dishNutrition = nutrition[meal.dishLabel]
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = slotColors[slot] ?: Color(0xFFF3F4F6),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val dishResult = slotDishDisplayResults[meal.dishLabel]
+                                            val primaryDishName = dishResult?.primaryDishName()
+                                                ?: viewModel.formatIngredientName(meal.dishLabel)
+                                            val secondaryDishName = dishResult?.secondaryDishName().orEmpty()
+                                            Text(getDishEmoji(meal.dishLabel), fontSize = 20.sp)
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    secondaryDishName,
-                                                    fontSize = 11.sp,
-                                                    color = Color(0xFF9CA3AF),
-                                                    fontStyle = FontStyle.Italic,
+                                                    primaryDishName,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color(0xFF374151),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
-                                            }
-                                        }
-                                        // Customized badge when substitutions are present
-                                        if (meal.substitutionsJson.isNotEmpty()) {
-                                            Surface(
-                                                color = Color(0xFFFEF3C7),
-                                                shape = RoundedCornerShape(4.dp),
-                                                modifier = Modifier.padding(start = 4.dp)
-                                            ) {
-                                                Text(
-                                                    "customized",
-                                                    fontSize = 8.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFD97706),
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                )
-                                            }
-                                        }
-                                        if (isEditable) {
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.removeDishFromSlot(dayIdx, slot, meal.dishLabel)
-                                                    if (slotMeals.size <= 1) {
-                                                        showMealDetail.value = false
-                                                    }
-                                                },
-                                                modifier = Modifier.size(28.dp)
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Close,
-                                                    contentDescription = "Remove dish",
-                                                    tint = Color(0xFF9CA3AF),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                    // Row 2: Inline nutrition
-                                    if (dishNutrition != null) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            "${dishNutrition.calories} kcal \u00B7 ${dishNutrition.protein}g P \u00B7 ${dishNutrition.carbs}g C \u00B7 ${dishNutrition.fats}g F",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF6B7280),
-                                            modifier = Modifier.padding(start = 30.dp)
-                                        )
-                                    }
-                                    // Row 3: View Recipe action
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        "View Recipe \u25B8",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = CalorieKoGreen,
-                                        modifier = Modifier
-                                            .padding(start = 30.dp)
-                                            .clickable {
-                                                scope.launch {
-                                                    val result = withContext(Dispatchers.IO) {
-                                                        viewModel.getDishResultByLabel(meal.dishLabel, meal.substitutionsJson)
-                                                    }
-                                                    if (result != null) {
-                                                        viewRecipeDishResult.value = result
-                                                        showMealDetail.value = false
-                                                        showRecipeSheet.value = true
-                                                    }
+                                                if (secondaryDishName.isNotBlank()) {
+                                                    Text(
+                                                        secondaryDishName,
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFF9CA3AF),
+                                                        fontStyle = FontStyle.Italic,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
                                                 }
                                             }
-                                    )
+                                            if (meal.substitutionsJson.isNotEmpty() || meal.scaledServings > 0 || meal.tweaksJson.isNotEmpty()) {
+                                                Surface(
+                                                    color = Color(0xFFFEF3C7),
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    modifier = Modifier.padding(start = 4.dp)
+                                                ) {
+                                                    Text(
+                                                        "customized",
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFD97706),
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                            if (isEditable) {
+                                                IconButton(
+                                                    onClick = {
+                                                        viewModel.removeDishFromSlot(dayIdx, slot, meal.dishLabel)
+                                                        if (slotMeals.size <= 1) {
+                                                            showMealDetail.value = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Close,
+                                                        contentDescription = "Remove dish",
+                                                        tint = Color(0xFF9CA3AF),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (dishNutrition != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                "${dishNutrition.calories} kcal \u00B7 ${dishNutrition.protein}g P \u00B7 ${dishNutrition.carbs}g C \u00B7 ${dishNutrition.fats}g F",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF6B7280),
+                                                modifier = Modifier.padding(start = 30.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.padding(start = 30.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                "View Recipe \u25B8",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = CalorieKoGreen,
+                                                modifier = Modifier.clickable {
+                                                    scope.launch {
+                                                        val result = withContext(Dispatchers.IO) {
+                                                            viewModel.getDishResultByLabel(
+                                                                meal.dishLabel,
+                                                                meal.substitutionsJson,
+                                                                meal.scaledServings,
+                                                                meal.tweaksJson
+                                                            )
+                                                        }
+                                                        if (result != null) {
+                                                            viewRecipeDishResult.value = result
+                                                            showMealDetail.value = false
+                                                            showRecipeSheet.value = true
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                "Copy Dish",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF3B82F6),
+                                                modifier = Modifier.clickable {
+                                                    showMealDetail.value = false
+                                                    openCopyTargetPicker(MealPlanCopySource.Dish(meal))
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1515,58 +1629,136 @@ fun MealPlanCalendarSection(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Add Dish button (only when editable)
-                    if (allAvailableRecipes.isNotEmpty() && isEditable) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    showMealDetail.value = false
-                                    showAddDishToSlot.value = true
-                                },
-                            color = Color(0xFFF3F4F6),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (slotMeals.isNotEmpty()) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showMealDetail.value = false
+                                        openCopyTargetPicker(
+                                            MealPlanCopySource.MealSlot(
+                                                sourceWeekStart = currentWeekStart,
+                                                dayIndex = dayIdx,
+                                                mealSlot = slot,
+                                                dishCount = slotMeals.size
+                                            )
+                                        )
+                                    },
+                                color = Color(0xFFDBEAFE),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(Icons.Default.Add, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Add Dish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Copy Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF3B82F6))
+                                }
                             }
                         }
-                    }
 
-                    // Clear Entire Meal button (only when there are dishes and day is editable)
-                    if (slotMeals.isNotEmpty() && isEditable) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.clearMealSlot(dayIdx, slot)
-                                    showMealDetail.value = false
-                                },
-                            color = Color(0xFFFEE2E2),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Text("🗑", fontSize = 14.sp)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Clear Entire Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                        if (allAvailableRecipes.isNotEmpty() && isEditable) {
+                            if (slotMeals.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showMealDetail.value = false
+                                        showAddDishToSlot.value = true
+                                    },
+                                color = Color(0xFFF3F4F6),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.Add, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Add Dish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+                                }
+                            }
+                        }
+
+                        if (slotMeals.isNotEmpty() && isEditable) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.clearMealSlot(dayIdx, slot)
+                                        showMealDetail.value = false
+                                    },
+                                color = Color(0xFFFEE2E2),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text("Clear Entire Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                                }
+                            }
+                        }
+
+                        TextButton(
+                            onClick = { showMealDetail.value = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cancel")
                         }
                     }
                 }
+            }
+        }
+    }
+
+    copySource?.let { source ->
+        MealPlanCopyTargetDialog(
+            source = source,
+            targetWeekStart = copyTargetWeekStart,
+            targetDayIndex = copyTargetDayIndex,
+            targetSlot = copyTargetSlot,
+            plannedMealsForTargetWeek = copyTargetWeekMeals,
+            onTargetWeekChange = {
+                copyTargetWeekStart = it
+                copyTargetDayIndex = -1
+                copyTargetSlot = null
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { showMealDetail.value = false }) { Text("Cancel") } }
+            onTargetDayChange = {
+                copyTargetDayIndex = it
+                copyTargetSlot = null
+            },
+            onTargetSlotChange = { copyTargetSlot = it },
+            onConfirm = {
+                when (source) {
+                    is MealPlanCopySource.Week -> Unit
+                    is MealPlanCopySource.MealSlot -> viewModel.copyMealSlot(
+                        sourceWeekStart = source.sourceWeekStart,
+                        sourceDayIndex = source.dayIndex,
+                        sourceMealSlot = source.mealSlot,
+                        targetWeekStart = copyTargetWeekStart,
+                        targetDayIndex = copyTargetDayIndex,
+                        targetMealSlot = copyTargetSlot.orEmpty()
+                    )
+                    is MealPlanCopySource.Dish -> viewModel.copySingleDish(
+                        sourceMeal = source.meal,
+                        targetWeekStart = copyTargetWeekStart,
+                        targetDayIndex = copyTargetDayIndex,
+                        targetMealSlot = copyTargetSlot.orEmpty()
+                    )
+                }
+                copySource = null
+            },
+            onDismiss = { copySource = null },
+            viewModel = viewModel
         )
     }
 
@@ -1796,13 +1988,50 @@ fun MealPlanCalendarSection(
     }
 
     // ================================================================
+    // Copy Week Confirmation Dialog
+    // ================================================================
+    if (showCopyWeekDialog.value) {
+        val targetWeekStart = LocalDate.parse(currentWeekStart)
+            .plusWeeks(1)
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+        AlertDialog(
+            onDismissRequest = { showCopyWeekDialog.value = false },
+            title = { Text("Copy to Next Week?") },
+            text = {
+                Column {
+                    Text("Source: ${mealPlanWeekRangeLabel(currentWeekStart)}")
+                    Text("Target: ${mealPlanWeekRangeLabel(targetWeekStart)}")
+                    Text("${plannedMeals.size} dish${if (plannedMeals.size == 1) "" else "es"} will be copied.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Existing meals in the target week will be replaced.", color = Color(0xFFDC2626))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.copyCurrentWeekToNextReplacing()
+                    showCopyWeekDialog.value = false
+                }) {
+                    Text("Copy & Replace", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showCopyWeekDialog.value = false }) { Text("Cancel") } }
+        )
+    }
+
+    // ================================================================
     // Clear Week Confirmation Dialog
     // ================================================================
-    if (showClearWeekDialog.value) {
+    if (showClearWeekDialog.value && clearablePlannedMeals.isNotEmpty()) {
+        val clearableCount = clearablePlannedMeals.size
+        val clearWeekMessage = if (hasPastPlannedMeals) {
+            "Are you sure you want to remove $clearableCount remaining planned dish${if (clearableCount == 1) "" else "es"}? Past planned meals will be kept."
+        } else {
+            "Are you sure you want to remove all $clearableCount planned dish${if (clearableCount == 1) "" else "es"} for this week?"
+        }
         AlertDialog(
             onDismissRequest = { showClearWeekDialog.value = false },
             title = { Text("Clear Week") },
-            text = { Text("Are you sure you want to remove all ${plannedMeals.size} planned dishes for this week?") },
+            text = { Text(clearWeekMessage) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearMealWeek()
@@ -1835,6 +2064,256 @@ fun MealPlanCalendarSection(
             },
 dismissButton = { TextButton(onClick = { showClearDayDialog.value = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun MealPlanCopyTargetDialog(
+    source: MealPlanCopySource,
+    targetWeekStart: String,
+    targetDayIndex: Int,
+    targetSlot: String?,
+    plannedMealsForTargetWeek: List<PlannedMealEntity>,
+    onTargetWeekChange: (String) -> Unit,
+    onTargetDayChange: (Int) -> Unit,
+    onTargetSlotChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    viewModel: PantryViewModel
+) {
+    val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+    val slotEmojis = mapOf("Breakfast" to "B", "Lunch" to "L", "Dinner" to "D", "Snack" to "S")
+    val slotColors = mapOf(
+        "Breakfast" to Color(0xFFFFF7ED),
+        "Lunch" to Color(0xFFECFDF5),
+        "Dinner" to Color(0xFFEDE9FE),
+        "Snack" to Color(0xFFFEF9C3)
+    )
+    val todayWeek = viewModel.getCurrentWeekStartDate()
+    val maxWeek = viewModel.getMaxPlanningWeekStartPublic()
+    val canGoBack = targetWeekStart > todayWeek
+    val nextWeek = LocalDate.parse(targetWeekStart).plusWeeks(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+    val canGoForward = nextWeek <= maxWeek
+    val targetWeekDayDates = viewModel.computeWeekDayDatesPublic(targetWeekStart)
+    val selectedSlotMeals = if (targetDayIndex >= 0 && targetSlot != null) {
+        plannedMealsForTargetWeek.filter { it.dayIndex == targetDayIndex && it.mealSlot == targetSlot }
+    } else {
+        emptyList()
+    }
+    val confirmEnabled = targetDayIndex in 0..6 && targetSlot != null &&
+        viewModel.isDayEditableForWeek(targetDayIndex, targetWeekStart)
+
+    val sourceSummary = when (source) {
+        is MealPlanCopySource.Week -> "Week of ${mealPlanWeekRangeLabel(source.sourceWeekStart)}"
+        is MealPlanCopySource.MealSlot -> {
+            val dishCount = source.dishCount
+            "${mealPlanDayLabel(source.sourceWeekStart, source.dayIndex)} ${source.mealSlot} - $dishCount dish${if (dishCount == 1) "" else "es"}"
+        }
+        is MealPlanCopySource.Dish -> {
+            val customized = source.meal.substitutionsJson.isNotEmpty() ||
+                source.meal.scaledServings > 0 ||
+                source.meal.tweaksJson.isNotEmpty()
+            buildString {
+                append(viewModel.formatIngredientName(source.meal.dishLabel))
+                if (customized) append(" - customized")
+            }
+        }
+    }
+
+    val conflictText = when (source) {
+        is MealPlanCopySource.Week -> ""
+        is MealPlanCopySource.MealSlot -> if (selectedSlotMeals.isNotEmpty()) {
+            "This will replace ${selectedSlotMeals.size} existing dish${if (selectedSlotMeals.size == 1) "" else "es"}."
+        } else {
+            "This will copy the meal into an empty slot."
+        }
+        is MealPlanCopySource.Dish -> {
+            val sameDishExists = selectedSlotMeals.any { it.dishLabel == source.meal.dishLabel }
+            when {
+                sameDishExists -> "This will replace the existing copy of this dish."
+                selectedSlotMeals.isNotEmpty() -> "This will add this dish to the selected meal."
+                else -> "This will copy the dish into an empty slot."
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (source is MealPlanCopySource.MealSlot) "Copy Meal" else "Copy Dish") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 460.dp)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+            ) {
+                Text(sourceSummary, fontSize = 13.sp, color = Color(0xFF6B7280))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Surface(
+                    color = Color(0xFFF9FAFB),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val prev = LocalDate.parse(targetWeekStart)
+                                    .minusWeeks(1)
+                                    .format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                if (prev >= todayWeek) onTargetWeekChange(prev)
+                            },
+                            enabled = canGoBack,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                contentDescription = "Previous week",
+                                tint = if (canGoBack) Color(0xFF374151) else Color(0xFFD1D5DB)
+                            )
+                        }
+                        Text(
+                            mealPlanWeekRangeLabel(targetWeekStart),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF374151),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        IconButton(
+                            onClick = {
+                                if (canGoForward) onTargetWeekChange(nextWeek)
+                            },
+                            enabled = canGoForward,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Next week",
+                                tint = if (canGoForward) Color(0xFF374151) else Color(0xFFD1D5DB)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Target day", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    targetWeekDayDates.forEachIndexed { index, (dayName, dateNum) ->
+                        val editable = viewModel.isDayEditableForWeek(index, targetWeekStart)
+                        val selected = targetDayIndex == index
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.alpha(if (editable) 1f else 0.4f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        when {
+                                            selected -> CalorieKoGreen
+                                            editable -> CalorieKoGreen.copy(alpha = 0.1f)
+                                            else -> Color(0xFFF3F4F6)
+                                        },
+                                        CircleShape
+                                    )
+                                    .clickable {
+                                        if (editable) onTargetDayChange(index)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    dayName.first().toString(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = when {
+                                        selected -> Color.White
+                                        editable -> CalorieKoGreen
+                                        else -> Color.Gray
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("$dateNum", fontSize = 9.sp, color = Color(0xFF9CA3AF))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Target meal", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+                Spacer(modifier = Modifier.height(6.dp))
+                mealSlots.forEach { slot ->
+                    val slotMeals = plannedMealsForTargetWeek.filter {
+                        it.dayIndex == targetDayIndex && it.mealSlot == slot
+                    }
+                    val selected = targetSlot == slot
+                    val canSelectSlot = targetDayIndex >= 0
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                            .alpha(if (canSelectSlot) 1f else 0.45f)
+                            .clickable {
+                                if (canSelectSlot) onTargetSlotChange(slot)
+                            },
+                        color = slotColors[slot] ?: Color(0xFFF3F4F6),
+                        shape = RoundedCornerShape(10.dp),
+                        border = if (selected) BorderStroke(1.5.dp, CalorieKoGreen) else null
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(slotEmojis[slot] ?: "", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(slot, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            if (slotMeals.isNotEmpty()) {
+                                Text(
+                                    "${slotMeals.size} dish${if (slotMeals.size == 1) "" else "es"}",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (targetSlot != null && conflictText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(conflictText, fontSize = 12.sp, color = Color(0xFF6B7280))
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (confirmEnabled) onConfirm()
+                },
+                enabled = confirmEnabled
+            ) {
+                Text("Copy")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+private fun mealPlanDayLabel(weekStartDate: String, dayIndex: Int): String {
+    val date = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
+    return date.format(DateTimeFormatter.ofPattern("MMM d"))
+}
+
+private fun mealPlanWeekRangeLabel(weekStartDate: String): String {
+    val start = LocalDate.parse(weekStartDate)
+    val end = start.plusDays(6)
+    val startFormatter = DateTimeFormatter.ofPattern("MMM d")
+    return if (start.month == end.month) {
+        "${start.format(startFormatter)}-${end.dayOfMonth}"
+    } else {
+        "${start.format(startFormatter)}-${end.format(startFormatter)}"
     }
 }
 
@@ -1936,24 +2415,38 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
     } else {
         allSubstitutions[recipe.dishLabel] ?: emptyMap()
     }
-    val subNutrition = allSubNutrition[recipe.dishLabel]
+    val subNutrition = if (isViewOnly) null else allSubNutrition[recipe.dishLabel]
     val hasSubstitutions = dishSubs.isNotEmpty()
 
     // --- Serving scaling state ---
     val scaledServingsMap by viewModel.scaledServings.collectAsState()
-    val targetServings = scaledServingsMap[recipe.dishLabel] ?: recipe.originalServings
+    val targetServings = if (isViewOnly) {
+        recipe.appliedScaledServings.takeIf { it > 0 } ?: recipe.originalServings
+    } else {
+        scaledServingsMap[recipe.dishLabel] ?: recipe.originalServings
+    }
     val multiplier = targetServings.toFloat() / recipe.originalServings.toFloat().coerceAtLeast(1f)
     val isScaled = targetServings != recipe.originalServings
     val maxServings = maxOf(recipe.originalServings * 4, 20)
 
     // --- Individual ingredient tweak state ---
     val allTweaks by viewModel.ingredientTweaks.collectAsState()
-    val dishTweaks = allTweaks[recipe.dishLabel] ?: emptyMap()
+    val dishTweaks = if (isViewOnly) {
+        recipe.appliedTweaks
+    } else {
+        allTweaks[recipe.dishLabel] ?: emptyMap()
+    }
     val hasTweaks = dishTweaks.isNotEmpty()
     val tweakedNutritionMap by viewModel.tweakedNutrition.collectAsState()
-    val tweakedNutrition = tweakedNutritionMap[recipe.dishLabel]
+    val tweakedNutrition = if (isViewOnly) null else tweakedNutritionMap[recipe.dishLabel]
     val tweakedWeightMap by viewModel.tweakedPerServingWeight.collectAsState()
-    val tweakedPerServingWeight = tweakedWeightMap[recipe.dishLabel]
+    val tweakedPerServingWeight = if (isViewOnly && recipe.appliedTweakedPerServingWeightG > 0f) {
+        recipe.appliedTweakedPerServingWeightG
+    } else if (isViewOnly) {
+        null
+    } else {
+        tweakedWeightMap[recipe.dishLabel]
+    }
 
     // Substitution picker state
     var substitutionTarget by remember { mutableStateOf<String?>(null) }  // ingredientKey being substituted
@@ -1962,61 +2455,73 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
     // Effective nutrition: tweaks > subs > original
     val effectiveCalories = when {
+        isViewOnly -> recipe.calories
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.calories.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.calories.toInt()
         else -> recipe.calories
     }
     val effectiveProtein = when {
+        isViewOnly -> recipe.protein
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.protein.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.protein.toInt()
         else -> recipe.protein
     }
     val effectiveCarbs = when {
+        isViewOnly -> recipe.carbs
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.carbs.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.carbs.toInt()
         else -> recipe.carbs
     }
     val effectiveFats = when {
+        isViewOnly -> recipe.fats
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.fat.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.fat.toInt()
         else -> recipe.fats
     }
     val effectiveSodium = when {
+        isViewOnly -> recipe.sodium
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.sodium.toInt()
         hasSubstitutions && subNutrition != null -> subNutrition.sodium.toInt()
         else -> recipe.sodium
     }
     val effectiveFiber = when {
+        isViewOnly -> recipe.fiber
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.fiber
         hasSubstitutions && subNutrition != null -> subNutrition.fiber
         else -> recipe.fiber
     }
     val effectiveSugar = when {
+        isViewOnly -> recipe.sugar
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.sugar
         hasSubstitutions && subNutrition != null -> subNutrition.sugar
         else -> recipe.sugar
     }
     val effectivePotassium = when {
+        isViewOnly -> recipe.potassium
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.potassium
         hasSubstitutions && subNutrition != null -> subNutrition.potassium
         else -> recipe.potassium
     }
     val effectiveVitaminA = when {
+        isViewOnly -> recipe.vitaminA
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.vitaminA
         hasSubstitutions && subNutrition != null -> subNutrition.vitaminA
         else -> recipe.vitaminA
     }
     val effectiveVitaminC = when {
+        isViewOnly -> recipe.vitaminC
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.vitaminC
         hasSubstitutions && subNutrition != null -> subNutrition.vitaminC
         else -> recipe.vitaminC
     }
     val effectiveCalcium = when {
+        isViewOnly -> recipe.calcium
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.calcium
         hasSubstitutions && subNutrition != null -> subNutrition.calcium
         else -> recipe.calcium
     }
     val effectiveIron = when {
+        isViewOnly -> recipe.iron
         hasTweaks && tweakedNutrition != null -> tweakedNutrition.iron
         hasSubstitutions && subNutrition != null -> subNutrition.iron
         else -> recipe.iron
@@ -2220,6 +2725,68 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             fontWeight = FontWeight.SemiBold,
                             textDecoration = TextDecoration.Underline,
                             modifier = Modifier.clickable { viewModel.resetTargetServings(recipe.dishLabel) }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // ── Read-only Servings Info (for planned dish view) ──
+        if (recipe.coreTotalCount > 0 && isViewOnly) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = if (isScaled) Color(0xFFF0FDF4) else Color(0xFFF9FAFB)),
+                border = BorderStroke(1.dp, if (isScaled) CalorieKoGreen.copy(alpha = 0.3f) else Color(0xFFE5E7EB)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Servings", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                            if (isScaled) {
+                                Text(
+                                    "Scaled from ${recipe.originalServings} to $targetServings serving${if (targetServings > 1) "s" else ""}",
+                                    fontSize = 11.sp, color = CalorieKoGreen
+                                )
+                            } else {
+                                Text(
+                                    "${recipe.originalServings} serving${if (recipe.originalServings > 1) "s" else ""}",
+                                    fontSize = 11.sp, color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+                        // Serving count badge
+                        Surface(
+                            color = if (isScaled) CalorieKoGreen else Color(0xFF374151),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                "$targetServings", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                    // Total recipe weight
+                    val viewOnlyWeight = if (hasTweaks && tweakedPerServingWeight != null) tweakedPerServingWeight else recipe.perServingWeightG
+                    if (viewOnlyWeight > 0f) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            "Total recipe: \u2248 ${(viewOnlyWeight * targetServings).toInt()}g" +
+                                if (hasTweaks) " (est.)" else "",
+                            fontSize = 12.sp,
+                            color = when {
+                                hasTweaks -> Color(0xFF7C3AED)
+                                isScaled -> CalorieKoGreen
+                                else -> Color(0xFF6B7280)
+                            },
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -2677,6 +3244,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     scaledPortion,
                                     fontSize = 12.sp,
                                     color = when {
+                                        isTweaked && isScaled -> Color(0xFF0D9488)
                                         isTweaked -> Color(0xFF7C3AED)
                                         isScaled -> CalorieKoGreen
                                         else -> Color(0xFF6B7280)
@@ -2744,6 +3312,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 val bkCombinedMult = multiplier * bkTweakMult
                                 val bkIsTweaked = bkTweakMult != 1f
                                 val bkHighlightColor = when {
+                                    bkIsTweaked && isScaled -> Color(0xFF0D9488)
                                     bkIsTweaked -> Color(0xFF7C3AED)
                                     isScaled -> CalorieKoGreen
                                     else -> Color(0xFF6B7280)
@@ -2781,8 +3350,8 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
                                 // --- Ingredient Tweak Stepper ---
                                 if (!isViewOnly && !isRemoved && !PortionScaler.isQualitative(detail.portionQuantity)) {
-                                    val tweakSteps = listOf(0.5f, 1f, 1.5f, 2f, 3f, 4f)
-                                    val tweakLabels = listOf("\u00BD\u00d7", "1\u00d7", "1\u00BD\u00d7", "2\u00d7", "3\u00d7", "4\u00d7")
+                                    val tweakSteps = listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f)
+                                    val tweakLabels = listOf("\u00BC\u00d7", "\u00BD\u00d7", "1\u00d7", "1\u00BD\u00d7", "2\u00d7", "3\u00d7", "4\u00d7")
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         "Adjust amount",
@@ -2791,7 +3360,10 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                         color = Color(0xFF6B7280)
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
                                         tweakSteps.forEachIndexed { index, step ->
                                             val isActive = bkTweakMult == step
                                             Surface(
@@ -2807,14 +3379,17 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                                     isActive -> Color(0xFF374151)
                                                     else -> Color(0xFFE5E7EB)
                                                 },
-                                                shape = RoundedCornerShape(6.dp)
+                                                shape = RoundedCornerShape(6.dp),
+                                                modifier = Modifier.weight(1f)
                                             ) {
                                                 Text(
                                                     tweakLabels[index],
                                                     fontSize = 11.sp,
                                                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                                                     color = if (isActive) Color.White else Color(0xFF6B7280),
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp),
+                                                    textAlign = TextAlign.Center,
+                                                    maxLines = 1
                                                 )
                                             }
                                         }
@@ -3286,7 +3861,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                             recipe.dishLabel,
                                             slot,
                                             targetWeekStart,
-                                            dishSubs
+                                            dishSubs,
+                                            scaledServings = if (isScaled) targetServings else 0,
+                                            tweaks = dishTweaks
                                         )
                                     }
                                     showSlotPickerForPlan.value = false

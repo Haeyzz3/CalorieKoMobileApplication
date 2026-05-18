@@ -57,6 +57,35 @@ class RecipeNutritionCalculator(
     }
 
     /**
+     * Calculates portion nutrition with ingredient substitutions and per-ingredient tweaks.
+     */
+    suspend fun calculatePortionNutrition(
+        dishLabel: String,
+        cookedWeightGrams: Float,
+        substitutions: Map<String, String>,
+        tweaks: Map<String, Float>
+    ): NutritionResult {
+        if (tweaks.isEmpty()) {
+            return calculatePortionNutrition(dishLabel, cookedWeightGrams, substitutions)
+        }
+
+        val dish = dishRecipeDao.getByDishLabel(dishLabel)
+            ?: return NutritionResult.ZERO
+
+        val (totalBatchPerServing, totalRawWeightG) = calculateWithTweaks(dishLabel, tweaks, substitutions)
+        if (totalRawWeightG <= 0f) return NutritionResult.ZERO
+
+        val yieldFactor = if (dish.dishYieldFactor > 0f) dish.dishYieldFactor else 1f
+        val cookedWeightAfterTweaks = totalRawWeightG * yieldFactor
+        if (cookedWeightAfterTweaks <= 0f) return NutritionResult.ZERO
+
+        val totalBatch = totalBatchPerServing * dish.servings.coerceAtLeast(1).toFloat()
+        val portionFraction = cookedWeightGrams / cookedWeightAfterTweaks
+
+        return totalBatch * portionFraction
+    }
+
+    /**
      * Returns the total nutrients for the entire dish batch.
      */
     suspend fun calculateDishNutrition(dishLabel: String): NutritionResult {

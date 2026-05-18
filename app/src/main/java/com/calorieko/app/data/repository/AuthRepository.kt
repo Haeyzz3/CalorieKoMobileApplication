@@ -76,7 +76,7 @@ class AuthRepository(
         } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
             AuthResult.Error("This email is already registered. Please login instead.")
         } catch (e: com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
-            AuthResult.Error("Password is too weak. Please use at least 6 characters.")
+            AuthResult.Error("Password is too weak. Please use at least 8 characters.")
         } catch (e: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
             AuthResult.Error("Please enter a valid email address.")
         } catch (e: com.google.firebase.FirebaseNetworkException) {
