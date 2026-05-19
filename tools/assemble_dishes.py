@@ -1,4 +1,13 @@
 """
+CalorieKo - Dish Recipe Assembly Script  [DEPRECATED]
+=====================================================
+DEPRECATED: This script is superseded by scripts/generate_dish_jsons.py,
+    which is the canonical pipeline for generating both recipe_ingredients.json
+    and dish_recipes.json.
+
+    This file is kept for reference only. Do not use it to regenerate data.
+
+Original description:
 CalorieKo — Dish Recipe Assembly Script
 =========================================
 Phase 1, Step 4: Creates dish_recipes.json by combining recipe_ingredients.json
@@ -172,29 +181,29 @@ DISH_METADATA = {
         "servings": 1,
     },
     # ── Store-bought (already cooked) ──
-    "chicken_wings": {
-        "name_en": "Lechon Manok - Wings",
+    "chicken_wing": {
+        "name_en": "Rotisserie Chicken - Wing",
         "name_ph": "Lechon Manok - Pakpak",
         "category": "Main Dish",
         "cooking_method": "store_bought_roasted",
         "servings": 1,
     },
     "chicken_thigh": {
-        "name_en": "Lechon Manok - Thigh",
+        "name_en": "Rotisserie Chicken - Thigh",
         "name_ph": "Lechon Manok - Hita",
         "category": "Main Dish",
         "cooking_method": "store_bought_roasted",
         "servings": 1,
     },
     "chicken_drumstick": {
-        "name_en": "Lechon Manok - Drumstick",
+        "name_en": "Rotisserie Chicken - Drumstick",
         "name_ph": "Lechon Manok - Binti",
         "category": "Main Dish",
         "cooking_method": "store_bought_roasted",
         "servings": 1,
     },
     "chicken_breast": {
-        "name_en": "Lechon Manok - Breast",
+        "name_en": "Rotisserie Chicken - Breast",
         "name_ph": "Lechon Manok - Dibdib",
         "category": "Main Dish",
         "cooking_method": "store_bought_roasted",
@@ -250,7 +259,7 @@ YIELD_FACTORS = {
     "rice_well_milled":     2.81,   # Rice ABSORBS water: USDA raw (365 kcal/100g) ÷ cooked (130 kcal/100g) = 2.81× weight gain
 
     # Store-bought (already cooked, weighed as-is)
-    "chicken_wings":        1.00,
+    "chicken_wing":         1.00,
     "chicken_thigh":        1.00,
     "chicken_drumstick":    1.00,
     "chicken_breast":       1.00,
