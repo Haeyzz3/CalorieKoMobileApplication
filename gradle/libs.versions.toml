@@ -17,6 +17,7 @@ litert = "2.1.1"
 camerax = "1.5.3"
 playServicesLocation = "21.3.0"
 mapbox = "11.18.2"
+nordicBle = "2.11.0"
 
 [libraries]
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -50,6 +51,8 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 mapbox-maps = { group = "com.mapbox.maps", name = "android-ndk27", version.ref = "mapbox" }
 mapbox-maps-compose = { group = "com.mapbox.extension", name = "maps-compose-ndk27", version.ref = "mapbox" }
+nordic-ble = { group = "no.nordicsemi.android", name = "ble", version.ref = "nordicBle" }
+nordic-ble-ktx = { group = "no.nordicsemi.android", name = "ble-ktx", version.ref = "nordicBle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

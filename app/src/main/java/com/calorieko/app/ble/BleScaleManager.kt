@@ -10,8 +10,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Handler
-import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 import android.bluetooth.le.ScanFilter
+import no.nordicsemi.android.ble.BleManager
+import no.nordicsemi.android.ble.observer.ConnectionObserver
 
 // ── UUIDs must match exactly with the ESP32 firmware ──
 private val SERVICE_UUID: UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
@@ -41,15 +41,16 @@ sealed class BleConnectionState {
 }
 
 /**
- * Manages the BLE connection lifecycle to the ESP32 smart scale.
+ * Manages the BLE connection lifecycle to the ESP32 smart scale using Nordic BLE.
  *
  * Usage:
  *   1. Call [startScan] to discover the scale.
  *   2. Observe [connectionState] to drive the UI.
  *   3. Call [close] when done (e.g. screen disposal).
  */
+@Suppress("DEPRECATION")
 @SuppressLint("MissingPermission") // Permissions are checked at the UI layer before calling
-class BleScaleManager(private val context: Context) {
+class BleScaleManager(private val context: Context) : BleManager(context) {
 
     private val _connectionState = MutableStateFlow<BleConnectionState>(BleConnectionState.Idle)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
@@ -63,7 +64,8 @@ class BleScaleManager(private val context: Context) {
     private val bluetoothAdapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
-    private var bluetoothGatt: BluetoothGatt? = null
+    private var weightChar: BluetoothGattCharacteristic? = null
+    private var commandChar: BluetoothGattCharacteristic? = null
     private var isScanning = false
 
     private val bluetoothStateReceiver = object : BroadcastReceiver() {
@@ -86,6 +88,115 @@ class BleScaleManager(private val context: Context) {
         } else {
             context.registerReceiver(bluetoothStateReceiver, filter)
         }
+
+        // Set Nordic connection observer
+        setConnectionObserver(object : ConnectionObserver {
+            override fun onDeviceConnecting(device: BluetoothDevice) {
+                Log.d(TAG, "onDeviceConnecting: ${device.address}")
+                _connectionState.value = BleConnectionState.Connecting
+            }
+
+            override fun onDeviceConnected(device: BluetoothDevice) {
+                Log.d(TAG, "onDeviceConnected: ${device.address}")
+                // Waiting for services discovery and ready callback
+            }
+
+            override fun onDeviceFailedToConnect(device: BluetoothDevice, reason: Int) {
+                Log.w(TAG, "onDeviceFailedToConnect: reason=$reason")
+                _liveWeight.value = 0f
+                _connectionState.value = BleConnectionState.Failed("Connection failed (reason $reason)")
+            }
+
+            override fun onDeviceReady(device: BluetoothDevice) {
+                Log.d(TAG, "onDeviceReady: ${device.address}")
+                _connectionState.value = BleConnectionState.Connected
+            }
+
+            override fun onDeviceDisconnecting(device: BluetoothDevice) {
+                Log.d(TAG, "onDeviceDisconnecting: ${device.address}")
+            }
+
+            override fun onDeviceDisconnected(device: BluetoothDevice, reason: Int) {
+                Log.w(TAG, "onDeviceDisconnected: reason=$reason")
+                _liveWeight.value = 0f
+                if (_connectionState.value !is BleConnectionState.Idle) {
+                    val errorMsg = when (reason) {
+                        ConnectionObserver.REASON_SUCCESS -> "Disconnected"
+                        ConnectionObserver.REASON_TERMINATE_LOCAL_HOST -> "Disconnected by user"
+                        ConnectionObserver.REASON_TERMINATE_PEER_USER -> "Scale disconnected"
+                        ConnectionObserver.REASON_LINK_LOSS -> "Link lost"
+                        else -> "Disconnected (reason $reason)"
+                    }
+                    _connectionState.value = BleConnectionState.Failed(errorMsg)
+                }
+            }
+        })
+    }
+
+    // ─── Nordic BleManager GATT Callback ─────────────────────
+
+    override fun getGattCallback(): BleManagerGattCallback = ScaleGattCallback()
+
+    private inner class ScaleGattCallback : BleManagerGattCallback() {
+        override fun isRequiredServiceSupported(gatt: BluetoothGatt): Boolean {
+            val service = gatt.getService(SERVICE_UUID)
+            if (service == null) {
+                Log.e(TAG, "Required service $SERVICE_UUID not found")
+                return false
+            }
+            weightChar = service.getCharacteristic(WEIGHT_CHAR_UUID)
+            commandChar = service.getCharacteristic(COMMAND_CHAR_UUID)
+
+            val hasWeightChar = weightChar != null
+            val hasCommandChar = commandChar != null
+
+            if (!hasWeightChar || !hasCommandChar) {
+                Log.e(TAG, "Characteristics missing - weight:$hasWeightChar, command:$hasCommandChar")
+                return false
+            }
+
+            return true
+        }
+
+        override fun initialize() {
+            // Set weight characteristic notification callback
+            setNotificationCallback(weightChar).with { device, data ->
+                val strValue = data.getStringValue(0) ?: ""
+                val trimmed = strValue.trim()
+                if (trimmed == "TARE_OK" || trimmed == "CAL_OK") {
+                    Log.d(TAG, "Calibration event received on weight: $trimmed")
+                    _calibrationEvent.tryEmit(trimmed)
+                } else {
+                    val weightFloat = trimmed.toFloatOrNull() ?: 0f
+                    _liveWeight.value = weightFloat
+                    Log.d(TAG, "Weight received: $trimmed (parsed: ${weightFloat}g)")
+                }
+            }
+
+            // Set command characteristic notification callback
+            setNotificationCallback(commandChar).with { device, data ->
+                val strValue = data.getStringValue(0) ?: ""
+                val trimmed = strValue.trim()
+                if (trimmed == "TARE_OK" || trimmed == "CAL_OK") {
+                    Log.d(TAG, "Calibration event received on command: $trimmed")
+                    _calibrationEvent.tryEmit(trimmed)
+                } else {
+                    Log.d(TAG, "Command response: $trimmed")
+                }
+            }
+
+            // Enqueue notification enabling operations. Nordic's BleManager internal queue 
+            // completely solves overlapping write operations (descriptor writes) without manual delays!
+            enableNotifications(weightChar).enqueue()
+            enableNotifications(commandChar).enqueue()
+            Log.d(TAG, "✅ Notification enable commands queued!")
+        }
+
+        override fun onServicesInvalidated() {
+            Log.d(TAG, "GATT Services invalidated. Resetting characteristics.")
+            weightChar = null
+            commandChar = null
+        }
     }
 
     // ─── Scan ───────────────────────────────────────────────
@@ -95,7 +206,7 @@ class BleScaleManager(private val context: Context) {
      * Uses explicit SERVICE_UUID filter for reliability.
      */
     fun startScan() {
-        // 1. Force a clean state before every scan
+        // Force a clean state before every scan
         reset()
 
         val scanner = bluetoothAdapter?.bluetoothLeScanner
@@ -104,14 +215,14 @@ class BleScaleManager(private val context: Context) {
             return
         }
 
-        // 2. Clear previous callback just in case
+        // Clear previous callback just in case
         try { scanner.stopScan(scanCallback) } catch (e: Exception) {}
 
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
         
-        // 3. Use explicit scan filter for the Service UUID
+        // Use explicit scan filter for the Service UUID
         val filter = ScanFilter.Builder()
             .setServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
@@ -176,183 +287,40 @@ class BleScaleManager(private val context: Context) {
     // ─── Connect ────────────────────────────────────────────
 
     private fun connectToDevice(device: BluetoothDevice) {
-        if (bluetoothGatt != null) {
-            Log.w(TAG, "Already connecting/connected to ${bluetoothGatt?.device?.address}. Ignoring redundant connect call to ${device.address}.")
-            return
-        }
-
         _connectionState.value = BleConnectionState.Connecting
-        Log.d(TAG, "Connecting to ${device.address}…")
+        Log.d(TAG, "Connecting to ${device.address} using Nordic BLE…")
 
-        // TRANSPORT_LE is critical — without it Android may try BR/EDR and fail
-        bluetoothGatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
-    }
-
-    private val gattCallback = object : BluetoothGattCallback() {
-
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            Log.d(TAG, "onConnectionStateChange: status=$status, newState=$newState")
-
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.e(TAG, "Connection error (status=$status, newState=$newState). Closing GATT.")
-                gatt.close()
-                if (gatt == bluetoothGatt) bluetoothGatt = null
-                _liveWeight.value = 0f
-                _connectionState.value = BleConnectionState.Failed("Connection error (status $status)")
-                return
-            }
-
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.d(TAG, "Connected! Waiting 600ms before discovering services…")
-                // Add the 600ms stability delay from the prototype
-                Handler(Looper.getMainLooper()).postDelayed({
-                    gatt.discoverServices()
-                }, 600)
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.w(TAG, "Disconnected")
-                gatt.close()
-                bluetoothGatt = null
-                _liveWeight.value = 0f
-                if (_connectionState.value !is BleConnectionState.Idle) {
-                    _connectionState.value = BleConnectionState.Failed("Disconnected")
-                }
-            }
-        }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                _connectionState.value = BleConnectionState.Failed("Service discovery failed")
-                return
-            }
-
-            val service = gatt.getService(SERVICE_UUID)
-            if (service == null) {
-                _connectionState.value = BleConnectionState.Failed("Scale service not found")
-                return
-            }
-
-            val weightChar = service.getCharacteristic(WEIGHT_CHAR_UUID)
-            val commandChar = service.getCharacteristic(COMMAND_CHAR_UUID)
-
-            if (weightChar == null || commandChar == null) {
-                _connectionState.value = BleConnectionState.Failed("Characteristics missing")
-                return
-            }
-
-            // Enable notifications on the weight characteristic
-            gatt.setCharacteristicNotification(weightChar, true)
-            val descriptor = weightChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-            if (descriptor != null) {
-                val payload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    gatt.writeDescriptor(descriptor, payload)
-                } else {
-                    descriptor.value = payload
-                    gatt.writeDescriptor(descriptor)
-                }
-            }
-
-            // Enable notifications on the command characteristic after a short delay to prevent write collisions
-            Handler(Looper.getMainLooper()).postDelayed({
-                gatt.setCharacteristicNotification(commandChar, true)
-                val cmdDescriptor = commandChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-                if (cmdDescriptor != null) {
-                    val cmdPayload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            gatt.writeDescriptor(cmdDescriptor, cmdPayload)
-                        } else {
-                            cmdDescriptor.value = cmdPayload
-                            gatt.writeDescriptor(cmdDescriptor)
-                        }
-                    } catch (e: SecurityException) {
-                        Log.e(TAG, "Failed to write command descriptor: ${e.message}")
-                    }
-                }
-            }, 250)
-
-            Log.d(TAG, "✅ Services validated and notifications enabled!")
-            _connectionState.value = BleConnectionState.Connected
-        }
-
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic
-        ) {
-            val strValue = characteristic.getStringValue(0) ?: ""
-            
-            if (strValue.trim() == "TARE_OK" || strValue.trim() == "CAL_OK") {
-                Log.d(TAG, "Calibration event received: $strValue on char ${characteristic.uuid}")
-                _calibrationEvent.tryEmit(strValue.trim())
-            } else if (characteristic.uuid == WEIGHT_CHAR_UUID) {
-                val weightFloat = strValue.trim().toFloatOrNull() ?: 0f
-                _liveWeight.value = weightFloat
-                Log.d(TAG, "Weight received: $strValue (parsed: ${_liveWeight.value}g)")
-            } else if (characteristic.uuid == COMMAND_CHAR_UUID) {
-                Log.d(TAG, "Command response: $strValue")
-            }
-        }
-
-        override fun onCharacteristicWrite(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            val cmdName = if (characteristic.uuid == COMMAND_CHAR_UUID) "COMMAND" else characteristic.uuid.toString()
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d(TAG, "Successfully wrote to $cmdName")
-            } else {
-                Log.e(TAG, "Failed to write to $cmdName (status=$status)")
-            }
-        }
+        // connect(device) handles connection, retry, and background queuing smoothly
+        connect(device)
+            .retry(3, 100) // Retry up to 3 times with 100ms interval
+            .useAutoConnect(false)
+            .enqueue()
     }
 
     // ─── Commands ───────────────────────────────────────────
 
     fun sendTareCommand() {
-        val gatt = bluetoothGatt
-        if (gatt == null) {
+        val characteristic = commandChar
+        if (characteristic == null) {
             Log.e(TAG, "Cannot send TARE: not connected")
             return
         }
-        val service = gatt.getService(SERVICE_UUID)
-        val commandChar = service?.getCharacteristic(COMMAND_CHAR_UUID)
-        if (commandChar == null) {
-            Log.e(TAG, "Cannot send TARE: characteristic not found")
-            return
-        }
-        
         val payload = "TARE".toByteArray()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
-        } else {
-            commandChar.value = payload
-            gatt.writeCharacteristic(commandChar)
-        }
-        Log.d(TAG, "Sent TARE command")
+        writeCharacteristic(characteristic, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+            .enqueue()
+        Log.d(TAG, "Queued TARE command")
     }
 
     fun sendCalibrateCommand(knownWeight: Float) {
-        val gatt = bluetoothGatt
-        if (gatt == null) {
+        val characteristic = commandChar
+        if (characteristic == null) {
             Log.e(TAG, "Cannot send CAL: not connected")
             return
         }
-        val service = gatt.getService(SERVICE_UUID)
-        val commandChar = service?.getCharacteristic(COMMAND_CHAR_UUID)
-        if (commandChar == null) {
-            Log.e(TAG, "Cannot send CAL: characteristic not found")
-            return
-        }
-        
         val payload = String.format(java.util.Locale.US, "CAL:%.1f", knownWeight).toByteArray()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            gatt.writeCharacteristic(commandChar, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
-        } else {
-            commandChar.value = payload
-            gatt.writeCharacteristic(commandChar)
-        }
-        Log.d(TAG, "Sent CAL:%.1f command".format(knownWeight))
+        writeCharacteristic(characteristic, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+            .enqueue()
+        Log.d(TAG, "Queued CAL:%.1f command".format(knownWeight))
     }
 
     /**
@@ -364,26 +332,26 @@ class BleScaleManager(private val context: Context) {
 
     // ─── Cleanup ────────────────────────────────────────────
 
-    /**
-     * Release all BLE resources immediately and force-stop everything.
-     */
-    fun close() {
+    override fun close() {
         Log.d(TAG, "close() called")
         try {
             context.unregisterReceiver(bluetoothStateReceiver)
         } catch (e: Exception) {
             Log.e(TAG, "Error unregistering receiver: ${e.message}")
         }
-        reset()
+        stopScan()
+        disconnect().enqueue()
         _connectionState.value = BleConnectionState.Idle
+        super.close()
     }
 
     /**
      * Handles the scenario where the system Bluetooth is turned off.
      */
     private fun handleBluetoothDisabled() {
-        reset()
         _liveWeight.value = 0f
+        stopScan()
+        disconnect().enqueue()
         _connectionState.value = BleConnectionState.Failed("Bluetooth is off")
     }
 
@@ -392,17 +360,6 @@ class BleScaleManager(private val context: Context) {
      */
     private fun reset() {
         stopScan()
-        bluetoothGatt?.let { gatt ->
-            Log.d(TAG, "Resetting GATT: disconnecting and closing")
-            try {
-                gatt.disconnect()
-                // In a reset/close scenario, we close immediately to free resources
-                // even if the DISCONNECTED callback hasn't fired yet.
-                gatt.close()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during GATT reset: ${e.message}")
-            }
-        }
-        bluetoothGatt = null
+        disconnect().enqueue()
     }
 }
