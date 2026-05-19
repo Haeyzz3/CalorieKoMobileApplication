@@ -97,6 +97,57 @@ class RecipeNutritionCalculatorTest {
         assertEquals(2.5f, nutrients.fat, 0.001f)
     }
 
+    @Test
+    fun calculatePortionNutrition_withTweaksUsesAdjustedCookedYield() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculatePortionNutrition(
+            dishLabel = "test_dish",
+            cookedWeightGrams = 75f,
+            substitutions = emptyMap(),
+            tweaks = mapOf("onion" to 2f)
+        )
+
+        assertEquals(90f, nutrients.calories, 0.001f)
+        assertEquals(8.25f, nutrients.protein, 0.001f)
+        assertEquals(3f, nutrients.carbs, 0.001f)
+        assertEquals(1.875f, nutrients.fat, 0.001f)
+    }
+
+    @Test
+    fun calculatePortionNutrition_withSubstitutionAndTweakComposesBoth() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculatePortionNutrition(
+            dishLabel = "test_dish",
+            cookedWeightGrams = 75f,
+            substitutions = mapOf("onion" to "garlic"),
+            tweaks = mapOf("onion" to 2f)
+        )
+
+        assertEquals(112.5f, nutrients.calories, 0.001f)
+        assertEquals(9.75f, nutrients.protein, 0.001f)
+        assertEquals(7.5f, nutrients.carbs, 0.001f)
+        assertEquals(1.875f, nutrients.fat, 0.001f)
+    }
+
+    @Test
+    fun calculatePortionNutrition_removedIngredientIgnoresStaleTweak() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculatePortionNutrition(
+            dishLabel = "test_dish",
+            cookedWeightGrams = 75f,
+            substitutions = mapOf("onion" to "__REMOVED__"),
+            tweaks = mapOf("onion" to 4f)
+        )
+
+        assertEquals(150f, nutrients.calories, 0.001f)
+        assertEquals(15f, nutrients.protein, 0.001f)
+        assertEquals(0f, nutrients.carbs, 0.001f)
+        assertEquals(3.75f, nutrients.fat, 0.001f)
+    }
+
     private fun testCalculator(): RecipeNutritionCalculator =
         RecipeNutritionCalculator(
             dishRecipeDao = FakeDishRecipeDao,

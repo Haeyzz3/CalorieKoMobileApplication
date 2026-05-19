@@ -132,6 +132,7 @@ import com.calorieko.app.viewmodel.ManualLogViewModel
 import com.calorieko.app.viewmodel.PantryDeductionItem
 import com.calorieko.app.viewmodel.PlannedWeightMethod
 import com.calorieko.app.viewmodel.canConfirmPlannedQuickLog
+import com.calorieko.app.util.PortionScaler
 import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
@@ -1376,6 +1377,7 @@ private fun ManualMealSummaryOverlay(
     var ingredientSheetDishIndex by remember { mutableStateOf(-1) }
     var ingredientBreakdown by remember { mutableStateOf<Map<String, com.calorieko.app.data.local.IngredientNutritionBreakdown>?>(null) }
     var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var activeTweaks by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var substitutionCandidates by remember { mutableStateOf<List<com.calorieko.app.data.model.RawIngredientEntity>>(emptyList()) }
     var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
@@ -1438,6 +1440,11 @@ private fun ManualMealSummaryOverlay(
             ) {
                 itemsIndexed(dishes) { index, dish ->
                     val isExpanded = expandedDishes[index] == true
+                    val substitutionsForCount = parseSubstitutionsJson(dish.substitutionsJson)
+                    val activeCustomizationCount =
+                        substitutionsForCount.size + parseTweaksJson(dish.tweaksJson)
+                            .filterKeys { substitutionsForCount[it] != ManualLogViewModel.REMOVED_INGREDIENT }
+                            .size
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1460,6 +1467,21 @@ private fun ManualMealSummaryOverlay(
                                         "P: ~${dish.protein.fmt()}g  C: ~${dish.carbs.fmt()}g  F: ~${dish.fat.fmt()}g",
                                         fontSize = 12.sp, color = Color(0xFF9CA3AF)
                                     )
+                                    if (activeCustomizationCount > 0) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Surface(
+                                            color = Color(0xFFF5F3FF),
+                                            shape = RoundedCornerShape(50)
+                                        ) {
+                                            Text(
+                                                "$activeCustomizationCount customization${if (activeCustomizationCount == 1) "" else "s"} active",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF6D28D9),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 IconButton(onClick = { expandedDishes[index] = !isExpanded }) {
                                     Icon(
@@ -1499,16 +1521,11 @@ private fun ManualMealSummaryOverlay(
                                         .fillMaxWidth()
                                         .clickable {
                                             ingredientSheetDishIndex = index
-                                            // Pre-populate substitutions from planned meal data
-                                            val substitutions = if (dish.substitutionsJson.isNotBlank()) {
-                                                try {
-                                                    val obj = org.json.JSONObject(dish.substitutionsJson)
-                                                    val map = mutableMapOf<String, String>()
-                                                    obj.keys().forEach { key -> map[key] = obj.getString(key) }
-                                                    map
-                                                } catch (_: Exception) { emptyMap() }
-                                            } else emptyMap()
+                                            val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
+                                            val tweaks = parseTweaksJson(dish.tweaksJson)
+                                                .filterKeys { substitutions[it] != ManualLogViewModel.REMOVED_INGREDIENT }
                                             activeSubstitutions = substitutions
+                                            activeTweaks = tweaks
                                             ingredientBreakdown = null
                                             ingredientHasAlternatives = emptyMap()
                                             scope.launch {
@@ -1657,8 +1674,8 @@ private fun ManualMealSummaryOverlay(
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    "Further adjustments cannot be made to planned meals here. " +
-                                        "Please modify your planned meals in the Pantry Screen prior to logging.",
+                                    "Pantry recipe substitutions are preserved from the plan. " +
+                                        "Ingredient amounts can be adjusted here for this logged meal only.",
                                     fontSize = 12.sp,
                                     color = Color(0xFF1E40AF),
                                     lineHeight = 16.sp
@@ -1694,6 +1711,7 @@ private fun ManualMealSummaryOverlay(
                 onDismissRequest = {
                     ingredientSheetDishIndex = -1
                     ingredientBreakdown = null
+                    activeTweaks = emptyMap()
                     substitutionTarget = null
                     substitutionCandidates = emptyList()
                     ingredientHasAlternatives = emptyMap()
@@ -1723,6 +1741,7 @@ private fun ManualMealSummaryOverlay(
 
                     // Planned dish badge
                     if (isFromMealPlan) {
+                        val planCustomizationCount = activeSubstitutions.size + activeTweaks.size
                         Spacer(Modifier.height(6.dp))
                         Surface(
                             color = Color(0xFFECFDF5),
@@ -1740,10 +1759,10 @@ private fun ManualMealSummaryOverlay(
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF059669)
                                 )
-                                if (activeSubstitutions.isNotEmpty()) {
+                                if (planCustomizationCount > 0) {
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        "• ${activeSubstitutions.size} customization${if (activeSubstitutions.size > 1) "s" else ""}",
+                                        "- $planCustomizationCount customization${if (planCustomizationCount == 1) "" else "s"}",
                                         fontSize = 11.sp,
                                         color = Color(0xFF2563EB)
                                     )
@@ -1759,6 +1778,22 @@ private fun ManualMealSummaryOverlay(
                         color = Color(0xFF9CA3AF),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
+
+                    if (activeTweaks.isNotEmpty()) {
+                        IngredientTweaksBanner(
+                            tweakCount = activeTweaks.size,
+                            message = if (isPlannedMeal) {
+                                "Adjusted for this log only"
+                            } else {
+                                "Nutrition updated for this logged portion"
+                            },
+                            onClear = {
+                                manualViewModel.clearIngredientTweaksFromDish(ingredientSheetDishIndex)
+                                activeTweaks = emptyMap()
+                            }
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
 
                     val loadedIngredientBreakdown = ingredientBreakdown
                     LaunchedEffect(loadedIngredientBreakdown) {
@@ -1878,7 +1913,7 @@ private fun ManualMealSummaryOverlay(
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Ingredient adjustments are managed in the Pantry Screen.",
+                                    "Pantry substitutions are preserved. Ingredient amounts can be adjusted for this log only.",
                                     fontSize = 11.sp,
                                     color = Color(0xFF9A3412),
                                     lineHeight = 14.sp
@@ -1895,6 +1930,14 @@ private fun ManualMealSummaryOverlay(
                         val isSubstituted = !isRemoved && (ing.replacementIngredientKey != null || substitutedWith != null)
                         val isOptional = ing.ingredientType == "optional"
                         val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
+                        val tweakMultiplier = activeTweaks[originalIngredientKey] ?: 1f
+                        val isTweaked = !isRemoved && tweakMultiplier != 1f
+                        val canTweak = !isRemoved && !PortionScaler.isQualitative(ing.portionQuantity)
+                        val displayPortion = when {
+                            ing.portionQuantity.isNotBlank() && canTweak -> PortionScaler.scale(ing.portionQuantity, tweakMultiplier)
+                            ing.portionQuantity.isNotBlank() -> ing.portionQuantity
+                            else -> "${(ing.rawWeightGrams * tweakMultiplier).toInt()}g raw"
+                        }
 
                         val effectiveName = when {
                             isRemoved -> ing.originalDisplayName
@@ -1905,6 +1948,7 @@ private fun ManualMealSummaryOverlay(
                         // Skip removed ingredients' nutrition display but show the row
                         val rowBgColor = when {
                             isRemoved -> Color(0xFFFEF2F2)   // light red
+                            isTweaked -> Color(0xFFF5F3FF)
                             isSubstituted -> Color(0xFFF0F9FF) // light blue
                             else -> Color(0xFFF9FAFB)
                         }
@@ -1968,9 +2012,20 @@ private fun ManualMealSummaryOverlay(
                                                     color = Color(0xFF0284C7)
                                                 )
                                             }
+                                            Text(
+                                                displayPortion,
+                                                fontSize = 11.sp,
+                                                color = if (isTweaked) Color(0xFF7C3AED) else Color(0xFF9CA3AF),
+                                                fontWeight = if (isTweaked) FontWeight.Medium else FontWeight.Normal
+                                            )
                                         } else {
                                             Text(effectiveName, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Color(0xFF374151))
-                                            Text("${ing.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                            Text(
+                                                displayPortion,
+                                                fontSize = 11.sp,
+                                                color = if (isTweaked) Color(0xFF7C3AED) else Color(0xFF9CA3AF),
+                                                fontWeight = if (isTweaked) FontWeight.Medium else FontWeight.Normal
+                                            )
                                         }
                                     }
 
@@ -2031,6 +2086,7 @@ private fun ManualMealSummaryOverlay(
                                                     val newSubs = activeSubstitutions.toMutableMap()
                                                     newSubs[originalIngredientKey] = ManualLogViewModel.REMOVED_INGREDIENT
                                                     activeSubstitutions = newSubs
+                                                    activeTweaks = activeTweaks - originalIngredientKey
                                                     manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, newSubs)
                                                     scope.launch {
                                                         val label = dish.dishLabel.ifEmpty { return@launch }
@@ -2054,25 +2110,43 @@ private fun ManualMealSummaryOverlay(
                                     Spacer(Modifier.height(6.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                         Column {
-                                            Text("${ing.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                            Text("${(ing.calories * tweakMultiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                                             Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                         }
                                         Column {
-                                            Text("${ing.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                            Text("${(ing.protein * tweakMultiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
                                             Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                         }
                                         Column {
-                                            Text("${ing.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                            Text("${(ing.carbs * tweakMultiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
                                             Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                         }
                                         Column {
-                                            Text("${ing.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                            Text("${(ing.fat * tweakMultiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
                                             Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                         }
                                         Column {
-                                            Text("${ing.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                            Text("${(ing.sodium * tweakMultiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
                                             Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                         }
+                                    }
+                                    if (canTweak) {
+                                        Spacer(Modifier.height(8.dp))
+                                        IngredientTweakStepper(
+                                            currentMultiplier = tweakMultiplier,
+                                            onSelect = { step ->
+                                                activeTweaks = if (step == 1f) {
+                                                    activeTweaks - originalIngredientKey
+                                                } else {
+                                                    activeTweaks + (originalIngredientKey to step)
+                                                }
+                                                manualViewModel.applyIngredientTweakToDish(
+                                                    ingredientSheetDishIndex,
+                                                    originalIngredientKey,
+                                                    step
+                                                )
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -2453,6 +2527,7 @@ private fun MealSummaryOverlay(
     var substitutionCandidates by remember { mutableStateOf<List<RawIngredientEntity>>(emptyList()) }
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var activeSubstitutions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var activeTweaks by remember { mutableStateOf<Map<String, Float>>(emptyMap()) }
     var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -2515,6 +2590,11 @@ private fun MealSummaryOverlay(
             ) {
                 itemsIndexed(dishes) { index, dish ->
                     val isExpanded = expandedDishes[index] == true
+                    val substitutionsForCount = parseSubstitutionsJson(dish.substitutionsJson)
+                    val activeCustomizationCount =
+                        substitutionsForCount.size + parseTweaksJson(dish.tweaksJson)
+                            .filterKeys { substitutionsForCount[it] != LogMealViewModel.REMOVED_INGREDIENT }
+                            .size
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -2537,6 +2617,21 @@ private fun MealSummaryOverlay(
                                         "P: ~${dish.protein.fmt()}g  C: ~${dish.carbs.fmt()}g  F: ~${dish.fat.fmt()}g",
                                         fontSize = 12.sp, color = Color(0xFF9CA3AF)
                                     )
+                                    if (activeCustomizationCount > 0) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Surface(
+                                            color = Color(0xFFF5F3FF),
+                                            shape = RoundedCornerShape(50)
+                                        ) {
+                                            Text(
+                                                "$activeCustomizationCount customization${if (activeCustomizationCount == 1) "" else "s"} active",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF6D28D9),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 IconButton(onClick = { expandedDishes[index] = !isExpanded }) {
                                     Icon(
@@ -2574,7 +2669,10 @@ private fun MealSummaryOverlay(
                                     .clickable {
                                         ingredientSheetDishIndex = index
                                         val substitutions = parseSubstitutionsJson(dish.substitutionsJson)
+                                        val tweaks = parseTweaksJson(dish.tweaksJson)
+                                            .filterKeys { substitutions[it] != LogMealViewModel.REMOVED_INGREDIENT }
                                         activeSubstitutions = substitutions
+                                        activeTweaks = tweaks
                                         ingredientBreakdown = null
                                         ingredientHasAlternatives = emptyMap()
                                         scope.launch {
@@ -2722,6 +2820,7 @@ private fun MealSummaryOverlay(
                 onDismissRequest = {
                     ingredientSheetDishIndex = null
                     ingredientBreakdown = null
+                    activeTweaks = emptyMap()
                     substitutionTarget = null
                     substitutionCandidates = emptyList()
                     ingredientHasAlternatives = emptyMap()
@@ -2732,6 +2831,7 @@ private fun MealSummaryOverlay(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 32.dp)
                 ) {
@@ -2739,6 +2839,18 @@ private fun MealSummaryOverlay(
                     Text(dish.dishNamePh.ifBlank { dish.dishNameEn }, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                     Text("${dish.weightGrams.roundToInt()}g cooked portion", fontSize = 13.sp, color = Color(0xFF6B7280))
                     Spacer(Modifier.height(16.dp))
+
+                    if (activeTweaks.isNotEmpty()) {
+                        IngredientTweaksBanner(
+                            tweakCount = activeTweaks.size,
+                            message = "Nutrition updated for this logged portion",
+                            onClear = {
+                                viewModel.clearIngredientTweaksFromDish(dishIdx)
+                                activeTweaks = emptyMap()
+                            }
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
 
                     val loadedIngredientBreakdown = ingredientBreakdown
                     LaunchedEffect(loadedIngredientBreakdown) {
@@ -2830,15 +2942,34 @@ private fun MealSummaryOverlay(
                             val isSubstituted = !isRemoved && (breakdown.replacementIngredientKey != null || substitutedWith != null)
                             val isOptional = breakdown.ingredientType == "optional"
                             val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
+                            val tweakMultiplier = activeTweaks[originalIngredientKey] ?: 1f
+                            val isTweaked = !isRemoved && tweakMultiplier != 1f
+                            val canTweak = !isRemoved && !PortionScaler.isQualitative(breakdown.portionQuantity)
+                            val displayPortion = when {
+                                breakdown.portionQuantity.isNotBlank() && canTweak -> PortionScaler.scale(breakdown.portionQuantity, tweakMultiplier)
+                                breakdown.portionQuantity.isNotBlank() -> breakdown.portionQuantity
+                                else -> "${(breakdown.rawWeightGrams * tweakMultiplier).toInt()}g raw"
+                            }
                             val effectiveName = when {
                                 isRemoved -> breakdown.originalDisplayName
                                 isSubstituted -> breakdown.replacementDisplayName ?: substitutedWith?.let { viewModel.formatIngredientName(it) } ?: breakdown.displayName
                                 else -> breakdown.displayName
                             }
+                            val rowColor = when {
+                                isRemoved -> Color(0xFFFEF2F2)
+                                isTweaked -> Color(0xFFF5F3FF)
+                                isSubstituted -> Color(0xFFF0F9FF)
+                                else -> Color(0xFFF9FAFB)
+                            }
+                            val rowBorder = when {
+                                isTweaked -> Color(0xFFDDD6FE)
+                                isSubstituted -> Color(0xFFBAE6FD)
+                                else -> Color.Transparent
+                            }
                             Surface(
-                                color = if (isSubstituted) Color(0xFFF0F9FF) else Color(0xFFF9FAFB),
+                                color = rowColor,
                                 shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, if (isSubstituted) Color(0xFFBAE6FD) else Color.Transparent),
+                                border = BorderStroke(1.dp, rowBorder),
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
                             ) {
                                 Column(modifier = Modifier.padding(10.dp)) {
@@ -2862,8 +2993,20 @@ private fun MealSummaryOverlay(
                                             when {
                                                 isSubstituted -> Text("Replaces ${breakdown.originalDisplayName}", fontSize = 10.sp, color = Color(0xFF0284C7))
                                                 isRemoved -> Text("Removed from recipe", fontSize = 10.sp, color = Color(0xFF9CA3AF))
-                                                breakdown.portionQuantity.isNotBlank() -> Text(breakdown.portionQuantity, fontSize = 11.sp, color = Color(0xFF9CA3AF))
-                                                else -> Text("${breakdown.rawWeightGrams.toInt()}g raw", fontSize = 11.sp, color = Color(0xFF9CA3AF))
+                                                else -> Text(
+                                                    displayPortion,
+                                                    fontSize = 11.sp,
+                                                    color = if (isTweaked) Color(0xFF7C3AED) else Color(0xFF9CA3AF),
+                                                    fontWeight = if (isTweaked) FontWeight.Medium else FontWeight.Normal
+                                                )
+                                            }
+                                            if (isSubstituted && !isRemoved) {
+                                                Text(
+                                                    displayPortion,
+                                                    fontSize = 11.sp,
+                                                    color = if (isTweaked) Color(0xFF7C3AED) else Color(0xFF9CA3AF),
+                                                    fontWeight = if (isTweaked) FontWeight.Medium else FontWeight.Normal
+                                                )
                                             }
                                         }
                                         if (isRemoved || isSubstituted) {
@@ -2922,6 +3065,7 @@ private fun MealSummaryOverlay(
                                                         val newSubs = activeSubstitutions.toMutableMap()
                                                         newSubs[originalIngredientKey] = LogMealViewModel.REMOVED_INGREDIENT
                                                         activeSubstitutions = newSubs
+                                                        activeTweaks = activeTweaks - originalIngredientKey
                                                         viewModel.applySubstitutionToDish(dishIdx, newSubs)
                                                         scope.launch {
                                                             val mlLabel = dish.dishLabel.ifEmpty { return@launch }
@@ -2943,25 +3087,43 @@ private fun MealSummaryOverlay(
                                         Spacer(Modifier.height(6.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                                             Column {
-                                                Text("${breakdown.calories.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                                Text("${(breakdown.calories * tweakMultiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
                                                 Text("kcal", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                             }
                                             Column {
-                                                Text("${breakdown.protein.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                                                Text("${(breakdown.protein * tweakMultiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
                                                 Text("protein", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                             }
                                             Column {
-                                                Text("${breakdown.carbs.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                                                Text("${(breakdown.carbs * tweakMultiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
                                                 Text("carbs", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                             }
                                             Column {
-                                                Text("${breakdown.fat.toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
+                                                Text("${(breakdown.fat * tweakMultiplier).toInt()}g", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA855F7))
                                                 Text("fats", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                             }
                                             Column {
-                                                Text("${breakdown.sodium.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
+                                                Text("${(breakdown.sodium * tweakMultiplier).toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6B7280))
                                                 Text("mg Na", fontSize = 9.sp, color = Color(0xFF9CA3AF))
                                             }
+                                        }
+                                        if (canTweak) {
+                                            Spacer(Modifier.height(8.dp))
+                                            IngredientTweakStepper(
+                                                currentMultiplier = tweakMultiplier,
+                                                onSelect = { step ->
+                                                    activeTweaks = if (step == 1f) {
+                                                        activeTweaks - originalIngredientKey
+                                                    } else {
+                                                        activeTweaks + (originalIngredientKey to step)
+                                                    }
+                                                    viewModel.applyIngredientTweakToDish(
+                                                        dishIdx,
+                                                        originalIngredientKey,
+                                                        step
+                                                    )
+                                                }
+                                            )
                                         }
                                     }
                                 }
@@ -3011,12 +3173,127 @@ private fun NoIngredientBreakdownState() {
     }
 }
 
+@Composable
+private fun IngredientTweaksBanner(
+    tweakCount: Int,
+    message: String,
+    onClear: () -> Unit
+) {
+    Surface(
+        color = Color(0xFFF5F3FF),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color(0xFFDDD6FE)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Rounded.Info,
+                contentDescription = null,
+                tint = Color(0xFF7C3AED),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "$tweakCount ingredient amount${if (tweakCount == 1) "" else "s"} adjusted",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5B21B6)
+                )
+                Text(
+                    message,
+                    fontSize = 11.sp,
+                    color = Color(0xFF7C3AED)
+                )
+            }
+            Surface(
+                onClick = onClear,
+                color = Color(0xFF7C3AED).copy(alpha = 0.12f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    "Reset",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF7C3AED),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IngredientTweakStepper(
+    currentMultiplier: Float,
+    onSelect: (Float) -> Unit
+) {
+    val steps = listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f)
+    val labels = listOf("0.25x", "0.5x", "1x", "1.5x", "2x", "3x", "4x")
+
+    Text(
+        "Adjust amount",
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = Color(0xFF6B7280)
+    )
+    Spacer(Modifier.height(4.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        steps.forEachIndexed { index, step ->
+            val isActive = currentMultiplier == step
+            Surface(
+                onClick = { onSelect(step) },
+                color = when {
+                    isActive && step != 1f -> Color(0xFF7C3AED)
+                    isActive -> Color(0xFF374151)
+                    else -> Color(0xFFE5E7EB)
+                },
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    labels[index],
+                    fontSize = 10.sp,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isActive) Color.White else Color(0xFF6B7280),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp)
+                )
+            }
+        }
+    }
+}
+
 private fun parseSubstitutionsJson(json: String): Map<String, String> {
     if (json.isBlank()) return emptyMap()
     return try {
         val obj = org.json.JSONObject(json)
         val map = mutableMapOf<String, String>()
         obj.keys().forEach { key -> map[key] = obj.getString(key) }
+        map
+    } catch (_: Exception) {
+        emptyMap()
+    }
+}
+
+private fun parseTweaksJson(json: String): Map<String, Float> {
+    if (json.isBlank()) return emptyMap()
+    return try {
+        val obj = org.json.JSONObject(json)
+        val map = mutableMapOf<String, Float>()
+        obj.keys().forEach { key ->
+            val value = obj.getDouble(key).toFloat()
+            if (value.isFinite() && value > 0f && value != 1f) {
+                map[key] = value
+            }
+        }
         map
     } catch (_: Exception) {
         emptyMap()
