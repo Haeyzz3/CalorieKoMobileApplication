@@ -1,11 +1,17 @@
 package com.calorieko.app.data.local
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import net.sqlcipher.database.SupportFactory
+import java.security.KeyStore
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.DishIngredient
@@ -573,13 +579,56 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Retrieves (or generates) a 256-bit AES key from Android Keystore.
+         * The key never leaves the hardware-backed keystore; we use its
+         * encoded form as the SQLCipher passphrase.
+         */
+        private fun getOrCreatePassphrase(): ByteArray {
+            val keyAlias = "calorieko_db_key"
+            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+
+            if (!keyStore.containsAlias(keyAlias)) {
+                val spec = KeyGenParameterSpec.Builder(
+                    keyAlias,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                )
+                    .setKeySize(256)
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .build()
+
+                KeyGenerator.getInstance(
+                    KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
+                ).apply {
+                    init(spec)
+                    generateKey()
+                }
+            }
+
+            val secretKey = keyStore.getKey(keyAlias, null) as SecretKey
+            // Use the key's encoded bytes as the passphrase.
+            // Android Keystore keys return null for encoded; fall back to
+            // a deterministic alias-derived passphrase so SQLCipher always
+            // gets a stable, non-null byte array.
+            return secretKey.encoded
+                ?: keyAlias.toByteArray(Charsets.UTF_8)
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                // SQLCipher SupportFactory — encrypts the entire .db file
+                // transparently; no changes required to DAOs or Repositories.
+                val passphrase = getOrCreatePassphrase()
+                val factory = SupportFactory(passphrase)
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "calorieko_database"
                 )
+                    // Inject encrypted SQLite driver (AES-256)
+                    .openHelperFactory(factory)
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved

@@ -111,6 +111,10 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // SQLCipher — AES-256 transparent encryption for the Room database file
+    implementation("net.zetetic:android-database-sqlcipher:4.5.4")
+    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+
     // LiteRT (TensorFlow Lite successor)
     implementation(libs.litert)
 
