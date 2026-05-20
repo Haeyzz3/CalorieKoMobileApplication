@@ -112,6 +112,7 @@ import com.calorieko.app.viewmodel.PantryUiEvent
 import com.calorieko.app.viewmodel.ProofType
 import com.calorieko.app.viewmodel.WeekInfo
 import com.calorieko.app.util.PortionScaler
+import com.calorieko.app.util.RecipeCustomizationRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -3145,7 +3146,10 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     isSubstituted -> detail.replacementName ?: viewModel.formatIngredientName(replacementKey!!)
                     else -> detail.name
                 }
-                val isOptional = detail.type == "optional"
+                val canRemove = RecipeCustomizationRules.canRemoveIngredient(
+                    originalIngredientKey = detail.ingredientKey,
+                    ingredientType = detail.type
+                )
 
                 val bgColor = when {
                     isRemoved -> Color(0xFFF9FAFB)
@@ -3453,7 +3457,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                 }
 
                                 // Remove action (only for optional ingredients)
-                                if (isOptional) {
+                                if (canRemove) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Surface(
                                         onClick = {

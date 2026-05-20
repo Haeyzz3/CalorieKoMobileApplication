@@ -17,6 +17,7 @@ import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.NutritionalValuesRepository
+import com.calorieko.app.util.RecipeCustomizationRules
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -658,8 +659,9 @@ class PantryViewModel(
                 return@launch
             }
 
-            val substitutionsJson = if (substitutions.isNotEmpty()) {
-                org.json.JSONObject(substitutions as Map<*, *>).toString()
+            val sanitizedSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
+            val substitutionsJson = if (sanitizedSubstitutions.isNotEmpty()) {
+                org.json.JSONObject(sanitizedSubstitutions as Map<*, *>).toString()
             } else ""
 
             val tweaksJson = if (tweaks.isNotEmpty()) {
@@ -1234,7 +1236,7 @@ class PantryViewModel(
             val obj = org.json.JSONObject(json)
             val map = mutableMapOf<String, String>()
             obj.keys().forEach { key -> map[key] = obj.getString(key) }
-            map
+            RecipeCustomizationRules.sanitizeSubstitutions(map)
         } catch (_: Exception) {
             emptyMap()
         }
@@ -1483,7 +1485,10 @@ class PantryViewModel(
         dishLabel: String,
         substitutions: Map<String, String> = emptyMap()
     ): Map<String, IngredientNutritionBreakdown> {
-        return calculator.getIngredientBreakdown(dishLabel, substitutions)
+        return calculator.getIngredientBreakdown(
+            dishLabel,
+            RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
+        )
     }
 
     /**
@@ -1492,17 +1497,31 @@ class PantryViewModel(
      */
     fun applySubstitution(dishLabel: String, originalKey: String, newKey: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (newKey == REMOVED_INGREDIENT && RecipeCustomizationRules.isProtectedBaseIngredient(originalKey)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This base ingredient is required for nutrition calculations."))
+                return@launch
+            }
+
             // Update the substitution map
             val currentSubs = _activeSubstitutions.value.toMutableMap()
             val dishSubs = (currentSubs[dishLabel] ?: emptyMap()).toMutableMap()
             dishSubs[originalKey] = newKey
-            currentSubs[dishLabel] = dishSubs
+            val sanitizedDishSubs = RecipeCustomizationRules.sanitizeSubstitutions(dishSubs)
+            if (sanitizedDishSubs.isEmpty()) {
+                currentSubs.remove(dishLabel)
+            } else {
+                currentSubs[dishLabel] = sanitizedDishSubs
+            }
             _activeSubstitutions.value = currentSubs
 
             // Recalculate with substitutions
-            val result = calculator.calculateWithSubstitution(dishLabel, dishSubs)
+            val result = calculator.calculateWithSubstitution(dishLabel, sanitizedDishSubs)
             val currentNutrition = _substitutedNutrition.value.toMutableMap()
-            currentNutrition[dishLabel] = result
+            if (sanitizedDishSubs.isEmpty()) {
+                currentNutrition.remove(dishLabel)
+            } else {
+                currentNutrition[dishLabel] = result
+            }
             _substitutedNutrition.value = currentNutrition
         }
     }
@@ -1516,15 +1535,16 @@ class PantryViewModel(
             val currentSubs = _activeSubstitutions.value.toMutableMap()
             val dishSubs = (currentSubs[dishLabel] ?: emptyMap()).toMutableMap()
             dishSubs.remove(originalKey)
+            val sanitizedDishSubs = RecipeCustomizationRules.sanitizeSubstitutions(dishSubs)
 
-            if (dishSubs.isEmpty()) {
+            if (sanitizedDishSubs.isEmpty()) {
                 currentSubs.remove(dishLabel)
                 val currentNutrition = _substitutedNutrition.value.toMutableMap()
                 currentNutrition.remove(dishLabel)
                 _substitutedNutrition.value = currentNutrition
             } else {
-                currentSubs[dishLabel] = dishSubs
-                val result = calculator.calculateWithSubstitution(dishLabel, dishSubs)
+                currentSubs[dishLabel] = sanitizedDishSubs
+                val result = calculator.calculateWithSubstitution(dishLabel, sanitizedDishSubs)
                 val currentNutrition = _substitutedNutrition.value.toMutableMap()
                 currentNutrition[dishLabel] = result
                 _substitutedNutrition.value = currentNutrition
@@ -1553,6 +1573,7 @@ class PantryViewModel(
      * Undo is handled by [removeSubstitution] — same as any other substitution.
      */
     fun removeIngredient(dishLabel: String, ingredientKey: String) {
+        if (RecipeCustomizationRules.isProtectedBaseIngredient(ingredientKey)) return
         applySubstitution(dishLabel, ingredientKey, REMOVED_INGREDIENT)
     }
 
@@ -1637,7 +1658,9 @@ class PantryViewModel(
      */
     private suspend fun recalculateTweakedNutrition(dishLabel: String) {
         val tweaks = _ingredientTweaks.value[dishLabel] ?: emptyMap()
-        val subs = _activeSubstitutions.value[dishLabel] ?: emptyMap()
+        val subs = RecipeCustomizationRules.sanitizeSubstitutions(
+            _activeSubstitutions.value[dishLabel] ?: emptyMap()
+        )
 
         if (tweaks.isEmpty()) {
             // No tweaks left — clear the tweaked state

@@ -133,6 +133,7 @@ import com.calorieko.app.viewmodel.PantryDeductionItem
 import com.calorieko.app.viewmodel.PlannedWeightMethod
 import com.calorieko.app.viewmodel.canConfirmPlannedQuickLog
 import com.calorieko.app.util.PortionScaler
+import com.calorieko.app.util.RecipeCustomizationRules
 import kotlin.math.roundToInt
 
 // ───────────────────────────────────────────────────────────────
@@ -1705,7 +1706,7 @@ private fun ManualMealSummaryOverlay(
         val dish = dishes.getOrNull(ingredientSheetDishIndex)
         if (dish != null) {
             // Determine if this is a planned-meal dish (view-only substitutions)
-            val isFromMealPlan = isPlannedMeal || dish.substitutionsJson.isNotBlank()
+            val isFromMealPlan = isPlannedMeal
 
                 ModalBottomSheet(
                 onDismissRequest = {
@@ -1850,14 +1851,15 @@ private fun ManualMealSummaryOverlay(
                                         onClick = {
                                             val newSubs = activeSubstitutions.toMutableMap()
                                             newSubs[substitutionTarget!!] = candidate.ingredientKey
-                                            activeSubstitutions = newSubs
-                                            manualViewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                            val sanitizedSubs = RecipeCustomizationRules.sanitizeSubstitutions(newSubs)
+                                            activeSubstitutions = sanitizedSubs
+                                            manualViewModel.applySubstitutionToDish(dishIdx, sanitizedSubs)
                                             // Reload breakdown
                                             scope.launch {
                                                 val label = dish.dishLabel.ifEmpty { return@launch }
                                                 ingredientBreakdown = null
                                                 ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                    manualViewModel.getIngredientBreakdown(label, newSubs)
+                                                    manualViewModel.getIngredientBreakdown(label, sanitizedSubs)
                                                 }
                                             }
                                             substitutionTarget = null
@@ -1928,7 +1930,10 @@ private fun ManualMealSummaryOverlay(
                         val substitutedWith = activeSubstitutions[originalIngredientKey]
                         val isRemoved = ing.isRemoved || substitutedWith == ManualLogViewModel.REMOVED_INGREDIENT
                         val isSubstituted = !isRemoved && (ing.replacementIngredientKey != null || substitutedWith != null)
-                        val isOptional = ing.ingredientType == "optional"
+                        val canRemove = RecipeCustomizationRules.canRemoveIngredient(
+                            originalIngredientKey = originalIngredientKey,
+                            ingredientType = ing.ingredientType
+                        )
                         val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
                         val tweakMultiplier = activeTweaks[originalIngredientKey] ?: 1f
                         val isTweaked = !isRemoved && tweakMultiplier != 1f
@@ -2035,13 +2040,14 @@ private fun ManualMealSummaryOverlay(
                                             onClick = {
                                                 val newSubs = activeSubstitutions.toMutableMap()
                                                 newSubs.remove(originalIngredientKey)
-                                                activeSubstitutions = newSubs
-                                                manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, newSubs)
+                                                val sanitizedSubs = RecipeCustomizationRules.sanitizeSubstitutions(newSubs)
+                                                activeSubstitutions = sanitizedSubs
+                                                manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, sanitizedSubs)
                                                 scope.launch {
                                                     val label = dish.dishLabel.ifEmpty { return@launch }
                                                     ingredientBreakdown = null
                                                     ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        manualViewModel.getIngredientBreakdown(label, newSubs)
+                                                        manualViewModel.getIngredientBreakdown(label, sanitizedSubs)
                                                     }
                                                 }
                                             },
@@ -2077,7 +2083,7 @@ private fun ManualMealSummaryOverlay(
                                                 Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
                                             }
                                         }
-                                        if (isOptional && !isPlannedMeal) {
+                                        if (canRemove && !isPlannedMeal) {
                                             if (hasSubstitutionAlternatives) {
                                                 Spacer(Modifier.width(6.dp))
                                             }
@@ -2085,14 +2091,15 @@ private fun ManualMealSummaryOverlay(
                                                 onClick = {
                                                     val newSubs = activeSubstitutions.toMutableMap()
                                                     newSubs[originalIngredientKey] = ManualLogViewModel.REMOVED_INGREDIENT
-                                                    activeSubstitutions = newSubs
+                                                    val sanitizedSubs = RecipeCustomizationRules.sanitizeSubstitutions(newSubs)
+                                                    activeSubstitutions = sanitizedSubs
                                                     activeTweaks = activeTweaks - originalIngredientKey
-                                                    manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, newSubs)
+                                                    manualViewModel.applySubstitutionToDish(ingredientSheetDishIndex, sanitizedSubs)
                                                     scope.launch {
                                                         val label = dish.dishLabel.ifEmpty { return@launch }
                                                         ingredientBreakdown = null
                                                         ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                            manualViewModel.getIngredientBreakdown(label, newSubs)
+                                                            manualViewModel.getIngredientBreakdown(label, sanitizedSubs)
                                                         }
                                                     }
                                                 },
@@ -2897,14 +2904,15 @@ private fun MealSummaryOverlay(
                                             onClick = {
                                                 val newSubs = activeSubstitutions.toMutableMap()
                                                 newSubs[substitutionTarget!!] = candidate.ingredientKey
-                                                activeSubstitutions = newSubs
-                                                viewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                                val sanitizedSubs = RecipeCustomizationRules.sanitizeSubstitutions(newSubs)
+                                                activeSubstitutions = sanitizedSubs
+                                                viewModel.applySubstitutionToDish(dishIdx, sanitizedSubs)
                                                 // Reload breakdown
                                                 scope.launch {
                                                     val mlLabel = dish.dishLabel.ifEmpty { return@launch }
                                                     ingredientBreakdown = null
                                                     ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                        viewModel.getIngredientBreakdown(mlLabel, newSubs)
+                                                        viewModel.getIngredientBreakdown(mlLabel, sanitizedSubs)
                                                     }
                                                 }
                                                 substitutionTarget = null
@@ -2940,7 +2948,10 @@ private fun MealSummaryOverlay(
                             val substitutedWith = activeSubstitutions[originalIngredientKey]
                             val isRemoved = breakdown.isRemoved || substitutedWith == LogMealViewModel.REMOVED_INGREDIENT
                             val isSubstituted = !isRemoved && (breakdown.replacementIngredientKey != null || substitutedWith != null)
-                            val isOptional = breakdown.ingredientType == "optional"
+                            val canRemove = RecipeCustomizationRules.canRemoveIngredient(
+                                originalIngredientKey = originalIngredientKey,
+                                ingredientType = breakdown.ingredientType
+                            )
                             val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
                             val tweakMultiplier = activeTweaks[originalIngredientKey] ?: 1f
                             val isTweaked = !isRemoved && tweakMultiplier != 1f
@@ -3014,13 +3025,14 @@ private fun MealSummaryOverlay(
                                                 onClick = {
                                                     val newSubs = activeSubstitutions.toMutableMap()
                                                     newSubs.remove(originalIngredientKey)
-                                                    activeSubstitutions = newSubs
-                                                    viewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                                    val sanitizedSubs = RecipeCustomizationRules.sanitizeSubstitutions(newSubs)
+                                                    activeSubstitutions = sanitizedSubs
+                                                    viewModel.applySubstitutionToDish(dishIdx, sanitizedSubs)
                                                     scope.launch {
                                                         val mlLabel = dish.dishLabel.ifEmpty { return@launch }
                                                         ingredientBreakdown = null
                                                         ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                            viewModel.getIngredientBreakdown(mlLabel, newSubs)
+                                                            viewModel.getIngredientBreakdown(mlLabel, sanitizedSubs)
                                                         }
                                                     }
                                                 },
@@ -3056,7 +3068,7 @@ private fun MealSummaryOverlay(
                                                     Icon(Icons.Default.SwapHoriz, "Swap", tint = Color(0xFF0284C7), modifier = Modifier.padding(4.dp).size(16.dp))
                                                 }
                                             }
-                                            if (isOptional) {
+                                            if (canRemove) {
                                                 if (hasSubstitutionAlternatives) {
                                                     Spacer(Modifier.width(6.dp))
                                                 }
@@ -3064,14 +3076,15 @@ private fun MealSummaryOverlay(
                                                     onClick = {
                                                         val newSubs = activeSubstitutions.toMutableMap()
                                                         newSubs[originalIngredientKey] = LogMealViewModel.REMOVED_INGREDIENT
-                                                        activeSubstitutions = newSubs
+                                                        val sanitizedSubs = RecipeCustomizationRules.sanitizeSubstitutions(newSubs)
+                                                        activeSubstitutions = sanitizedSubs
                                                         activeTweaks = activeTweaks - originalIngredientKey
-                                                        viewModel.applySubstitutionToDish(dishIdx, newSubs)
+                                                        viewModel.applySubstitutionToDish(dishIdx, sanitizedSubs)
                                                         scope.launch {
                                                             val mlLabel = dish.dishLabel.ifEmpty { return@launch }
                                                             ingredientBreakdown = null
                                                             ingredientBreakdown = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                                viewModel.getIngredientBreakdown(mlLabel, newSubs)
+                                                                viewModel.getIngredientBreakdown(mlLabel, sanitizedSubs)
                                                             }
                                                         }
                                                     },
@@ -3277,7 +3290,7 @@ private fun parseSubstitutionsJson(json: String): Map<String, String> {
         val obj = org.json.JSONObject(json)
         val map = mutableMapOf<String, String>()
         obj.keys().forEach { key -> map[key] = obj.getString(key) }
-        map
+        RecipeCustomizationRules.sanitizeSubstitutions(map)
     } catch (_: Exception) {
         emptyMap()
     }

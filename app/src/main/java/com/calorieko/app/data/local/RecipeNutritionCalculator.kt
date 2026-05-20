@@ -4,6 +4,7 @@ import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.model.RecipeIngredientEntity
+import com.calorieko.app.util.RecipeCustomizationRules
 
 /**
  * Calculates dish nutrition using the raw-ingredient summation model.
@@ -40,7 +41,8 @@ class RecipeNutritionCalculator(
         cookedWeightGrams: Float,
         substitutions: Map<String, String>
     ): NutritionResult {
-        if (substitutions.isEmpty()) {
+        val effectiveSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
+        if (effectiveSubstitutions.isEmpty()) {
             return calculatePortionNutrition(dishLabel, cookedWeightGrams)
         }
 
@@ -49,7 +51,7 @@ class RecipeNutritionCalculator(
 
         if (dish.cookedWeightG <= 0f) return NutritionResult.ZERO
 
-        val totalBatchPerServing = calculateWithSubstitution(dishLabel, substitutions)
+        val totalBatchPerServing = calculateWithSubstitution(dishLabel, effectiveSubstitutions)
         val totalBatch = totalBatchPerServing * dish.servings.coerceAtLeast(1).toFloat()
         val portionFraction = cookedWeightGrams / dish.cookedWeightG
 
@@ -65,14 +67,15 @@ class RecipeNutritionCalculator(
         substitutions: Map<String, String>,
         tweaks: Map<String, Float>
     ): NutritionResult {
+        val effectiveSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
         if (tweaks.isEmpty()) {
-            return calculatePortionNutrition(dishLabel, cookedWeightGrams, substitutions)
+            return calculatePortionNutrition(dishLabel, cookedWeightGrams, effectiveSubstitutions)
         }
 
         val dish = dishRecipeDao.getByDishLabel(dishLabel)
             ?: return NutritionResult.ZERO
 
-        val (totalBatchPerServing, totalRawWeightG) = calculateWithTweaks(dishLabel, tweaks, substitutions)
+        val (totalBatchPerServing, totalRawWeightG) = calculateWithTweaks(dishLabel, tweaks, effectiveSubstitutions)
         if (totalRawWeightG <= 0f) return NutritionResult.ZERO
 
         val yieldFactor = if (dish.dishYieldFactor > 0f) dish.dishYieldFactor else 1f
@@ -115,6 +118,7 @@ class RecipeNutritionCalculator(
         dishLabel: String,
         substitutions: Map<String, String>
     ): NutritionResult {
+        val effectiveSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
         val dish = dishRecipeDao.getByDishLabel(dishLabel)
             ?: return NutritionResult.ZERO
 
@@ -124,7 +128,7 @@ class RecipeNutritionCalculator(
         var totalRaw = NutritionResult.ZERO
 
         for (ri in recipeIngredients) {
-            val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+            val effectiveKey = effectiveSubstitutions[ri.ingredientKey] ?: ri.ingredientKey
             if (effectiveKey == REMOVED_INGREDIENT) continue
             val ingredient = rawIngredientDao.getByKey(effectiveKey) ?: continue
 
@@ -151,6 +155,7 @@ class RecipeNutritionCalculator(
         tweaks: Map<String, Float>,
         substitutions: Map<String, String> = emptyMap()
     ): Pair<NutritionResult, Float> {
+        val effectiveSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
         val dish = dishRecipeDao.getByDishLabel(dishLabel)
             ?: return Pair(NutritionResult.ZERO, 0f)
 
@@ -161,7 +166,7 @@ class RecipeNutritionCalculator(
         var totalRawWeightG = 0f
 
         for (ri in recipeIngredients) {
-            val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+            val effectiveKey = effectiveSubstitutions[ri.ingredientKey] ?: ri.ingredientKey
             if (effectiveKey == REMOVED_INGREDIENT) continue
             val ingredient = rawIngredientDao.getByKey(effectiveKey) ?: continue
 
@@ -236,6 +241,7 @@ class RecipeNutritionCalculator(
         dishLabel: String,
         substitutions: Map<String, String> = emptyMap()
     ): Map<String, IngredientNutritionBreakdown> {
+        val effectiveSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
         val recipeIngredients = recipeIngredientDao.getIngredientsForDish(dishLabel)
         if (recipeIngredients.isEmpty()) return emptyMap()
 
@@ -250,11 +256,11 @@ class RecipeNutritionCalculator(
             val result = mutableMapOf<String, IngredientNutritionBreakdown>()
 
             for (ri in recipeIngredients) {
-                val isRemoved = substitutions[ri.ingredientKey] == REMOVED_INGREDIENT
+                val isRemoved = effectiveSubstitutions[ri.ingredientKey] == REMOVED_INGREDIENT
                 val getsDishNutrition = ri.ingredientKey == primary.ingredientKey && !isRemoved
                 result[ri.ingredientKey] = buildIngredientBreakdown(
                     recipeIngredient = ri,
-                    substitutions = substitutions,
+                    substitutions = effectiveSubstitutions,
                     rawWeightGrams = if (getsDishNutrition) dish.perServingWeightG else 0f,
                     calories = if (getsDishNutrition) perServing.calories else 0f,
                     protein = if (getsDishNutrition) perServing.protein else 0f,
@@ -270,7 +276,7 @@ class RecipeNutritionCalculator(
         val result = mutableMapOf<String, IngredientNutritionBreakdown>()
 
         for (ri in recipeIngredients) {
-            val effectiveKey = substitutions[ri.ingredientKey] ?: ri.ingredientKey
+            val effectiveKey = effectiveSubstitutions[ri.ingredientKey] ?: ri.ingredientKey
             val isRemoved = effectiveKey == REMOVED_INGREDIENT
             val ingredient = if (isRemoved) null else (rawIngredientDao.getByKey(effectiveKey) ?: continue)
             val factor = if (isRemoved) 0f else ri.rawWeightGrams / 100f
@@ -288,7 +294,7 @@ class RecipeNutritionCalculator(
             } else {
                 result[ri.ingredientKey] = buildIngredientBreakdown(
                     recipeIngredient = ri,
-                    substitutions = substitutions,
+                    substitutions = effectiveSubstitutions,
                     rawWeightGrams = if (isRemoved) 0f else ri.rawWeightGrams,
                     calories = (ingredient?.calories ?: 0f) * factor,
                     protein = (ingredient?.protein ?: 0f) * factor,

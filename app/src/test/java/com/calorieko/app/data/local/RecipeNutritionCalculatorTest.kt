@@ -148,6 +148,64 @@ class RecipeNutritionCalculatorTest {
         assertEquals(3.75f, nutrients.fat, 0.001f)
     }
 
+    @Test
+    fun calculateWithSubstitution_ignoresProtectedCookingOilRemoval() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculateWithSubstitution(
+            dishLabel = "protected_dish",
+            substitutions = mapOf("cooking_oil" to "__REMOVED__")
+        )
+
+        assertEquals(310f, nutrients.calories, 0.001f)
+        assertEquals(21f, nutrients.protein, 0.001f)
+        assertEquals(4f, nutrients.carbs, 0.001f)
+        assertEquals(15f, nutrients.fat, 0.001f)
+    }
+
+    @Test
+    fun calculateWithSubstitution_usesReplacementForProtectedCookingOilSubstitution() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculateWithSubstitution(
+            dishLabel = "protected_dish",
+            substitutions = mapOf("cooking_oil" to "olive_oil")
+        )
+
+        assertEquals(300f, nutrients.calories, 0.001f)
+        assertEquals(21f, nutrients.protein, 0.001f)
+        assertEquals(4f, nutrients.carbs, 0.001f)
+        assertEquals(13f, nutrients.fat, 0.001f)
+    }
+
+    @Test
+    fun calculateWithTweaks_ignoresProtectedWaterRemovalForRawWeight() = runBlocking {
+        val calculator = testCalculator()
+
+        val (_, rawWeight) = calculator.calculateWithTweaks(
+            dishLabel = "protected_dish",
+            tweaks = emptyMap(),
+            substitutions = mapOf("water" to "__REMOVED__")
+        )
+
+        assertEquals(185f, rawWeight, 0.001f)
+    }
+
+    @Test
+    fun calculateWithSubstitution_stillRemovesNormalOptionalIngredient() = runBlocking {
+        val calculator = testCalculator()
+
+        val nutrients = calculator.calculateWithSubstitution(
+            dishLabel = "protected_dish",
+            substitutions = mapOf("onion" to "__REMOVED__")
+        )
+
+        assertEquals(290f, nutrients.calories, 0.001f)
+        assertEquals(20f, nutrients.protein, 0.001f)
+        assertEquals(0f, nutrients.carbs, 0.001f)
+        assertEquals(15f, nutrients.fat, 0.001f)
+    }
+
     private fun testCalculator(): RecipeNutritionCalculator =
         RecipeNutritionCalculator(
             dishRecipeDao = FakeDishRecipeDao,
@@ -156,7 +214,7 @@ class RecipeNutritionCalculatorTest {
         )
 
     private object FakeDishRecipeDao : DishRecipeDao {
-        private val dish = DishRecipeEntity(
+        private val testDish = DishRecipeEntity(
             dishLabel = "test_dish",
             nameEn = "Test Dish",
             namePh = "Test Dish",
@@ -181,16 +239,42 @@ class RecipeNutritionCalculatorTest {
             calciumPerServing = 0f,
             ironPerServing = 0f
         )
+        private val protectedDish = DishRecipeEntity(
+            dishLabel = "protected_dish",
+            nameEn = "Protected Dish",
+            namePh = "Protected Dish",
+            category = "test",
+            cookingMethod = "test",
+            servings = 1,
+            totalRawWeightG = 185f,
+            dishYieldFactor = 1f,
+            cookedWeightG = 185f,
+            perServingWeightG = 185f,
+            ingredientCount = 4,
+            calPerServing = 310f,
+            proteinPerServing = 21f,
+            carbsPerServing = 4f,
+            fatPerServing = 15f,
+            fiberPerServing = 0f,
+            sugarPerServing = 0f,
+            sodiumPerServing = 55f,
+            potassiumPerServing = 0f,
+            vitaminAPerServing = 0f,
+            vitaminCPerServing = 0f,
+            calciumPerServing = 0f,
+            ironPerServing = 0f
+        )
+        private val dishes = listOf(testDish, protectedDish)
 
         override suspend fun insertAll(dishes: List<DishRecipeEntity>) = Unit
         override suspend fun getByDishLabel(dishLabel: String): DishRecipeEntity? =
-            dish.takeIf { dishLabel == it.dishLabel }
+            dishes.firstOrNull { dishLabel == it.dishLabel }
 
-        override suspend fun getAllDishRecipes(): List<DishRecipeEntity> = listOf(dish)
-        override suspend fun getByCategory(category: String): List<DishRecipeEntity> = listOf(dish)
-        override suspend fun searchByName(query: String): List<DishRecipeEntity> = listOf(dish)
-        override suspend fun getCount(): Int = 1
-        override suspend fun getAllDishLabels(): List<String> = listOf(dish.dishLabel)
+        override suspend fun getAllDishRecipes(): List<DishRecipeEntity> = dishes
+        override suspend fun getByCategory(category: String): List<DishRecipeEntity> = dishes
+        override suspend fun searchByName(query: String): List<DishRecipeEntity> = dishes
+        override suspend fun getCount(): Int = dishes.size
+        override suspend fun getAllDishLabels(): List<String> = dishes.map { it.dishLabel }
         override suspend fun getStoreBoughtDishes(): List<DishRecipeEntity> = emptyList()
         override suspend fun deleteAll() = Unit
     }
@@ -235,6 +319,58 @@ class RecipeNutritionCalculatorTest {
                 carbs = 20f,
                 fat = 0f,
                 sodium = 20f
+            ),
+            RawIngredientEntity(
+                ingredientKey = "cooking_oil",
+                displayName = "Soybean Oil",
+                category = "pantry_staple",
+                subCategory = "oil",
+                fdcId = 4,
+                dataSource = "test",
+                calories = 900f,
+                protein = 0f,
+                carbs = 0f,
+                fat = 100f,
+                sodium = 0f
+            ),
+            RawIngredientEntity(
+                ingredientKey = "olive_oil",
+                displayName = "Olive Oil",
+                category = "pantry_staple",
+                subCategory = "oil",
+                fdcId = 5,
+                dataSource = "test",
+                calories = 800f,
+                protein = 0f,
+                carbs = 0f,
+                fat = 80f,
+                sodium = 0f
+            ),
+            RawIngredientEntity(
+                ingredientKey = "water",
+                displayName = "Purified Water",
+                category = "pantry_staple",
+                subCategory = "water",
+                fdcId = 6,
+                dataSource = "test",
+                calories = 0f,
+                protein = 0f,
+                carbs = 0f,
+                fat = 0f,
+                sodium = 0f
+            ),
+            RawIngredientEntity(
+                ingredientKey = "mineral_water",
+                displayName = "Mineral Water",
+                category = "pantry_staple",
+                subCategory = "water",
+                fdcId = 7,
+                dataSource = "test",
+                calories = 0f,
+                protein = 0f,
+                carbs = 0f,
+                fat = 0f,
+                sodium = 0f
             )
         )
 
@@ -281,6 +417,46 @@ class RecipeNutritionCalculatorTest {
                 portionOriginal = "1/2 cup",
                 preparationMethod = "chopped",
                 step = 2
+            ),
+            RecipeIngredientEntity(
+                dishLabel = "protected_dish",
+                ingredientKey = "chicken",
+                ingredientType = "core",
+                ingredientCategory = "protein",
+                rawWeightGrams = 100f,
+                portionOriginal = "100 g",
+                preparationMethod = "sliced",
+                step = 1
+            ),
+            RecipeIngredientEntity(
+                dishLabel = "protected_dish",
+                ingredientKey = "cooking_oil",
+                ingredientType = "optional",
+                ingredientCategory = "pantry_staple",
+                rawWeightGrams = 10f,
+                portionOriginal = "2 tsp",
+                preparationMethod = "",
+                step = 2
+            ),
+            RecipeIngredientEntity(
+                dishLabel = "protected_dish",
+                ingredientKey = "water",
+                ingredientType = "optional",
+                ingredientCategory = "pantry_staple",
+                rawWeightGrams = 25f,
+                portionOriginal = "25 ml",
+                preparationMethod = "",
+                step = 3
+            ),
+            RecipeIngredientEntity(
+                dishLabel = "protected_dish",
+                ingredientKey = "onion",
+                ingredientType = "optional",
+                ingredientCategory = "produce",
+                rawWeightGrams = 50f,
+                portionOriginal = "1/2 cup",
+                preparationMethod = "chopped",
+                step = 4
             )
         )
 
