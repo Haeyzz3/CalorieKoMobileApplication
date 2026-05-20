@@ -183,7 +183,7 @@ EMPTY_PORTION_DEFAULTS = {
     ("egg_boiled", "water"): 0.0,
 
     # store-bought lechon manok parts — typical serving weight
-    ("chicken_wings", "store_bought_lechon_manok_wing"): 90.0,
+    ("chicken_wing", "store_bought_lechon_manok_wing"): 90.0,
     ("chicken_thigh", "store_bought_lechon_manok_thigh"): 150.0,
     ("chicken_drumstick", "store_bought_lechon_manok_drumstick"): 130.0,
     ("chicken_breast", "store_bought_lechon_manok_breast"): 200.0,

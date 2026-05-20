@@ -126,6 +126,10 @@ dependencies {
     // WorkManager (background auto-sync after Room writes)
     implementation("androidx.work:work-runtime-ktx:2.10.1")
 
+    // Nordic BLE Library for ESP32 Smart Scale
+    implementation(libs.nordic.ble)
+    implementation(libs.nordic.ble.ktx)
+
     // CameraX
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)

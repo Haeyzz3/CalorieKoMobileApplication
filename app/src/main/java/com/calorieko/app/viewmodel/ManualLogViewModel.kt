@@ -505,7 +505,8 @@ class ManualLogViewModel(
             vitaminC = nutrients.vitaminC,
             calcium = nutrients.calcium,
             iron = nutrients.iron,
-            substitutionsJson = entry.substitutionsJson
+            substitutionsJson = entry.substitutionsJson,
+            tweaksJson = entry.tweaksJson
         )
     }
 
@@ -553,10 +554,81 @@ class ManualLogViewModel(
 
     /** Applies substitutions to a dish and recalculates its nutrition. */
     fun applySubstitutionToDish(dishIndex: Int, substitutions: Map<String, String>) {
+        val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
+        val tweaks = parseTweaksJson(dish.tweaksJson)
+            .filterKeys { substitutions[it] != REMOVED_INGREDIENT }
+        applyCustomizationsToDish(dishIndex, substitutions, tweaks)
+    }
+
+    fun removeIngredientFromDish(dishIndex: Int, ingredientKey: String) {
+        updateDishCustomizations(dishIndex) { current, tweaks ->
+            current[ingredientKey] = REMOVED_INGREDIENT
+            tweaks.remove(ingredientKey)
+        }
+    }
+
+    fun removeSubstitutionFromDish(dishIndex: Int, ingredientKey: String) {
+        updateDishCustomizations(dishIndex) { current, _ ->
+            current.remove(ingredientKey)
+        }
+    }
+
+    fun applyIngredientTweakToDish(
+        dishIndex: Int,
+        ingredientKey: String,
+        multiplier: Float
+    ) {
+        updateDishCustomizations(dishIndex) { substitutions, tweaks ->
+            if (substitutions[ingredientKey] != REMOVED_INGREDIENT) {
+                if (!multiplier.isFinite() || multiplier <= 0f || multiplier == 1f) {
+                    tweaks.remove(ingredientKey)
+                } else {
+                    tweaks[ingredientKey] = multiplier
+                }
+            }
+        }
+    }
+
+    fun resetIngredientTweakFromDish(dishIndex: Int, ingredientKey: String) {
+        applyIngredientTweakToDish(dishIndex, ingredientKey, 1f)
+    }
+
+    fun clearIngredientTweaksFromDish(dishIndex: Int) {
+        val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
+        applyCustomizationsToDish(
+            dishIndex = dishIndex,
+            substitutions = parseSubstitutionsJson(dish.substitutionsJson),
+            tweaks = emptyMap()
+        )
+    }
+
+    private fun updateDishCustomizations(
+        dishIndex: Int,
+        transform: (MutableMap<String, String>, MutableMap<String, Float>) -> Unit
+    ) {
+        val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
+        val substitutions = parseSubstitutionsJson(dish.substitutionsJson).toMutableMap()
+        val tweaks = parseTweaksJson(dish.tweaksJson).toMutableMap()
+        transform(substitutions, tweaks)
+        tweaks.keys
+            .filter { substitutions[it] == REMOVED_INGREDIENT }
+            .forEach { tweaks.remove(it) }
+        applyCustomizationsToDish(dishIndex, substitutions, tweaks)
+    }
+
+    private fun applyCustomizationsToDish(
+        dishIndex: Int,
+        substitutions: Map<String, String>,
+        tweaks: Map<String, Float>
+    ) {
         viewModelScope.launch {
             val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return@launch
+            if (dish.dishLabel.isBlank()) return@launch
+
+            val normalizedTweaks = normalizeTweaks(tweaks)
+                .filterKeys { substitutions[it] != REMOVED_INGREDIENT }
             val newNutrients = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams, substitutions)
+                calculateLoggedDishNutrition(dish, substitutions, normalizedTweaks)
             }
             val updated = dish.copy(
                 calories = newNutrients.calories,
@@ -571,7 +643,8 @@ class ManualLogViewModel(
                 vitaminC = newNutrients.vitaminC,
                 calcium = newNutrients.calcium,
                 iron = newNutrients.iron,
-                substitutionsJson = substitutionsToJson(substitutions)
+                substitutionsJson = substitutionsToJson(substitutions),
+                tweaksJson = tweaksToJson(normalizedTweaks)
             )
             _loggedDishes.update { list ->
                 list.toMutableList().also { current ->
@@ -581,26 +654,31 @@ class ManualLogViewModel(
         }
     }
 
-    fun removeIngredientFromDish(dishIndex: Int, ingredientKey: String) {
-        updateDishCustomizations(dishIndex) { current ->
-            current[ingredientKey] = REMOVED_INGREDIENT
+    private suspend fun calculateLoggedDishNutrition(
+        dish: LoggedDish,
+        substitutions: Map<String, String>,
+        tweaks: Map<String, Float>
+    ): NutritionResult {
+        val calculated = when {
+            tweaks.isNotEmpty() -> calculator.calculatePortionNutrition(
+                dish.dishLabel,
+                dish.weightGrams,
+                substitutions,
+                tweaks
+            )
+            substitutions.isNotEmpty() -> calculator.calculatePortionNutrition(
+                dish.dishLabel,
+                dish.weightGrams,
+                substitutions
+            )
+            else -> calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams)
         }
-    }
 
-    fun removeSubstitutionFromDish(dishIndex: Int, ingredientKey: String) {
-        updateDishCustomizations(dishIndex) { current ->
-            current.remove(ingredientKey)
+        return if ((substitutions.isNotEmpty() || tweaks.isNotEmpty()) && calculated == NutritionResult.ZERO) {
+            calculator.calculatePortionNutrition(dish.dishLabel, dish.weightGrams)
+        } else {
+            calculated
         }
-    }
-
-    private fun updateDishCustomizations(
-        dishIndex: Int,
-        transform: (MutableMap<String, String>) -> Unit
-    ) {
-        val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
-        val current = parseSubstitutionsJson(dish.substitutionsJson).toMutableMap()
-        transform(current)
-        applySubstitutionToDish(dishIndex, current)
     }
 
     /**
@@ -754,7 +832,7 @@ class ManualLogViewModel(
             val obj = org.json.JSONObject(json)
             val map = mutableMapOf<String, Float>()
             obj.keys().forEach { key -> map[key] = obj.getDouble(key).toFloat() }
-            map
+            normalizeTweaks(map)
         } catch (_: Exception) {
             emptyMap()
         }
@@ -763,6 +841,21 @@ class ManualLogViewModel(
     private fun substitutionsToJson(substitutions: Map<String, String>): String {
         if (substitutions.isEmpty()) return ""
         return org.json.JSONObject(substitutions as Map<*, *>).toString()
+    }
+
+    private fun tweaksToJson(tweaks: Map<String, Float>): String {
+        val normalized = normalizeTweaks(tweaks)
+        if (normalized.isEmpty()) return ""
+
+        val obj = org.json.JSONObject()
+        normalized.forEach { (key, value) ->
+            obj.put(key, value.toDouble())
+        }
+        return obj.toString()
+    }
+
+    private fun normalizeTweaks(tweaks: Map<String, Float>): Map<String, Float> {
+        return tweaks.filterValues { it.isFinite() && it > 0f && it != 1f }
     }
 
     private fun defaultWeightText(dish: DishRecipeEntity): String {

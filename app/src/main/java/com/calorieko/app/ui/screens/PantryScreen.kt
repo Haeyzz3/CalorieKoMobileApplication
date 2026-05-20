@@ -4154,7 +4154,7 @@ private fun getDishProofDocument(mlLabel: String, dataSource: String): DishProof
     val usdaUrls = mapOf(
         "chicken_drumstick" to "https://fdc.nal.usda.gov/food-details/171126/nutrients",
         "chicken_thigh" to "https://fdc.nal.usda.gov/food-details/171127/nutrients",
-        "chicken_wings" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
+        "chicken_wing" to "https://fdc.nal.usda.gov/food-details/172830/nutrients",
         "chicken_breast" to "https://fdc.nal.usda.gov/food-details/171125/nutrients"
     )
 
