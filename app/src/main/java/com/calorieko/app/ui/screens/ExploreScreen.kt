@@ -41,6 +41,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -49,6 +50,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -380,8 +382,14 @@ fun ExploreScreen(
                 onAddToPantry = {
                     viewModel.addCoreIngredientsToPantry(selectedDish.value!!.dishLabel)
                 },
-                onAddSingleIngredient = { ingredientKey ->
-                    viewModel.addSingleIngredientToPantry(ingredientKey)
+                onRemoveCoreIngredients = {
+                    viewModel.removeCoreIngredientsFromPantry(selectedDish.value!!.dishLabel)
+                },
+                onAddSingleIngredient = { ingredientKey, displayName ->
+                    viewModel.addSingleIngredientToPantry(ingredientKey, displayName)
+                },
+                onRemoveSingleIngredient = { ingredientKey, displayName ->
+                    viewModel.removeSingleIngredientFromPantry(ingredientKey, displayName)
                 }
             )
         }
@@ -546,6 +554,7 @@ private fun ExploreDishCard(
                 }
             }
         }
+
     }
 }
 
@@ -557,12 +566,26 @@ private fun ExploreDishDetailContent(
     pantryItems: List<String>,
     onClose: () -> Unit,
     onAddToPantry: () -> Unit,
-    onAddSingleIngredient: (String) -> Unit
+    onRemoveCoreIngredients: () -> Unit,
+    onAddSingleIngredient: (String, String) -> Unit,
+    onRemoveSingleIngredient: (String, String) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     var ingredientDetails by remember { mutableStateOf<List<IngredientInfo>>(emptyList()) }
     var isLoadingDetails by remember { mutableStateOf(true) }
-    var addedToPantry by remember { mutableStateOf(false) }
+    var ingredientPendingAdd by remember { mutableStateOf<IngredientInfo?>(null) }
+    var ingredientPendingRemoval by remember { mutableStateOf<IngredientInfo?>(null) }
+    var showCoreRemovalDialog by remember { mutableStateOf(false) }
+    val pantryItemSet = remember(pantryItems) {
+        pantryItems.map { it.trim().lowercase() }.toSet()
+    }
+    val coreKeys = remember(ingredientDetails) {
+        ingredientDetails
+            .filter { it.type == "core" }
+            .map { it.ingredientKey.trim().lowercase() }
+            .distinct()
+    }
+    val missingCoreCount = coreKeys.count { it !in pantryItemSet }
+    val allCoreInPantry = coreKeys.isNotEmpty() && missingCoreCount == 0
 
     // Load ingredient details on first composition
     LaunchedEffect(dish.dishLabel) {
@@ -924,7 +947,8 @@ private fun ExploreDishDetailContent(
             Spacer(modifier = Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ingredientDetails.forEach { detail ->
-                    val isInPantry = detail.ingredientKey in pantryItems
+                    val normalizedIngredientKey = detail.ingredientKey.trim().lowercase()
+                    val isInPantry = normalizedIngredientKey in pantryItemSet
                     val isCore = detail.type == "core"
                     val bgColor = if (isInPantry) Color(0xFFECFDF5) else Color(0xFFF9FAFB)
                     val iconColor = if (isInPantry) CalorieKoGreen else Color(0xFF9CA3AF)
@@ -933,11 +957,13 @@ private fun ExploreDishDetailContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(bgColor, RoundedCornerShape(8.dp))
-                            .then(
-                                if (!isInPantry) Modifier.clickable {
-                                    onAddSingleIngredient(detail.ingredientKey)
-                                } else Modifier
-                            )
+                            .clickable {
+                                if (isInPantry) {
+                                    ingredientPendingRemoval = detail
+                                } else {
+                                    ingredientPendingAdd = detail
+                                }
+                            }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -969,10 +995,11 @@ private fun ExploreDishDetailContent(
                             if (detail.portionQuantity.isNotBlank()) {
                                 Text(detail.portionQuantity, fontSize = 12.sp, color = Color(0xFF6B7280))
                             }
-                            // Tap hint for missing ingredients
-                            if (!isInPantry) {
-                                Text("Tap to add to pantry", fontSize = 10.sp, color = Color(0xFF9CA3AF))
-                            }
+                            Text(
+                                if (isInPantry) "Tap to remove from pantry" else "Tap to add to pantry",
+                                fontSize = 10.sp,
+                                color = Color(0xFF9CA3AF)
+                            )
                         }
                         // Core / Optional badge
                         Surface(
@@ -999,34 +1026,30 @@ private fun ExploreDishDetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Add Core Ingredients to Pantry Button
-        if (ingredientDetails.isNotEmpty()) {
-            val coreCount = ingredientDetails.count { it.type == "core" }
-            val coreInPantryCount = ingredientDetails.count { it.type == "core" && it.ingredientKey in pantryItems }
-            val missingCoreCount = coreCount - coreInPantryCount
-            val allCoreInPantry = missingCoreCount == 0
-
+        // Add / remove Core Ingredients to Pantry Button
+        if (coreKeys.isNotEmpty()) {
             Surface(
                 onClick = {
-                    if (!allCoreInPantry && !addedToPantry) {
+                    if (allCoreInPantry) {
+                        showCoreRemovalDialog = true
+                    } else {
                         onAddToPantry()
-                        addedToPantry = true
                     }
                 },
-                color = if (allCoreInPantry || addedToPantry) Color(0xFFECFDF5) else CalorieKoGreen,
+                color = if (allCoreInPantry) Color(0xFFFEE2E2) else CalorieKoGreen,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    if (allCoreInPantry || addedToPantry) {
+                    if (allCoreInPantry) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Close, null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                if (addedToPantry) "Added to Pantry!" else "All Core Ingredients in Pantry",
+                                "Remove All Core Ingredients from Pantry",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = CalorieKoGreen
+                                color = Color(0xFFDC2626)
                             )
                         }
                     } else {
@@ -1040,6 +1063,70 @@ private fun ExploreDishDetailContent(
                 }
             }
         }
+    }
+
+    ingredientPendingAdd?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { ingredientPendingAdd = null },
+            title = { Text("Add ingredient to pantry?") },
+            text = { Text("Add ${pending.name} to your pantry?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onAddSingleIngredient(pending.ingredientKey, pending.name)
+                    ingredientPendingAdd = null
+                }) {
+                    Text("Add", color = CalorieKoGreen, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ingredientPendingAdd = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    ingredientPendingRemoval?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { ingredientPendingRemoval = null },
+            title = { Text("Remove ingredient?") },
+            text = { Text("${pending.name} is already in your pantry. Remove it?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemoveSingleIngredient(pending.ingredientKey, pending.name)
+                    ingredientPendingRemoval = null
+                }) {
+                    Text("Remove", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ingredientPendingRemoval = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showCoreRemovalDialog) {
+        val dishName = dish.namePh.ifBlank { dish.nameEn }
+        AlertDialog(
+            onDismissRequest = { showCoreRemovalDialog = false },
+            title = { Text("Remove core ingredients?") },
+            text = { Text("Remove all ${coreKeys.size} core ingredients for $dishName from your pantry?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemoveCoreIngredients()
+                    showCoreRemovalDialog = false
+                }) {
+                    Text("Remove All", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCoreRemovalDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

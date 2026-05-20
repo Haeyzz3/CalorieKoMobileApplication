@@ -10,6 +10,7 @@ import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Represents a dish for display in the Explore screen.
@@ -138,6 +140,8 @@ class ExploreViewModel(
         loadAllDishes()
     }
 
+    private fun normalizePantryKey(value: String): String = value.trim().lowercase()
+
     private fun loadAllDishes() {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -220,25 +224,28 @@ class ExploreViewModel(
             val details = pantryDao.getIngredientDetailsForDish(dishLabel)
             val coreIngredients = details
                 .filter { it.ingredient_type == "core" }
-                .map { it.ingredient_name.trim().lowercase() }
+                .map { normalizePantryKey(it.ingredient_name) }
                 .distinct()
 
             // Check which ingredients are actually new (not already in pantry)
-            val currentPantry = pantryItems.value.map { it.lowercase() }.toSet()
+            val currentPantry = pantryItems.value.map { normalizePantryKey(it) }.toSet()
             val newIngredients = coreIngredients.filter { it !in currentPantry }
 
-            for (ingredient in coreIngredients) {
+            for (ingredient in newIngredients) {
                 pantryDao.insertItem(PantryItem(ingredientName = ingredient))
             }
-            if (uid.isNotEmpty() && coreIngredients.isNotEmpty()) {
-                firestoreSyncRepo.syncPantryItemsBatch(uid, coreIngredients)
+            if (uid.isNotEmpty() && newIngredients.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.syncPantryItemsBatch(uid, newIngredients) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
             }
 
             // Emit snackbar feedback
             val message = if (newIngredients.isEmpty()) {
                 "All ${coreIngredients.size} core ingredients already in Pantry"
             } else {
-                "✓ ${newIngredients.size} ingredient${if (newIngredients.size > 1) "s" else ""} added to Pantry"
+                "Added ${newIngredients.size} core ingredient${if (newIngredients.size > 1) "s" else ""} to Pantry"
             }
             _snackbarEvent.emit(message)
         }
@@ -248,15 +255,68 @@ class ExploreViewModel(
      * Adds a single ingredient to the user's pantry by its ingredient_key.
      * Skips if already present (INSERT IGNORE).
      */
-    fun addSingleIngredientToPantry(ingredientKey: String) {
-        val normalized = ingredientKey.trim().lowercase()
+    fun addSingleIngredientToPantry(ingredientKey: String, displayName: String = "") {
+        val normalized = normalizePantryKey(ingredientKey)
         if (normalized.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
             pantryDao.insertItem(PantryItem(ingredientName = normalized))
             if (uid.isNotEmpty()) {
-                firestoreSyncRepo.syncPantryItemsBatch(uid, listOf(normalized))
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.syncPantryItem(uid, normalized) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
             }
-            _snackbarEvent.emit("✓ Added to Pantry")
+            _snackbarEvent.emit("Added ${displayName.ifBlank { formatName(normalized) }} to Pantry")
+        }
+    }
+
+    /**
+     * Removes a single ingredient from the user's pantry by its ingredient_key.
+     */
+    fun removeSingleIngredientFromPantry(ingredientKey: String, displayName: String = "") {
+        val normalized = normalizePantryKey(ingredientKey)
+        if (normalized.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            pantryDao.deleteItem(normalized)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.deletePantryItem(uid, normalized) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
+            _snackbarEvent.emit("Removed ${displayName.ifBlank { formatName(normalized) }} from Pantry")
+        }
+    }
+
+    /**
+     * Removes all distinct CORE ingredients for a dish from the user's pantry.
+     */
+    fun removeCoreIngredientsFromPantry(dishLabel: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val coreIngredients = pantryDao.getIngredientDetailsForDish(dishLabel)
+                .filter { it.ingredient_type == "core" }
+                .map { normalizePantryKey(it.ingredient_name) }
+                .distinct()
+
+            if (coreIngredients.isEmpty()) return@launch
+
+            val currentPantry = pantryItems.value.map { normalizePantryKey(it) }.toSet()
+            val ingredientsToRemove = coreIngredients.filter { it in currentPantry }
+            if (ingredientsToRemove.isEmpty()) {
+                _snackbarEvent.emit("No core ingredients to remove from Pantry")
+                return@launch
+            }
+
+            pantryDao.deleteItems(ingredientsToRemove)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try {
+                        ingredientsToRemove.forEach { firestoreSyncRepo.deletePantryItem(uid, it) }
+                    } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
+            _snackbarEvent.emit("Removed ${ingredientsToRemove.size} core ingredient${if (ingredientsToRemove.size > 1) "s" else ""} from Pantry")
         }
     }
 
