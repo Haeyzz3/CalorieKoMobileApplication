@@ -3232,7 +3232,7 @@ private fun IngredientTweakStepper(
     onSelect: (Float) -> Unit
 ) {
     val steps = listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f)
-    val labels = listOf("0.25x", "0.5x", "1x", "1.5x", "2x", "3x", "4x")
+    val labels = listOf("0.25\u00d7", "0.5\u00d7", "1\u00d7", "1.5\u00d7", "2\u00d7", "3\u00d7", "4\u00d7")
 
     Text(
         "Adjust amount",
