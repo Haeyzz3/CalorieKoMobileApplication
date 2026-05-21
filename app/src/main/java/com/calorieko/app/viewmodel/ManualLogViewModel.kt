@@ -559,6 +559,7 @@ class ManualLogViewModel(
 
     /** Applies substitutions to a dish and recalculates its nutrition. */
     fun applySubstitutionToDish(dishIndex: Int, substitutions: Map<String, String>) {
+        if (_isPlannedQuickLog.value) return
         val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
         val sanitizedSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
         val tweaks = parseTweaksJson(dish.tweaksJson)
@@ -567,6 +568,7 @@ class ManualLogViewModel(
     }
 
     fun removeIngredientFromDish(dishIndex: Int, ingredientKey: String) {
+        if (_isPlannedQuickLog.value) return
         if (RecipeCustomizationRules.isProtectedBaseIngredient(ingredientKey)) return
         updateDishCustomizations(dishIndex) { current, tweaks ->
             current[ingredientKey] = REMOVED_INGREDIENT
@@ -575,6 +577,7 @@ class ManualLogViewModel(
     }
 
     fun removeSubstitutionFromDish(dishIndex: Int, ingredientKey: String) {
+        if (_isPlannedQuickLog.value) return
         updateDishCustomizations(dishIndex) { current, _ ->
             current.remove(ingredientKey)
         }
@@ -585,6 +588,7 @@ class ManualLogViewModel(
         ingredientKey: String,
         multiplier: Float
     ) {
+        if (_isPlannedQuickLog.value) return
         updateDishCustomizations(dishIndex) { substitutions, tweaks ->
             if (substitutions[ingredientKey] != REMOVED_INGREDIENT) {
                 if (!multiplier.isFinite() || multiplier <= 0f || multiplier == 1f) {
@@ -601,6 +605,7 @@ class ManualLogViewModel(
     }
 
     fun clearIngredientTweaksFromDish(dishIndex: Int) {
+        if (_isPlannedQuickLog.value) return
         val dish = _loggedDishes.value.getOrNull(dishIndex) ?: return
         applyCustomizationsToDish(
             dishIndex = dishIndex,

@@ -1138,7 +1138,8 @@ private fun WeightInputContent(
     onAddDish: () -> Unit,
     actionText: String = "Add Dish",
     progressText: String? = null,
-    dishLabelFallback: String = ""
+    dishLabelFallback: String = "",
+    showDefaultServingPrefillHint: Boolean = true
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val scrollState = rememberScrollState()
@@ -1152,6 +1153,10 @@ private fun WeightInputContent(
     val secondaryName = dish?.nameEn?.takeIf { it.isNotBlank() && it != primaryName }
     val category = dish?.category ?: "Planned meal"
     val caloriesPerServing = dish?.calPerServing ?: 0f
+    val defaultServingWeightText = dish?.let { defaultServingWeightText(it) }.orEmpty()
+    val showDefaultServingHint = showDefaultServingPrefillHint &&
+        defaultServingWeightText.isNotEmpty() &&
+        weightText == defaultServingWeightText
 
     Column(
         modifier = Modifier
@@ -1266,10 +1271,10 @@ private fun WeightInputContent(
                     suffix = { Text("g", color = Color.Gray, fontSize = 13.sp) },
                     singleLine = true
                 )
-                if (isValid) {
+                if (showDefaultServingHint) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Total logged: ${parsedWeight.roundToInt()}g",
+                        "Default serving prefilled. Edit if your portion is different.",
                         fontSize = 12.sp,
                         color = Color(0xFF6B7280)
                     )
@@ -1310,7 +1315,7 @@ private fun WeightInputContent(
                         color = Color.White
                     )
                     Text(
-                        "kcal  -  ${parsedWeight.roundToInt()}g",
+                        "Estimated for entered weight",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
@@ -1675,8 +1680,8 @@ private fun ManualMealSummaryOverlay(
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    "Pantry recipe substitutions are preserved from the plan. " +
-                                        "Ingredient amounts can be adjusted here for this logged meal only.",
+                                    "Further adjustments cannot be made to planned meals here. " +
+                                        "Please modify your planned meals in the Pantry prior to logging.",
                                     fontSize = 12.sp,
                                     color = Color(0xFF1E40AF),
                                     lineHeight = 16.sp
@@ -1784,11 +1789,11 @@ private fun ManualMealSummaryOverlay(
                         IngredientTweaksBanner(
                             tweakCount = activeTweaks.size,
                             message = if (isPlannedMeal) {
-                                "Adjusted for this log only"
+                                "Saved from Pantry"
                             } else {
                                 "Nutrition updated for this logged portion"
                             },
-                            onClear = {
+                            onClear = if (isPlannedMeal) null else {
                                 manualViewModel.clearIngredientTweaksFromDish(ingredientSheetDishIndex)
                                 activeTweaks = emptyMap()
                             }
@@ -1915,7 +1920,7 @@ private fun ManualMealSummaryOverlay(
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Pantry substitutions are preserved. Ingredient amounts can be adjusted for this log only.",
+                                    "Planned meal customizations are locked here. Modify this recipe in Pantry before logging.",
                                     fontSize = 11.sp,
                                     color = Color(0xFF9A3412),
                                     lineHeight = 14.sp
@@ -1937,9 +1942,10 @@ private fun ManualMealSummaryOverlay(
                         val hasSubstitutionAlternatives = ingredientHasAlternatives[originalIngredientKey] == true
                         val tweakMultiplier = activeTweaks[originalIngredientKey] ?: 1f
                         val isTweaked = !isRemoved && tweakMultiplier != 1f
-                        val canTweak = !isRemoved && !PortionScaler.isQualitative(ing.portionQuantity)
+                        val canScalePortion = !isRemoved && !PortionScaler.isQualitative(ing.portionQuantity)
+                        val canTweak = !isPlannedMeal && canScalePortion
                         val displayPortion = when {
-                            ing.portionQuantity.isNotBlank() && canTweak -> PortionScaler.scale(ing.portionQuantity, tweakMultiplier)
+                            ing.portionQuantity.isNotBlank() && canScalePortion -> PortionScaler.scale(ing.portionQuantity, tweakMultiplier)
                             ing.portionQuantity.isNotBlank() -> ing.portionQuantity
                             else -> "${(ing.rawWeightGrams * tweakMultiplier).toInt()}g raw"
                         }
@@ -3190,7 +3196,7 @@ private fun NoIngredientBreakdownState() {
 private fun IngredientTweaksBanner(
     tweakCount: Int,
     message: String,
-    onClear: () -> Unit
+    onClear: (() -> Unit)?
 ) {
     Surface(
         color = Color(0xFFF5F3FF),
@@ -3222,18 +3228,20 @@ private fun IngredientTweaksBanner(
                     color = Color(0xFF7C3AED)
                 )
             }
-            Surface(
-                onClick = onClear,
-                color = Color(0xFF7C3AED).copy(alpha = 0.12f),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    "Reset",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7C3AED),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                )
+            if (onClear != null) {
+                Surface(
+                    onClick = onClear,
+                    color = Color(0xFF7C3AED).copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "Reset",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF7C3AED),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
             }
         }
     }
@@ -3563,7 +3571,8 @@ private fun PlannedManualWeightContent(
                 onAddDish = onAddWeight,
                 actionText = "Use This Weight",
                 progressText = progressText,
-                dishLabelFallback = entry.dishLabel
+                dishLabelFallback = entry.dishLabel,
+                showDefaultServingPrefillHint = false
             )
         }
     }
@@ -3741,4 +3750,17 @@ private fun sanitizeDecimalInput(value: String): String {
         }
     }
     return builder.toString().take(6)
+}
+
+private fun defaultServingWeightText(dish: DishRecipeEntity): String {
+    val defaultWeight = when {
+        dish.perServingWeightG > 0f -> dish.perServingWeightG
+        dish.servings > 0 -> dish.cookedWeightG / dish.servings
+        else -> 0f
+    }
+    return if (defaultWeight > 0f) {
+        String.format(java.util.Locale.US, "%.0f", defaultWeight)
+    } else {
+        ""
+    }
 }
