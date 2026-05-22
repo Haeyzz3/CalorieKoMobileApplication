@@ -1793,10 +1793,10 @@ private fun ManualMealSummaryOverlay(
                             } else {
                                 "Nutrition updated for this logged portion"
                             },
-                            onClear = if (isPlannedMeal) null else {
+                            onClear = if (isPlannedMeal) null else ({
                                 manualViewModel.clearIngredientTweaksFromDish(ingredientSheetDishIndex)
                                 activeTweaks = emptyMap()
-                            }
+                            })
                         )
                         Spacer(Modifier.height(12.dp))
                     }
