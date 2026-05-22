@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
+import com.calorieko.app.ui.components.NutrientUnits
 import com.calorieko.app.ui.theme.*
 
 private data class NutrientRow(
@@ -64,7 +65,7 @@ private fun NutrientsDayView(
         NutrientRow("Fat",                 daySummary?.totalFat ?: 0f,                targets?.targetFats?.toFloat() ?: 65f,    "g"),
         NutrientRow("Sodium",              daySummary?.totalSodium ?: 0f,             targets?.targetSodium?.toFloat() ?: 2300f,  "mg"),
         NutrientRow("Potassium",           daySummary?.totalPotassium ?: 0f,          targets?.targetPotassium?.toFloat() ?: 3500f, "mg"),
-        NutrientRow("Vitamin A",           daySummary?.totalVitaminA ?: 0f,           targets?.targetVitaminA?.toFloat() ?: 900f,           "µg"),
+        NutrientRow("Vitamin A",           daySummary?.totalVitaminA ?: 0f,           targets?.targetVitaminA?.toFloat() ?: 900f,           NutrientUnits.VITAMIN_A),
         NutrientRow("Vitamin C",           daySummary?.totalVitaminC ?: 0f,           targets?.targetVitaminC?.toFloat() ?: 90f,            "mg"),
         NutrientRow("Calcium",             daySummary?.totalCalcium ?: 0f,            targets?.targetCalcium?.toFloat() ?: 1000f,          "mg"),
         NutrientRow("Iron",                daySummary?.totalIron ?: 0f,               targets?.targetIron?.toFloat() ?: 18f,            "mg")
@@ -100,7 +101,7 @@ private fun NutrientsWeekView(
         NutrientRow("Fat",                 avgOf { it.totalFat },                targets?.targetFats?.toFloat() ?: 65f,    "g"),
         NutrientRow("Sodium",              avgOf { it.totalSodium },             targets?.targetSodium?.toFloat() ?: 2300f,  "mg"),
         NutrientRow("Potassium",           avgOf { it.totalPotassium },          targets?.targetPotassium?.toFloat() ?: 3500f, "mg"),
-        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           targets?.targetVitaminA?.toFloat() ?: 900f,           "µg"),
+        NutrientRow("Vitamin A",           avgOf { it.totalVitaminA },           targets?.targetVitaminA?.toFloat() ?: 900f,           NutrientUnits.VITAMIN_A),
         NutrientRow("Vitamin C",           avgOf { it.totalVitaminC },           targets?.targetVitaminC?.toFloat() ?: 90f,            "mg"),
         NutrientRow("Calcium",             avgOf { it.totalCalcium },            targets?.targetCalcium?.toFloat() ?: 1000f,          "mg"),
         NutrientRow("Iron",                avgOf { it.totalIron },               targets?.targetIron?.toFloat() ?: 18f,            "mg")
@@ -307,7 +308,7 @@ private fun NutrientTableHeader(valueColumnHeader: String) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = SubtleText,
-            modifier = Modifier.width(88.dp)
+            modifier = Modifier.width(112.dp)
         )
     }
 }
@@ -370,7 +371,7 @@ private fun NutrientItemRow(nutrient: NutrientRow) {
                 color = if (left < 0) CalorieKoOrange else SubtleText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(88.dp)
+                modifier = Modifier.width(112.dp)
             )
         }
 

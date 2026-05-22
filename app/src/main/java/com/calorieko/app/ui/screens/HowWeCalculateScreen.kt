@@ -309,7 +309,7 @@ fun HowWeCalculateScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 BulletPoint(title = "Potassium", body = "mg \u2014 adequate intake target")
                 Spacer(modifier = Modifier.height(4.dp))
-                BulletPoint(title = "Vitamin A", body = "\u00b5g \u2014 recommended daily intake")
+                BulletPoint(title = "Vitamin A", body = "mcg RAE - recommended daily intake")
                 Spacer(modifier = Modifier.height(4.dp))
                 BulletPoint(title = "Vitamin C", body = "mg \u2014 recommended daily intake")
                 Spacer(modifier = Modifier.height(4.dp))

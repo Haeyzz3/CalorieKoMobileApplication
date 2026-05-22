@@ -47,7 +47,7 @@ fun ExpandableNutrientGrid(
         Triple("Sugar",               "${sugar.fmt()}g",              Color(0xFFF59E0B)),
         Triple("Sodium",              "${sodium.fmt()}mg",            Color(0xFFF97316)),
         Triple("Potassium",           "${potassium.fmt()}mg",         Color(0xFF14B8A6)),
-        Triple("Vitamin A",           "${vitaminA.fmt()}µg",          Color(0xFFEAB308)),
+        Triple("Vitamin A",           "${vitaminA.fmt()} ${NutrientUnits.VITAMIN_A}", Color(0xFFEAB308)),
         Triple("Vitamin C",           "${vitaminC.fmt()}mg",          Color(0xFF22C55E)),
         Triple("Calcium",             "${calcium.fmt()}mg",           Color(0xFF0EA5E9)),
         Triple("Iron",                "${iron.fmt()}mg",              Color(0xFF78716C))

@@ -101,6 +101,7 @@ import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.local.IngredientNutritionBreakdown
 import androidx.compose.runtime.LaunchedEffect
 import com.calorieko.app.ui.components.BottomNavigation
+import com.calorieko.app.ui.components.NutrientUnits
 import com.calorieko.app.ui.components.SimpleFlowRow
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
@@ -3025,7 +3026,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
                         // Vitamins
                         NutrientCategoryHeader("💊 Vitamins")
-                        NutrientDetailRow("Vitamin A", "${formatNutrientValue(effectiveVitaminA)} µg")
+                        NutrientDetailRow("Vitamin A", "${formatNutrientValue(effectiveVitaminA)} ${NutrientUnits.VITAMIN_A}")
                         NutrientDetailRow("Vitamin C", "${formatNutrientValue(effectiveVitaminC)} mg")
                     }
                 }
@@ -4689,7 +4690,7 @@ private fun IngredientBrowserRow(
                             "Sugar" to "${String.format("%.1f", ingredient.sugar)}g",
                             "Sodium" to "${String.format("%.0f", ingredient.sodium)}mg",
                             "Potassium" to "${String.format("%.0f", ingredient.potassium)}mg",
-                            "Vitamin A" to "${String.format("%.0f", ingredient.vitaminA)} µg",
+                            "Vitamin A" to "${String.format("%.0f", ingredient.vitaminA)} ${NutrientUnits.VITAMIN_A}",
                             "Vitamin C" to "${String.format("%.1f", ingredient.vitaminC)}mg",
                             "Calcium" to "${String.format("%.0f", ingredient.calcium)}mg",
                             "Iron" to "${String.format("%.2f", ingredient.iron)}mg"

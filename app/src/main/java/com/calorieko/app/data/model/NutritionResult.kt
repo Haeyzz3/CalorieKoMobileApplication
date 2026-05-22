@@ -9,7 +9,7 @@ package com.calorieko.app.data.model
  * - calories: kcal
  * - protein, carbs, fat, fiber, sugar: grams (g)
  * - sodium, potassium, calcium: milligrams (mg)
- * - vitaminA: micrograms (µg RAE)
+ * - vitaminA: micrograms (mcg RAE)
  * - vitaminC: milligrams (mg)
  * - iron: milligrams (mg)
  */

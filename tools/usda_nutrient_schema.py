@@ -36,7 +36,7 @@ NUTRIENT_UNITS = {
     "sugar": "g",
     "sodium": "mg",
     "potassium": "mg",
-    "vitamin_a": "µg RAE",
+    "vitamin_a": "mcg RAE",
     "vitamin_c": "mg",
     "calcium": "mg",
     "iron": "mg",

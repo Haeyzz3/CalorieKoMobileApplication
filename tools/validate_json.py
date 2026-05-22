@@ -59,7 +59,7 @@ for key, expected in sentinels.items():
     nutrients = item.get("nutrients_per_100g", {})
     actual = nutrients.get("vitamin_a")
     if item.get("fdc_id") == expected["fdc_id"] and actual != expected["vitamin_a"]:
-        errors.append(f"{key} vitamin_a={actual}; expected {expected['vitamin_a']} µg RAE")
+        errors.append(f"{key} vitamin_a={actual}; expected {expected['vitamin_a']} mcg RAE")
     if actual in expected["bad_values"]:
         errors.append(f"{key} vitamin_a={actual}; appears to be an obsolete international-unit value")
 

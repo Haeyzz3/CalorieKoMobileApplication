@@ -32,10 +32,10 @@ data class FoodItem(
     @ColumnInfo(name = "trans_fat_per_100g") val transFatPer100g: Float = 0f, // in g
     @ColumnInfo(name = "cholesterol_per_100g") val cholesterolPer100g: Float = 0f, // in mg
 
-    // Minerals & Vitamins (mg and µg)
+    // Minerals & Vitamins (mg and mcg)
     @ColumnInfo(name = "sodium_per_100g") val sodiumPer100g: Float = 0f, // in mg
     @ColumnInfo(name = "potassium_per_100g") val potassiumPer100g: Float = 0f, // in mg
-    @ColumnInfo(name = "vitamin_a_per_100g") val vitaminAPer100g: Float = 0f, // in µg
+    @ColumnInfo(name = "vitamin_a_per_100g") val vitaminAPer100g: Float = 0f, // in mcg RAE
     @ColumnInfo(name = "vitamin_c_per_100g") val vitaminCPer100g: Float = 0f, // in mg
     @ColumnInfo(name = "calcium_per_100g") val calciumPer100g: Float = 0f, // in mg
     @ColumnInfo(name = "iron_per_100g") val ironPer100g: Float = 0f, // in mg
