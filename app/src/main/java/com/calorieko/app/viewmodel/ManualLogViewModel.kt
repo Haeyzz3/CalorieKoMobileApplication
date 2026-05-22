@@ -159,6 +159,9 @@ class ManualLogViewModel(
     private val _isConfirming = MutableStateFlow(false)
     val isConfirming: StateFlow<Boolean> = _isConfirming.asStateFlow()
 
+    private val _isAddingDish = MutableStateFlow(false)
+    val isAddingDish: StateFlow<Boolean> = _isAddingDish.asStateFlow()
+
     private var plannedWeightStabilizationJob: Job? = null
     private var plannedStabilizationTargetWeight = 0f
     private val plannedWeightTolerance = 3.0f
@@ -204,7 +207,7 @@ class ManualLogViewModel(
             }
 
             _allDishes.value = dishes + adminDishes
-            _filteredDishes.value = dishes + adminDishes
+            recomputeFilteredDishes()
         }
     }
 
@@ -222,12 +225,21 @@ class ManualLogViewModel(
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
+        recomputeFilteredDishes()
+    }
+
+    private fun recomputeFilteredDishes() {
         val all = _allDishes.value
-        if (query.isBlank()) {
-            _filteredDishes.value = all
+        val loggedLabels = _loggedDishes.value
+            .mapNotNull { it.dishLabel.takeIf { label -> label.isNotBlank() } }
+            .toSet()
+        val available = all.filterNot { it.dishLabel in loggedLabels }
+        val query = _searchQuery.value
+        _filteredDishes.value = if (query.isBlank()) {
+            available
         } else {
             val lower = query.lowercase()
-            _filteredDishes.value = all.filter {
+            available.filter {
                 it.nameEn.lowercase().contains(lower) ||
                 it.namePh.lowercase().contains(lower) ||
                 it.category.lowercase().contains(lower)
@@ -236,6 +248,7 @@ class ManualLogViewModel(
     }
 
     fun selectDish(dish: DishRecipeEntity) {
+        if (isDishAlreadyLogged(dish.dishLabel)) return
         _selectedDish.value = dish
         _manualWeightText.value = defaultWeightText(dish)
     }
@@ -255,10 +268,17 @@ class ManualLogViewModel(
      * Resets selection state for multi-dish entry.
      */
     fun addDish() {
+        if (_isAddingDish.value) return
         val recipe = _selectedDish.value ?: return
         val weightGrams = _manualWeightText.value.toFloatOrNull() ?: return
         if (weightGrams <= 0f) return
+        if (isDishAlreadyLogged(recipe.dishLabel)) {
+            clearSelectedDish()
+            recomputeFilteredDishes()
+            return
+        }
 
+        _isAddingDish.value = true
         viewModelScope.launch {
             // Fix: Use DishRecipeDao existence check (not calories == 0f) to determine
             // whether this dish has System B (USDA) ingredient-level nutrition data.
@@ -317,17 +337,26 @@ class ManualLogViewModel(
                 calcium = nutrients.calcium,
                 iron = nutrients.iron
             )
-            _loggedDishes.update { it + dish }
+            _loggedDishes.update { current ->
+                if (current.any { it.dishLabel == recipe.dishLabel }) current else current + dish
+            }
 
             // Reset for next dish
             _selectedDish.value = null
             _manualWeightText.value = ""
+            recomputeFilteredDishes()
+        }.invokeOnCompletion {
+            _isAddingDish.value = false
         }
     }
 
     fun removeDish(index: Int) {
         _loggedDishes.update { list -> list.filterIndexed { i, _ -> i != index } }
+        recomputeFilteredDishes()
     }
+
+    private fun isDishAlreadyLogged(dishLabel: String): Boolean =
+        dishLabel.isNotBlank() && _loggedDishes.value.any { it.dishLabel == dishLabel }
 
     fun updateMealType(type: String) {
         _mealType.value = type
@@ -381,6 +410,7 @@ class ManualLogViewModel(
         _manualWeightText.value = ""
         _plannedManualWeightText.value = ""
         resetPlannedScaleState()
+        recomputeFilteredDishes()
         refreshCurrentPlannedRecipe()
     }
 

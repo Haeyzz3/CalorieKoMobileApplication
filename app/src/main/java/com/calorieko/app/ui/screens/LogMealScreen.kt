@@ -384,7 +384,6 @@ fun LogMealScreenWithManual(
                 classifier = classifier,
                 bleScaleManager = bleScaleManager,
                 onBack = { viewModel.setPhase(LogMealPhase.MODE_SELECTION) },
-                onMealConfirmed = onMealConfirmed,
                 onNavigateToPairing = onNavigateToPairing
             )
         }
@@ -401,19 +400,9 @@ private fun AiScaleMealContent(
     classifier: CalorieKoClassifier,
     bleScaleManager: BleScaleManager,
     onBack: () -> Unit,
-    onMealConfirmed: () -> Unit,
     onNavigateToPairing: () -> Unit = {}
 ) {
     val context = LocalContext.current
-
-    // Collect one-shot navigation events from the ViewModel
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                LogMealEvent.MealConfirmed -> onMealConfirmed()
-            }
-        }
-    }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -454,7 +443,9 @@ private fun AiScaleMealContent(
     val currentDetectedFood by viewModel.currentDetectedFood.collectAsState()
     val showUnsupportedBanner by viewModel.showUnsupportedBanner.collectAsState()
     val showLogFailedBanner by viewModel.showLogFailedBanner.collectAsState()
+    val showDuplicateDishBanner by viewModel.showDuplicateDishBanner.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val isLoggingDish by viewModel.isLoggingDish.collectAsState()
     val showCandidateSelection by viewModel.showCandidateSelection.collectAsState()
     val candidate1 by viewModel.candidate1.collectAsState()
     val candidate2 by viewModel.candidate2.collectAsState()
@@ -808,7 +799,8 @@ private fun AiScaleMealContent(
                 weight = weight,
                 estimatedCalories = pendingCaloriesEst,
                 onLogDish = { viewModel.logCurrentDish() },
-                onCancel = { viewModel.cancelDishReady() }
+                onCancel = { viewModel.cancelDishReady() },
+                isLogging = isLoggingDish
             )
         }
 
@@ -817,6 +809,8 @@ private fun AiScaleMealContent(
             CandidateSelectionSheet(
                 candidate1 = candidate1!!,
                 candidate2 = candidate2!!,
+                candidate1Enabled = loggedDishes.none { it.dishLabel == candidate1!!.first.dishLabel },
+                candidate2Enabled = loggedDishes.none { it.dishLabel == candidate2!!.first.dishLabel },
                 onSelect = { food, conf -> viewModel.onCandidateSelected(food, conf) },
                 onCancel = { viewModel.cancelCandidateSelection() }
             )
@@ -860,7 +854,45 @@ private fun AiScaleMealContent(
             }
         }
 
-        // 10. Inline log-failed banner
+        // 10. Inline duplicate-dish banner
+        AnimatedVisibility(
+            visible = showDuplicateDishBanner,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 160.dp, start = 24.dp, end = 24.dp)
+        ) {
+            Surface(
+                color = Color(0xFF2563EB).copy(alpha = 0.94f),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.hideDuplicateDishBanner() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "This dish is already logged for this meal",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // 11. Inline log-failed banner
         AnimatedVisibility(
             visible = showLogFailedBanner,
             enter = slideInVertically { -it },
@@ -921,6 +953,7 @@ private fun ManualMealContent(
     val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
 
     val isConfirming by viewModel.isConfirming.collectAsState()
+    val isAddingDish by viewModel.isAddingDish.collectAsState()
 
     if (showPantryDeduction && pantryDeductionItems.isNotEmpty()) {
         PantryDeductionScreen(
@@ -997,7 +1030,8 @@ private fun ManualMealContent(
                     weightText = manualWeightText,
                     onWeightChange = { viewModel.updateWeightText(it) },
                     onChangeDish = { viewModel.clearSelectedDish() },
-                    onAddDish = { viewModel.addDish() }
+                    onAddDish = { viewModel.addDish() },
+                    isAdding = isAddingDish
                 )
             }
 
@@ -1066,6 +1100,43 @@ private fun DishSelectionContent(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (filteredDishes.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Restaurant,
+                            contentDescription = null,
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            if (searchQuery.isBlank()) {
+                                "All available dishes have already been logged"
+                            } else {
+                                "No available dishes match your search"
+                            },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF6B7280),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Remove a dish from the summary to select it again.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9CA3AF),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
             items(filteredDishes, key = { it.dishLabel }) { dish ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
@@ -1139,7 +1210,8 @@ private fun WeightInputContent(
     actionText: String = "Add Dish",
     progressText: String? = null,
     dishLabelFallback: String = "",
-    showDefaultServingPrefillHint: Boolean = true
+    showDefaultServingPrefillHint: Boolean = true,
+    isAdding: Boolean = false
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val scrollState = rememberScrollState()
@@ -1328,7 +1400,7 @@ private fun WeightInputContent(
         // Add Dish button
         Button(
             onClick = onAddDish,
-            enabled = isValid,
+            enabled = isValid && !isAdding,
             colors = ButtonDefaults.buttonColors(
                 containerColor = CalorieKoOrange,
                 disabledContainerColor = Color(0xFFD1D5DB)
@@ -1341,7 +1413,7 @@ private fun WeightInputContent(
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                actionText,
+                if (isAdding) "Adding..." else actionText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -2181,6 +2253,8 @@ private fun ManualMealSummaryOverlay(
 private fun CandidateSelectionSheet(
     candidate1: Pair<com.calorieko.app.data.model.DishRecipeEntity, Float>,
     candidate2: Pair<com.calorieko.app.data.model.DishRecipeEntity, Float>,
+    candidate1Enabled: Boolean,
+    candidate2Enabled: Boolean,
     onSelect: (com.calorieko.app.data.model.DishRecipeEntity, Float) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -2225,20 +2299,44 @@ private fun CandidateSelectionSheet(
 
                 Button(
                     onClick = { onSelect(candidate1.first, candidate1.second) },
-                    colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen),
+                    enabled = candidate1Enabled,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CalorieKoGreen,
+                        disabledContainerColor = Color(0xFFD1D5DB)
+                    ),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
-                    Text("${candidate1.first.namePh} (${(candidate1.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        if (candidate1Enabled) {
+                            "${candidate1.first.namePh} (${(candidate1.second * 100).toInt()}%)"
+                        } else {
+                            "${candidate1.first.namePh} - Already logged"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = { onSelect(candidate2.first, candidate2.second) },
-                    colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                    enabled = candidate2Enabled,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CalorieKoOrange,
+                        disabledContainerColor = Color(0xFFD1D5DB)
+                    ),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
-                    Text("${candidate2.first.namePh} (${(candidate2.second * 100).toInt()}%)", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        if (candidate2Enabled) {
+                            "${candidate2.first.namePh} (${(candidate2.second * 100).toInt()}%)"
+                        } else {
+                            "${candidate2.first.namePh} - Already logged"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
                 Spacer(Modifier.height(16.dp))
                 Button(
@@ -2263,7 +2361,8 @@ private fun DishReadySheet(
     weight: Float,
     estimatedCalories: Float,
     onLogDish: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    isLogging: Boolean = false
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -2323,17 +2422,23 @@ private fun DishReadySheet(
                 // Buttons
                 Button(
                     onClick = onLogDish,
+                    enabled = !isLogging,
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
                     Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Log This Dish", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        if (isLogging) "Logging..." else "Log This Dish",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onCancel,
+                    enabled = !isLogging,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3F4F6), contentColor = Color(0xFF374151)),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(48.dp)

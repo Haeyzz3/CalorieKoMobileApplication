@@ -84,8 +84,14 @@ class LogMealViewModel(
     private val _showLogFailedBanner = MutableStateFlow(false)
     val showLogFailedBanner: StateFlow<Boolean> = _showLogFailedBanner.asStateFlow()
 
+    private val _showDuplicateDishBanner = MutableStateFlow(false)
+    val showDuplicateDishBanner: StateFlow<Boolean> = _showDuplicateDishBanner.asStateFlow()
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
+    private val _isLoggingDish = MutableStateFlow(false)
+    val isLoggingDish: StateFlow<Boolean> = _isLoggingDish.asStateFlow()
     
     private val _isScaleConnected = MutableStateFlow(false)
     val isScaleConnected: StateFlow<Boolean> = _isScaleConnected.asStateFlow()
@@ -125,6 +131,7 @@ class LogMealViewModel(
     val showPantryDeduction: StateFlow<Boolean> = _showPantryDeduction.asStateFlow()
 
     private var weightStabilizationJob: Job? = null
+    private var currentDetectedFoodJob: Job? = null
     private var stabilizationTargetWeight = 0f
     private val WEIGHT_TOLERANCE = 3.0f // Allow +/- 3 grams of noise
 
@@ -188,13 +195,16 @@ class LogMealViewModel(
             _topLabel.value = newTopLabel
             _topConfidence.value = results[0].second
 
-            viewModelScope.launch {
+            currentDetectedFoodJob?.cancel()
+            currentDetectedFoodJob = viewModelScope.launch {
                 val dish = if (newTopLabel.isNotEmpty() && newTopLabel != "negative") {
                     withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(newTopLabel) }
                 } else {
                     null
                 }
-                _currentDetectedFood.value = dish
+                if (_topLabel.value == newTopLabel) {
+                    _currentDetectedFood.value = dish
+                }
             }
         }
     }
@@ -204,21 +214,22 @@ class LogMealViewModel(
     }
 
     fun processCapture() {
+        if (_isProcessing.value) return
         val results = _latestResults.value
         val currentWeight = _weight.value
         if (results.isEmpty() || !_weightStable.value || currentWeight <= 0f) return
 
-        val top1 = results.getOrNull(0)
+        val top1 = results[0]
         val top2 = results.getOrNull(1)
 
-        if (top1 != null && top1.first == "negative" && top1.second >= CONFIDENCE_THRESHOLD) {
+        if (top1.first == "negative" && top1.second >= CONFIDENCE_THRESHOLD) {
             triggerUnsupportedBanner()
             return
         }
 
+        _isProcessing.value = true
         viewModelScope.launch {
-            _isProcessing.value = true
-            val dish1 = top1?.let { withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(it.first) } }
+            val dish1 = withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(top1.first) }
 
             if (dish1 == null) {
                 triggerUnsupportedBanner()
@@ -226,30 +237,49 @@ class LogMealViewModel(
                 return@launch
             }
 
-            // Use the new calculator for the calorie estimate
-            val calEst = withContext(Dispatchers.IO) {
-                calculator.calculatePortionNutrition(dish1.dishLabel, currentWeight).calories
-            }
-
             if (top1.second >= 0.80f) {
+                if (isDishAlreadyLogged(dish1.dishLabel)) {
+                    triggerDuplicateDishBanner()
+                    _isProcessing.value = false
+                    return@launch
+                }
+                // Use the new calculator for the calorie estimate
+                val calEst = withContext(Dispatchers.IO) {
+                    calculator.calculatePortionNutrition(dish1.dishLabel, currentWeight).calories
+                }
                 setDishReady(dish1.dishLabel, dish1.namePh, dish1.nameEn, top1.second, calEst)
             } else if (top2 != null && (top1.second - top2.second) <= 0.40f && top1.second > 0.10f) {
                 val dish2 = withContext(Dispatchers.IO) { dishRecipeDao.getByDishLabel(top2.first) }
                 if (dish2 != null) {
+                    if (isDishAlreadyLogged(dish1.dishLabel) && isDishAlreadyLogged(dish2.dishLabel)) {
+                        triggerDuplicateDishBanner()
+                        _isProcessing.value = false
+                        return@launch
+                    }
                     _candidate1.value = Pair(dish1, top1.second)
                     _candidate2.value = Pair(dish2, top2.second)
                     _showCandidateSelection.value = true
+                } else if (isDishAlreadyLogged(dish1.dishLabel)) {
+                    triggerDuplicateDishBanner()
                 } else {
+                    val calEst = withContext(Dispatchers.IO) {
+                        calculator.calculatePortionNutrition(dish1.dishLabel, currentWeight).calories
+                    }
                     setDishReady(dish1.dishLabel, dish1.namePh, dish1.nameEn, top1.second, calEst)
                 }
+            } else if (isDishAlreadyLogged(dish1.dishLabel)) {
+                triggerDuplicateDishBanner()
             } else {
                 triggerUnsupportedBanner()
             }
+            _isProcessing.value = false
+        }.invokeOnCompletion {
             _isProcessing.value = false
         }
     }
 
     private fun triggerUnsupportedBanner() {
+        _showDuplicateDishBanner.value = false
         _showUnsupportedBanner.value = true
         viewModelScope.launch {
             delay(5000)
@@ -267,6 +297,11 @@ class LogMealViewModel(
     }
 
     fun onCandidateSelected(dish: DishRecipeEntity, confidence: Float) {
+        if (isDishAlreadyLogged(dish.dishLabel)) {
+            triggerDuplicateDishBanner()
+            resetScanningVariables()
+            return
+        }
         viewModelScope.launch {
             val calEst = withContext(Dispatchers.IO) {
                 calculator.calculatePortionNutrition(dish.dishLabel, _weight.value).calories
@@ -282,6 +317,7 @@ class LogMealViewModel(
     }
 
     fun logCurrentDish() {
+        if (_isLoggingDish.value) return
         val dishLabel = _pendingDishLabel.value
         val dishName = _pendingDishName.value
         val confidence = _pendingConfidence.value
@@ -291,7 +327,13 @@ class LogMealViewModel(
             triggerLogFailedBanner()
             return
         }
+        if (isDishAlreadyLogged(dishLabel)) {
+            triggerDuplicateDishBanner()
+            resetScanningVariables()
+            return
+        }
 
+        _isLoggingDish.value = true
         viewModelScope.launch {
             val w = currentWeight
             // Use the new calculator to compute all nutrients at once
@@ -324,8 +366,12 @@ class LogMealViewModel(
                 calcium = nutrients.calcium,
                 iron = nutrients.iron
             )
-            _loggedDishes.update { it + loggedDish }
+            _loggedDishes.update { current ->
+                if (current.any { it.dishLabel == dishLabel }) current else current + loggedDish
+            }
             resetScanningVariables()
+        }.invokeOnCompletion {
+            _isLoggingDish.value = false
         }
     }
 
@@ -337,6 +383,7 @@ class LogMealViewModel(
         _latestResults.value = emptyList()
         _topLabel.value = ""
         _topConfidence.value = 0f
+        _currentDetectedFood.value = null
         _pendingDishLabel.value = ""
         _candidate1.value = null
         _candidate2.value = null
@@ -348,11 +395,26 @@ class LogMealViewModel(
         _showLogFailedBanner.value = false
     }
 
+    fun hideDuplicateDishBanner() {
+        _showDuplicateDishBanner.value = false
+    }
+
     private fun triggerLogFailedBanner() {
+        _showDuplicateDishBanner.value = false
         _showLogFailedBanner.value = true
         viewModelScope.launch {
             delay(5000)
             _showLogFailedBanner.value = false
+        }
+    }
+
+    private fun triggerDuplicateDishBanner() {
+        _showUnsupportedBanner.value = false
+        _showLogFailedBanner.value = false
+        _showDuplicateDishBanner.value = true
+        viewModelScope.launch {
+            delay(5000)
+            _showDuplicateDishBanner.value = false
         }
     }
 
@@ -363,6 +425,9 @@ class LogMealViewModel(
     fun removeDish(index: Int) {
         _loggedDishes.update { list -> list.filterIndexed { i, _ -> i != index } }
     }
+
+    private fun isDishAlreadyLogged(dishLabel: String): Boolean =
+        dishLabel.isNotBlank() && _loggedDishes.value.any { it.dishLabel == dishLabel }
 
     fun updateMealType(type: String) {
         _mealType.value = type
