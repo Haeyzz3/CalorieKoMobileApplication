@@ -23,6 +23,8 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 
+from usda_nutrient_schema import NUTRIENT_KEYS, extract_nutrients_from_detail
+
 # ──────────────────────────────────────────────
 # INGREDIENT MAPPING (from approved Checkpoint 1)
 # ──────────────────────────────────────────────
@@ -155,23 +157,8 @@ MANUAL_OVERRIDES = {
 # USDA NUTRIENT ID MAPPING
 # ──────────────────────────────────────────────
 # Maps our nutrient keys to USDA nutrient numbers
-NUTRIENT_ID_MAP = {
-    "calories": 1008,     # Energy (kcal)
-    "protein": 1003,      # Protein (g)
-    "carbs": 1005,        # Carbohydrate, by difference (g)
-    "fat": 1004,          # Total lipid (fat) (g)
-    "fiber": 1079,        # Fiber, total dietary (g)
-    "sugar": 2000,        # Sugars, total including NLEA (g)
-    "sodium": 1093,       # Sodium, Na (mg)
-    "potassium": 1092,    # Potassium, K (mg)
-    "vitamin_a": 1106,    # Vitamin A, RAE (mcg)
-    "vitamin_c": 1162,    # Vitamin C (mg)
-    "calcium": 1087,      # Calcium, Ca (mg)
-    "iron": 1089,         # Iron, Fe (mg)
-}
 
 # Fallback for sugar — older entries use nutrient 1063
-SUGAR_FALLBACK_ID = 1063  # Sugars, Total (NLEA) — older SR Legacy entries
 
 
 def fetch_food_data(fdc_id: int, api_key: str, retries: int = 3) -> dict:
@@ -205,29 +192,7 @@ def fetch_food_data(fdc_id: int, api_key: str, retries: int = 3) -> dict:
 
 def extract_nutrients(food_data: dict) -> dict:
     """Extract our target nutrients from USDA API response."""
-    nutrients = {}
-    food_nutrients = food_data.get("foodNutrients", [])
-
-    # Build lookup: nutrient_id -> amount
-    # USDA API uses nutrient.id (int like 1008) as the stable identifier
-    nutrient_lookup = {}
-    for fn in food_nutrients:
-        nutrient = fn.get("nutrient", {})
-        nutrient_id = nutrient.get("id")
-        if nutrient_id is not None and "amount" in fn:
-            amount = fn.get("amount")
-            if amount is not None:
-                nutrient_lookup[int(nutrient_id)] = float(amount)
-
-    for key, usda_id in NUTRIENT_ID_MAP.items():
-        if usda_id in nutrient_lookup:
-            nutrients[key] = round(nutrient_lookup[usda_id], 2)
-        elif key == "sugar" and SUGAR_FALLBACK_ID in nutrient_lookup:
-            nutrients[key] = round(nutrient_lookup[SUGAR_FALLBACK_ID], 2)
-        else:
-            nutrients[key] = 0.0
-
-    return nutrients
+    return extract_nutrients_from_detail(food_data)
 
 
 def extract_portions(food_data: dict) -> list:
@@ -321,7 +286,7 @@ def process_all_ingredients(api_key: str) -> list:
                 "sub_category": ing["sub_category"],
                 "fdc_id": fdc_id,
                 "data_source": "FETCH_FAILED",
-                "nutrients_per_100g": {k: 0.0 for k in NUTRIENT_ID_MAP},
+                "nutrients_per_100g": {k: 0.0 for k in NUTRIENT_KEYS},
                 "portions": [],
             }
             results.append(entry)

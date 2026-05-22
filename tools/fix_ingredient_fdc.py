@@ -18,14 +18,10 @@ import urllib.request
 import os
 import copy
 
+from usda_nutrient_schema import empty_nutrients, extract_nutrients_from_detail
+
 API_KEY = "NxgG3iwRfp4HpfmejYVeRAHmJqlBTYeyKyMCHSVc"
 BASE_URL = "https://api.nal.usda.gov/fdc/v1"
-
-NUTRIENT_MAP = {
-    1008: "calories", 1003: "protein", 1005: "carbs", 1004: "fat",
-    1079: "fiber", 2000: "sugar", 1093: "sodium", 1092: "potassium",
-    1106: "vitamin_a", 1162: "vitamin_c", 1087: "calcium", 1089: "iron",
-}
 
 # Ingredients to update: ingredient_key -> (new_fdc_id, data_source_label)
 UPDATES = {
@@ -48,13 +44,7 @@ def fetch_food(fdc_id):
 
 
 def extract_nutrients(food_data):
-    result = {v: 0.0 for v in NUTRIENT_MAP.values()}
-    for fn in food_data.get("foodNutrients", []):
-        nid = fn.get("nutrient", {}).get("id") or fn.get("nutrientId", 0)
-        if nid in NUTRIENT_MAP:
-            val = fn.get("amount", 0) or fn.get("value", 0) or 0
-            result[NUTRIENT_MAP[nid]] = round(float(val), 2)
-    return result
+    return extract_nutrients_from_detail(food_data) if food_data else empty_nutrients()
 
 
 def main():

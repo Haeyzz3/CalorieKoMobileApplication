@@ -3,14 +3,10 @@ import json
 import urllib.request
 import time
 
+from usda_nutrient_schema import empty_nutrients, extract_nutrients_from_detail
+
 API_KEY = "NxgG3iwRfp4HpfmejYVeRAHmJqlBTYeyKyMCHSVc"
 API_BASE = "https://api.nal.usda.gov/fdc/v1"
-
-NUTRIENT_MAP = {
-    1008: "calories", 1003: "protein", 1005: "carbs", 1004: "fat",
-    1079: "fiber", 2000: "sugar", 1093: "sodium", 1092: "potassium",
-    1106: "vitamin_a", 1162: "vitamin_c", 1087: "calcium", 1089: "iron",
-}
 
 def fetch_and_print(fdc_id, label):
     url = f"{API_BASE}/food/{fdc_id}?api_key={API_KEY}"
@@ -20,12 +16,7 @@ def fetch_and_print(fdc_id, label):
         data = json.loads(resp.read().decode())
     
     desc = data.get("description", "?")
-    nutrients = {name: 0.0 for name in NUTRIENT_MAP.values()}
-    for fn in data.get("foodNutrients", []):
-        nid = fn.get("nutrient", {}).get("id") or fn.get("nutrientId")
-        if nid in NUTRIENT_MAP:
-            amount = fn.get("amount", 0.0) or 0.0
-            nutrients[NUTRIENT_MAP[nid]] = round(amount, 2)
+    nutrients = extract_nutrients_from_detail(data) if data else empty_nutrients()
     
     print(f"FDC {fdc_id} ({label}):")
     print(f"  Description: {desc}")

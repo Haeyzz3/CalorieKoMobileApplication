@@ -9,16 +9,16 @@
     "usda_nutrients": {
       "calories": 143.0,
       "protein": 12.56,
-      "fat": 9.51,
       "carbs": 0.72,
+      "fat": 9.51,
       "fiber": 0.0,
       "sugar": 0.37,
-      "calcium": 56.0,
-      "iron": 1.75,
-      "potassium": 138.0,
       "sodium": 142.0,
+      "potassium": 138.0,
+      "vitamin_a": 160.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 540.0
+      "calcium": 56.0,
+      "iron": 1.75
     },
     "current_nutrients": {
       "calories": 143.0,
@@ -71,16 +71,16 @@
     "usda_nutrients": {
       "calories": 109.0,
       "protein": 24.4,
-      "fat": 0.49,
       "carbs": 0.0,
+      "fat": 0.49,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 4.0,
-      "iron": 0.77,
-      "potassium": 441.0,
       "sodium": 45.0,
+      "potassium": 441.0,
+      "vitamin_a": 18.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 60.0
+      "calcium": 4.0,
+      "iron": 0.77
     },
     "current_nutrients": {
       "calories": 109.0,
@@ -114,37 +114,37 @@
   {
     "key": "tinapa_fish",
     "display": "Tinapa (Smoked Fish)",
-    "fdc_id": 174183,
-    "usda_desc": "Fish, anchovy, european, canned in oil, drained solids",
+    "fdc_id": 175116,
+    "usda_desc": "Fish, herring, Atlantic, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 210.0,
-      "protein": 28.89,
-      "fat": 9.71,
+      "calories": 158.0,
+      "protein": 17.96,
       "carbs": 0.0,
+      "fat": 9.04,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 232.0,
-      "iron": 4.63,
-      "potassium": 544.0,
-      "sodium": 3668.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 40.0
+      "sodium": 90.0,
+      "potassium": 327.0,
+      "vitamin_a": 28.0,
+      "vitamin_c": 0.7,
+      "calcium": 57.0,
+      "iron": 1.1
     },
     "current_nutrients": {
-      "calories": 210.0,
-      "protein": 28.89,
+      "calories": 158.0,
+      "protein": 17.96,
       "carbs": 0.0,
-      "fat": 9.71,
+      "fat": 9.04,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 3668.0,
-      "potassium": 544.0,
-      "vitamin_a": 12.0,
-      "vitamin_c": 0.0,
-      "calcium": 232.0,
-      "iron": 4.63
+      "sodium": 90.0,
+      "potassium": 327.0,
+      "vitamin_a": 28.0,
+      "vitamin_c": 0.7,
+      "calcium": 57.0,
+      "iron": 1.1
     },
     "usda_portions": [
       {
@@ -152,105 +152,97 @@
         "grams": 28.35
       },
       {
-        "description": "anchovies",
-        "grams": 20.0
+        "description": "oz",
+        "grams": 85.0
       },
       {
-        "description": "anchovy",
-        "grams": 4.0
-      },
-      {
-        "description": "can (2 oz)",
-        "grams": 45.0
+        "description": "fillet",
+        "grams": 184.0
       }
     ]
   },
   {
     "key": "pork_liempo",
     "display": "Pork Liempo (Belly)",
-    "fdc_id": 167902,
-    "usda_desc": "Pork, fresh, ground, raw",
+    "fdc_id": 167812,
+    "usda_desc": "Pork, fresh, belly, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 263.0,
-      "protein": 16.88,
-      "fat": 21.19,
+      "calories": 518.0,
+      "protein": 9.34,
       "carbs": 0.0,
-      "fiber": 0.0,
-      "calcium": 14.0,
-      "iron": 0.88,
-      "potassium": 287.0,
-      "sodium": 56.0,
-      "vitamin_c": 0.7,
-      "vitamin_a": 7.0,
-      "sugar": 0.0
-    },
-    "current_nutrients": {
-      "calories": 263.0,
-      "protein": 16.88,
-      "carbs": 0.0,
-      "fat": 21.19,
+      "fat": 53.01,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 56.0,
-      "potassium": 287.0,
-      "vitamin_a": 2.0,
-      "vitamin_c": 0.7,
-      "calcium": 14.0,
-      "iron": 0.88
+      "sodium": 32.0,
+      "potassium": 185.0,
+      "vitamin_a": 3.0,
+      "vitamin_c": 0.3,
+      "calcium": 5.0,
+      "iron": 0.52
+    },
+    "current_nutrients": {
+      "calories": 518.0,
+      "protein": 9.34,
+      "carbs": 0.0,
+      "fat": 53.01,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 32.0,
+      "potassium": 185.0,
+      "vitamin_a": 3.0,
+      "vitamin_c": 0.3,
+      "calcium": 5.0,
+      "iron": 0.52
     },
     "usda_portions": [
       {
-        "description": "oz",
-        "grams": 113.0
+        "description": "lb",
+        "grams": 453.6
       },
       {
         "description": "oz",
-        "grams": 28.35
+        "grams": 113.0
       }
     ]
   },
   {
     "key": "bangus_fish",
     "display": "Bangus (Milkfish)",
-    "fdc_id": 173693,
-    "usda_desc": "Fish, salmon, sockeye, canned, drained solids",
+    "fdc_id": 173675,
+    "usda_desc": "Fish, milkfish, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 167.0,
-      "protein": 23.59,
-      "fat": 7.39,
+      "calories": 148.0,
+      "protein": 20.53,
       "carbs": 0.0,
+      "fat": 6.73,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 232.0,
-      "iron": 0.65,
-      "potassium": 314.0,
-      "sodium": 408.0,
+      "sodium": 72.0,
+      "potassium": 292.0,
+      "vitamin_a": 30.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 184.0
+      "calcium": 51.0,
+      "iron": 0.32
     },
     "current_nutrients": {
-      "calories": 167.0,
-      "protein": 23.59,
+      "calories": 148.0,
+      "protein": 20.53,
       "carbs": 0.0,
-      "fat": 7.39,
+      "fat": 6.73,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 408.0,
-      "potassium": 314.0,
-      "vitamin_a": 55.0,
+      "sodium": 72.0,
+      "potassium": 292.0,
+      "vitamin_a": 30.0,
       "vitamin_c": 0.0,
-      "calcium": 232.0,
-      "iron": 0.65
+      "calcium": 51.0,
+      "iron": 0.32
     },
     "usda_portions": [
-      {
-        "description": "can",
-        "grams": 337.0
-      },
       {
         "description": "oz",
         "grams": 85.0
@@ -260,88 +252,88 @@
   {
     "key": "galunggong_fish",
     "display": "Galunggong (Round Scad)",
-    "fdc_id": 174201,
-    "usda_desc": "Fish, halibut, Atlantic and Pacific, cooked, dry heat",
+    "fdc_id": 175119,
+    "usda_desc": "Fish, mackerel, Atlantic, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 111.0,
-      "protein": 22.54,
-      "fat": 1.61,
+      "calories": 205.0,
+      "protein": 18.6,
       "carbs": 0.0,
+      "fat": 13.89,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 9.0,
-      "iron": 0.2,
-      "potassium": 528.0,
-      "sodium": 82.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 73.0
+      "sodium": 90.0,
+      "potassium": 314.0,
+      "vitamin_a": 50.0,
+      "vitamin_c": 0.4,
+      "calcium": 12.0,
+      "iron": 1.63
     },
     "current_nutrients": {
-      "calories": 111.0,
-      "protein": 22.54,
+      "calories": 205.0,
+      "protein": 18.6,
       "carbs": 0.0,
-      "fat": 1.61,
+      "fat": 13.89,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 82.0,
-      "potassium": 528.0,
-      "vitamin_a": 24.0,
-      "vitamin_c": 0.0,
-      "calcium": 9.0,
-      "iron": 0.2
+      "sodium": 90.0,
+      "potassium": 314.0,
+      "vitamin_a": 50.0,
+      "vitamin_c": 0.4,
+      "calcium": 12.0,
+      "iron": 1.63
     },
     "usda_portions": [
       {
-        "description": "fillet",
-        "grams": 159.0
-      },
-      {
         "description": "oz",
         "grams": 85.0
+      },
+      {
+        "description": "fillet",
+        "grams": 112.0
       }
     ]
   },
   {
     "key": "tilapya_fish",
     "display": "Tilapia",
-    "fdc_id": 175177,
-    "usda_desc": "Fish, tilapia, cooked, dry heat",
+    "fdc_id": 175176,
+    "usda_desc": "Fish, tilapia, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 128.0,
-      "protein": 26.15,
-      "fat": 2.65,
+      "calories": 96.0,
+      "protein": 20.08,
       "carbs": 0.0,
+      "fat": 1.7,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 14.0,
-      "iron": 0.69,
-      "potassium": 380.0,
-      "sodium": 56.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 0.0
-    },
-    "current_nutrients": {
-      "calories": 128.0,
-      "protein": 26.15,
-      "carbs": 0.0,
-      "fat": 2.65,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 56.0,
-      "potassium": 380.0,
+      "sodium": 52.0,
+      "potassium": 302.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 14.0,
-      "iron": 0.69
+      "calcium": 10.0,
+      "iron": 0.56
+    },
+    "current_nutrients": {
+      "calories": 96.0,
+      "protein": 20.08,
+      "carbs": 0.0,
+      "fat": 1.7,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 52.0,
+      "potassium": 302.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 10.0,
+      "iron": 0.56
     },
     "usda_portions": [
       {
         "description": "fillet",
-        "grams": 87.0
+        "grams": 116.0
       }
     ]
   },
@@ -355,16 +347,16 @@
     "usda_nutrients": {
       "calories": 120.0,
       "protein": 22.5,
-      "fat": 2.62,
       "carbs": 0.0,
+      "fat": 2.62,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 5.0,
-      "iron": 0.37,
-      "potassium": 334.0,
       "sodium": 45.0,
+      "potassium": 334.0,
+      "vitamin_a": 9.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 30.0
+      "calcium": 5.0,
+      "iron": 0.37
     },
     "current_nutrients": {
       "calories": 120.0,
@@ -405,16 +397,16 @@
     "usda_nutrients": {
       "calories": 109.0,
       "protein": 20.95,
-      "fat": 2.17,
       "carbs": 0.0,
+      "fat": 2.17,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 5.0,
-      "iron": 0.98,
-      "potassium": 399.0,
       "sodium": 53.0,
+      "potassium": 399.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 5.0,
+      "iron": 0.98
     },
     "current_nutrients": {
       "calories": 109.0,
@@ -446,328 +438,182 @@
     ]
   },
   {
-    "key": "milkfish",
-    "display": "Milkfish",
-    "fdc_id": 173693,
-    "usda_desc": "Fish, salmon, sockeye, canned, drained solids",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 167.0,
-      "protein": 23.59,
-      "fat": 7.39,
-      "carbs": 0.0,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "calcium": 232.0,
-      "iron": 0.65,
-      "potassium": 314.0,
-      "sodium": 408.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 184.0
-    },
-    "current_nutrients": {
-      "calories": 167.0,
-      "protein": 23.59,
-      "carbs": 0.0,
-      "fat": 7.39,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 408.0,
-      "potassium": 314.0,
-      "vitamin_a": 55.0,
-      "vitamin_c": 0.0,
-      "calcium": 232.0,
-      "iron": 0.65
-    },
-    "usda_portions": [
-      {
-        "description": "can",
-        "grams": 337.0
-      },
-      {
-        "description": "oz",
-        "grams": 85.0
-      }
-    ]
-  },
-  {
     "key": "mackerel_fish",
     "display": "Mackerel Fish",
-    "fdc_id": 174201,
-    "usda_desc": "Fish, halibut, Atlantic and Pacific, cooked, dry heat",
+    "fdc_id": 175119,
+    "usda_desc": "Fish, mackerel, Atlantic, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 111.0,
-      "protein": 22.54,
-      "fat": 1.61,
+      "calories": 205.0,
+      "protein": 18.6,
       "carbs": 0.0,
+      "fat": 13.89,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 9.0,
-      "iron": 0.2,
-      "potassium": 528.0,
-      "sodium": 82.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 73.0
+      "sodium": 90.0,
+      "potassium": 314.0,
+      "vitamin_a": 50.0,
+      "vitamin_c": 0.4,
+      "calcium": 12.0,
+      "iron": 1.63
     },
     "current_nutrients": {
-      "calories": 111.0,
-      "protein": 22.54,
+      "calories": 205.0,
+      "protein": 18.6,
       "carbs": 0.0,
-      "fat": 1.61,
+      "fat": 13.89,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 82.0,
-      "potassium": 528.0,
-      "vitamin_a": 24.0,
-      "vitamin_c": 0.0,
-      "calcium": 9.0,
-      "iron": 0.2
+      "sodium": 90.0,
+      "potassium": 314.0,
+      "vitamin_a": 50.0,
+      "vitamin_c": 0.4,
+      "calcium": 12.0,
+      "iron": 1.63
     },
     "usda_portions": [
       {
-        "description": "fillet",
-        "grams": 159.0
-      },
-      {
         "description": "oz",
         "grams": 85.0
+      },
+      {
+        "description": "fillet",
+        "grams": 112.0
       }
     ]
   },
   {
     "key": "onion_red",
     "display": "Red Onion",
-    "fdc_id": 170000,
-    "usda_desc": "Onions, raw",
+    "fdc_id": 790577,
+    "usda_desc": "Onions, red, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 40.0,
-      "protein": 1.1,
+      "calories": 44.0,
+      "protein": 0.94,
+      "carbs": 9.93,
       "fat": 0.1,
-      "carbs": 9.34,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "calcium": 23.0,
-      "iron": 0.21,
-      "potassium": 146.0,
-      "sodium": 4.0,
-      "vitamin_c": 7.4,
-      "vitamin_a": 2.0
+      "fiber": 2.2,
+      "sugar": 5.76,
+      "sodium": 1.0,
+      "potassium": 197.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.1,
+      "calcium": 17.0,
+      "iron": 0.24
     },
     "current_nutrients": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "carbs": 9.34,
+      "calories": 44.0,
+      "protein": 0.94,
+      "carbs": 9.93,
       "fat": 0.1,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "sodium": 4.0,
-      "potassium": 146.0,
+      "fiber": 2.2,
+      "sugar": 5.76,
+      "sodium": 1.0,
+      "potassium": 197.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 7.4,
-      "calcium": 23.0,
-      "iron": 0.21
+      "vitamin_c": 8.1,
+      "calcium": 17.0,
+      "iron": 0.24
     },
     "usda_portions": [
       {
-        "description": "cup, chopped",
-        "grams": 160.0
+        "description": "Edible",
+        "grams": 197.0
       },
       {
-        "description": "slice, medium (1/8\" thick)",
-        "grams": 14.0
-      },
-      {
-        "description": "medium (2-1/2\" dia)",
-        "grams": 110.0
-      },
-      {
-        "description": "large",
-        "grams": 150.0
-      },
-      {
-        "description": "rings",
-        "grams": 60.0
-      },
-      {
-        "description": "tbsp chopped",
-        "grams": 10.0
-      },
-      {
-        "description": "cup, sliced",
-        "grams": 115.0
-      },
-      {
-        "description": "slice, thin",
-        "grams": 9.0
-      },
-      {
-        "description": "small",
-        "grams": 70.0
-      },
-      {
-        "description": "slice, large (1/4\" thick)",
-        "grams": 38.0
+        "description": "RACC",
+        "grams": 85.0
       }
     ]
   },
   {
     "key": "onion_white",
     "display": "White Onion",
-    "fdc_id": 170000,
-    "usda_desc": "Onions, raw",
+    "fdc_id": 1104962,
+    "usda_desc": "Onions, white, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "fat": 0.1,
-      "carbs": 9.34,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "calcium": 23.0,
-      "iron": 0.21,
-      "potassium": 146.0,
-      "sodium": 4.0,
-      "vitamin_c": 7.4,
-      "vitamin_a": 2.0
+      "calories": 35.0,
+      "protein": 0.89,
+      "carbs": 7.68,
+      "fat": 0.13,
+      "fiber": 1.2,
+      "sugar": 5.76,
+      "sodium": 2.0,
+      "potassium": 141.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 21.0,
+      "iron": 0.15
     },
     "current_nutrients": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "carbs": 9.34,
-      "fat": 0.1,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "sodium": 4.0,
-      "potassium": 146.0,
+      "calories": 35.0,
+      "protein": 0.89,
+      "carbs": 7.68,
+      "fat": 0.13,
+      "fiber": 1.2,
+      "sugar": 5.76,
+      "sodium": 2.0,
+      "potassium": 141.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 7.4,
-      "calcium": 23.0,
-      "iron": 0.21
+      "vitamin_c": 0.0,
+      "calcium": 21.0,
+      "iron": 0.15
     },
     "usda_portions": [
       {
-        "description": "cup, chopped",
-        "grams": 160.0
-      },
-      {
-        "description": "slice, medium (1/8\" thick)",
-        "grams": 14.0
-      },
-      {
-        "description": "medium (2-1/2\" dia)",
-        "grams": 110.0
-      },
-      {
-        "description": "large",
-        "grams": 150.0
-      },
-      {
-        "description": "rings",
-        "grams": 60.0
-      },
-      {
-        "description": "tbsp chopped",
-        "grams": 10.0
-      },
-      {
-        "description": "cup, sliced",
-        "grams": 115.0
-      },
-      {
-        "description": "slice, thin",
-        "grams": 9.0
-      },
-      {
-        "description": "small",
-        "grams": 70.0
-      },
-      {
-        "description": "slice, large (1/4\" thick)",
-        "grams": 38.0
+        "description": "RACC",
+        "grams": 85.0
       }
     ]
   },
   {
     "key": "onion_bombay",
-    "display": "Bombay Onion",
-    "fdc_id": 170000,
-    "usda_desc": "Onions, raw",
+    "display": "Yellow Onion",
+    "fdc_id": 790646,
+    "usda_desc": "Onions, yellow, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "fat": 0.1,
-      "carbs": 9.34,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "calcium": 23.0,
-      "iron": 0.21,
-      "potassium": 146.0,
-      "sodium": 4.0,
-      "vitamin_c": 7.4,
-      "vitamin_a": 2.0
+      "calories": 38.0,
+      "protein": 0.83,
+      "carbs": 8.61,
+      "fat": 0.05,
+      "fiber": 1.9,
+      "sugar": 5.82,
+      "sodium": 1.0,
+      "potassium": 182.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.2,
+      "calcium": 15.0,
+      "iron": 0.28
     },
     "current_nutrients": {
-      "calories": 40.0,
-      "protein": 1.1,
-      "carbs": 9.34,
-      "fat": 0.1,
-      "fiber": 1.7,
-      "sugar": 4.24,
-      "sodium": 4.0,
-      "potassium": 146.0,
+      "calories": 38.0,
+      "protein": 0.83,
+      "carbs": 8.61,
+      "fat": 0.05,
+      "fiber": 1.9,
+      "sugar": 5.82,
+      "sodium": 1.0,
+      "potassium": 182.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 7.4,
-      "calcium": 23.0,
-      "iron": 0.21
+      "vitamin_c": 8.2,
+      "calcium": 15.0,
+      "iron": 0.28
     },
     "usda_portions": [
       {
-        "description": "cup, chopped",
-        "grams": 160.0
+        "description": "Edible",
+        "grams": 143.0
       },
       {
-        "description": "slice, medium (1/8\" thick)",
-        "grams": 14.0
-      },
-      {
-        "description": "medium (2-1/2\" dia)",
-        "grams": 110.0
-      },
-      {
-        "description": "large",
-        "grams": 150.0
-      },
-      {
-        "description": "rings",
-        "grams": 60.0
-      },
-      {
-        "description": "tbsp chopped",
-        "grams": 10.0
-      },
-      {
-        "description": "cup, sliced",
-        "grams": 115.0
-      },
-      {
-        "description": "slice, thin",
-        "grams": 9.0
-      },
-      {
-        "description": "small",
-        "grams": 70.0
-      },
-      {
-        "description": "slice, large (1/4\" thick)",
-        "grams": 38.0
+        "description": "RACC",
+        "grams": 85.0
       }
     ]
   },
@@ -781,16 +627,16 @@
     "usda_nutrients": {
       "calories": 149.0,
       "protein": 6.36,
-      "fat": 0.5,
       "carbs": 33.06,
+      "fat": 0.5,
       "fiber": 2.1,
       "sugar": 1.0,
-      "calcium": 181.0,
-      "iron": 1.7,
-      "potassium": 401.0,
       "sodium": 17.0,
+      "potassium": 401.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 31.2,
-      "vitamin_a": 9.0
+      "calcium": 181.0,
+      "iron": 1.7
     },
     "current_nutrients": {
       "calories": 149.0,
@@ -835,20 +681,6 @@
     "usda_nutrients": {
       "calories": 18.0,
       "protein": 0.88,
-      "fat": 0.2,
-      "carbs": 3.89,
-      "fiber": 1.2,
-      "sugar": 2.63,
-      "calcium": 10.0,
-      "iron": 0.27,
-      "potassium": 237.0,
-      "sodium": 5.0,
-      "vitamin_c": 13.7,
-      "vitamin_a": 833.0
-    },
-    "current_nutrients": {
-      "calories": 18.0,
-      "protein": 0.88,
       "carbs": 3.89,
       "fat": 0.2,
       "fiber": 1.2,
@@ -859,82 +691,6 @@
       "vitamin_c": 13.7,
       "calcium": 10.0,
       "iron": 0.27
-    },
-    "usda_portions": [
-      {
-        "description": "medium whole (2-3/5\" dia)",
-        "grams": 123.0
-      },
-      {
-        "description": "slice, medium (1/4\" thick)",
-        "grams": 20.0
-      },
-      {
-        "description": "large whole (3\" dia)",
-        "grams": 182.0
-      },
-      {
-        "description": "cherry",
-        "grams": 17.0
-      },
-      {
-        "description": "Italian tomato",
-        "grams": 62.0
-      },
-      {
-        "description": "slice, thin/small",
-        "grams": 15.0
-      },
-      {
-        "description": "cup, chopped or sliced",
-        "grams": 180.0
-      },
-      {
-        "description": "small whole (2-2/5\" dia)",
-        "grams": 91.0
-      },
-      {
-        "description": "slice, thick/large (1/2\" thick)",
-        "grams": 27.0
-      },
-      {
-        "description": "cup cherry tomatoes",
-        "grams": 149.0
-      },
-      {
-        "description": "wedge (1/4 of medium tomato)",
-        "grams": 31.0
-      },
-      {
-        "description": "NLEA serving",
-        "grams": 148.0
-      },
-      {
-        "description": "plum tomato",
-        "grams": 62.0
-      }
-    ]
-  },
-  {
-    "key": "tomato_red",
-    "display": "Tomato (Red)",
-    "fdc_id": 170457,
-    "usda_desc": "Tomatoes, red, ripe, raw, year round average",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 18.0,
-      "protein": 0.88,
-      "fat": 0.2,
-      "carbs": 3.89,
-      "fiber": 1.2,
-      "sugar": 2.63,
-      "calcium": 10.0,
-      "iron": 0.27,
-      "potassium": 237.0,
-      "sodium": 5.0,
-      "vitamin_c": 13.7,
-      "vitamin_a": 833.0
     },
     "current_nutrients": {
       "calories": 18.0,
@@ -1015,16 +771,16 @@
     "usda_nutrients": {
       "calories": 80.0,
       "protein": 1.82,
-      "fat": 0.75,
       "carbs": 17.77,
+      "fat": 0.75,
       "fiber": 2.0,
       "sugar": 1.7,
-      "calcium": 16.0,
-      "iron": 0.6,
-      "potassium": 415.0,
       "sodium": 13.0,
+      "potassium": 415.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 5.0,
-      "vitamin_a": 0.0
+      "calcium": 16.0,
+      "iron": 0.6
     },
     "current_nutrients": {
       "calories": 80.0,
@@ -1065,16 +821,16 @@
     "usda_nutrients": {
       "calories": 15.0,
       "protein": 0.65,
-      "fat": 0.11,
       "carbs": 3.63,
+      "fat": 0.11,
       "fiber": 0.5,
       "sugar": 1.67,
-      "calcium": 16.0,
-      "iron": 0.28,
-      "potassium": 147.0,
       "sodium": 2.0,
+      "potassium": 147.0,
+      "vitamin_a": 5.0,
       "vitamin_c": 2.8,
-      "vitamin_a": 105.0
+      "calcium": 16.0,
+      "iron": 0.28
     },
     "current_nutrients": {
       "calories": 15.0,
@@ -1104,140 +860,48 @@
   {
     "key": "lato_seaweed",
     "display": "Lato (Sea Grapes)",
-    "fdc_id": 170495,
-    "usda_desc": "Seaweed, spirulina, dried",
+    "fdc_id": 169280,
+    "usda_desc": "Seaweed, agar, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 290.0,
-      "protein": 57.47,
-      "fat": 7.72,
-      "carbs": 23.9,
-      "fiber": 3.6,
-      "sugar": 3.1,
-      "calcium": 120.0,
-      "iron": 28.5,
-      "potassium": 1363.0,
-      "sodium": 1048.0,
-      "vitamin_c": 10.1,
-      "vitamin_a": 570.0
+      "calories": 26.0,
+      "protein": 0.54,
+      "carbs": 6.75,
+      "fat": 0.03,
+      "fiber": 0.5,
+      "sugar": 0.28,
+      "sodium": 9.0,
+      "potassium": 226.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 54.0,
+      "iron": 1.86
     },
     "current_nutrients": {
-      "calories": 290.0,
-      "protein": 57.47,
-      "carbs": 23.9,
-      "fat": 7.72,
-      "fiber": 3.6,
-      "sugar": 3.1,
-      "sodium": 1048.0,
-      "potassium": 1363.0,
-      "vitamin_a": 29.0,
-      "vitamin_c": 10.1,
-      "calcium": 120.0,
-      "iron": 28.5
+      "calories": 26.0,
+      "protein": 0.54,
+      "carbs": 6.75,
+      "fat": 0.03,
+      "fiber": 0.5,
+      "sugar": 0.28,
+      "sodium": 9.0,
+      "potassium": 226.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 54.0,
+      "iron": 1.86
     },
     "usda_portions": [
       {
-        "description": "cup",
-        "grams": 112.0
-      },
-      {
-        "description": "tablespoon",
-        "grams": 7.0
+        "description": "tbsp (1/8 cup)",
+        "grams": 10.0
       }
     ]
   },
   {
     "key": "guso_seaweed",
     "display": "Guso Seaweed",
-    "fdc_id": 170495,
-    "usda_desc": "Seaweed, spirulina, dried",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 290.0,
-      "protein": 57.47,
-      "fat": 7.72,
-      "carbs": 23.9,
-      "fiber": 3.6,
-      "sugar": 3.1,
-      "calcium": 120.0,
-      "iron": 28.5,
-      "potassium": 1363.0,
-      "sodium": 1048.0,
-      "vitamin_c": 10.1,
-      "vitamin_a": 570.0
-    },
-    "current_nutrients": {
-      "calories": 290.0,
-      "protein": 57.47,
-      "carbs": 23.9,
-      "fat": 7.72,
-      "fiber": 3.6,
-      "sugar": 3.1,
-      "sodium": 1048.0,
-      "potassium": 1363.0,
-      "vitamin_a": 29.0,
-      "vitamin_c": 10.1,
-      "calcium": 120.0,
-      "iron": 28.5
-    },
-    "usda_portions": [
-      {
-        "description": "cup",
-        "grams": 112.0
-      },
-      {
-        "description": "tablespoon",
-        "grams": 7.0
-      }
-    ]
-  },
-  {
-    "key": "ampalaya",
-    "display": "Ampalaya (Bitter Gourd)",
-    "fdc_id": 169226,
-    "usda_desc": "Dandelion greens, raw",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 45.0,
-      "protein": 2.7,
-      "fat": 0.7,
-      "carbs": 9.2,
-      "fiber": 3.5,
-      "sugar": 0.71,
-      "calcium": 187.0,
-      "iron": 3.1,
-      "potassium": 397.0,
-      "sodium": 76.0,
-      "vitamin_c": 35.0,
-      "vitamin_a": 10161.0
-    },
-    "current_nutrients": {
-      "calories": 45.0,
-      "protein": 2.7,
-      "carbs": 9.2,
-      "fat": 0.7,
-      "fiber": 3.5,
-      "sugar": 0.71,
-      "sodium": 76.0,
-      "potassium": 397.0,
-      "vitamin_a": 508.0,
-      "vitamin_c": 35.0,
-      "calcium": 187.0,
-      "iron": 3.1
-    },
-    "usda_portions": [
-      {
-        "description": "cup, chopped",
-        "grams": 55.0
-      }
-    ]
-  },
-  {
-    "key": "malunggay_leaves",
-    "display": "Malunggay Leaves",
     "fdc_id": 168456,
     "usda_desc": "Seaweed, irishmoss, raw",
     "status": "OK",
@@ -1245,16 +909,16 @@
     "usda_nutrients": {
       "calories": 49.0,
       "protein": 1.51,
-      "fat": 0.16,
       "carbs": 12.29,
+      "fat": 0.16,
       "fiber": 1.3,
       "sugar": 0.61,
-      "calcium": 72.0,
-      "iron": 8.9,
-      "potassium": 63.0,
       "sodium": 67.0,
+      "potassium": 63.0,
+      "vitamin_a": 6.0,
       "vitamin_c": 3.0,
-      "vitamin_a": 118.0
+      "calcium": 72.0,
+      "iron": 8.9
     },
     "current_nutrients": {
       "calories": 49.0,
@@ -1278,131 +942,224 @@
     ]
   },
   {
-    "key": "gabi",
-    "display": "Gabi (Taro)",
-    "fdc_id": 170434,
-    "usda_desc": "Potatoes, white, flesh and skin, baked",
+    "key": "ampalaya",
+    "display": "Ampalaya (Bitter Gourd)",
+    "fdc_id": 168393,
+    "usda_desc": "Balsam-pear (bitter gourd), pods, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 92.0,
-      "protein": 2.1,
-      "fat": 0.15,
-      "carbs": 21.08,
-      "fiber": 2.1,
-      "sugar": 1.53,
-      "calcium": 10.0,
-      "iron": 0.64,
-      "potassium": 544.0,
-      "sodium": 7.0,
-      "vitamin_c": 12.6,
-      "vitamin_a": 10.0
+      "calories": 17.0,
+      "protein": 1.0,
+      "carbs": 3.7,
+      "fat": 0.17,
+      "fiber": 2.8,
+      "sugar": 0.0,
+      "sodium": 5.0,
+      "potassium": 296.0,
+      "vitamin_a": 24.0,
+      "vitamin_c": 84.0,
+      "calcium": 19.0,
+      "iron": 0.43
     },
     "current_nutrients": {
-      "calories": 92.0,
-      "protein": 2.1,
-      "carbs": 21.08,
-      "fat": 0.15,
-      "fiber": 2.1,
-      "sugar": 1.53,
-      "sodium": 7.0,
-      "potassium": 544.0,
-      "vitamin_a": 1.0,
-      "vitamin_c": 12.6,
-      "calcium": 10.0,
-      "iron": 0.64
+      "calories": 17.0,
+      "protein": 1.0,
+      "carbs": 3.7,
+      "fat": 0.17,
+      "fiber": 2.8,
+      "sugar": 0.0,
+      "sodium": 5.0,
+      "potassium": 296.0,
+      "vitamin_a": 24.0,
+      "vitamin_c": 84.0,
+      "calcium": 19.0,
+      "iron": 0.43
     },
     "usda_portions": [
       {
-        "description": "potato medium (2-1/4\" to 3-1/4\" dia)",
-        "grams": 173.0
+        "description": "cup (1/2\" pieces)",
+        "grams": 93.0
       },
       {
-        "description": "potato large (3\" to 4-1/4\" dia)",
-        "grams": 299.0
-      },
+        "description": "balsam-pear",
+        "grams": 124.0
+      }
+    ]
+  },
+  {
+    "key": "malunggay_leaves",
+    "display": "Malunggay Leaves",
+    "fdc_id": 168416,
+    "usda_desc": "Drumstick leaves, raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 64.0,
+      "protein": 9.4,
+      "carbs": 8.28,
+      "fat": 1.4,
+      "fiber": 2.0,
+      "sugar": 0.0,
+      "sodium": 9.0,
+      "potassium": 337.0,
+      "vitamin_a": 378.0,
+      "vitamin_c": 51.7,
+      "calcium": 185.0,
+      "iron": 4.0
+    },
+    "current_nutrients": {
+      "calories": 64.0,
+      "protein": 9.4,
+      "carbs": 8.28,
+      "fat": 1.4,
+      "fiber": 2.0,
+      "sugar": 0.0,
+      "sodium": 9.0,
+      "potassium": 337.0,
+      "vitamin_a": 378.0,
+      "vitamin_c": 51.7,
+      "calcium": 185.0,
+      "iron": 4.0
+    },
+    "usda_portions": [
       {
-        "description": "potato small (1-3/4\" to 2-1/2\" dia)",
-        "grams": 138.0
+        "description": "cup, chopped",
+        "grams": 21.0
+      }
+    ]
+  },
+  {
+    "key": "gabi",
+    "display": "Gabi (Taro)",
+    "fdc_id": 169308,
+    "usda_desc": "Taro, raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 112.0,
+      "protein": 1.5,
+      "carbs": 26.46,
+      "fat": 0.2,
+      "fiber": 4.1,
+      "sugar": 0.4,
+      "sodium": 11.0,
+      "potassium": 591.0,
+      "vitamin_a": 4.0,
+      "vitamin_c": 4.5,
+      "calcium": 43.0,
+      "iron": 0.55
+    },
+    "current_nutrients": {
+      "calories": 112.0,
+      "protein": 1.5,
+      "carbs": 26.46,
+      "fat": 0.2,
+      "fiber": 4.1,
+      "sugar": 0.4,
+      "sodium": 11.0,
+      "potassium": 591.0,
+      "vitamin_a": 4.0,
+      "vitamin_c": 4.5,
+      "calcium": 43.0,
+      "iron": 0.55
+    },
+    "usda_portions": [
+      {
+        "description": "cup, sliced",
+        "grams": 104.0
       }
     ]
   },
   {
     "key": "sitaw",
     "display": "Sitaw (Yard-long Bean)",
-    "fdc_id": 170378,
-    "usda_desc": "Broadbeans, immature seeds, cooked, boiled, drained, without salt",
+    "fdc_id": 169222,
+    "usda_desc": "Yardlong bean, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 62.0,
-      "protein": 4.8,
-      "fat": 0.5,
-      "carbs": 10.1,
-      "fiber": 3.6,
-      "calcium": 18.0,
-      "iron": 1.5,
-      "potassium": 193.0,
-      "sodium": 41.0,
-      "vitamin_c": 19.8,
-      "vitamin_a": 270.0,
-      "sugar": 0.0
+      "calories": 47.0,
+      "protein": 2.8,
+      "carbs": 8.35,
+      "fat": 0.4,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 4.0,
+      "potassium": 240.0,
+      "vitamin_a": 43.0,
+      "vitamin_c": 18.8,
+      "calcium": 50.0,
+      "iron": 0.47
     },
     "current_nutrients": {
-      "calories": 62.0,
-      "protein": 4.8,
-      "carbs": 10.1,
-      "fat": 0.5,
-      "fiber": 3.6,
+      "calories": 47.0,
+      "protein": 2.8,
+      "carbs": 8.35,
+      "fat": 0.4,
+      "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 41.0,
-      "potassium": 193.0,
-      "vitamin_a": 14.0,
-      "vitamin_c": 19.8,
-      "calcium": 18.0,
-      "iron": 1.5
+      "sodium": 4.0,
+      "potassium": 240.0,
+      "vitamin_a": 43.0,
+      "vitamin_c": 18.8,
+      "calcium": 50.0,
+      "iron": 0.47
     },
-    "usda_portions": []
+    "usda_portions": [
+      {
+        "description": "cup slices",
+        "grams": 91.0
+      },
+      {
+        "description": "pod",
+        "grams": 12.0
+      }
+    ]
   },
   {
     "key": "kangkong_leaves",
     "display": "Kangkong (Water Spinach)",
-    "fdc_id": 169297,
-    "usda_desc": "Squash, winter, hubbard, cooked, boiled, mashed, without salt",
+    "fdc_id": 169301,
+    "usda_desc": "Water convolvulus,raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 30.0,
-      "protein": 1.48,
-      "fat": 0.37,
-      "carbs": 6.46,
-      "fiber": 2.9,
-      "sugar": 2.93,
-      "calcium": 10.0,
-      "iron": 0.28,
-      "potassium": 214.0,
-      "sodium": 5.0,
-      "vitamin_c": 6.5,
-      "vitamin_a": 4005.0
+      "calories": 19.0,
+      "protein": 2.6,
+      "carbs": 3.13,
+      "fat": 0.2,
+      "fiber": 2.1,
+      "sugar": 0.0,
+      "sodium": 113.0,
+      "potassium": 312.0,
+      "vitamin_a": 315.0,
+      "vitamin_c": 55.0,
+      "calcium": 77.0,
+      "iron": 1.67
     },
     "current_nutrients": {
-      "calories": 30.0,
-      "protein": 1.48,
-      "carbs": 6.46,
-      "fat": 0.37,
-      "fiber": 2.9,
-      "sugar": 2.93,
-      "sodium": 5.0,
-      "potassium": 214.0,
-      "vitamin_a": 200.0,
-      "vitamin_c": 6.5,
-      "calcium": 10.0,
-      "iron": 0.28
+      "calories": 19.0,
+      "protein": 2.6,
+      "carbs": 3.13,
+      "fat": 0.2,
+      "fiber": 2.1,
+      "sugar": 0.0,
+      "sodium": 113.0,
+      "potassium": 312.0,
+      "vitamin_a": 315.0,
+      "vitamin_c": 55.0,
+      "calcium": 77.0,
+      "iron": 1.67
     },
     "usda_portions": [
       {
-        "description": "cup, mashed",
-        "grams": 236.0
+        "description": "shoot",
+        "grams": 13.0
+      },
+      {
+        "description": "cup, chopped",
+        "grams": 56.0
       }
     ]
   },
@@ -1416,16 +1173,16 @@
     "usda_nutrients": {
       "calories": 14.0,
       "protein": 0.62,
-      "fat": 0.02,
       "carbs": 3.39,
+      "fat": 0.02,
       "fiber": 0.5,
-      "calcium": 26.0,
-      "iron": 0.2,
-      "potassium": 150.0,
+      "sugar": 0.0,
       "sodium": 2.0,
+      "potassium": 150.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 10.1,
-      "vitamin_a": 16.0,
-      "sugar": 0.0
+      "calcium": 26.0,
+      "iron": 0.2
     },
     "current_nutrients": {
       "calories": 14.0,
@@ -1455,188 +1212,184 @@
   {
     "key": "kamote_tops_green",
     "display": "Kamote Tops",
-    "fdc_id": 170071,
-    "usda_desc": "Yam, raw",
+    "fdc_id": 169303,
+    "usda_desc": "Sweet potato leaves, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 118.0,
-      "protein": 1.53,
-      "fat": 0.17,
-      "carbs": 27.88,
-      "fiber": 4.1,
-      "sugar": 0.5,
-      "calcium": 17.0,
-      "iron": 0.54,
-      "potassium": 816.0,
-      "sodium": 9.0,
-      "vitamin_c": 17.1,
-      "vitamin_a": 138.0
+      "calories": 42.0,
+      "protein": 2.49,
+      "carbs": 8.82,
+      "fat": 0.51,
+      "fiber": 5.3,
+      "sugar": 0.0,
+      "sodium": 6.0,
+      "potassium": 508.0,
+      "vitamin_a": 189.0,
+      "vitamin_c": 11.0,
+      "calcium": 78.0,
+      "iron": 0.97
     },
     "current_nutrients": {
-      "calories": 118.0,
-      "protein": 1.53,
-      "carbs": 27.88,
-      "fat": 0.17,
-      "fiber": 4.1,
-      "sugar": 0.5,
-      "sodium": 9.0,
-      "potassium": 816.0,
-      "vitamin_a": 7.0,
-      "vitamin_c": 17.1,
-      "calcium": 17.0,
-      "iron": 0.54
+      "calories": 42.0,
+      "protein": 2.49,
+      "carbs": 8.82,
+      "fat": 0.51,
+      "fiber": 5.3,
+      "sugar": 0.0,
+      "sodium": 6.0,
+      "potassium": 508.0,
+      "vitamin_a": 189.0,
+      "vitamin_c": 11.0,
+      "calcium": 78.0,
+      "iron": 0.97
     },
     "usda_portions": [
       {
-        "description": "cup, cubes",
-        "grams": 150.0
+        "description": "cup, chopped",
+        "grams": 35.0
+      },
+      {
+        "description": "leaf (12-1/4\" long)",
+        "grams": 16.0
       }
     ]
   },
   {
     "key": "sayote",
     "display": "Sayote (Chayote)",
-    "fdc_id": 169343,
-    "usda_desc": "Chard, swiss, cooked, boiled, drained, with salt",
+    "fdc_id": 170402,
+    "usda_desc": "Chayote, fruit, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 20.0,
-      "protein": 1.88,
-      "fat": 0.08,
-      "carbs": 4.13,
-      "fiber": 2.1,
-      "sugar": 1.1,
-      "calcium": 58.0,
-      "iron": 2.26,
-      "potassium": 549.0,
-      "sodium": 415.0,
-      "vitamin_c": 18.0,
-      "vitamin_a": 6124.0
+      "calories": 19.0,
+      "protein": 0.82,
+      "carbs": 4.51,
+      "fat": 0.13,
+      "fiber": 1.7,
+      "sugar": 1.66,
+      "sodium": 2.0,
+      "potassium": 125.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 7.7,
+      "calcium": 17.0,
+      "iron": 0.34
     },
     "current_nutrients": {
-      "calories": 20.0,
-      "protein": 1.88,
-      "carbs": 4.13,
-      "fat": 0.08,
-      "fiber": 2.1,
-      "sugar": 1.1,
-      "sodium": 415.0,
-      "potassium": 549.0,
-      "vitamin_a": 306.0,
-      "vitamin_c": 18.0,
-      "calcium": 58.0,
-      "iron": 2.26
+      "calories": 19.0,
+      "protein": 0.82,
+      "carbs": 4.51,
+      "fat": 0.13,
+      "fiber": 1.7,
+      "sugar": 1.66,
+      "sodium": 2.0,
+      "potassium": 125.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 7.7,
+      "calcium": 17.0,
+      "iron": 0.34
     },
     "usda_portions": [
       {
-        "description": "cup, chopped",
-        "grams": 175.0
+        "description": "cup (1\" pieces)",
+        "grams": 132.0
+      },
+      {
+        "description": "chayote (5-3/4\")",
+        "grams": 203.0
       }
     ]
   },
   {
     "key": "pechay",
     "display": "Pechay (Bok Choy)",
-    "fdc_id": 169406,
-    "usda_desc": "Seeds, sesame butter, tahini, from unroasted kernels (non-chemically removed seed coat)",
+    "fdc_id": 170390,
+    "usda_desc": "Cabbage, chinese (pak-choi), raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 607.0,
-      "protein": 17.95,
-      "fat": 56.44,
-      "carbs": 17.89,
-      "fiber": 9.3,
-      "calcium": 141.0,
-      "iron": 6.35,
-      "potassium": 459.0,
-      "sodium": 1.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 67.0,
-      "sugar": 0.0
+      "calories": 13.0,
+      "protein": 1.5,
+      "carbs": 2.18,
+      "fat": 0.2,
+      "fiber": 1.0,
+      "sugar": 1.18,
+      "sodium": 65.0,
+      "potassium": 252.0,
+      "vitamin_a": 223.0,
+      "vitamin_c": 45.0,
+      "calcium": 105.0,
+      "iron": 0.8
     },
     "current_nutrients": {
-      "calories": 607.0,
-      "protein": 17.95,
-      "carbs": 17.89,
-      "fat": 56.44,
-      "fiber": 9.3,
-      "sugar": 0.0,
-      "sodium": 1.0,
-      "potassium": 459.0,
-      "vitamin_a": 3.0,
-      "vitamin_c": 0.0,
-      "calcium": 141.0,
-      "iron": 6.35
+      "calories": 13.0,
+      "protein": 1.5,
+      "carbs": 2.18,
+      "fat": 0.2,
+      "fiber": 1.0,
+      "sugar": 1.18,
+      "sodium": 65.0,
+      "potassium": 252.0,
+      "vitamin_a": 223.0,
+      "vitamin_c": 45.0,
+      "calcium": 105.0,
+      "iron": 0.8
     },
     "usda_portions": [
       {
-        "description": "oz",
-        "grams": 28.35
+        "description": "head",
+        "grams": 840.0
       },
       {
-        "description": "tbsp",
+        "description": "leaf",
         "grams": 14.0
+      },
+      {
+        "description": "cup, shredded",
+        "grams": 70.0
       }
     ]
   },
   {
     "key": "squash",
     "display": "Squash (Kalabasa)",
-    "fdc_id": 170487,
-    "usda_desc": "Squash, summer, all varieties, raw",
+    "fdc_id": 169295,
+    "usda_desc": "Squash, winter, butternut, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 16.0,
-      "protein": 1.21,
-      "fat": 0.18,
-      "carbs": 3.35,
-      "fiber": 1.1,
+      "calories": 45.0,
+      "protein": 1.0,
+      "carbs": 11.69,
+      "fat": 0.1,
+      "fiber": 2.0,
       "sugar": 2.2,
-      "calcium": 15.0,
-      "iron": 0.35,
-      "potassium": 262.0,
-      "sodium": 2.0,
-      "vitamin_c": 17.0,
-      "vitamin_a": 200.0
+      "sodium": 4.0,
+      "potassium": 352.0,
+      "vitamin_a": 532.0,
+      "vitamin_c": 21.0,
+      "calcium": 48.0,
+      "iron": 0.7
     },
     "current_nutrients": {
-      "calories": 16.0,
-      "protein": 1.21,
-      "carbs": 3.35,
-      "fat": 0.18,
-      "fiber": 1.1,
+      "calories": 45.0,
+      "protein": 1.0,
+      "carbs": 11.69,
+      "fat": 0.1,
+      "fiber": 2.0,
       "sugar": 2.2,
-      "sodium": 2.0,
-      "potassium": 262.0,
-      "vitamin_a": 10.0,
-      "vitamin_c": 17.0,
-      "calcium": 15.0,
-      "iron": 0.35
+      "sodium": 4.0,
+      "potassium": 352.0,
+      "vitamin_a": 532.0,
+      "vitamin_c": 21.0,
+      "calcium": 48.0,
+      "iron": 0.7
     },
     "usda_portions": [
       {
-        "description": "slice",
-        "grams": 9.9
-      },
-      {
-        "description": "cup, sliced",
-        "grams": 113.0
-      },
-      {
-        "description": "small",
-        "grams": 118.0
-      },
-      {
-        "description": "medium",
-        "grams": 196.0
-      },
-      {
-        "description": "large",
-        "grams": 323.0
+        "description": "cup, cubes",
+        "grams": 140.0
       }
     ]
   },
@@ -1650,16 +1403,16 @@
     "usda_nutrients": {
       "calories": 33.0,
       "protein": 1.93,
-      "fat": 0.19,
       "carbs": 7.45,
+      "fat": 0.19,
       "fiber": 3.2,
       "sugar": 1.48,
-      "calcium": 82.0,
-      "iron": 0.62,
-      "potassium": 299.0,
       "sodium": 7.0,
+      "potassium": 299.0,
+      "vitamin_a": 36.0,
       "vitamin_c": 23.0,
-      "vitamin_a": 716.0
+      "calcium": 82.0,
+      "iron": 0.62
     },
     "current_nutrients": {
       "calories": 33.0,
@@ -1696,16 +1449,16 @@
     "usda_nutrients": {
       "calories": 25.0,
       "protein": 0.98,
-      "fat": 0.18,
       "carbs": 5.88,
+      "fat": 0.18,
       "fiber": 3.0,
       "sugar": 3.53,
-      "calcium": 9.0,
-      "iron": 0.23,
-      "potassium": 229.0,
       "sodium": 2.0,
+      "potassium": 229.0,
+      "vitamin_a": 1.0,
       "vitamin_c": 2.2,
-      "vitamin_a": 23.0
+      "calcium": 9.0,
+      "iron": 0.23
     },
     "current_nutrients": {
       "calories": 25.0,
@@ -1746,16 +1499,16 @@
     "usda_nutrients": {
       "calories": 25.0,
       "protein": 1.92,
-      "fat": 0.28,
       "carbs": 4.97,
+      "fat": 0.28,
       "fiber": 2.0,
       "sugar": 1.91,
-      "calcium": 22.0,
-      "iron": 0.42,
-      "potassium": 299.0,
       "sodium": 30.0,
+      "potassium": 299.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 48.2,
-      "vitamin_a": 0.0
+      "calcium": 22.0,
+      "iron": 0.42
     },
     "current_nutrients": {
       "calories": 25.0,
@@ -1804,16 +1557,16 @@
     "usda_nutrients": {
       "calories": 41.0,
       "protein": 0.93,
-      "fat": 0.24,
       "carbs": 9.58,
+      "fat": 0.24,
       "fiber": 2.8,
       "sugar": 4.74,
-      "calcium": 33.0,
-      "iron": 0.3,
-      "potassium": 320.0,
       "sodium": 69.0,
+      "potassium": 320.0,
+      "vitamin_a": 835.0,
       "vitamin_c": 5.9,
-      "vitamin_a": 16706.0
+      "calcium": 33.0,
+      "iron": 0.3
     },
     "current_nutrients": {
       "calories": 41.0,
@@ -1871,39 +1624,48 @@
   {
     "key": "baguio_beans",
     "display": "Baguio Beans",
-    "fdc_id": 170378,
-    "usda_desc": "Broadbeans, immature seeds, cooked, boiled, drained, without salt",
+    "fdc_id": 169961,
+    "usda_desc": "Beans, snap, green, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 62.0,
-      "protein": 4.8,
-      "fat": 0.5,
-      "carbs": 10.1,
-      "fiber": 3.6,
-      "calcium": 18.0,
-      "iron": 1.5,
-      "potassium": 193.0,
-      "sodium": 41.0,
-      "vitamin_c": 19.8,
-      "vitamin_a": 270.0,
-      "sugar": 0.0
+      "calories": 31.0,
+      "protein": 1.83,
+      "carbs": 6.97,
+      "fat": 0.22,
+      "fiber": 2.7,
+      "sugar": 3.26,
+      "sodium": 6.0,
+      "potassium": 211.0,
+      "vitamin_a": 35.0,
+      "vitamin_c": 12.2,
+      "calcium": 37.0,
+      "iron": 1.03
     },
     "current_nutrients": {
-      "calories": 62.0,
-      "protein": 4.8,
-      "carbs": 10.1,
-      "fat": 0.5,
-      "fiber": 3.6,
-      "sugar": 0.0,
-      "sodium": 41.0,
-      "potassium": 193.0,
-      "vitamin_a": 14.0,
-      "vitamin_c": 19.8,
-      "calcium": 18.0,
-      "iron": 1.5
+      "calories": 31.0,
+      "protein": 1.83,
+      "carbs": 6.97,
+      "fat": 0.22,
+      "fiber": 2.7,
+      "sugar": 3.26,
+      "sodium": 6.0,
+      "potassium": 211.0,
+      "vitamin_a": 35.0,
+      "vitamin_c": 12.2,
+      "calcium": 37.0,
+      "iron": 1.03
     },
-    "usda_portions": []
+    "usda_portions": [
+      {
+        "description": "beans (4\" long)",
+        "grams": 55.0
+      },
+      {
+        "description": "cup 1/2\" pieces",
+        "grams": 100.0
+      }
+    ]
   },
   {
     "key": "bell_pepper_red",
@@ -1915,16 +1677,16 @@
     "usda_nutrients": {
       "calories": 26.0,
       "protein": 0.99,
-      "fat": 0.3,
       "carbs": 6.03,
+      "fat": 0.3,
       "fiber": 2.1,
       "sugar": 4.2,
-      "calcium": 7.0,
-      "iron": 0.43,
-      "potassium": 211.0,
       "sodium": 4.0,
+      "potassium": 211.0,
+      "vitamin_a": 157.0,
       "vitamin_c": 127.7,
-      "vitamin_a": 3131.0
+      "calcium": 7.0,
+      "iron": 0.43
     },
     "current_nutrients": {
       "calories": 26.0,
@@ -1981,16 +1743,16 @@
     "usda_nutrients": {
       "calories": 43.0,
       "protein": 0.47,
-      "fat": 0.26,
       "carbs": 10.82,
+      "fat": 0.26,
       "fiber": 1.7,
       "sugar": 7.82,
-      "calcium": 20.0,
-      "iron": 0.25,
-      "potassium": 182.0,
       "sodium": 8.0,
+      "potassium": 182.0,
+      "vitamin_a": 47.0,
       "vitamin_c": 60.9,
-      "vitamin_a": 950.0
+      "calcium": 20.0,
+      "iron": 0.25
     },
     "current_nutrients": {
       "calories": 43.0,
@@ -2035,16 +1797,16 @@
     "usda_nutrients": {
       "calories": 60.0,
       "protein": 0.82,
-      "fat": 0.38,
       "carbs": 14.98,
+      "fat": 0.38,
       "fiber": 1.6,
       "sugar": 13.66,
-      "calcium": 11.0,
-      "iron": 0.16,
-      "potassium": 168.0,
       "sodium": 1.0,
+      "potassium": 168.0,
+      "vitamin_a": 54.0,
       "vitamin_c": 36.4,
-      "vitamin_a": 1082.0
+      "calcium": 11.0,
+      "iron": 0.16
     },
     "current_nutrients": {
       "calories": 60.0,
@@ -2074,27 +1836,52 @@
   {
     "key": "pansit-pansitan",
     "display": "Pansit-pansitan",
-    "fdc_id": null,
-    "usda_desc": "NO FDC ID",
-    "status": "NO_FDC",
-    "issues": [
-      "No FDC ID assigned"
-    ],
-    "usda_nutrients": {},
+    "fdc_id": 170068,
+    "usda_desc": "Watercress, raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 11.0,
+      "protein": 2.3,
+      "carbs": 1.29,
+      "fat": 0.1,
+      "fiber": 0.5,
+      "sugar": 0.2,
+      "sodium": 41.0,
+      "potassium": 330.0,
+      "vitamin_a": 160.0,
+      "vitamin_c": 43.0,
+      "calcium": 120.0,
+      "iron": 0.2
+    },
     "current_nutrients": {
-      "calories": 30.0,
-      "protein": 1.8,
-      "carbs": 5.5,
-      "fat": 0.4,
-      "fiber": 1.5,
-      "sugar": 0.0,
-      "sodium": 15.0,
-      "potassium": 350.0,
-      "vitamin_a": 250.0,
-      "vitamin_c": 28.0,
-      "calcium": 184.0,
-      "iron": 5.3
-    }
+      "calories": 11.0,
+      "protein": 2.3,
+      "carbs": 1.29,
+      "fat": 0.1,
+      "fiber": 0.5,
+      "sugar": 0.2,
+      "sodium": 41.0,
+      "potassium": 330.0,
+      "vitamin_a": 160.0,
+      "vitamin_c": 43.0,
+      "calcium": 120.0,
+      "iron": 0.2
+    },
+    "usda_portions": [
+      {
+        "description": "sprigs",
+        "grams": 25.0
+      },
+      {
+        "description": "sprig",
+        "grams": 2.5
+      },
+      {
+        "description": "cup, chopped",
+        "grams": 34.0
+      }
+    ]
   },
   {
     "key": "radish",
@@ -2106,16 +1893,16 @@
     "usda_nutrients": {
       "calories": 16.0,
       "protein": 0.68,
-      "fat": 0.1,
       "carbs": 3.4,
+      "fat": 0.1,
       "fiber": 1.6,
       "sugar": 1.86,
-      "calcium": 25.0,
-      "iron": 0.34,
-      "potassium": 233.0,
       "sodium": 39.0,
+      "potassium": 233.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 14.8,
-      "vitamin_a": 7.0
+      "calcium": 25.0,
+      "iron": 0.34
     },
     "current_nutrients": {
       "calories": 16.0,
@@ -2168,16 +1955,16 @@
     "usda_nutrients": {
       "calories": 77.0,
       "protein": 2.05,
-      "fat": 0.09,
       "carbs": 17.49,
+      "fat": 0.09,
       "fiber": 2.1,
       "sugar": 0.82,
-      "calcium": 12.0,
-      "iron": 0.81,
-      "potassium": 425.0,
       "sodium": 6.0,
+      "potassium": 425.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 19.7,
-      "vitamin_a": 2.0
+      "calcium": 12.0,
+      "iron": 0.81
     },
     "current_nutrients": {
       "calories": 77.0,
@@ -2222,16 +2009,16 @@
     "usda_nutrients": {
       "calories": 81.0,
       "protein": 5.42,
-      "fat": 0.4,
       "carbs": 14.45,
+      "fat": 0.4,
       "fiber": 5.7,
       "sugar": 5.67,
-      "calcium": 25.0,
-      "iron": 1.47,
-      "potassium": 244.0,
       "sodium": 5.0,
+      "potassium": 244.0,
+      "vitamin_a": 38.0,
       "vitamin_c": 40.0,
-      "vitamin_a": 765.0
+      "calcium": 25.0,
+      "iron": 1.47
     },
     "current_nutrients": {
       "calories": 81.0,
@@ -2257,42 +2044,42 @@
   {
     "key": "salt_iodized",
     "display": "Iodized Salt",
-    "fdc_id": 170723,
-    "usda_desc": "WENDY'S, Homestyle Chicken Fillet Sandwich",
+    "fdc_id": 746775,
+    "usda_desc": "Salt, table, iodized",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 214.0,
-      "protein": 13.78,
-      "fat": 8.1,
-      "carbs": 21.55,
-      "fiber": 1.3,
-      "calcium": 23.0,
-      "iron": 1.5,
-      "potassium": 228.0,
-      "sodium": 401.0,
-      "vitamin_c": 0.3,
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
       "sugar": 0.0,
-      "vitamin_a": 0.0
+      "sodium": 38700.0,
+      "potassium": 2.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 50.0,
+      "iron": 0.0
     },
     "current_nutrients": {
-      "calories": 214.0,
-      "protein": 13.78,
-      "carbs": 21.55,
-      "fat": 8.1,
-      "fiber": 1.3,
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 401.0,
-      "potassium": 228.0,
+      "sodium": 38700.0,
+      "potassium": 2.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 0.3,
-      "calcium": 23.0,
-      "iron": 1.5
+      "vitamin_c": 0.0,
+      "calcium": 50.0,
+      "iron": 0.0
     },
     "usda_portions": [
       {
-        "description": "item",
-        "grams": 230.0
+        "description": "teaspoon",
+        "grams": 6.1
       }
     ]
   },
@@ -2306,16 +2093,16 @@
     "usda_nutrients": {
       "calories": 251.0,
       "protein": 10.39,
-      "fat": 3.26,
       "carbs": 63.95,
+      "fat": 3.26,
       "fiber": 25.3,
       "sugar": 0.64,
-      "calcium": 443.0,
-      "iron": 9.71,
-      "potassium": 1329.0,
       "sodium": 20.0,
+      "potassium": 1329.0,
+      "vitamin_a": 27.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 547.0
+      "calcium": 443.0,
+      "iron": 9.71
     },
     "current_nutrients": {
       "calories": 251.0,
@@ -2353,130 +2140,154 @@
   {
     "key": "vinegar_cane",
     "display": "Cane Vinegar",
-    "fdc_id": 173467,
-    "usda_desc": "Fat free ice cream, no sugar added, flavors other than chocolate",
+    "fdc_id": 173469,
+    "usda_desc": "Vinegar, cider",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 133.0,
-      "protein": 4.41,
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
       "fat": 0.0,
-      "carbs": 28.86,
-      "fiber": 7.4,
-      "sugar": 8.82,
-      "calcium": 147.0,
-      "iron": 0.0,
-      "potassium": 196.0,
-      "sodium": 110.0,
+      "fiber": 0.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 461.0
+      "calcium": 7.0,
+      "iron": 0.2
     },
     "current_nutrients": {
-      "calories": 133.0,
-      "protein": 4.41,
-      "carbs": 28.86,
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
       "fat": 0.0,
-      "fiber": 7.4,
-      "sugar": 8.82,
-      "sodium": 110.0,
-      "potassium": 196.0,
-      "vitamin_a": 133.0,
+      "fiber": 0.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 147.0,
-      "iron": 0.0
+      "calcium": 7.0,
+      "iron": 0.2
     },
     "usda_portions": [
       {
+        "description": "tsp",
+        "grams": 5.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 14.9
+      },
+      {
         "description": "cup",
-        "grams": 68.0
+        "grams": 239.0
       }
     ]
   },
   {
     "key": "vinegar_white",
     "display": "White Vinegar",
-    "fdc_id": 173467,
-    "usda_desc": "Fat free ice cream, no sugar added, flavors other than chocolate",
+    "fdc_id": 172237,
+    "usda_desc": "Vinegar, distilled",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 133.0,
-      "protein": 4.41,
+      "calories": 18.0,
+      "protein": 0.0,
+      "carbs": 0.04,
       "fat": 0.0,
-      "carbs": 28.86,
-      "fiber": 7.4,
-      "sugar": 8.82,
-      "calcium": 147.0,
-      "iron": 0.0,
-      "potassium": 196.0,
-      "sodium": 110.0,
+      "fiber": 0.0,
+      "sugar": 0.04,
+      "sodium": 2.0,
+      "potassium": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 461.0
+      "calcium": 6.0,
+      "iron": 0.03
     },
     "current_nutrients": {
-      "calories": 133.0,
-      "protein": 4.41,
-      "carbs": 28.86,
+      "calories": 18.0,
+      "protein": 0.0,
+      "carbs": 0.04,
       "fat": 0.0,
-      "fiber": 7.4,
-      "sugar": 8.82,
-      "sodium": 110.0,
-      "potassium": 196.0,
-      "vitamin_a": 133.0,
+      "fiber": 0.0,
+      "sugar": 0.04,
+      "sodium": 2.0,
+      "potassium": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 147.0,
-      "iron": 0.0
+      "calcium": 6.0,
+      "iron": 0.03
     },
     "usda_portions": [
       {
+        "description": "tbsp",
+        "grams": 14.9
+      },
+      {
+        "description": "tsp",
+        "grams": 5.0
+      },
+      {
         "description": "cup",
-        "grams": 68.0
+        "grams": 238.0
       }
     ]
   },
   {
     "key": "calamansi_juice",
     "display": "Calamansi Juice",
-    "fdc_id": 168155,
-    "usda_desc": "Limes, raw",
+    "fdc_id": 167747,
+    "usda_desc": "Lemon juice, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 30.0,
-      "protein": 0.7,
-      "fat": 0.2,
-      "carbs": 10.54,
-      "fiber": 2.8,
-      "sugar": 1.69,
-      "calcium": 33.0,
-      "iron": 0.6,
-      "potassium": 102.0,
-      "sodium": 2.0,
-      "vitamin_c": 29.1,
-      "vitamin_a": 50.0
+      "calories": 22.0,
+      "protein": 0.35,
+      "carbs": 6.9,
+      "fat": 0.24,
+      "fiber": 0.3,
+      "sugar": 2.52,
+      "sodium": 1.0,
+      "potassium": 103.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 38.7,
+      "calcium": 6.0,
+      "iron": 0.08
     },
     "current_nutrients": {
-      "calories": 30.0,
-      "protein": 0.7,
-      "carbs": 10.54,
-      "fat": 0.2,
-      "fiber": 2.8,
-      "sugar": 1.69,
-      "sodium": 2.0,
-      "potassium": 102.0,
-      "vitamin_a": 2.0,
-      "vitamin_c": 29.1,
-      "calcium": 33.0,
-      "iron": 0.6
+      "calories": 22.0,
+      "protein": 0.35,
+      "carbs": 6.9,
+      "fat": 0.24,
+      "fiber": 0.3,
+      "sugar": 2.52,
+      "sodium": 1.0,
+      "potassium": 103.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 38.7,
+      "calcium": 6.0,
+      "iron": 0.08
     },
     "usda_portions": [
       {
-        "description": "fruit (2\" dia)",
-        "grams": 67.0
+        "description": "wedge yields",
+        "grams": 5.9
       },
       {
-        "description": "NLEA serving",
-        "grams": 67.0
+        "description": "lemon yields",
+        "grams": 48.0
+      },
+      {
+        "description": "cup",
+        "grams": 244.0
+      },
+      {
+        "description": "fl oz",
+        "grams": 30.5
       }
     ]
   },
@@ -2508,42 +2319,42 @@
   {
     "key": "patis",
     "display": "Patis (Fish Sauce)",
-    "fdc_id": 173741,
-    "usda_desc": "Beans, kidney, all types, mature seeds, canned",
+    "fdc_id": 174531,
+    "usda_desc": "Sauce, fish, ready-to-serve",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 84.0,
-      "protein": 5.22,
-      "fat": 0.6,
-      "carbs": 14.5,
-      "fiber": 4.3,
-      "sugar": 1.85,
-      "calcium": 34.0,
-      "iron": 1.17,
-      "potassium": 237.0,
-      "sodium": 296.0,
-      "vitamin_c": 1.2,
-      "vitamin_a": 0.0
+      "calories": 35.0,
+      "protein": 5.06,
+      "carbs": 3.64,
+      "fat": 0.01,
+      "fiber": 0.0,
+      "sugar": 3.64,
+      "sodium": 7851.0,
+      "potassium": 288.0,
+      "vitamin_a": 4.0,
+      "vitamin_c": 0.5,
+      "calcium": 43.0,
+      "iron": 0.78
     },
     "current_nutrients": {
-      "calories": 84.0,
-      "protein": 5.22,
-      "carbs": 14.5,
-      "fat": 0.6,
-      "fiber": 4.3,
-      "sugar": 1.85,
-      "sodium": 296.0,
-      "potassium": 237.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 1.2,
-      "calcium": 34.0,
-      "iron": 1.17
+      "calories": 35.0,
+      "protein": 5.06,
+      "carbs": 3.64,
+      "fat": 0.01,
+      "fiber": 0.0,
+      "sugar": 3.64,
+      "sodium": 7851.0,
+      "potassium": 288.0,
+      "vitamin_a": 4.0,
+      "vitamin_c": 0.5,
+      "calcium": 43.0,
+      "iron": 0.78
     },
     "usda_portions": [
       {
-        "description": "cup",
-        "grams": 256.0
+        "description": "tbsp",
+        "grams": 18.0
       }
     ]
   },
@@ -2555,18 +2366,18 @@
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "iron": 4.8,
-      "calcium": 533.0,
-      "protein": 13.33,
-      "sugar": 6.67,
-      "carbs": 13.33,
-      "sodium": 3600.0,
       "calories": 467.0,
+      "protein": 13.33,
+      "carbs": 13.33,
       "fat": 33.33,
       "fiber": 6.7,
+      "sugar": 6.67,
+      "sodium": 3600.0,
       "potassium": 0.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 0.0
+      "vitamin_c": 0.0,
+      "calcium": 533.0,
+      "iron": 4.8
     },
     "current_nutrients": {
       "calories": 467.0,
@@ -2587,92 +2398,108 @@
   {
     "key": "soy_sauce",
     "display": "Soy Sauce",
-    "fdc_id": 174714,
-    "usda_desc": "Beef, loin, top loin steak, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, cooked, grilled",
+    "fdc_id": 174277,
+    "usda_desc": "Soy sauce made from soy and wheat (shoyu)",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 264.0,
-      "protein": 26.18,
-      "fat": 17.69,
-      "carbs": 0.0,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "calcium": 14.0,
-      "iron": 2.48,
-      "potassium": 265.0,
-      "sodium": 52.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 0.0
-    },
-    "current_nutrients": {
-      "calories": 264.0,
-      "protein": 26.18,
-      "carbs": 0.0,
-      "fat": 17.69,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 52.0,
-      "potassium": 265.0,
+      "calories": 53.0,
+      "protein": 8.14,
+      "carbs": 4.93,
+      "fat": 0.57,
+      "fiber": 0.8,
+      "sugar": 0.4,
+      "sodium": 5493.0,
+      "potassium": 435.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 14.0,
-      "iron": 2.48
+      "calcium": 33.0,
+      "iron": 1.45
+    },
+    "current_nutrients": {
+      "calories": 53.0,
+      "protein": 8.14,
+      "carbs": 4.93,
+      "fat": 0.57,
+      "fiber": 0.8,
+      "sugar": 0.4,
+      "sodium": 5493.0,
+      "potassium": 435.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 33.0,
+      "iron": 1.45
     },
     "usda_portions": [
       {
-        "description": "oz",
-        "grams": 85.0
+        "description": "individual packet",
+        "grams": 8.9
       },
       {
-        "description": "steak",
-        "grams": 235.0
+        "description": "tbsp",
+        "grams": 16.0
+      },
+      {
+        "description": "tsp",
+        "grams": 5.3
+      },
+      {
+        "description": "cup",
+        "grams": 255.0
       }
     ]
   },
   {
     "key": "thyme",
     "display": "Thyme (Dried)",
-    "fdc_id": 170930,
-    "usda_desc": "Spices, parsley, dried",
+    "fdc_id": 170938,
+    "usda_desc": "Spices, thyme, dried",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 292.0,
-      "protein": 26.63,
-      "fat": 5.48,
-      "carbs": 50.64,
-      "fiber": 26.7,
-      "sugar": 7.27,
-      "calcium": 1140.0,
-      "iron": 22.04,
-      "potassium": 2683.0,
-      "sodium": 452.0,
-      "vitamin_c": 125.0,
-      "vitamin_a": 1939.0
+      "calories": 276.0,
+      "protein": 9.11,
+      "carbs": 63.94,
+      "fat": 7.43,
+      "fiber": 37.0,
+      "sugar": 1.71,
+      "sodium": 55.0,
+      "potassium": 814.0,
+      "vitamin_a": 190.0,
+      "vitamin_c": 50.0,
+      "calcium": 1890.0,
+      "iron": 123.6
     },
     "current_nutrients": {
-      "calories": 292.0,
-      "protein": 26.63,
-      "carbs": 50.64,
-      "fat": 5.48,
-      "fiber": 26.7,
-      "sugar": 7.27,
-      "sodium": 452.0,
-      "potassium": 2683.0,
-      "vitamin_a": 97.0,
-      "vitamin_c": 125.0,
-      "calcium": 1140.0,
-      "iron": 22.04
+      "calories": 276.0,
+      "protein": 9.11,
+      "carbs": 63.94,
+      "fat": 7.43,
+      "fiber": 37.0,
+      "sugar": 1.71,
+      "sodium": 55.0,
+      "potassium": 814.0,
+      "vitamin_a": 190.0,
+      "vitamin_c": 50.0,
+      "calcium": 1890.0,
+      "iron": 123.6
     },
     "usda_portions": [
       {
-        "description": "tsp",
-        "grams": 0.5
+        "description": "tsp, leaves",
+        "grams": 1.0
       },
       {
-        "description": "tbsp",
-        "grams": 1.6
+        "description": "tbsp, ground",
+        "grams": 4.3
+      },
+      {
+        "description": "tbsp, leaves",
+        "grams": 2.7
+      },
+      {
+        "description": "tsp, ground",
+        "grams": 1.4
       }
     ]
   },
@@ -2686,16 +2513,16 @@
     "usda_nutrients": {
       "calories": 380.0,
       "protein": 0.12,
-      "fat": 0.0,
       "carbs": 98.09,
+      "fat": 0.0,
       "fiber": 0.0,
       "sugar": 97.02,
-      "calcium": 83.0,
-      "iron": 0.71,
-      "potassium": 133.0,
       "sodium": 28.0,
+      "potassium": 133.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 83.0,
+      "iron": 0.71
     },
     "current_nutrients": {
       "calories": 380.0,
@@ -2744,16 +2571,16 @@
     "usda_nutrients": {
       "calories": 387.0,
       "protein": 0.0,
-      "fat": 0.0,
       "carbs": 99.98,
+      "fat": 0.0,
       "fiber": 0.0,
       "sugar": 99.8,
-      "calcium": 1.0,
-      "iron": 0.05,
-      "potassium": 2.0,
       "sodium": 1.0,
+      "potassium": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 1.0,
+      "iron": 0.05
     },
     "current_nutrients": {
       "calories": 387.0,
@@ -2791,50 +2618,42 @@
   {
     "key": "cornstarch",
     "display": "Cornstarch",
-    "fdc_id": 170569,
-    "usda_desc": "Nuts, brazilnuts, dried, unblanched",
+    "fdc_id": 169698,
+    "usda_desc": "Cornstarch",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 659.0,
-      "protein": 14.32,
-      "fat": 67.1,
-      "carbs": 11.74,
-      "fiber": 7.5,
-      "sugar": 2.33,
-      "calcium": 160.0,
-      "iron": 2.43,
-      "potassium": 659.0,
-      "sodium": 3.0,
-      "vitamin_c": 0.7,
-      "vitamin_a": 0.0
+      "calories": 381.0,
+      "protein": 0.26,
+      "carbs": 91.27,
+      "fat": 0.05,
+      "fiber": 0.9,
+      "sugar": 0.0,
+      "sodium": 9.0,
+      "potassium": 3.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 2.0,
+      "iron": 0.47
     },
     "current_nutrients": {
-      "calories": 659.0,
-      "protein": 14.32,
-      "carbs": 11.74,
-      "fat": 67.1,
-      "fiber": 7.5,
-      "sugar": 2.33,
-      "sodium": 3.0,
-      "potassium": 659.0,
+      "calories": 381.0,
+      "protein": 0.26,
+      "carbs": 91.27,
+      "fat": 0.05,
+      "fiber": 0.9,
+      "sugar": 0.0,
+      "sodium": 9.0,
+      "potassium": 3.0,
       "vitamin_a": 0.0,
-      "vitamin_c": 0.7,
-      "calcium": 160.0,
-      "iron": 2.43
+      "vitamin_c": 0.0,
+      "calcium": 2.0,
+      "iron": 0.47
     },
     "usda_portions": [
       {
-        "description": "kernel",
-        "grams": 5.0
-      },
-      {
-        "description": "oz (6 kernels)",
-        "grams": 28.35
-      },
-      {
-        "description": "cup, whole",
-        "grams": 133.0
+        "description": "cup",
+        "grams": 128.0
       }
     ]
   },
@@ -2848,16 +2667,16 @@
     "usda_nutrients": {
       "calories": 364.0,
       "protein": 10.33,
-      "fat": 0.98,
       "carbs": 76.31,
+      "fat": 0.98,
       "fiber": 2.7,
       "sugar": 0.27,
-      "calcium": 15.0,
-      "iron": 1.17,
-      "potassium": 107.0,
       "sodium": 2.0,
+      "potassium": 107.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 15.0,
+      "iron": 1.17
     },
     "current_nutrients": {
       "calories": 364.0,
@@ -2907,24 +2726,24 @@
   },
   {
     "key": "cooking_oil",
-    "display": "Cooking Oil (Soybean)",
-    "fdc_id": 171028,
-    "usda_desc": "Oil, grapeseed",
+    "display": "Soybean Oil",
+    "fdc_id": 171411,
+    "usda_desc": "Oil, soybean, salad or cooking",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
       "calories": 884.0,
       "protein": 0.0,
-      "fat": 100.0,
       "carbs": 0.0,
+      "fat": 100.0,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 0.0,
-      "iron": 0.0,
-      "potassium": 0.0,
       "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 0.0,
+      "iron": 0.05
     },
     "current_nutrients": {
       "calories": 884.0,
@@ -2938,26 +2757,26 @@
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
       "calcium": 0.0,
-      "iron": 0.0
+      "iron": 0.05
     },
     "usda_portions": [
       {
-        "description": "cup",
-        "grams": 218.0
-      },
-      {
-        "description": "tablespoon",
+        "description": "tbsp",
         "grams": 13.6
       },
       {
         "description": "tsp",
         "grams": 4.5
+      },
+      {
+        "description": "cup",
+        "grams": 218.0
       }
     ]
   },
   {
     "key": "water",
-    "display": "Water",
+    "display": "Purified Water",
     "fdc_id": null,
     "usda_desc": "NO FDC ID",
     "status": "NO_FDC",
@@ -2983,42 +2802,42 @@
   {
     "key": "tomato_sauce",
     "display": "Tomato Sauce",
-    "fdc_id": 170466,
-    "usda_desc": "Turnip greens, cooked, boiled, drained, without salt",
+    "fdc_id": 170054,
+    "usda_desc": "Tomato products, canned, sauce",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 20.0,
-      "protein": 1.14,
-      "fat": 0.23,
-      "carbs": 4.36,
-      "fiber": 3.5,
-      "sugar": 0.53,
-      "calcium": 137.0,
-      "iron": 0.8,
-      "potassium": 203.0,
-      "sodium": 29.0,
-      "vitamin_c": 27.4,
-      "vitamin_a": 7625.0
+      "calories": 24.0,
+      "protein": 1.2,
+      "carbs": 5.31,
+      "fat": 0.3,
+      "fiber": 1.5,
+      "sugar": 3.56,
+      "sodium": 474.0,
+      "potassium": 297.0,
+      "vitamin_a": 22.0,
+      "vitamin_c": 7.0,
+      "calcium": 14.0,
+      "iron": 0.96
     },
     "current_nutrients": {
-      "calories": 20.0,
-      "protein": 1.14,
-      "carbs": 4.36,
-      "fat": 0.23,
-      "fiber": 3.5,
-      "sugar": 0.53,
-      "sodium": 29.0,
-      "potassium": 203.0,
-      "vitamin_a": 381.0,
-      "vitamin_c": 27.4,
-      "calcium": 137.0,
-      "iron": 0.8
+      "calories": 24.0,
+      "protein": 1.2,
+      "carbs": 5.31,
+      "fat": 0.3,
+      "fiber": 1.5,
+      "sugar": 3.56,
+      "sodium": 474.0,
+      "potassium": 297.0,
+      "vitamin_a": 22.0,
+      "vitamin_c": 7.0,
+      "calcium": 14.0,
+      "iron": 0.96
     },
     "usda_portions": [
       {
-        "description": "cup, chopped",
-        "grams": 144.0
+        "description": "cup",
+        "grams": 245.0
       }
     ]
   },
@@ -3032,16 +2851,16 @@
     "usda_nutrients": {
       "calories": 299.0,
       "protein": 3.3,
-      "fat": 0.25,
       "carbs": 79.32,
+      "fat": 0.25,
       "fiber": 4.5,
       "sugar": 65.18,
-      "calcium": 62.0,
-      "iron": 1.79,
-      "potassium": 744.0,
       "sodium": 26.0,
+      "potassium": 744.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 2.3,
-      "vitamin_a": 0.0
+      "calcium": 62.0,
+      "iron": 1.79
     },
     "current_nutrients": {
       "calories": 299.0,
@@ -3087,110 +2906,98 @@
   {
     "key": "odong_noodles",
     "display": "Odong Noodles",
-    "fdc_id": 169741,
-    "usda_desc": "Oat flour, partially debranned",
+    "fdc_id": 168908,
+    "usda_desc": "Noodles, japanese, somen, dry",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 404.0,
-      "protein": 14.66,
-      "fat": 9.12,
-      "carbs": 65.7,
-      "fiber": 6.5,
-      "sugar": 0.8,
-      "calcium": 55.0,
-      "iron": 4.0,
-      "potassium": 371.0,
-      "sodium": 19.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 0.0
-    },
-    "current_nutrients": {
-      "calories": 404.0,
-      "protein": 14.66,
-      "carbs": 65.7,
-      "fat": 9.12,
-      "fiber": 6.5,
-      "sugar": 0.8,
-      "sodium": 19.0,
-      "potassium": 371.0,
+      "calories": 356.0,
+      "protein": 11.35,
+      "carbs": 74.1,
+      "fat": 0.81,
+      "fiber": 4.3,
+      "sugar": 0.0,
+      "sodium": 1840.0,
+      "potassium": 164.0,
       "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "calcium": 55.0,
-      "iron": 4.0
+      "calcium": 23.0,
+      "iron": 1.32
+    },
+    "current_nutrients": {
+      "calories": 356.0,
+      "protein": 11.35,
+      "carbs": 74.1,
+      "fat": 0.81,
+      "fiber": 4.3,
+      "sugar": 0.0,
+      "sodium": 1840.0,
+      "potassium": 164.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 23.0,
+      "iron": 1.32
     },
     "usda_portions": [
       {
-        "description": "cup",
-        "grams": 104.0
+        "description": "oz",
+        "grams": 57.0
       }
     ]
   },
   {
     "key": "sardines_tomato_sauce_canned",
     "display": "Sardines in Tomato Sauce",
-    "fdc_id": 175139,
-    "usda_desc": "Fish, sardine, Atlantic, canned in oil, drained solids with bone",
+    "fdc_id": 175140,
+    "usda_desc": "Fish, sardine, Pacific, canned in tomato sauce, drained solids with bone",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 208.0,
-      "protein": 24.62,
-      "fat": 11.45,
-      "carbs": 0.0,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "calcium": 382.0,
-      "iron": 2.92,
-      "potassium": 397.0,
-      "sodium": 307.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 108.0
+      "calories": 185.0,
+      "protein": 20.86,
+      "carbs": 0.54,
+      "fat": 10.45,
+      "fiber": 0.1,
+      "sugar": 0.43,
+      "sodium": 414.0,
+      "potassium": 341.0,
+      "vitamin_a": 34.0,
+      "vitamin_c": 1.0,
+      "calcium": 240.0,
+      "iron": 2.3
     },
     "current_nutrients": {
-      "calories": 208.0,
-      "protein": 24.62,
-      "carbs": 0.0,
-      "fat": 11.45,
-      "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 307.0,
-      "potassium": 397.0,
-      "vitamin_a": 32.0,
-      "vitamin_c": 0.0,
-      "calcium": 382.0,
-      "iron": 2.92
+      "calories": 185.0,
+      "protein": 20.86,
+      "carbs": 0.54,
+      "fat": 10.45,
+      "fiber": 0.1,
+      "sugar": 0.43,
+      "sodium": 414.0,
+      "potassium": 341.0,
+      "vitamin_a": 34.0,
+      "vitamin_c": 1.0,
+      "calcium": 240.0,
+      "iron": 2.3
     },
     "usda_portions": [
       {
-        "description": "small (2-2/3\" x 1/2\" x 1/4\")",
-        "grams": 12.0
+        "description": "cup",
+        "grams": 89.0
       },
       {
-        "description": "can (3.75 oz)",
-        "grams": 92.0
+        "description": "sardine",
+        "grams": 38.0
       },
       {
-        "description": "cup, drained",
-        "grams": 149.0
-      },
-      {
-        "description": "sardines",
-        "grams": 24.0
-      },
-      {
-        "description": "cubic inch",
-        "grams": 16.0
-      },
-      {
-        "description": "oz",
-        "grams": 28.35
+        "description": "can",
+        "grams": 370.0
       }
     ]
   },
   {
     "key": "rice_bigas",
-    "display": "Rice (Bigas)",
+    "display": "Raw White Rice Grain (Bigas)",
     "fdc_id": 169756,
     "usda_desc": "Rice, white, long-grain, regular, raw, unenriched",
     "status": "OK",
@@ -3198,16 +3005,16 @@
     "usda_nutrients": {
       "calories": 365.0,
       "protein": 7.13,
-      "fat": 0.66,
       "carbs": 79.95,
+      "fat": 0.66,
       "fiber": 1.3,
       "sugar": 0.12,
-      "calcium": 28.0,
-      "iron": 0.8,
-      "potassium": 115.0,
       "sodium": 5.0,
+      "potassium": 115.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 28.0,
+      "iron": 0.8
     },
     "current_nutrients": {
       "calories": 365.0,
@@ -3240,16 +3047,16 @@
     "usda_nutrients": {
       "calories": 884.0,
       "protein": 0.0,
-      "fat": 100.0,
       "carbs": 0.0,
+      "fat": 100.0,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 1.0,
-      "iron": 0.56,
-      "potassium": 1.0,
       "sodium": 2.0,
+      "potassium": 1.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 1.0,
+      "iron": 0.56
     },
     "current_nutrients": {
       "calories": 884.0,
@@ -3290,16 +3097,16 @@
     "usda_nutrients": {
       "calories": 892.0,
       "protein": 0.0,
-      "fat": 99.06,
       "carbs": 0.0,
+      "fat": 99.06,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 1.0,
-      "iron": 0.05,
-      "potassium": 0.0,
       "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 1.0,
+      "iron": 0.05
     },
     "current_nutrients": {
       "calories": 892.0,
@@ -3340,16 +3147,16 @@
     "usda_nutrients": {
       "calories": 884.0,
       "protein": 0.0,
-      "fat": 100.0,
       "carbs": 0.0,
+      "fat": 100.0,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 0.0,
-      "iron": 0.0,
-      "potassium": 0.0,
       "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 0.0
+      "calcium": 0.0,
+      "iron": 0.0
     },
     "current_nutrients": {
       "calories": 884.0,
@@ -3383,342 +3190,188 @@
   {
     "key": "chicken_thigh",
     "display": "Chicken Thigh (raw)",
-    "fdc_id": 171474,
-    "usda_desc": "Chicken, broilers or fryers, breast, meat and skin, raw",
+    "fdc_id": 173627,
+    "usda_desc": "Chicken, broilers or fryers, dark meat, thigh, meat only, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 172.0,
-      "protein": 20.85,
-      "fat": 9.25,
+      "calories": 121.0,
+      "protein": 19.66,
       "carbs": 0.0,
+      "fat": 4.12,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 11.0,
-      "iron": 0.74,
-      "potassium": 220.0,
-      "sodium": 63.0,
+      "sodium": 95.0,
+      "potassium": 242.0,
+      "vitamin_a": 7.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 83.0
+      "calcium": 7.0,
+      "iron": 0.81
     },
     "current_nutrients": {
-      "calories": 172.0,
-      "protein": 20.85,
+      "calories": 121.0,
+      "protein": 19.66,
       "carbs": 0.0,
-      "fat": 9.25,
+      "fat": 4.12,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 63.0,
-      "potassium": 220.0,
-      "vitamin_a": 24.0,
+      "sodium": 95.0,
+      "potassium": 242.0,
+      "vitamin_a": 7.0,
       "vitamin_c": 0.0,
-      "calcium": 11.0,
-      "iron": 0.74
+      "calcium": 7.0,
+      "iron": 0.81
     },
     "usda_portions": [
       {
-        "description": "breast, bone removed (yield from 1 lb ready-to-cook chicken)",
-        "grams": 87.0
+        "description": "oz",
+        "grams": 113.0
       },
       {
-        "description": "breast, bone removed",
-        "grams": 145.0
+        "description": "thigh without skin",
+        "grams": 149.0
       }
     ]
   },
   {
     "key": "chicken_drumstick",
     "display": "Chicken Drumstick (raw)",
-    "fdc_id": 171466,
-    "usda_desc": "Chicken, broilers or fryers, light meat, meat only, cooked, roasted",
+    "fdc_id": 173614,
+    "usda_desc": "Chicken, broilers or fryers, dark meat, drumstick, meat only, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 173.0,
-      "protein": 30.91,
-      "fat": 4.51,
+      "calories": 116.0,
+      "protein": 19.41,
       "carbs": 0.0,
+      "fat": 3.71,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 15.0,
-      "iron": 1.06,
-      "potassium": 247.0,
-      "sodium": 77.0,
+      "sodium": 114.0,
+      "potassium": 225.0,
+      "vitamin_a": 7.0,
       "vitamin_c": 0.0,
-      "vitamin_a": 29.0
+      "calcium": 9.0,
+      "iron": 0.76
     },
     "current_nutrients": {
-      "calories": 173.0,
-      "protein": 30.91,
+      "calories": 116.0,
+      "protein": 19.41,
       "carbs": 0.0,
-      "fat": 4.51,
+      "fat": 3.71,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 77.0,
-      "potassium": 247.0,
-      "vitamin_a": 9.0,
+      "sodium": 114.0,
+      "potassium": 225.0,
+      "vitamin_a": 7.0,
       "vitamin_c": 0.0,
-      "calcium": 15.0,
-      "iron": 1.06
+      "calcium": 9.0,
+      "iron": 0.76
     },
     "usda_portions": [
       {
-        "description": "chicken, bone and skin removed",
-        "grams": 107.0
+        "description": "oz",
+        "grams": 113.0
       },
       {
-        "description": "cup, chopped or diced",
-        "grams": 140.0
+        "description": "drumstick without skin",
+        "grams": 122.0
       },
       {
-        "description": "unit (yield from 1 lb ready-to-cook chicken)",
-        "grams": 64.0
+        "description": "drumstick  with skin",
+        "grams": 130.0
       }
     ]
   },
   {
     "key": "pork_shoulder",
     "display": "Pork Shoulder (raw)",
-    "fdc_id": 167820,
-    "usda_desc": "Pork, fresh, loin, whole, separable lean and fat, cooked, broiled",
+    "fdc_id": 167843,
+    "usda_desc": "Pork, fresh, shoulder, whole, separable lean and fat, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 242.0,
-      "protein": 27.32,
-      "fat": 13.92,
+      "calories": 236.0,
+      "protein": 17.18,
       "carbs": 0.0,
+      "fat": 17.99,
       "fiber": 0.0,
       "sugar": 0.0,
-      "calcium": 19.0,
-      "iron": 0.87,
-      "potassium": 423.0,
-      "sodium": 62.0,
-      "vitamin_c": 0.6,
-      "vitamin_a": 7.0
+      "sodium": 65.0,
+      "potassium": 302.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 0.7,
+      "calcium": 15.0,
+      "iron": 1.05
     },
     "current_nutrients": {
-      "calories": 242.0,
-      "protein": 27.32,
+      "calories": 236.0,
+      "protein": 17.18,
       "carbs": 0.0,
-      "fat": 13.92,
+      "fat": 17.99,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 62.0,
-      "potassium": 423.0,
+      "sodium": 65.0,
+      "potassium": 302.0,
       "vitamin_a": 2.0,
-      "vitamin_c": 0.6,
-      "calcium": 19.0,
-      "iron": 0.87
+      "vitamin_c": 0.7,
+      "calcium": 15.0,
+      "iron": 1.05
     },
     "usda_portions": [
       {
-        "description": "chop, excluding refuse (yield from 1 raw chop, with refuse, weighing 151 g)",
-        "grams": 87.0
+        "description": "lb",
+        "grams": 453.6
       },
       {
         "description": "oz",
-        "grams": 85.0
+        "grams": 113.0
       }
     ]
   },
   {
     "key": "ground_pork",
     "display": "Ground Pork (raw)",
-    "fdc_id": 167904,
-    "usda_desc": "Pork, fresh, loin, tenderloin, separable lean and fat, cooked, broiled",
+    "fdc_id": 167902,
+    "usda_desc": "Pork, fresh, ground, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 201.0,
-      "protein": 29.86,
-      "fat": 8.11,
+      "calories": 263.0,
+      "protein": 16.88,
       "carbs": 0.0,
-      "fiber": 0.0,
-      "calcium": 5.0,
-      "iron": 1.39,
-      "potassium": 444.0,
-      "sodium": 64.0,
-      "vitamin_c": 1.0,
-      "vitamin_a": 7.0,
-      "sugar": 0.0
-    },
-    "current_nutrients": {
-      "calories": 201.0,
-      "protein": 29.86,
-      "carbs": 0.0,
-      "fat": 8.11,
+      "fat": 21.19,
       "fiber": 0.0,
       "sugar": 0.0,
-      "sodium": 64.0,
-      "potassium": 444.0,
+      "sodium": 56.0,
+      "potassium": 287.0,
       "vitamin_a": 2.0,
-      "vitamin_c": 1.0,
-      "calcium": 5.0,
-      "iron": 1.39
+      "vitamin_c": 0.7,
+      "calcium": 14.0,
+      "iron": 0.88
+    },
+    "current_nutrients": {
+      "calories": 263.0,
+      "protein": 16.88,
+      "carbs": 0.0,
+      "fat": 21.19,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 56.0,
+      "potassium": 287.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 0.7,
+      "calcium": 14.0,
+      "iron": 0.88
     },
     "usda_portions": [
       {
-        "description": "chop, excluding refuse (yield from 1 raw chop, with refuse, weighing 113 g)",
-        "grams": 76.0
+        "description": "oz",
+        "grams": 113.0
       },
       {
         "description": "oz",
-        "grams": 85.0
-      }
-    ]
-  },
-  {
-    "key": "bihon_noodles",
-    "display": "Bihon (Rice Noodles)",
-    "fdc_id": 168916,
-    "usda_desc": "Pasta, whole grain, 51% whole wheat, remaining unenriched semolina, cooked",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 159.0,
-      "protein": 5.82,
-      "fat": 1.5,
-      "carbs": 31.51,
-      "fiber": 4.6,
-      "sugar": 0.85,
-      "calcium": 12.0,
-      "iron": 1.65,
-      "potassium": 77.0,
-      "sodium": 6.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 0.0
-    },
-    "current_nutrients": {
-      "calories": 159.0,
-      "protein": 5.82,
-      "carbs": 31.51,
-      "fat": 1.5,
-      "fiber": 4.6,
-      "sugar": 0.85,
-      "sodium": 6.0,
-      "potassium": 77.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 12.0,
-      "iron": 1.65
-    },
-    "usda_portions": [
-      {
-        "description": "cup farfalle",
-        "grams": 107.0
-      },
-      {
-        "description": "cup rotini",
-        "grams": 107.0
-      },
-      {
-        "description": "cup elbows not packed",
-        "grams": 117.0
-      },
-      {
-        "description": "cup spaghetti packed",
-        "grams": 151.0
-      },
-      {
-        "description": "cup shells",
-        "grams": 105.0
-      },
-      {
-        "description": "cup penne",
-        "grams": 97.0
-      },
-      {
-        "description": "cup lasagne",
-        "grams": 116.0
-      },
-      {
-        "description": "cup spaghetti not packed",
-        "grams": 116.0
-      }
-    ]
-  },
-  {
-    "key": "canton_noodles",
-    "display": "Canton (Egg Noodles)",
-    "fdc_id": 168919,
-    "usda_desc": "Noodles, egg, cooked, enriched, with added salt",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 138.0,
-      "protein": 4.54,
-      "fat": 2.07,
-      "carbs": 25.16,
-      "fiber": 1.2,
-      "sugar": 0.4,
-      "calcium": 12.0,
-      "iron": 1.47,
-      "potassium": 38.0,
-      "sodium": 165.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 21.0
-    },
-    "current_nutrients": {
-      "calories": 138.0,
-      "protein": 4.54,
-      "carbs": 25.16,
-      "fat": 2.07,
-      "fiber": 1.2,
-      "sugar": 0.4,
-      "sodium": 165.0,
-      "potassium": 38.0,
-      "vitamin_a": 6.0,
-      "vitamin_c": 0.0,
-      "calcium": 12.0,
-      "iron": 1.47
-    },
-    "usda_portions": [
-      {
-        "description": "cup",
-        "grams": 160.0
-      }
-    ]
-  },
-  {
-    "key": "brown_rice",
-    "display": "Brown Rice (raw)",
-    "fdc_id": 169704,
-    "usda_desc": "Rice, brown, long-grain, cooked (Includes foods for USDA's Food Distribution Program)",
-    "status": "OK",
-    "issues": [],
-    "usda_nutrients": {
-      "calories": 123.0,
-      "protein": 2.74,
-      "fat": 0.97,
-      "carbs": 25.58,
-      "fiber": 1.6,
-      "sugar": 0.24,
-      "calcium": 3.0,
-      "iron": 0.56,
-      "potassium": 86.0,
-      "sodium": 4.0,
-      "vitamin_c": 0.0,
-      "vitamin_a": 0.0
-    },
-    "current_nutrients": {
-      "calories": 123.0,
-      "protein": 2.74,
-      "carbs": 25.58,
-      "fat": 0.97,
-      "fiber": 1.6,
-      "sugar": 0.24,
-      "sodium": 4.0,
-      "potassium": 86.0,
-      "vitamin_a": 0.0,
-      "vitamin_c": 0.0,
-      "calcium": 3.0,
-      "iron": 0.56
-    },
-    "usda_portions": [
-      {
-        "description": "cup",
-        "grams": 202.0
+        "grams": 28.35
       }
     ]
   },
@@ -3732,16 +3385,16 @@
     "usda_nutrients": {
       "calories": 22.0,
       "protein": 0.35,
-      "fat": 0.24,
       "carbs": 6.9,
+      "fat": 0.24,
       "fiber": 0.3,
       "sugar": 2.52,
-      "calcium": 6.0,
-      "iron": 0.08,
-      "potassium": 103.0,
       "sodium": 1.0,
+      "potassium": 103.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 38.7,
-      "vitamin_a": 6.0
+      "calcium": 6.0,
+      "iron": 0.08
     },
     "current_nutrients": {
       "calories": 22.0,
@@ -3779,37 +3432,570 @@
   {
     "key": "lime_juice",
     "display": "Lime Juice (fresh)",
-    "fdc_id": 167748,
-    "usda_desc": "Lemon juice from concentrate, canned or bottled",
+    "fdc_id": 168156,
+    "usda_desc": "Lime juice, raw",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 17.0,
-      "protein": 0.45,
+      "calories": 25.0,
+      "protein": 0.42,
+      "carbs": 8.42,
       "fat": 0.07,
-      "carbs": 5.62,
-      "fiber": 0.7,
-      "sugar": 1.53,
-      "calcium": 10.0,
-      "iron": 0.06,
-      "potassium": 109.0,
-      "sodium": 24.0,
-      "vitamin_c": 14.3,
-      "vitamin_a": 33.0
+      "fiber": 0.4,
+      "sugar": 1.69,
+      "sodium": 2.0,
+      "potassium": 117.0,
+      "vitamin_a": 2.0,
+      "vitamin_c": 30.0,
+      "calcium": 14.0,
+      "iron": 0.09
     },
     "current_nutrients": {
-      "calories": 17.0,
-      "protein": 0.45,
-      "carbs": 5.62,
+      "calories": 25.0,
+      "protein": 0.42,
+      "carbs": 8.42,
       "fat": 0.07,
-      "fiber": 0.7,
-      "sugar": 1.53,
-      "sodium": 24.0,
-      "potassium": 109.0,
+      "fiber": 0.4,
+      "sugar": 1.69,
+      "sodium": 2.0,
+      "potassium": 117.0,
       "vitamin_a": 2.0,
-      "vitamin_c": 14.3,
-      "calcium": 10.0,
-      "iron": 0.06
+      "vitamin_c": 30.0,
+      "calcium": 14.0,
+      "iron": 0.09
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 242.0
+      },
+      {
+        "description": "fl oz",
+        "grams": 30.8
+      },
+      {
+        "description": "lime yields",
+        "grams": 44.0
+      }
+    ]
+  },
+  {
+    "key": "oregano_leaves",
+    "display": "Oregano Leaves (Dried)",
+    "fdc_id": 171328,
+    "usda_desc": "Spices, oregano, dried",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 265.0,
+      "protein": 9.0,
+      "carbs": 68.92,
+      "fat": 4.28,
+      "fiber": 42.5,
+      "sugar": 4.09,
+      "sodium": 25.0,
+      "potassium": 1260.0,
+      "vitamin_a": 85.0,
+      "vitamin_c": 2.3,
+      "calcium": 1597.0,
+      "iron": 36.8
+    },
+    "current_nutrients": {
+      "calories": 265.0,
+      "protein": 9.0,
+      "carbs": 68.92,
+      "fat": 4.28,
+      "fiber": 42.5,
+      "sugar": 4.09,
+      "sodium": 25.0,
+      "potassium": 1260.0,
+      "vitamin_a": 85.0,
+      "vitamin_c": 2.3,
+      "calcium": 1597.0,
+      "iron": 36.8
+    },
+    "usda_portions": [
+      {
+        "description": "tsp, leaves",
+        "grams": 1.0
+      },
+      {
+        "description": "tsp, ground",
+        "grams": 1.8
+      }
+    ]
+  },
+  {
+    "key": "tanglad",
+    "display": "Tanglad (Lemongrass)",
+    "fdc_id": 168573,
+    "usda_desc": "Lemon grass (citronella), raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 99.0,
+      "protein": 1.82,
+      "carbs": 25.31,
+      "fat": 0.49,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 6.0,
+      "potassium": 723.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 2.6,
+      "calcium": 65.0,
+      "iron": 8.17
+    },
+    "current_nutrients": {
+      "calories": 99.0,
+      "protein": 1.82,
+      "carbs": 25.31,
+      "fat": 0.49,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 6.0,
+      "potassium": 723.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 2.6,
+      "calcium": 65.0,
+      "iron": 8.17
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 67.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 4.8
+      }
+    ]
+  },
+  {
+    "key": "spring_onion",
+    "display": "Spring Onion (Scallion)",
+    "fdc_id": 170005,
+    "usda_desc": "Onions, spring or scallions (includes tops and bulb), raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 32.0,
+      "protein": 1.83,
+      "carbs": 7.34,
+      "fat": 0.19,
+      "fiber": 2.6,
+      "sugar": 2.33,
+      "sodium": 16.0,
+      "potassium": 276.0,
+      "vitamin_a": 50.0,
+      "vitamin_c": 18.8,
+      "calcium": 72.0,
+      "iron": 1.48
+    },
+    "current_nutrients": {
+      "calories": 32.0,
+      "protein": 1.83,
+      "carbs": 7.34,
+      "fat": 0.19,
+      "fiber": 2.6,
+      "sugar": 2.33,
+      "sodium": 16.0,
+      "potassium": 276.0,
+      "vitamin_a": 50.0,
+      "vitamin_c": 18.8,
+      "calcium": 72.0,
+      "iron": 1.48
+    },
+    "usda_portions": [
+      {
+        "description": "small (3\" long)",
+        "grams": 5.0
+      },
+      {
+        "description": "tbsp chopped",
+        "grams": 6.0
+      },
+      {
+        "description": "cup, chopped",
+        "grams": 100.0
+      },
+      {
+        "description": "medium (4-1/8\" long)",
+        "grams": 15.0
+      },
+      {
+        "description": "large",
+        "grams": 25.0
+      }
+    ]
+  },
+  {
+    "key": "laurel_leaves",
+    "display": "Laurel (Bay) Leaves",
+    "fdc_id": 170917,
+    "usda_desc": "Spices, bay leaf",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 313.0,
+      "protein": 7.61,
+      "carbs": 74.97,
+      "fat": 8.36,
+      "fiber": 26.3,
+      "sugar": 0.0,
+      "sodium": 23.0,
+      "potassium": 529.0,
+      "vitamin_a": 309.0,
+      "vitamin_c": 46.5,
+      "calcium": 834.0,
+      "iron": 43.0
+    },
+    "current_nutrients": {
+      "calories": 313.0,
+      "protein": 7.61,
+      "carbs": 74.97,
+      "fat": 8.36,
+      "fiber": 26.3,
+      "sugar": 0.0,
+      "sodium": 23.0,
+      "potassium": 529.0,
+      "vitamin_a": 309.0,
+      "vitamin_c": 46.5,
+      "calcium": 834.0,
+      "iron": 43.0
+    },
+    "usda_portions": [
+      {
+        "description": "tbsp, crumbled",
+        "grams": 1.8
+      },
+      {
+        "description": "tsp, crumbled",
+        "grams": 0.6
+      }
+    ]
+  },
+  {
+    "key": "black_beans",
+    "display": "Black Beans (Canned)",
+    "fdc_id": 175188,
+    "usda_desc": "Beans, black turtle, mature seeds, canned",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 91.0,
+      "protein": 6.03,
+      "carbs": 16.55,
+      "fat": 0.29,
+      "fiber": 6.9,
+      "sugar": 0.23,
+      "sodium": 384.0,
+      "potassium": 308.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 2.7,
+      "calcium": 35.0,
+      "iron": 1.9
+    },
+    "current_nutrients": {
+      "calories": 91.0,
+      "protein": 6.03,
+      "carbs": 16.55,
+      "fat": 0.29,
+      "fiber": 6.9,
+      "sugar": 0.23,
+      "sodium": 384.0,
+      "potassium": 308.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 2.7,
+      "calcium": 35.0,
+      "iron": 1.9
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 240.0
+      }
+    ]
+  },
+  {
+    "key": "alugbati",
+    "display": "Alugbati (Malabar Spinach)",
+    "fdc_id": 170474,
+    "usda_desc": "Vinespinach, (basella), raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 19.0,
+      "protein": 1.8,
+      "carbs": 3.4,
+      "fat": 0.3,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 24.0,
+      "potassium": 510.0,
+      "vitamin_a": 400.0,
+      "vitamin_c": 102.0,
+      "calcium": 109.0,
+      "iron": 1.2
+    },
+    "current_nutrients": {
+      "calories": 19.0,
+      "protein": 1.8,
+      "carbs": 3.4,
+      "fat": 0.3,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 24.0,
+      "potassium": 510.0,
+      "vitamin_a": 400.0,
+      "vitamin_c": 102.0,
+      "calcium": 109.0,
+      "iron": 1.2
+    },
+    "usda_portions": []
+  },
+  {
+    "key": "palm_oil",
+    "display": "Palm Oil",
+    "fdc_id": 171015,
+    "usda_desc": "Oil, palm",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 884.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.01
+    },
+    "current_nutrients": {
+      "calories": 884.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.01
+    },
+    "usda_portions": [
+      {
+        "description": "tsp",
+        "grams": 4.5
+      },
+      {
+        "description": "cup",
+        "grams": 216.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 13.6
+      }
+    ]
+  },
+  {
+    "key": "corn_oil",
+    "display": "Corn Oil",
+    "fdc_id": 171029,
+    "usda_desc": "Oil, corn, industrial and retail, all purpose salad or cooking",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 900.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.0
+    },
+    "current_nutrients": {
+      "calories": 900.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 100.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.0
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 218.0
+      },
+      {
+        "description": "tsp",
+        "grams": 4.5
+      },
+      {
+        "description": "tbsp",
+        "grams": 13.6
+      }
+    ]
+  },
+  {
+    "key": "kosher_salt",
+    "display": "Kosher Salt",
+    "fdc_id": 173468,
+    "usda_desc": "Salt, table",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 38758.0,
+      "potassium": 8.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 24.0,
+      "iron": 0.33
+    },
+    "current_nutrients": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 38758.0,
+      "potassium": 8.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 24.0,
+      "iron": 0.33
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 292.0
+      },
+      {
+        "description": "tsp",
+        "grams": 6.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 18.0
+      },
+      {
+        "description": "dash",
+        "grams": 0.4
+      }
+    ]
+  },
+  {
+    "key": "sea_salt",
+    "display": "Sea Salt",
+    "fdc_id": 173468,
+    "usda_desc": "Salt, table",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 38758.0,
+      "potassium": 8.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 24.0,
+      "iron": 0.33
+    },
+    "current_nutrients": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 38758.0,
+      "potassium": 8.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 24.0,
+      "iron": 0.33
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 292.0
+      },
+      {
+        "description": "tsp",
+        "grams": 6.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 18.0
+      },
+      {
+        "description": "dash",
+        "grams": 0.4
+      }
+    ]
+  },
+  {
+    "key": "vinegar_coconut",
+    "display": "Coconut Vinegar (Sukang Tuba)",
+    "fdc_id": 173469,
+    "usda_desc": "Vinegar, cider",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 7.0,
+      "iron": 0.2
+    },
+    "current_nutrients": {
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 7.0,
+      "iron": 0.2
     },
     "usda_portions": [
       {
@@ -3817,63 +4003,155 @@
         "grams": 5.0
       },
       {
-        "description": "cup",
-        "grams": 244.0
-      },
-      {
-        "description": "fl oz",
-        "grams": 30.5
-      },
-      {
         "description": "tbsp",
-        "grams": 15.0
+        "grams": 14.9
+      },
+      {
+        "description": "cup",
+        "grams": 239.0
       }
     ]
   },
   {
-    "key": "tuyo_fish",
-    "display": "Tuyo (Dried Salted Fish)",
-    "fdc_id": 175154,
-    "usda_desc": "Fish, trout, rainbow, wild, raw",
+    "key": "vinegar_apple_cider",
+    "display": "Apple Cider Vinegar",
+    "fdc_id": 173469,
+    "usda_desc": "Vinegar, cider",
     "status": "OK",
     "issues": [],
     "usda_nutrients": {
-      "calories": 119.0,
-      "protein": 20.48,
-      "fat": 3.46,
-      "carbs": 0.0,
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
+      "fat": 0.0,
       "fiber": 0.0,
-      "calcium": 67.0,
-      "iron": 0.7,
-      "potassium": 481.0,
-      "sodium": 31.0,
-      "vitamin_c": 2.4,
-      "vitamin_a": 62.0,
-      "sugar": 0.0
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 7.0,
+      "iron": 0.2
     },
     "current_nutrients": {
-      "calories": 119.0,
-      "protein": 20.48,
-      "carbs": 0.0,
-      "fat": 3.46,
+      "calories": 21.0,
+      "protein": 0.0,
+      "carbs": 0.93,
+      "fat": 0.0,
       "fiber": 0.0,
-      "sugar": 0.0,
-      "sodium": 31.0,
-      "potassium": 481.0,
-      "vitamin_a": 19.0,
-      "vitamin_c": 2.4,
-      "calcium": 67.0,
+      "sugar": 0.4,
+      "sodium": 5.0,
+      "potassium": 73.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 7.0,
+      "iron": 0.2
+    },
+    "usda_portions": [
+      {
+        "description": "tsp",
+        "grams": 5.0
+      },
+      {
+        "description": "tbsp",
+        "grams": 14.9
+      },
+      {
+        "description": "cup",
+        "grams": 239.0
+      }
+    ]
+  },
+  {
+    "key": "shallot",
+    "display": "Shallot",
+    "fdc_id": 170400,
+    "usda_desc": "Celeriac, raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 42.0,
+      "protein": 1.5,
+      "carbs": 9.2,
+      "fat": 0.3,
+      "fiber": 1.8,
+      "sugar": 1.6,
+      "sodium": 100.0,
+      "potassium": 300.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.0,
+      "calcium": 43.0,
+      "iron": 0.7
+    },
+    "current_nutrients": {
+      "calories": 42.0,
+      "protein": 1.5,
+      "carbs": 9.2,
+      "fat": 0.3,
+      "fiber": 1.8,
+      "sugar": 1.6,
+      "sodium": 100.0,
+      "potassium": 300.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 8.0,
+      "calcium": 43.0,
       "iron": 0.7
     },
     "usda_portions": [
       {
-        "description": "fillet",
-        "grams": 159.0
-      },
-      {
-        "description": "oz",
-        "grams": 85.0
+        "description": "cup",
+        "grams": 156.0
       }
     ]
+  },
+  {
+    "key": "distilled_water",
+    "display": "Distilled Water",
+    "fdc_id": 0,
+    "usda_desc": "NO FDC ID",
+    "status": "NO_FDC",
+    "issues": [
+      "No FDC ID assigned"
+    ],
+    "usda_nutrients": {},
+    "current_nutrients": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 0.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 0.0,
+      "iron": 0.0
+    }
+  },
+  {
+    "key": "mineral_water",
+    "display": "Mineral Water",
+    "fdc_id": 0,
+    "usda_desc": "NO FDC ID",
+    "status": "NO_FDC",
+    "issues": [
+      "No FDC ID assigned"
+    ],
+    "usda_nutrients": {},
+    "current_nutrients": {
+      "calories": 0.0,
+      "protein": 0.0,
+      "carbs": 0.0,
+      "fat": 0.0,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 4.0,
+      "potassium": 1.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 10.0,
+      "iron": 0.0
+    }
   }
 ]

@@ -4689,7 +4689,7 @@ private fun IngredientBrowserRow(
                             "Sugar" to "${String.format("%.1f", ingredient.sugar)}g",
                             "Sodium" to "${String.format("%.0f", ingredient.sodium)}mg",
                             "Potassium" to "${String.format("%.0f", ingredient.potassium)}mg",
-                            "Vitamin A" to "${String.format("%.0f", ingredient.vitaminA)} IU",
+                            "Vitamin A" to "${String.format("%.0f", ingredient.vitaminA)} µg",
                             "Vitamin C" to "${String.format("%.1f", ingredient.vitaminC)}mg",
                             "Calcium" to "${String.format("%.0f", ingredient.calcium)}mg",
                             "Iron" to "${String.format("%.2f", ingredient.iron)}mg"

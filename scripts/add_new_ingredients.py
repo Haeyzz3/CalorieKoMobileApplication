@@ -1,14 +1,14 @@
 """Add 7 new ingredients to raw_ingredients.json with USDA API data."""
-import json, time, urllib.request, os
+import json, time, urllib.request, os, sys
+
+TOOLS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "tools"))
+if TOOLS_DIR not in sys.path:
+    sys.path.insert(0, TOOLS_DIR)
+
+from usda_nutrient_schema import extract_nutrients_from_detail
 
 API_KEY = "NxgG3iwRfp4HpfmejYVeRAHmJqlBTYeyKyMCHSVc"
 BASE_URL = "https://api.nal.usda.gov/fdc/v1"
-
-NUTRIENT_MAP = {
-    1008: "calories", 1003: "protein", 1005: "carbs", 1004: "fat",
-    1079: "fiber", 2000: "sugar", 1093: "sodium", 1092: "potassium",
-    1104: "vitamin_a", 1162: "vitamin_c", 1087: "calcium", 1089: "iron",
-}
 
 NEW_INGREDIENTS = [
     {
@@ -69,16 +69,7 @@ def fetch_food(fdc_id):
         return json.loads(resp.read().decode())
 
 def extract_nutrients(food_data):
-    nutrients = {}
-    for fn in food_data.get("foodNutrients", []):
-        nid = fn.get("nutrient", {}).get("id", 0)
-        if nid in NUTRIENT_MAP:
-            val = fn.get("amount", 0.0)
-            nutrients[NUTRIENT_MAP[nid]] = round(val, 2) if val else 0.0
-    for key in NUTRIENT_MAP.values():
-        if key not in nutrients:
-            nutrients[key] = 0.0
-    return nutrients
+    return extract_nutrients_from_detail(food_data)
 
 def extract_portions(food_data):
     portions = []

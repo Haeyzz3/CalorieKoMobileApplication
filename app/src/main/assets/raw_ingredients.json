@@ -15,7 +15,7 @@
       "sugar": 0.37,
       "sodium": 142.0,
       "potassium": 138.0,
-      "vitamin_a": 540.0,
+      "vitamin_a": 160.0,
       "vitamin_c": 0.0,
       "calcium": 56.0,
       "iron": 1.75
@@ -65,7 +65,7 @@
       "sugar": 0.0,
       "sodium": 45.0,
       "potassium": 441.0,
-      "vitamin_a": 60.0,
+      "vitamin_a": 18.0,
       "vitamin_c": 0.0,
       "calcium": 4.0,
       "iron": 0.77
@@ -103,7 +103,7 @@
       "sugar": 0.0,
       "sodium": 90.0,
       "potassium": 327.0,
-      "vitamin_a": 93.0,
+      "vitamin_a": 28.0,
       "vitamin_c": 0.7,
       "calcium": 57.0,
       "iron": 1.1
@@ -141,7 +141,7 @@
       "sugar": 0.0,
       "sodium": 32.0,
       "potassium": 185.0,
-      "vitamin_a": 10.0,
+      "vitamin_a": 3.0,
       "vitamin_c": 0.3,
       "calcium": 5.0,
       "iron": 0.52
@@ -175,7 +175,7 @@
       "sugar": 0.0,
       "sodium": 72.0,
       "potassium": 292.0,
-      "vitamin_a": 100.0,
+      "vitamin_a": 30.0,
       "vitamin_c": 0.0,
       "calcium": 51.0,
       "iron": 0.32
@@ -205,7 +205,7 @@
       "sugar": 0.0,
       "sodium": 90.0,
       "potassium": 314.0,
-      "vitamin_a": 167.0,
+      "vitamin_a": 50.0,
       "vitamin_c": 0.4,
       "calcium": 12.0,
       "iron": 1.63
@@ -269,7 +269,7 @@
       "sugar": 0.0,
       "sodium": 45.0,
       "potassium": 334.0,
-      "vitamin_a": 30.0,
+      "vitamin_a": 9.0,
       "vitamin_c": 0.0,
       "calcium": 5.0,
       "iron": 0.37
@@ -345,7 +345,7 @@
       "sugar": 0.0,
       "sodium": 90.0,
       "potassium": 314.0,
-      "vitamin_a": 167.0,
+      "vitamin_a": 50.0,
       "vitamin_c": 0.4,
       "calcium": 12.0,
       "iron": 1.63
@@ -376,7 +376,7 @@
       "carbs": 9.93,
       "fat": 0.1,
       "fiber": 2.2,
-      "sugar": 0.0,
+      "sugar": 5.76,
       "sodium": 1.0,
       "potassium": 197.0,
       "vitamin_a": 0.0,
@@ -442,7 +442,7 @@
       "carbs": 7.68,
       "fat": 0.13,
       "fiber": 1.2,
-      "sugar": 0.0,
+      "sugar": 5.76,
       "sodium": 2.0,
       "potassium": 141.0,
       "vitamin_a": 0.0,
@@ -508,7 +508,7 @@
       "carbs": 8.61,
       "fat": 0.05,
       "fiber": 1.9,
-      "sugar": 0.0,
+      "sugar": 5.82,
       "sodium": 1.0,
       "potassium": 182.0,
       "vitamin_a": 0.0,
@@ -577,7 +577,7 @@
       "sugar": 1.0,
       "sodium": 17.0,
       "potassium": 401.0,
-      "vitamin_a": 9.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 31.2,
       "calcium": 181.0,
       "iron": 1.7
@@ -619,7 +619,7 @@
       "sugar": 2.63,
       "sodium": 5.0,
       "potassium": 237.0,
-      "vitamin_a": 833.0,
+      "vitamin_a": 42.0,
       "vitamin_c": 13.7,
       "calcium": 10.0,
       "iron": 0.27
@@ -735,7 +735,7 @@
       "sugar": 1.67,
       "sodium": 2.0,
       "potassium": 147.0,
-      "vitamin_a": 105.0,
+      "vitamin_a": 5.0,
       "vitamin_c": 2.8,
       "calcium": 16.0,
       "iron": 0.28
@@ -799,7 +799,7 @@
       "sugar": 0.61,
       "sodium": 67.0,
       "potassium": 63.0,
-      "vitamin_a": 118.0,
+      "vitamin_a": 6.0,
       "vitamin_c": 3.0,
       "calcium": 72.0,
       "iron": 8.9
@@ -829,7 +829,7 @@
       "sugar": 0.0,
       "sodium": 5.0,
       "potassium": 296.0,
-      "vitamin_a": 471.0,
+      "vitamin_a": 24.0,
       "vitamin_c": 84.0,
       "calcium": 19.0,
       "iron": 0.43
@@ -863,7 +863,7 @@
       "sugar": 0.0,
       "sodium": 9.0,
       "potassium": 337.0,
-      "vitamin_a": 7564.0,
+      "vitamin_a": 378.0,
       "vitamin_c": 51.7,
       "calcium": 185.0,
       "iron": 4.0
@@ -893,7 +893,7 @@
       "sugar": 0.4,
       "sodium": 11.0,
       "potassium": 591.0,
-      "vitamin_a": 76.0,
+      "vitamin_a": 4.0,
       "vitamin_c": 4.5,
       "calcium": 43.0,
       "iron": 0.55
@@ -923,7 +923,7 @@
       "sugar": 0.0,
       "sodium": 4.0,
       "potassium": 240.0,
-      "vitamin_a": 865.0,
+      "vitamin_a": 43.0,
       "vitamin_c": 18.8,
       "calcium": 50.0,
       "iron": 0.47
@@ -957,7 +957,7 @@
       "sugar": 0.0,
       "sodium": 113.0,
       "potassium": 312.0,
-      "vitamin_a": 6300.0,
+      "vitamin_a": 315.0,
       "vitamin_c": 55.0,
       "calcium": 77.0,
       "iron": 1.67
@@ -991,7 +991,7 @@
       "sugar": 0.0,
       "sodium": 2.0,
       "potassium": 150.0,
-      "vitamin_a": 16.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 10.1,
       "calcium": 26.0,
       "iron": 0.2
@@ -1025,7 +1025,7 @@
       "sugar": 0.0,
       "sodium": 6.0,
       "potassium": 508.0,
-      "vitamin_a": 3778.0,
+      "vitamin_a": 189.0,
       "vitamin_c": 11.0,
       "calcium": 78.0,
       "iron": 0.97
@@ -1093,7 +1093,7 @@
       "sugar": 1.18,
       "sodium": 65.0,
       "potassium": 252.0,
-      "vitamin_a": 4468.0,
+      "vitamin_a": 223.0,
       "vitamin_c": 45.0,
       "calcium": 105.0,
       "iron": 0.8
@@ -1131,7 +1131,7 @@
       "sugar": 2.2,
       "sodium": 4.0,
       "potassium": 352.0,
-      "vitamin_a": 10630.0,
+      "vitamin_a": 532.0,
       "vitamin_c": 21.0,
       "calcium": 48.0,
       "iron": 0.7
@@ -1161,7 +1161,7 @@
       "sugar": 1.48,
       "sodium": 7.0,
       "potassium": 299.0,
-      "vitamin_a": 716.0,
+      "vitamin_a": 36.0,
       "vitamin_c": 23.0,
       "calcium": 82.0,
       "iron": 0.62
@@ -1195,7 +1195,7 @@
       "sugar": 3.53,
       "sodium": 2.0,
       "potassium": 229.0,
-      "vitamin_a": 23.0,
+      "vitamin_a": 1.0,
       "vitamin_c": 2.2,
       "calcium": 9.0,
       "iron": 0.23
@@ -1279,7 +1279,7 @@
       "sugar": 4.74,
       "sodium": 69.0,
       "potassium": 320.0,
-      "vitamin_a": 16706.0,
+      "vitamin_a": 835.0,
       "vitamin_c": 5.9,
       "calcium": 33.0,
       "iron": 0.3
@@ -1341,7 +1341,7 @@
       "sugar": 3.26,
       "sodium": 6.0,
       "potassium": 211.0,
-      "vitamin_a": 690.0,
+      "vitamin_a": 35.0,
       "vitamin_c": 12.2,
       "calcium": 37.0,
       "iron": 1.03
@@ -1375,7 +1375,7 @@
       "sugar": 4.2,
       "sodium": 4.0,
       "potassium": 211.0,
-      "vitamin_a": 3131.0,
+      "vitamin_a": 157.0,
       "vitamin_c": 127.7,
       "calcium": 7.0,
       "iron": 0.43
@@ -1429,7 +1429,7 @@
       "sugar": 7.82,
       "sodium": 8.0,
       "potassium": 182.0,
-      "vitamin_a": 950.0,
+      "vitamin_a": 47.0,
       "vitamin_c": 60.9,
       "calcium": 20.0,
       "iron": 0.25
@@ -1471,7 +1471,7 @@
       "sugar": 13.66,
       "sodium": 1.0,
       "potassium": 168.0,
-      "vitamin_a": 1082.0,
+      "vitamin_a": 54.0,
       "vitamin_c": 36.4,
       "calcium": 11.0,
       "iron": 0.16
@@ -1535,7 +1535,7 @@
       "sugar": 1.86,
       "sodium": 39.0,
       "potassium": 233.0,
-      "vitamin_a": 7.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 14.8,
       "calcium": 25.0,
       "iron": 0.34
@@ -1585,7 +1585,7 @@
       "sugar": 0.82,
       "sodium": 6.0,
       "potassium": 425.0,
-      "vitamin_a": 2.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 19.7,
       "calcium": 12.0,
       "iron": 0.81
@@ -1627,7 +1627,7 @@
       "sugar": 5.67,
       "sodium": 5.0,
       "potassium": 244.0,
-      "vitamin_a": 765.0,
+      "vitamin_a": 38.0,
       "vitamin_c": 40.0,
       "calcium": 25.0,
       "iron": 1.47
@@ -1699,7 +1699,7 @@
       "sugar": 0.64,
       "sodium": 20.0,
       "potassium": 1329.0,
-      "vitamin_a": 547.0,
+      "vitamin_a": 27.0,
       "vitamin_c": 0.0,
       "calcium": 443.0,
       "iron": 9.71
@@ -1885,7 +1885,7 @@
       "sugar": 3.64,
       "sodium": 7851.0,
       "potassium": 288.0,
-      "vitamin_a": 12.0,
+      "vitamin_a": 4.0,
       "vitamin_c": 0.5,
       "calcium": 43.0,
       "iron": 0.78
@@ -1982,7 +1982,7 @@
       "sugar": 1.71,
       "sodium": 55.0,
       "potassium": 814.0,
-      "vitamin_a": 3800.0,
+      "vitamin_a": 190.0,
       "vitamin_c": 50.0,
       "calcium": 1890.0,
       "iron": 123.6
@@ -2260,7 +2260,7 @@
       "sugar": 3.56,
       "sodium": 474.0,
       "potassium": 297.0,
-      "vitamin_a": 435.0,
+      "vitamin_a": 22.0,
       "vitamin_c": 7.0,
       "calcium": 14.0,
       "iron": 0.96
@@ -2370,7 +2370,7 @@
       "sugar": 0.43,
       "sodium": 414.0,
       "potassium": 341.0,
-      "vitamin_a": 151.0,
+      "vitamin_a": 34.0,
       "vitamin_c": 1.0,
       "calcium": 240.0,
       "iron": 2.3
@@ -2552,7 +2552,7 @@
       "sugar": 0.0,
       "sodium": 95.0,
       "potassium": 242.0,
-      "vitamin_a": 24.0,
+      "vitamin_a": 7.0,
       "vitamin_c": 0.0,
       "calcium": 7.0,
       "iron": 0.81
@@ -2586,7 +2586,7 @@
       "sugar": 0.0,
       "sodium": 114.0,
       "potassium": 225.0,
-      "vitamin_a": 22.0,
+      "vitamin_a": 7.0,
       "vitamin_c": 0.0,
       "calcium": 9.0,
       "iron": 0.76
@@ -2624,7 +2624,7 @@
       "sugar": 0.0,
       "sodium": 65.0,
       "potassium": 302.0,
-      "vitamin_a": 7.0,
+      "vitamin_a": 2.0,
       "vitamin_c": 0.7,
       "calcium": 15.0,
       "iron": 1.05
@@ -2658,7 +2658,7 @@
       "sugar": 0.0,
       "sodium": 56.0,
       "potassium": 287.0,
-      "vitamin_a": 7.0,
+      "vitamin_a": 2.0,
       "vitamin_c": 0.7,
       "calcium": 14.0,
       "iron": 0.88
@@ -2692,7 +2692,7 @@
       "sugar": 2.52,
       "sodium": 1.0,
       "potassium": 103.0,
-      "vitamin_a": 6.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 38.7,
       "calcium": 6.0,
       "iron": 0.08
@@ -2734,7 +2734,7 @@
       "sugar": 1.69,
       "sodium": 2.0,
       "potassium": 117.0,
-      "vitamin_a": 50.0,
+      "vitamin_a": 2.0,
       "vitamin_c": 30.0,
       "calcium": 14.0,
       "iron": 0.09
@@ -2772,7 +2772,7 @@
       "sugar": 4.09,
       "sodium": 25.0,
       "potassium": 1260.0,
-      "vitamin_a": 1701.0,
+      "vitamin_a": 85.0,
       "vitamin_c": 2.3,
       "calcium": 1597.0,
       "iron": 36.8
@@ -2806,7 +2806,7 @@
       "sugar": 0.0,
       "sodium": 6.0,
       "potassium": 723.0,
-      "vitamin_a": 6.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 2.6,
       "calcium": 65.0,
       "iron": 8.17
@@ -2840,7 +2840,7 @@
       "sugar": 2.33,
       "sodium": 16.0,
       "potassium": 276.0,
-      "vitamin_a": 997.0,
+      "vitamin_a": 50.0,
       "vitamin_c": 18.8,
       "calcium": 72.0,
       "iron": 1.48
@@ -2886,7 +2886,7 @@
       "sugar": 0.0,
       "sodium": 23.0,
       "potassium": 529.0,
-      "vitamin_a": 6185.0,
+      "vitamin_a": 309.0,
       "vitamin_c": 46.5,
       "calcium": 834.0,
       "iron": 43.0
@@ -2920,7 +2920,7 @@
       "sugar": 0.23,
       "sodium": 384.0,
       "potassium": 308.0,
-      "vitamin_a": 4.0,
+      "vitamin_a": 0.0,
       "vitamin_c": 2.7,
       "calcium": 35.0,
       "iron": 1.9
@@ -2950,7 +2950,7 @@
       "sugar": 0.0,
       "sodium": 24.0,
       "potassium": 510.0,
-      "vitamin_a": 8000.0,
+      "vitamin_a": 400.0,
       "vitamin_c": 102.0,
       "calcium": 109.0,
       "iron": 1.2

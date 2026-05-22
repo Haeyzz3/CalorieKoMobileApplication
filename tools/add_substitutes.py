@@ -1,4 +1,4 @@
-"""
+﻿"""
 Fetches USDA data for new substitute ingredients and adds them to raw_ingredients.json.
 Usage: python tools/add_substitutes.py --api-key YOUR_API_KEY
 """
@@ -8,6 +8,8 @@ import urllib.request
 import urllib.parse
 import time
 import os
+
+from usda_nutrient_schema import empty_nutrients, extract_nutrients_from_detail
 
 API_BASE = "https://api.nal.usda.gov/fdc/v1"
 
@@ -43,23 +45,6 @@ NEW_INGREDIENTS = [
     ("tuyo_fish", "Tuyo (Dried Salted Fish)", "protein", "fish_smoked", 175154),
 ]
 
-# Nutrient IDs we need from USDA
-NUTRIENT_MAP = {
-    1008: "calories",     # Energy (kcal)
-    1003: "protein",      # Protein (g)
-    1005: "carbs",        # Carbohydrate (g)
-    1004: "fat",          # Total fat (g)
-    1079: "fiber",        # Dietary fiber (g)
-    2000: "sugar",        # Total sugars (g)
-    1093: "sodium",       # Sodium (mg)
-    1092: "potassium",    # Potassium (mg)
-    1106: "vitamin_a",    # Vitamin A, RAE (µg)
-    1162: "vitamin_c",    # Vitamin C (mg)
-    1087: "calcium",      # Calcium (mg)
-    1089: "iron",         # Iron (mg)
-}
-
-
 def fetch_food(fdc_id: int, api_key: str) -> dict:
     """Fetch a single food item from USDA FDC API."""
     url = f"{API_BASE}/food/{fdc_id}?api_key={api_key}"
@@ -76,17 +61,7 @@ def fetch_food(fdc_id: int, api_key: str) -> dict:
 
 def extract_nutrients(food_data: dict) -> dict:
     """Extract our 12 nutrients from USDA response."""
-    nutrients = {name: 0.0 for name in NUTRIENT_MAP.values()}
-    
-    for fn in food_data.get("foodNutrients", []):
-        nid = fn.get("nutrient", {}).get("id") or fn.get("nutrientId")
-        if nid in NUTRIENT_MAP:
-            amount = fn.get("amount", 0.0)
-            if amount is None:
-                amount = 0.0
-            nutrients[NUTRIENT_MAP[nid]] = round(amount, 2)
-    
-    return nutrients
+    return extract_nutrients_from_detail(food_data) if food_data else empty_nutrients()
 
 
 def extract_portions(food_data: dict) -> list:

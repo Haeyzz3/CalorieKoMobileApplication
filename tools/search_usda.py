@@ -4,13 +4,10 @@ import urllib.request
 import urllib.parse
 import time
 
+from usda_nutrient_schema import extract_nutrients_from_search
+
 API_KEY = "NxgG3iwRfp4HpfmejYVeRAHmJqlBTYeyKyMCHSVc"
 API_BASE = "https://api.nal.usda.gov/fdc/v1"
-
-NUTRIENT_MAP = {
-    1008: "calories", 1003: "protein", 1005: "carbs", 1004: "fat",
-    1093: "sodium",
-}
 
 def search_food(query, data_type="SR Legacy"):
     url = f"{API_BASE}/foods/search?api_key={API_KEY}"
@@ -43,11 +40,7 @@ for query, dt in searches:
             fdc_id = food.get("fdcId")
             desc = food.get("description", "?")
             # Extract key nutrients
-            nutrients = {}
-            for fn in food.get("foodNutrients", []):
-                nid = fn.get("nutrientId")
-                if nid in NUTRIENT_MAP:
-                    nutrients[NUTRIENT_MAP[nid]] = fn.get("value", 0)
+            nutrients = extract_nutrients_from_search(food)
             cal = nutrients.get("calories", "?")
             na = nutrients.get("sodium", "?")
             print(f"  FDC {fdc_id}: {desc} | Cal={cal} Na={na}")

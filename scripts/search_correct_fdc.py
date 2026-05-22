@@ -8,16 +8,19 @@ import time
 import urllib.request
 import urllib.parse
 import os
+import sys
+
+TOOLS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "tools"))
+if TOOLS_DIR not in sys.path:
+    sys.path.insert(0, TOOLS_DIR)
+
+from usda_nutrient_schema import (
+    extract_nutrients_from_detail as extract_usda_detail_nutrients,
+    extract_nutrients_from_search as extract_usda_search_nutrients,
+)
 
 API_KEY = "NxgG3iwRfp4HpfmejYVeRAHmJqlBTYeyKyMCHSVc"
 BASE_URL = "https://api.nal.usda.gov/fdc/v1"
-
-# Nutrient IDs we care about
-NUTRIENT_IDS = {
-    1008: "calories", 1003: "protein", 1005: "carbs", 1004: "fat",
-    1079: "fiber", 2000: "sugar", 1093: "sodium", 1092: "potassium",
-    1104: "vitamin_a", 1162: "vitamin_c", 1087: "calcium", 1089: "iron",
-}
 
 def search_foods(query, data_type="SR Legacy", page_size=5):
     """Search USDA FDC for foods matching query."""
@@ -47,25 +50,11 @@ def fetch_food(fdc_id):
 
 def extract_nutrients_from_search(food_item):
     """Extract nutrients from search result format."""
-    nutrients = {}
-    for fn in food_item.get("foodNutrients", []):
-        nid = fn.get("nutrientId", 0)
-        if nid in NUTRIENT_IDS:
-            nutrients[NUTRIENT_IDS[nid]] = fn.get("value", 0.0)
-    return nutrients
+    return extract_usda_search_nutrients(food_item)
 
 def extract_nutrients_from_detail(food_data):
     """Extract nutrients from detail API format."""
-    nutrients = {}
-    for fn in food_data.get("foodNutrients", []):
-        nutrient_obj = fn.get("nutrient", {})
-        nid = nutrient_obj.get("id", 0)
-        if nid in NUTRIENT_IDS:
-            nutrients[NUTRIENT_IDS[nid]] = fn.get("amount", 0.0)
-    for key in NUTRIENT_IDS.values():
-        if key not in nutrients:
-            nutrients[key] = 0.0
-    return nutrients
+    return extract_usda_detail_nutrients(food_data)
 
 def extract_portions_from_detail(food_data):
     """Extract portions from detail API format."""
