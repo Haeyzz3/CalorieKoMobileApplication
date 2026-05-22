@@ -236,7 +236,7 @@ private fun MealModeSelectionContent(
                             color = Color(0xFF1E3A8A)
                         )
                         Text(
-                            "Both methods log all 17 nutrients and sync with your daily intake automatically.",
+                            "Both methods log all 12 nutrients and sync with your daily intake automatically.",
                             fontSize = 12.sp,
                             color = Color(0xFF1E40AF),
                             lineHeight = 16.sp
