@@ -180,6 +180,9 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
     // Clear Pantry Confirmation Dialog state
     val showClearPantryDialog = remember { mutableStateOf(false) }
 
+    // "How It Works" info dialog state
+    val showHowItWorksDialog = remember { mutableStateOf(false) }
+
     // Single ingredient removal confirmation state (null = no dialog)
     var ingredientPendingRemoval by remember { mutableStateOf<String?>(null) }
 
@@ -573,7 +576,24 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
             // Recipe Suggestions
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Text("What Can I Cook?", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("What Can I Cook?", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = { showHowItWorksDialog.value = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Info,
+                                contentDescription = "How suggestions work",
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (readyRecipes.isNotEmpty()) {
@@ -647,6 +667,112 @@ fun PantryScreen(viewModel: PantryViewModel, onNavigate: (String) -> Unit) {
                 }
             },
             dismissButton = { TextButton(onClick = { showClearPantryDialog.value = false }) { Text("Cancel") } }
+        )
+    }
+
+    // "How It Works" Info Dialog
+    if (showHowItWorksDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showHowItWorksDialog.value = false },
+            icon = {
+                Icon(
+                    Icons.Rounded.Info,
+                    contentDescription = null,
+                    tint = Color(0xFF3B82F6),
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    "How Suggestions Work",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Section 1: Ready to Cook
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("\u2705", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                "Ready to Cook",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = CalorieKoGreen
+                            )
+                            Text(
+                                "You have all the essential (core) ingredients for this dish. You can start cooking right away!",
+                                fontSize = 13.sp,
+                                color = Color(0xFF4B5563)
+                            )
+                        }
+                    }
+
+                    // Section 2: Almost Ready
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("\uD83D\uDFE0", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                "Almost Ready",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = CalorieKoOrange
+                            )
+                            Text(
+                                "You\u2019re close! You have enough ingredients that this dish is within reach \u2014 just a few items away.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF4B5563)
+                            )
+                        }
+                    }
+
+                    // Section 3: Core vs Optional
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("\uD83C\uDF4D", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                "Core vs Optional",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color(0xFF374151)
+                            )
+                            Text(
+                                "Each recipe has core ingredients (the essentials) and optional ones (seasonings, garnishes). Core ingredients carry more weight in determining if a dish shows up here.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF4B5563)
+                            )
+                        }
+                    }
+
+                    // Section 4: Substitutes
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("\uD83D\uDD04", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                "Substitute Ingredients",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color(0xFF7C3AED)
+                            )
+                            Text(
+                                "If you have a valid substitute in your pantry (e.g., Pork Shoulder instead of Pork Belly), it counts! Look for the \"via subs\" label on recipe cards.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF4B5563)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHowItWorksDialog.value = false }) {
+                    Text("Got it!", fontWeight = FontWeight.Bold, color = Color(0xFF3B82F6))
+                }
+            }
         )
     }
 
@@ -744,7 +870,7 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .width(220.dp)
-            .height(216.dp)
+            .heightIn(min = 200.dp)
             .clickable { onClick(recipe) }
             .border(2.dp, color.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
     ) {

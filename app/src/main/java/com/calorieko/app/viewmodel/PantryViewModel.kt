@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.PantryDao
+import com.calorieko.app.data.local.DishMatchInfo
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.local.IngredientNutritionBreakdown
