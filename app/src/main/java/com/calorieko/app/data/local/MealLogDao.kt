@@ -33,6 +33,10 @@ interface MealLogDao {
     @Query("SELECT * FROM meal_log_table WHERE meal_log_id = :mealLogId")
     suspend fun getMealLogWithItems(mealLogId: Long): MealLogWithItems?
 
+    @Transaction
+    @Query("SELECT * FROM meal_log_table WHERE uid = :uid AND remote_id = :remoteId LIMIT 1")
+    suspend fun getMealLogWithItemsByRemoteId(uid: String, remoteId: String): MealLogWithItems?
+
     /** Fetch all meal logs with items for a user on a given day (one-shot). */
     @Transaction
     @Query(

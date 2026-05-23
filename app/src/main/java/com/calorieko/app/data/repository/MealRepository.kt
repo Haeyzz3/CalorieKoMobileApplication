@@ -1,186 +1,226 @@
 package com.calorieko.app.data.repository
 
 import android.content.Context
-import com.calorieko.app.data.local.DailyNutritionSummaryDao
-import com.calorieko.app.data.local.MealLogDao
-import com.calorieko.app.data.local.MealLogItemDao
+import androidx.room.withTransaction
+import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.remote.api.AutoSyncManager
+import com.calorieko.app.data.remote.firestore.FirestoreAutoSyncManager
+import com.calorieko.app.data.remote.firestore.FirestoreEntityType
+import com.calorieko.app.data.remote.firestore.FirestorePayloadSerializer
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
-/**
- * Repository that abstracts meal persistence across Room and Firestore.
- *
- * Responsibilities:
- * - Insert a meal log + items into Room
- * - Upsert the daily nutrition summary
- * - Sync both to Firestore
- * - Trigger auto-sync to Laravel backend via WorkManager
- *
- * The ViewModel should call these methods within `Dispatchers.IO`.
- */
 class MealRepository(
-    private val mealLogDao: MealLogDao,
-    private val mealLogItemDao: MealLogItemDao,
-    private val dailyNutritionSummaryDao: DailyNutritionSummaryDao,
+    private val db: AppDatabase,
     private val appContext: Context
 ) {
+    private val mealLogDao = db.mealLogDao()
+    private val mealLogItemDao = db.mealLogItemDao()
+    private val dailyNutritionSummaryDao = db.dailyNutritionSummaryDao()
+    private val outboxDao = db.firestoreOutboxDao()
 
-    /**
-     * Persists a complete meal to Room, updates the daily nutrition summary,
-     * and syncs both to Firestore.
-     *
-     * @param uid       The authenticated user's UID.
-     * @param mealType  One of "Breakfast", "Lunch", "Dinner", or "Snacks".
-     * @param dishes    The list of logged dishes with pre-computed nutrients.
-     */
     suspend fun saveMeal(uid: String, mealType: String, dishes: List<LoggedDish>) {
         val now = System.currentTimeMillis()
 
-        // 1. Insert the meal log header
-        val mealLogId = mealLogDao.insertMealLog(
-            MealLogEntity(uid = uid, mealType = mealType, timestamp = now)
-        )
+        db.withTransaction {
+            val meal = MealLogEntity(
+                uid = uid,
+                mealType = mealType,
+                timestamp = now,
+                updatedAt = now,
+                syncStatus = 0
+            )
+            val mealLogId = mealLogDao.insertMealLog(meal)
+            val persistedMeal = meal.copy(mealLogId = mealLogId)
 
-        // 2. Insert all meal log items
-        val items = dishes.map { d ->
-            MealLogItemEntity(
-                mealLogId = mealLogId,
-                foodId = d.foodId,
-                dishName = d.dishNamePh.ifBlank { d.dishNameEn },
-                weightGrams = d.weightGrams,
-                calories = d.calories,
-                protein = d.protein,
-                carbs = d.carbs,
-                fiber = d.fiber,
-                sugar = d.sugar,
-                fat = d.fat,
-                saturatedFat = d.saturatedFat,
-                polyunsaturatedFat = d.polyunsaturatedFat,
-                monounsaturatedFat = d.monounsaturatedFat,
-                transFat = d.transFat,
-                cholesterol = d.cholesterol,
-                sodium = d.sodium,
-                potassium = d.potassium,
-                vitaminA = d.vitaminA,
-                vitaminC = d.vitaminC,
-                calcium = d.calcium,
-                iron = d.iron
+            val items = dishes.map { dish ->
+                MealLogItemEntity(
+                    mealLogId = mealLogId,
+                    foodId = dish.foodId,
+                    dishName = dish.dishNamePh.ifBlank { dish.dishNameEn },
+                    weightGrams = dish.weightGrams,
+                    calories = dish.calories,
+                    protein = dish.protein,
+                    carbs = dish.carbs,
+                    fiber = dish.fiber,
+                    sugar = dish.sugar,
+                    fat = dish.fat,
+                    saturatedFat = dish.saturatedFat,
+                    polyunsaturatedFat = dish.polyunsaturatedFat,
+                    monounsaturatedFat = dish.monounsaturatedFat,
+                    transFat = dish.transFat,
+                    cholesterol = dish.cholesterol,
+                    sodium = dish.sodium,
+                    potassium = dish.potassium,
+                    vitaminA = dish.vitaminA,
+                    vitaminC = dish.vitaminC,
+                    calcium = dish.calcium,
+                    iron = dish.iron,
+                    updatedAt = now
+                )
+            }
+            mealLogItemDao.insertItems(items)
+
+            val today = LocalDate.now().toEpochDay()
+            val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, today)
+            val updatedSummary = addMealToSummary(
+                existing ?: DailyNutritionSummaryEntity(uid = uid, dateEpochDay = today),
+                mealType,
+                dishes,
+                now
+            )
+            dailyNutritionSummaryDao.upsertSummary(updatedSummary)
+
+            outboxDao.insert(
+                FirestorePayloadSerializer.upsert(
+                    uid = uid,
+                    entityType = FirestoreEntityType.MEAL_LOG,
+                    entityKey = persistedMeal.remoteId,
+                    remotePath = FirestorePayloadSerializer.mealLogPath(uid, persistedMeal.remoteId),
+                    payload = FirestorePayloadSerializer.mealPayload(persistedMeal, items),
+                    now = now
+                )
+            )
+            outboxDao.insert(
+                FirestorePayloadSerializer.upsert(
+                    uid = uid,
+                    entityType = FirestoreEntityType.DAILY_NUTRITION_SUMMARY,
+                    entityKey = updatedSummary.dateEpochDay.toString(),
+                    remotePath = FirestorePayloadSerializer.dailySummaryPath(uid, updatedSummary.dateEpochDay),
+                    payload = FirestorePayloadSerializer.dailySummaryPayload(updatedSummary),
+                    now = now
+                )
             )
         }
-        mealLogItemDao.insertItems(items)
 
-        // 3. Upsert the daily nutrition summary
-        val today = LocalDate.now().toEpochDay()
-        val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, today)
-        val mealCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
-
-        val updated = (existing ?: DailyNutritionSummaryEntity(uid = uid, dateEpochDay = today)).let { s ->
-            s.copy(
-                id = s.id,
-                updatedAt = System.currentTimeMillis(), // Refresh for delta sync
-                totalCalories = s.totalCalories + mealCalories,
-                totalProtein = s.totalProtein + dishes.sumOf { it.protein.toDouble() }.toFloat(),
-                totalCarbs = s.totalCarbs + dishes.sumOf { it.carbs.toDouble() }.toFloat(),
-                totalFiber = s.totalFiber + dishes.sumOf { it.fiber.toDouble() }.toFloat(),
-                totalSugar = s.totalSugar + dishes.sumOf { it.sugar.toDouble() }.toFloat(),
-                totalFat = s.totalFat + dishes.sumOf { it.fat.toDouble() }.toFloat(),
-                totalSaturatedFat = s.totalSaturatedFat + dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
-                totalPolyunsaturatedFat = s.totalPolyunsaturatedFat + dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
-                totalMonounsaturatedFat = s.totalMonounsaturatedFat + dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
-                totalTransFat = s.totalTransFat + dishes.sumOf { it.transFat.toDouble() }.toFloat(),
-                totalCholesterol = s.totalCholesterol + dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
-                totalSodium = s.totalSodium + dishes.sumOf { it.sodium.toDouble() }.toFloat(),
-                totalPotassium = s.totalPotassium + dishes.sumOf { it.potassium.toDouble() }.toFloat(),
-                totalVitaminA = s.totalVitaminA + dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
-                totalVitaminC = s.totalVitaminC + dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
-                totalCalcium = s.totalCalcium + dishes.sumOf { it.calcium.toDouble() }.toFloat(),
-                totalIron = s.totalIron + dishes.sumOf { it.iron.toDouble() }.toFloat(),
-                breakfastCalories = s.breakfastCalories + if (mealType == "Breakfast") mealCalories else 0f,
-                lunchCalories = s.lunchCalories + if (mealType == "Lunch") mealCalories else 0f,
-                dinnerCalories = s.dinnerCalories + if (mealType == "Dinner") mealCalories else 0f,
-                snacksCalories = s.snacksCalories + if (mealType == "Snacks") mealCalories else 0f
-            )
-        }
-        dailyNutritionSummaryDao.upsertSummary(updated)
-
-        // 4. Skip foreground Firestore sync — let WorkManager handle it in the background.
-        //    The meal stays marked as unsynced (sync_status = 0) by default.
-        //    This allows confirmMeal() to return immediately without waiting for
-        //    network I/O, even if connectivity is available.
-
-        // 5. Trigger WorkManager sync (survives process death,
-        //    only runs when network is available via CONNECTED constraint)
-        AutoSyncManager.triggerSync(appContext, uid)
+        triggerSync(uid)
     }
 
-    /**
-     * Deletes a meal log from Room (local DB) and recalculates the daily
-     * nutrition summary. DOES NOT sync to Firestore—that is handled separately
-     * by the caller to avoid blocking the UI.
-     *
-     * Steps:
-     * 1. Fetch the meal + items so we know what nutrients to subtract
-     * 2. Subtract those nutrients from the DailyNutritionSummaryEntity
-     * 3. Delete from Room (CASCADE deletes child MealLogItemEntity rows)
-     *
-     * Returns the updated [DailyNutritionSummaryEntity] so the caller can
-     * sync it to Firestore alongside the meal log deletion.
-     *
-     * ⚠️ Firestore sync is handled by the ViewModel after UI reload to keep
-     * this operation fast and responsive, especially offline.
-     */
-    suspend fun deleteMealLogLocally(uid: String, mealLogId: Long): DailyNutritionSummaryEntity? {
-        // 1. Fetch the meal with items before deleting
-        val mealWithItems = mealLogDao.getMealLogWithItems(mealLogId) ?: return null
-        val items = mealWithItems.items
-        val mealType = mealWithItems.mealLog.mealType
-
-        // Compute the total nutrients of the deleted meal
-        val deletedCalories = items.sumOf { it.calories.toDouble() }.toFloat()
-
-        // 2. Determine which day this meal belongs to and update the summary
-        val mealDate = java.time.Instant.ofEpochMilli(mealWithItems.mealLog.timestamp)
-            .atZone(java.time.ZoneId.systemDefault())
-            .toLocalDate()
-        val epochDay = mealDate.toEpochDay()
-        val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, epochDay)
+    suspend fun deleteMealLog(uid: String, mealLogId: Long): DailyNutritionSummaryEntity? {
         var updatedSummary: DailyNutritionSummaryEntity? = null
-        if (existing != null) {
-            val updated = existing.copy(
-                updatedAt = System.currentTimeMillis(),
-                totalCalories = (existing.totalCalories - deletedCalories).coerceAtLeast(0f),
-                totalProtein = (existing.totalProtein - items.sumOf { it.protein.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalCarbs = (existing.totalCarbs - items.sumOf { it.carbs.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalFiber = (existing.totalFiber - items.sumOf { it.fiber.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalSugar = (existing.totalSugar - items.sumOf { it.sugar.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalFat = (existing.totalFat - items.sumOf { it.fat.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalSaturatedFat = (existing.totalSaturatedFat - items.sumOf { it.saturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalPolyunsaturatedFat = (existing.totalPolyunsaturatedFat - items.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalMonounsaturatedFat = (existing.totalMonounsaturatedFat - items.sumOf { it.monounsaturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalTransFat = (existing.totalTransFat - items.sumOf { it.transFat.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalCholesterol = (existing.totalCholesterol - items.sumOf { it.cholesterol.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalSodium = (existing.totalSodium - items.sumOf { it.sodium.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalPotassium = (existing.totalPotassium - items.sumOf { it.potassium.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalVitaminA = (existing.totalVitaminA - items.sumOf { it.vitaminA.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalVitaminC = (existing.totalVitaminC - items.sumOf { it.vitaminC.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalCalcium = (existing.totalCalcium - items.sumOf { it.calcium.toDouble() }.toFloat()).coerceAtLeast(0f),
-                totalIron = (existing.totalIron - items.sumOf { it.iron.toDouble() }.toFloat()).coerceAtLeast(0f),
-                breakfastCalories = if (mealType == "Breakfast") (existing.breakfastCalories - deletedCalories).coerceAtLeast(0f) else existing.breakfastCalories,
-                lunchCalories = if (mealType == "Lunch") (existing.lunchCalories - deletedCalories).coerceAtLeast(0f) else existing.lunchCalories,
-                dinnerCalories = if (mealType == "Dinner") (existing.dinnerCalories - deletedCalories).coerceAtLeast(0f) else existing.dinnerCalories,
-                snacksCalories = if (mealType == "Snacks") (existing.snacksCalories - deletedCalories).coerceAtLeast(0f) else existing.snacksCalories
+        var deleted = false
+
+        db.withTransaction {
+            val mealWithItems = mealLogDao.getMealLogWithItems(mealLogId) ?: return@withTransaction
+            val meal = mealWithItems.mealLog
+            val items = mealWithItems.items
+            val epochDay = Instant.ofEpochMilli(meal.timestamp)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+                .toEpochDay()
+            val existing = dailyNutritionSummaryDao.getSummaryForDate(uid, epochDay)
+            val now = System.currentTimeMillis()
+
+            outboxDao.insert(
+                FirestorePayloadSerializer.deleteMealLogRecursive(
+                    uid = uid,
+                    mealRemoteId = meal.remoteId,
+                    now = now
+                )
             )
-            dailyNutritionSummaryDao.upsertSummary(updated)
-            updatedSummary = updated
+
+            if (existing != null) {
+                val summary = subtractMealFromSummary(existing, meal.mealType, items, now)
+                dailyNutritionSummaryDao.upsertSummary(summary)
+                outboxDao.insert(
+                    FirestorePayloadSerializer.upsert(
+                        uid = uid,
+                        entityType = FirestoreEntityType.DAILY_NUTRITION_SUMMARY,
+                        entityKey = summary.dateEpochDay.toString(),
+                        remotePath = FirestorePayloadSerializer.dailySummaryPath(uid, summary.dateEpochDay),
+                        payload = FirestorePayloadSerializer.dailySummaryPayload(summary),
+                        now = now
+                    )
+                )
+                updatedSummary = summary
+            }
+
+            mealLogDao.deleteMealLog(mealLogId)
+            deleted = true
         }
 
-        // 3. Delete from Room (CASCADE deletes child items automatically)
-        mealLogDao.deleteMealLog(mealLogId)
-
+        if (deleted) triggerSync(uid)
         return updatedSummary
+    }
+
+    suspend fun deleteMealLogLocally(uid: String, mealLogId: Long): DailyNutritionSummaryEntity? {
+        return deleteMealLog(uid, mealLogId)
+    }
+
+    private fun addMealToSummary(
+        summary: DailyNutritionSummaryEntity,
+        mealType: String,
+        dishes: List<LoggedDish>,
+        now: Long
+    ): DailyNutritionSummaryEntity {
+        val mealCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
+        return summary.copy(
+            updatedAt = now,
+            totalCalories = summary.totalCalories + mealCalories,
+            totalProtein = summary.totalProtein + dishes.sumOf { it.protein.toDouble() }.toFloat(),
+            totalCarbs = summary.totalCarbs + dishes.sumOf { it.carbs.toDouble() }.toFloat(),
+            totalFiber = summary.totalFiber + dishes.sumOf { it.fiber.toDouble() }.toFloat(),
+            totalSugar = summary.totalSugar + dishes.sumOf { it.sugar.toDouble() }.toFloat(),
+            totalFat = summary.totalFat + dishes.sumOf { it.fat.toDouble() }.toFloat(),
+            totalSaturatedFat = summary.totalSaturatedFat + dishes.sumOf { it.saturatedFat.toDouble() }.toFloat(),
+            totalPolyunsaturatedFat = summary.totalPolyunsaturatedFat + dishes.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat(),
+            totalMonounsaturatedFat = summary.totalMonounsaturatedFat + dishes.sumOf { it.monounsaturatedFat.toDouble() }.toFloat(),
+            totalTransFat = summary.totalTransFat + dishes.sumOf { it.transFat.toDouble() }.toFloat(),
+            totalCholesterol = summary.totalCholesterol + dishes.sumOf { it.cholesterol.toDouble() }.toFloat(),
+            totalSodium = summary.totalSodium + dishes.sumOf { it.sodium.toDouble() }.toFloat(),
+            totalPotassium = summary.totalPotassium + dishes.sumOf { it.potassium.toDouble() }.toFloat(),
+            totalVitaminA = summary.totalVitaminA + dishes.sumOf { it.vitaminA.toDouble() }.toFloat(),
+            totalVitaminC = summary.totalVitaminC + dishes.sumOf { it.vitaminC.toDouble() }.toFloat(),
+            totalCalcium = summary.totalCalcium + dishes.sumOf { it.calcium.toDouble() }.toFloat(),
+            totalIron = summary.totalIron + dishes.sumOf { it.iron.toDouble() }.toFloat(),
+            breakfastCalories = summary.breakfastCalories + if (mealType == "Breakfast") mealCalories else 0f,
+            lunchCalories = summary.lunchCalories + if (mealType == "Lunch") mealCalories else 0f,
+            dinnerCalories = summary.dinnerCalories + if (mealType == "Dinner") mealCalories else 0f,
+            snacksCalories = summary.snacksCalories + if (mealType == "Snacks") mealCalories else 0f
+        )
+    }
+
+    private fun subtractMealFromSummary(
+        summary: DailyNutritionSummaryEntity,
+        mealType: String,
+        items: List<MealLogItemEntity>,
+        now: Long
+    ): DailyNutritionSummaryEntity {
+        val deletedCalories = items.sumOf { it.calories.toDouble() }.toFloat()
+        return summary.copy(
+            updatedAt = now,
+            totalCalories = (summary.totalCalories - deletedCalories).coerceAtLeast(0f),
+            totalProtein = (summary.totalProtein - items.sumOf { it.protein.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalCarbs = (summary.totalCarbs - items.sumOf { it.carbs.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalFiber = (summary.totalFiber - items.sumOf { it.fiber.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalSugar = (summary.totalSugar - items.sumOf { it.sugar.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalFat = (summary.totalFat - items.sumOf { it.fat.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalSaturatedFat = (summary.totalSaturatedFat - items.sumOf { it.saturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalPolyunsaturatedFat = (summary.totalPolyunsaturatedFat - items.sumOf { it.polyunsaturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalMonounsaturatedFat = (summary.totalMonounsaturatedFat - items.sumOf { it.monounsaturatedFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalTransFat = (summary.totalTransFat - items.sumOf { it.transFat.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalCholesterol = (summary.totalCholesterol - items.sumOf { it.cholesterol.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalSodium = (summary.totalSodium - items.sumOf { it.sodium.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalPotassium = (summary.totalPotassium - items.sumOf { it.potassium.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalVitaminA = (summary.totalVitaminA - items.sumOf { it.vitaminA.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalVitaminC = (summary.totalVitaminC - items.sumOf { it.vitaminC.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalCalcium = (summary.totalCalcium - items.sumOf { it.calcium.toDouble() }.toFloat()).coerceAtLeast(0f),
+            totalIron = (summary.totalIron - items.sumOf { it.iron.toDouble() }.toFloat()).coerceAtLeast(0f),
+            breakfastCalories = if (mealType == "Breakfast") (summary.breakfastCalories - deletedCalories).coerceAtLeast(0f) else summary.breakfastCalories,
+            lunchCalories = if (mealType == "Lunch") (summary.lunchCalories - deletedCalories).coerceAtLeast(0f) else summary.lunchCalories,
+            dinnerCalories = if (mealType == "Dinner") (summary.dinnerCalories - deletedCalories).coerceAtLeast(0f) else summary.dinnerCalories,
+            snacksCalories = if (mealType == "Snacks") (summary.snacksCalories - deletedCalories).coerceAtLeast(0f) else summary.snacksCalories
+        )
+    }
+
+    private fun triggerSync(uid: String) {
+        if (uid.isBlank()) return
+        FirestoreAutoSyncManager.triggerSync(appContext, uid)
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 }

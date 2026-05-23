@@ -16,6 +16,7 @@ import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.DishIngredient
 import com.calorieko.app.data.model.DishRecipeEntity
+import com.calorieko.app.data.model.FirestoreOutboxEntity
 import com.calorieko.app.data.model.FoodItem
 import com.calorieko.app.data.model.MealLogEntity
 import com.calorieko.app.data.model.MealLogItemEntity
@@ -42,9 +43,10 @@ import kotlinx.coroutines.CoroutineScope
         RawIngredientEntity::class,
         DishRecipeEntity::class,
         RecipeIngredientEntity::class,
-        WeightLogEntity::class
+        WeightLogEntity::class,
+        FirestoreOutboxEntity::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -61,6 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dishRecipeDao(): DishRecipeDao
     abstract fun recipeIngredientDao(): RecipeIngredientDao
     abstract fun weightLogDao(): WeightLogDao
+    abstract fun firestoreOutboxDao(): FirestoreOutboxDao
 
     companion object {
         @Volatile
@@ -579,6 +582,112 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS firestore_outbox (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        uid TEXT NOT NULL,
+                        entity_type TEXT NOT NULL,
+                        entity_key TEXT NOT NULL,
+                        operation TEXT NOT NULL,
+                        remote_path TEXT NOT NULL,
+                        payload_json TEXT,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        attempt_count INTEGER NOT NULL DEFAULT 0,
+                        last_error TEXT,
+                        state TEXT NOT NULL DEFAULT 'PENDING'
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_firestore_outbox_uid_state_created_at ON firestore_outbox(uid, state, created_at)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_firestore_outbox_uid_entity_type_entity_key ON firestore_outbox(uid, entity_type, entity_key)")
+
+                db.execSQL("ALTER TABLE activity_log_table ADD COLUMN remote_id TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE activity_log_table SET remote_id = CAST(id AS TEXT) WHERE remote_id = ''")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_activity_log_table_uid_remote_id ON activity_log_table(uid, remote_id)")
+
+                db.execSQL("ALTER TABLE meal_log_table ADD COLUMN remote_id TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE meal_log_table SET remote_id = CAST(meal_log_id AS TEXT) WHERE remote_id = ''")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_log_table_uid_remote_id ON meal_log_table(uid, remote_id)")
+
+                db.execSQL("ALTER TABLE meal_log_item_table ADD COLUMN remote_id TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE meal_log_item_table SET remote_id = CAST(meal_log_item_id AS TEXT) WHERE remote_id = ''")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_meal_log_item_table_meal_log_id_remote_id ON meal_log_item_table(meal_log_id, remote_id)")
+
+                db.execSQL(
+                    """
+                    INSERT INTO firestore_outbox (
+                        uid, entity_type, entity_key, operation, remote_path,
+                        payload_json, created_at, updated_at, attempt_count, last_error, state
+                    )
+                    SELECT
+                        uid,
+                        'ACTIVITY_LOG',
+                        remote_id,
+                        'UPSERT_DOCUMENT',
+                        'users/' || uid || '/activityLogs/' || remote_id,
+                        NULL,
+                        updated_at,
+                        updated_at,
+                        0,
+                        NULL,
+                        'PENDING'
+                    FROM activity_log_table
+                    WHERE sync_status = 0
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO firestore_outbox (
+                        uid, entity_type, entity_key, operation, remote_path,
+                        payload_json, created_at, updated_at, attempt_count, last_error, state
+                    )
+                    SELECT
+                        uid,
+                        'MEAL_LOG',
+                        remote_id,
+                        'UPSERT_DOCUMENT',
+                        'users/' || uid || '/mealLogs/' || remote_id,
+                        NULL,
+                        updated_at,
+                        updated_at,
+                        0,
+                        NULL,
+                        'PENDING'
+                    FROM meal_log_table
+                    WHERE sync_status = 0
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO firestore_outbox (
+                        uid, entity_type, entity_key, operation, remote_path,
+                        payload_json, created_at, updated_at, attempt_count, last_error, state
+                    )
+                    SELECT
+                        uid,
+                        'WEIGHT_LOG',
+                        CAST(timestamp AS TEXT),
+                        'UPSERT_DOCUMENT',
+                        'users/' || uid || '/weightLogs/' || timestamp,
+                        NULL,
+                        updated_at,
+                        updated_at,
+                        0,
+                        NULL,
+                        'PENDING'
+                    FROM weight_log_table
+                    WHERE sync_status = 0
+                    """.trimIndent()
+                )
+            }
+        }
+
         /**
          * Retrieves (or generates) a 256-bit AES key from Android Keystore.
          * The key never leaves the hardware-backed keystore; we use its
@@ -632,9 +741,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28)
-                    // Fallback only if no migration path exists (e.g. dev builds)
-                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29)
                     .build()
                 INSTANCE = instance
                 instance

@@ -11,11 +11,10 @@ import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.local.IngredientNutritionBreakdown
 import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.model.NutritionResult
-import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.RawIngredientEntity
-import com.calorieko.app.data.remote.FirestoreSyncRepository
-import com.calorieko.app.data.remote.api.AutoSyncManager
+import com.calorieko.app.data.repository.MealPlanRepository
+import com.calorieko.app.data.repository.PantryRepository
 import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.calorieko.app.util.RecipeCustomizationRules
 import com.google.firebase.auth.FirebaseAuth
@@ -34,7 +33,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -125,10 +123,11 @@ class PantryViewModel(
     private val auth: FirebaseAuth,
     private val pantryDao: PantryDao,
     private val mealPlanDao: MealPlanDao,
+    private val pantryRepository: PantryRepository,
+    private val mealPlanRepository: MealPlanRepository,
     private val dishRecipeDao: DishRecipeDao,
     private val rawIngredientDao: RawIngredientDao,
     private val calculator: RecipeNutritionCalculator,
-    private val firestoreSyncRepo: FirestoreSyncRepository,
     private val userDao: UserDao,
     private val nutritionalValuesRepo: NutritionalValuesRepository,
     private val appContext: Context
@@ -142,10 +141,11 @@ class PantryViewModel(
             auth: FirebaseAuth,
             pantryDao: PantryDao,
             mealPlanDao: MealPlanDao,
+            pantryRepository: PantryRepository,
+            mealPlanRepository: MealPlanRepository,
             dishRecipeDao: DishRecipeDao,
             rawIngredientDao: RawIngredientDao,
             calculator: RecipeNutritionCalculator,
-            firestoreSyncRepo: FirestoreSyncRepository,
             userDao: UserDao,
             nutritionalValuesRepo: NutritionalValuesRepository,
             appContext: Context
@@ -153,7 +153,7 @@ class PantryViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, rawIngredientDao, calculator, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, pantryRepository, mealPlanRepository, dishRecipeDao, rawIngredientDao, calculator, userDao, nutritionalValuesRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -375,25 +375,13 @@ class PantryViewModel(
         val trimmed = name.trim().lowercase()
         if (trimmed.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            pantryDao.insertItem(PantryItem(ingredientName = trimmed))
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.syncPantryItem(uid, trimmed) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            pantryRepository.addIngredient(uid, trimmed)
         }
     }
 
     fun removeIngredient(name: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            pantryDao.deleteItem(name)
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePantryItem(uid, name) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            pantryRepository.removeIngredient(uid, name)
         }
     }
 
@@ -406,31 +394,7 @@ class PantryViewModel(
      */
     fun batchUpdatePantry(selectedKeys: Set<String>) {
         viewModelScope.launch(Dispatchers.IO) {
-            val currentPantry = pantryItems.value.toSet()
-
-            val toAdd = selectedKeys - currentPantry
-            val toRemove = currentPantry - selectedKeys
-
-            // Batch insert new items
-            if (toAdd.isNotEmpty()) {
-                pantryDao.insertAll(toAdd.map { PantryItem(ingredientName = it) })
-            }
-
-            // Batch remove deselected items
-            if (toRemove.isNotEmpty()) {
-                pantryDao.deleteItems(toRemove.toList())
-            }
-
-            // Single Firestore sync pass for all changes
-            if (uid.isNotEmpty() && (toAdd.isNotEmpty() || toRemove.isNotEmpty())) {
-                withTimeoutOrNull(5_000L) {
-                    try {
-                        toAdd.forEach { firestoreSyncRepo.syncPantryItem(uid, it) }
-                        toRemove.forEach { firestoreSyncRepo.deletePantryItem(uid, it) }
-                    } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            pantryRepository.applySelection(uid, selectedKeys)
         }
     }
 
@@ -677,13 +641,7 @@ class PantryViewModel(
                 scaledServings = scaledServings,
                 tweaksJson = tweaksJson
             )
-            mealPlanDao.insertMeal(meal)
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.syncPlannedMeal(uid, meal) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            mealPlanRepository.upsertMeal(uid, meal)
         }
     }
 
@@ -695,13 +653,7 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.removeDish(dayIndex, week, mealSlot, dishLabel)
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, mealSlot, dishLabel) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            mealPlanRepository.removeDish(uid, dayIndex, week, mealSlot, dishLabel)
             recomputeWeekScrubberData()
         }
     }
@@ -714,13 +666,7 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.clearSlot(dayIndex, week, mealSlot)
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, week, mealSlot) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            mealPlanRepository.clearSlot(uid, dayIndex, week, mealSlot)
             recomputeWeekScrubberData()
             _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $mealSlot."))
         }
@@ -734,13 +680,7 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.clearDay(dayIndex, week)
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            mealPlanRepository.clearDay(uid, dayIndex, week)
             recomputeWeekScrubberData()
             _uiEvents.emit(PantryUiEvent.Snackbar("Cleared planned meals for ${formatDateLabel(week, dayIndex)}."))
         }
@@ -764,24 +704,9 @@ class PantryViewModel(
             val clearedCount = weekMeals.count { it.dayIndex in clearableDayIndices }
             val clearedWholeWeek = editableDayIndices.size == 7
             if (clearedWholeWeek) {
-                mealPlanDao.clearWeek(week)
+                mealPlanRepository.clearWeek(uid, week)
             } else {
-                mealPlanDao.clearWeekDays(week, editableDayIndices)
-            }
-
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try {
-                        if (clearedWholeWeek) {
-                            firestoreSyncRepo.clearWeekPlannedMeals(uid, week)
-                        } else {
-                            editableDayIndices.forEach { dayIndex ->
-                                firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week)
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
+                mealPlanRepository.clearWeekDays(uid, week, editableDayIndices)
             }
             recomputeWeekScrubberData()
             _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $clearedCount planned dish${if (clearedCount == 1) "" else "es"}."))
@@ -790,13 +715,7 @@ class PantryViewModel(
 
     fun clearAllPantryItems() {
         viewModelScope.launch(Dispatchers.IO) {
-            pantryDao.clearAllItems()
-            if (uid.isNotEmpty()) {
-                withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearPantryItems(uid) } catch (_: Exception) {}
-                }
-                AutoSyncManager.triggerSync(appContext, uid)
-            }
+            pantryRepository.clearAll(uid)
         }
     }
 
@@ -883,17 +802,7 @@ class PantryViewModel(
                 }
 
                 val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
-                mealPlanDao.replaceWeek(targetWeek, copiedMeals)
-
-                if (uid.isNotEmpty()) {
-                    withTimeoutOrNull(5_000L) {
-                        try {
-                            firestoreSyncRepo.clearWeekPlannedMeals(uid, targetWeek)
-                            firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
-                        } catch (_: Exception) {}
-                    }
-                    AutoSyncManager.triggerSync(appContext, uid)
-                }
+                mealPlanRepository.replaceWeek(uid, targetWeek, copiedMeals)
 
                 recomputeWeekScrubberData()
                 _uiEvents.emit(PantryUiEvent.Snackbar("Copied week to ${formatWeekRange(targetWeek)}."))
@@ -934,17 +843,7 @@ class PantryViewModel(
                     )
                 }
 
-                mealPlanDao.replaceSlot(targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
-
-                if (uid.isNotEmpty()) {
-                    withTimeoutOrNull(5_000L) {
-                        try {
-                            firestoreSyncRepo.deletePlannedMealSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot)
-                            firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
-                        } catch (_: Exception) {}
-                    }
-                    AutoSyncManager.triggerSync(appContext, uid)
-                }
+                mealPlanRepository.replaceSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
 
                 recomputeWeekScrubberData()
                 val targetDateLabel = formatDateLabel(targetWeekStart, targetDayIndex)
@@ -974,14 +873,7 @@ class PantryViewModel(
                     mealSlot = targetMealSlot
                 )
 
-                mealPlanDao.insertMeal(copiedMeal)
-
-                if (uid.isNotEmpty()) {
-                    withTimeoutOrNull(5_000L) {
-                        try { firestoreSyncRepo.syncPlannedMeal(uid, copiedMeal) } catch (_: Exception) {}
-                    }
-                    AutoSyncManager.triggerSync(appContext, uid)
-                }
+                mealPlanRepository.upsertMeal(uid, copiedMeal)
 
                 recomputeWeekScrubberData()
                 val targetDateLabel = formatDateLabel(targetWeekStart, targetDayIndex)

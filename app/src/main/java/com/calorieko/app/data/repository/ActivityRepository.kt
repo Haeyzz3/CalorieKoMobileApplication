@@ -2,108 +2,102 @@ package com.calorieko.app.data.repository
 
 import android.content.Context
 import android.net.Uri
-import com.calorieko.app.data.local.ActivityLogDao
-import com.calorieko.app.data.local.UserDao
+import androidx.room.withTransaction
+import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.api.AutoSyncManager
+import com.calorieko.app.data.remote.firestore.FirestoreAutoSyncManager
+import com.calorieko.app.data.remote.firestore.FirestoreEntityType
+import com.calorieko.app.data.remote.firestore.FirestorePayloadSerializer
 
-/**
- * Repository for workout CRUD operations.
- *
- * ── Offline-First Design ──
- * The local Room database is the **single source of truth**.
- * On save, data is written to Room instantly with `sync_status = 0` (PENDING).
- * The UI receives success immediately — no network call blocks the save.
- *
- * Background synchronization:
- * After the Room insert, [AutoSyncManager.triggerSync] enqueues a WorkManager
- * job with a `NetworkType.CONNECTED` constraint. The [SyncWorker] will:
- * 1. Query all un-synced records from Room (sync_status = 0)
- * 2. Push them to Firestore + Laravel backend
- * 3. Mark them as synced (sync_status = 1) on success
- *
- * This ensures the app works fully offline and syncs when connectivity returns.
- */
 class ActivityRepository(
-    private val activityLogDao: ActivityLogDao,
-    private val userDao: UserDao,
+    private val db: AppDatabase,
     private val appContext: Context
 ) {
+    private val activityLogDao = db.activityLogDao()
+    private val userDao = db.userDao()
+    private val outboxDao = db.firestoreOutboxDao()
 
-    // ── Workout Write (Offline-First) ──
-
-    /**
-     * Inserts a workout log into Room **only** (instant, no network).
-     *
-     * The record is saved with `sync_status = 0` (PENDING), meaning it will
-     * be picked up by the background [SyncWorker] when network is available.
-     *
-     * After the local insert, triggers [AutoSyncManager] to schedule a
-     * background sync with `NetworkType.CONNECTED` constraint.
-     *
-     * @return The Room-generated row ID.
-     */
     suspend fun insertWorkoutLog(uid: String, log: ActivityLogEntity): Long {
-        // 1. Insert to Room instantly (sync_status defaults to 0 = PENDING)
-        val newId = activityLogDao.insertLog(log)
+        val persisted = log.copy(
+            uid = uid,
+            syncStatus = 0,
+            updatedAt = System.currentTimeMillis()
+        )
 
-        // 2. Schedule background sync (fires when network available)
-        if (uid.isNotEmpty()) {
-            AutoSyncManager.triggerSync(appContext, uid)
+        val newId = db.withTransaction {
+            val id = activityLogDao.insertLog(persisted)
+            outboxDao.insert(
+                FirestorePayloadSerializer.upsert(
+                    uid = uid,
+                    entityType = FirestoreEntityType.ACTIVITY_LOG,
+                    entityKey = persisted.remoteId,
+                    remotePath = FirestorePayloadSerializer.activityPath(uid, persisted.remoteId),
+                    payload = FirestorePayloadSerializer.activityPayload(persisted)
+                )
+            )
+            id
         }
 
+        triggerSync(uid)
         return newId
     }
 
-    // ── Workout Read ──
+    suspend fun deleteWorkoutLog(uid: String, activityId: Int): Boolean {
+        var deleted = false
+        db.withTransaction {
+            val log = activityLogDao.getLogById(activityId) ?: return@withTransaction
+            outboxDao.insert(
+                FirestorePayloadSerializer.deleteDocument(
+                    uid = uid,
+                    entityType = FirestoreEntityType.ACTIVITY_LOG,
+                    entityKey = log.remoteId,
+                    remotePath = FirestorePayloadSerializer.activityPath(uid, log.remoteId)
+                )
+            )
+            activityLogDao.deleteLogById(activityId)
+            deleted = true
+        }
 
-    /** Fetch a single activity log by its Room ID. */
+        if (deleted) triggerSync(uid)
+        return deleted
+    }
+
     suspend fun getLogById(id: Int): ActivityLogEntity? {
         return activityLogDao.getLogById(id)
     }
 
-    /** Fetch activity logs for a time range (used by ProgressScreen charts). */
     suspend fun getLogsForRange(uid: String, startTime: Long, endTime: Long): List<ActivityLogEntity> {
         return activityLogDao.getLogsForRange(uid, startTime, endTime)
     }
 
-    // ── User Data Lookups ──
-
-    /** Fetch the cumulative number of logged workouts for profile milestones. */
     suspend fun getTotalWorkoutsCount(uid: String): Int {
         return activityLogDao.getTotalWorkoutsCount(uid)
     }
 
-    /** Fetch activity timestamps for streak calculation without loading full rows. */
     suspend fun getLogTimestampsForUser(uid: String): List<Long> {
         return activityLogDao.getLogTimestampsForUser(uid)
     }
 
-    /** Fetch the user's weight for MET calorie calculations. */
     suspend fun getUserWeight(uid: String): Double {
         return userDao.getUser(uid)?.weight ?: 70.0
     }
 
-    /** Fetch the user's display name for activity details header. */
     suspend fun getUserName(uid: String): String {
         val profile = userDao.getUserProfile(uid)
         return if (profile != null && profile.name.isNotEmpty()) profile.name else "CalorieKo athlete"
     }
 
-    // ── Photo Processing ──
-
-    /**
-     * Compresses and Base64-encodes a photo URI for storage.
-     * Falls back to the raw URI string if compression fails.
-     *
-     * @param context Needed for ContentResolver
-     * @param photoUriStr Raw URI string from the photo picker
-     * @return Encoded string or original URI string
-     */
     suspend fun compressAndSavePhoto(context: Context, photoUriStr: String): String {
         val uri = Uri.parse(photoUriStr)
         val encodedStr = ImageUtils.compressAndEncode(context, uri, maxDimension = 800, quality = 70)
         return encodedStr ?: photoUriStr
+    }
+
+    private fun triggerSync(uid: String) {
+        if (uid.isBlank()) return
+        FirestoreAutoSyncManager.triggerSync(appContext, uid)
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 }
