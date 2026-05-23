@@ -14,5 +14,7 @@ data class WeightLogEntity(
     val timestamp: Long,
 
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
+    // Legacy sync-status metadata used by API delta/restore flows.
+    // Firestore retry and durability are governed by firestore_outbox.
     @ColumnInfo(name = "sync_status") val syncStatus: Int = 0
 )

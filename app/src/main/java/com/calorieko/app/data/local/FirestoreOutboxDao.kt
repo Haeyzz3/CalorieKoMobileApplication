@@ -40,6 +40,26 @@ interface FirestoreOutboxDao {
     @Query("SELECT COUNT(*) FROM firestore_outbox WHERE uid = :uid AND state = 'PENDING'")
     suspend fun pendingCount(uid: String): Int
 
+    @Query(
+        """
+        SELECT COUNT(*) > 0 FROM firestore_outbox
+        WHERE uid = :uid
+          AND state = 'PENDING'
+          AND remote_path = :remotePath
+          AND operation IN ('DELETE_DOCUMENT', 'DELETE_MEAL_LOG_RECURSIVE')
+          AND (
+              created_at > :createdAt
+              OR (created_at = :createdAt AND id > :id)
+          )
+        """
+    )
+    suspend fun hasLaterPendingDelete(
+        uid: String,
+        remotePath: String,
+        createdAt: Long,
+        id: Long
+    ): Boolean
+
     @Query("DELETE FROM firestore_outbox WHERE uid = :uid")
     suspend fun deleteAllForUid(uid: String)
 

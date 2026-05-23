@@ -56,9 +56,11 @@ interface WeightLogDao {
         sinceTimestamp: Long
     ): List<WeightLogEntity>
 
+    /** Fetch weight rows still pending for legacy API delta handling. Firestore retry uses firestore_outbox. */
     @Query("SELECT * FROM weight_log_table WHERE uid = :uid AND sync_status = 0 ORDER BY date_epoch_day ASC")
     suspend fun getUnsyncedWeightLogs(uid: String): List<WeightLogEntity>
 
+    /** Mark weight rows as synced for legacy sync-status consumers. */
     @Query("UPDATE weight_log_table SET sync_status = 1 WHERE uid = :uid AND timestamp IN (:timestamps)")
     suspend fun markAsSynced(uid: String, timestamps: List<Long>)
 

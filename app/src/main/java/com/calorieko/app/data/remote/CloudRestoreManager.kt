@@ -57,7 +57,7 @@ sealed class RestoreResult {
  */
 class CloudRestoreManager(
     private val db: AppDatabase,
-    private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val restoreSource: CloudRestoreSource,
     private val userDao: UserDao,
     private val activityLogDao: ActivityLogDao,
     private val mealLogDao: MealLogDao,
@@ -103,7 +103,7 @@ class CloudRestoreManager(
             Log.d(TAG, "No local profile for $uid — checking Firestore...")
 
             // Step 1: Fetch profile (the gate check)
-            val profile = firestoreSyncRepo.fetchProfile(uid)
+            val profile = restoreSource.fetchProfile(uid)
             if (profile == null) {
                 Log.d(TAG, "No Firestore profile — this is a new user")
                 return RestoreResult.NoCloudData
@@ -113,12 +113,12 @@ class CloudRestoreManager(
             Log.d(TAG, "Fetching all cloud data for ${profile.name} (parallel)...")
 
             val fetchResults = coroutineScope {
-                val activityLogsDeferred = async { firestoreSyncRepo.fetchActivityLogs(uid) }
-                val mealLogsDeferred = async { firestoreSyncRepo.fetchMealLogs(uid) }
-                val summariesDeferred = async { firestoreSyncRepo.fetchDailyNutritionSummaries(uid) }
-                val pantryDeferred = async { firestoreSyncRepo.fetchPantryItems(uid) }
-                val plannedDeferred = async { firestoreSyncRepo.fetchPlannedMeals(uid) }
-                val weightLogsDeferred = async { firestoreSyncRepo.fetchWeightLogs(uid) }
+                val activityLogsDeferred = async { restoreSource.fetchActivityLogs(uid) }
+                val mealLogsDeferred = async { restoreSource.fetchMealLogs(uid) }
+                val summariesDeferred = async { restoreSource.fetchDailyNutritionSummaries(uid) }
+                val pantryDeferred = async { restoreSource.fetchPantryItems(uid) }
+                val plannedDeferred = async { restoreSource.fetchPlannedMeals(uid) }
+                val weightLogsDeferred = async { restoreSource.fetchWeightLogs(uid) }
 
                 FetchResults(
                     activityLogs = activityLogsDeferred.await(),

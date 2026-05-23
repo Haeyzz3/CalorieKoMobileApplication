@@ -156,6 +156,24 @@ class FirestoreOutboxRepositoryTest {
     }
 
     @Test
+    fun pantryApplySelectionCreatesAddAndDeleteDiffOperations() = runBlocking {
+        val uid = "uid-pantry-diff"
+        val repository = PantryRepository(db, context)
+
+        repository.addIngredients(uid, listOf("rice", "egg"))
+        val diff = repository.applySelection(uid, setOf("egg", "tomato"))
+
+        val outbox = db.firestoreOutboxDao().getPending(uid, 10)
+
+        assertEquals(1 to 1, diff)
+        assertEquals(listOf("egg", "tomato"), db.pantryDao().getAllItemsList())
+        assertEquals(FirestoreSyncOperation.UPSERT_DOCUMENT, outbox[2].operation)
+        assertEquals("tomato", outbox[2].entityKey)
+        assertEquals(FirestoreSyncOperation.DELETE_DOCUMENT, outbox[3].operation)
+        assertEquals("rice", outbox[3].entityKey)
+    }
+
+    @Test
     fun plannedMealReplaceWeekWritesClearBeforeUpserts() = runBlocking {
         val uid = "uid-plan"
         val weekStart = "2026-05-18"
