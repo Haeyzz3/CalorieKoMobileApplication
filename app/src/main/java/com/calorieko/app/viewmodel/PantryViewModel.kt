@@ -101,7 +101,10 @@ data class DishResult(
     val appliedSubstitutions: Map<String, String> = emptyMap(),
     val appliedScaledServings: Int = 0,
     val appliedTweaks: Map<String, Float> = emptyMap(),
-    val appliedTweakedPerServingWeightG: Float = 0f
+    val appliedTweakedPerServingWeightG: Float = 0f,
+    // Weighted readiness score: (core_matched*3 + optional_matched*1) / (core_total*3 + optional_total*1)
+    // Used for classification and sorting in the "What Can I Cook?" section.
+    val readinessScore: Float = 0f
 )
 
 /**
@@ -459,15 +462,34 @@ class PantryViewModel(
     // Core-Aware Recipe Matching Engine
     // ============================================================
 
+    /** Minimum weighted readiness score for a dish to appear in "Almost Ready". */
+    private val readinessThreshold = 0.40f
+
     /**
-     * Recomputes recipe matches using a core-ingredient-based algorithm.
+     * Computes a weighted readiness score for a dish.
+     *
+     * Core ingredients are weighted 3× heavier than optional ingredients,
+     * reflecting their greater importance to the dish's identity.
+     *
+     * @return A score in [0.0, 1.0]. Returns 0 if the dish has no ingredients.
+     */
+    private fun computeReadinessScore(info: DishMatchInfo): Float {
+        val optionalTotal = info.total_ingredients - info.core_total
+        val optionalMatched = info.matched_count - info.core_matched
+        val denominator = info.core_total * 3f + optionalTotal * 1f
+        if (denominator == 0f) return 0f
+        return (info.core_matched * 3f + optionalMatched * 1f) / denominator
+    }
+
+    /**
+     * Recomputes recipe matches using a weighted readiness score algorithm.
      *
      * Classification:
      * - "Ready to Cook" = all core ingredients present (optional may be missing)
-     * - "Almost Ready" = at least 1 core ingredient present, but not all
-     * - Hidden = 0 core ingredients present (filtered out by SQL HAVING clause)
+     * - "Almost Ready" = readiness score >= [readinessThreshold]
+     * - Hidden = readiness score below threshold
      *
-     * Sorting: by core_matched / core_total ratio (descending)
+     * Sorting: by readinessScore (descending), with fewest missing optionals as tiebreaker
      */
     private suspend fun recomputeRecipeMatches(pantryItems: List<String>) {
         // Store-bought dishes are always available regardless of pantry state
@@ -551,21 +573,28 @@ class PantryViewModel(
                 originalServings = dishDisplayNames.servings
             )
 
+            val score = computeReadinessScore(info)
+            val scoredResult = result.copy(readinessScore = score)
+
             if (info.core_matched >= info.core_total) {
                 // All core ingredients present → Ready to Cook
-                ready.add(result)
-            } else {
-                // Some core ingredients present → Almost Ready
-                almostReady.add(result)
+                ready.add(scoredResult)
+            } else if (score >= readinessThreshold) {
+                // Score meets threshold → Almost Ready
+                almostReady.add(scoredResult)
             }
+            // else: score below threshold → Hidden (not added to either list)
         }
 
-        // Sort by core completion ratio (descending)
-        val coreRatio: (DishResult) -> Float = { it.coreMatchedCount.toFloat() / it.coreTotalCount.toFloat() }
-        val sortedReady = ready.sortedByDescending(coreRatio)
+        // Ready to Cook: sort by readiness score descending (breaks tie on optional completeness),
+        // then by fewest missing optional ingredients as a secondary key
+        _readyToCookDishes.value = ready.sortedWith(
+            compareByDescending<DishResult> { it.readinessScore }
+                .thenBy { it.missingOptionalIngredients.size }
+        )
 
-        _readyToCookDishes.value = sortedReady
-        _almostReadyDishes.value = almostReady.sortedByDescending(coreRatio)
+        // Almost Ready: sort by readiness score descending
+        _almostReadyDishes.value = almostReady.sortedByDescending { it.readinessScore }
     }
 
     /**

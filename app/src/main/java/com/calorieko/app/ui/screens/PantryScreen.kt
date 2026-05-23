@@ -806,15 +806,32 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
             // Core ingredient match info (or store-bought label)
             Spacer(modifier = Modifier.height(4.dp))
             if (recipe.coreTotalCount > 0) {
-                Text(
-                    "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
-                    fontSize = 11.sp,
-                    color = if (isReady) CalorieKoGreen else CalorieKoOrange,
-                    fontWeight = FontWeight.Medium
-                )
+                if (recipe.coreMatchedCount == 0) {
+                    // Rescued dish: 0 core matched, qualified via optional ingredient score
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "\uD83D\uDED2",
+                            fontSize = 10.sp
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            "Need All Core",
+                            fontSize = 11.sp,
+                            color = Color(0xFFDC2626),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Text(
+                        "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
+                        fontSize = 11.sp,
+                        color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             } else {
                 Text(
-                    "🛒 Store-Bought Item",
+                    "\uD83D\uDED2 Store-Bought Item",
                     fontSize = 11.sp,
                     color = Color(0xFF0284C7),
                     fontWeight = FontWeight.Medium
@@ -2621,20 +2638,40 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         }
                     } else {
                         // Core ingredient match info (only relevant when browsing recipes)
-                        Text(
-                            "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
-                            fontSize = 12.sp,
-                            color = if (isReady) CalorieKoGreen else CalorieKoOrange,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        if (isReady) {
-                            Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
-                                Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        if (recipe.coreMatchedCount == 0) {
+                            // Rescued dish: 0 core matched, qualified via optional ingredient score
+                            Text(
+                                "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
+                                fontSize = 12.sp,
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(color = Color(0xFFFEE2E2), shape = RoundedCornerShape(50)) {
+                                Text(
+                                    "\uD83D\uDED2 Need All Core Ingredients",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    color = Color(0xFFDC2626),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         } else {
-                            Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
-                                Text("Missing Core Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                "${recipe.coreMatchedCount}/${recipe.coreTotalCount} Core Ingredients",
+                                fontSize = 12.sp,
+                                color = if (isReady) CalorieKoGreen else CalorieKoOrange,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            if (isReady) {
+                                Surface(color = Color(0xFFDCFCE7), shape = RoundedCornerShape(50)) {
+                                    Text("✓ Ready to Cook", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Surface(color = Color(0xFFFFEDD5), shape = RoundedCornerShape(50)) {
+                                    Text("Missing Core Ingredients", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = CalorieKoOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

@@ -97,7 +97,8 @@ interface PantryDao {
 
     /**
      * Returns the total/core ingredient counts and matched counts for every dish.
-     * A dish is included if it has at least 1 core ingredient matched.
+     * A dish is included if it has at least 1 ingredient matched (core or optional).
+     * The ViewModel's weighted scoring logic handles further classification.
      *
      * Uses DISTINCT ingredient_name to avoid double-counting ingredients that
      * appear in multiple steps of the same dish.
@@ -111,7 +112,7 @@ interface PantryDao {
             COUNT(DISTINCT CASE WHEN ingredient_type = 'core' AND ingredient_name IN (:pantryItems) THEN ingredient_name END) AS core_matched
         FROM DISH_INGREDIENTS_TABLE
         GROUP BY dish_label
-        HAVING core_matched > 0
+        HAVING matched_count > 0
     """)
     suspend fun getDishMatchCounts(pantryItems: List<String>): List<DishMatchInfo>
 
