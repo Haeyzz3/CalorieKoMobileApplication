@@ -56,11 +56,11 @@ interface ActivityLogDao {
 
     // ═══ OFFLINE-FIRST SYNC QUERIES ═══
 
-    /** Fetch activity rows still pending for legacy API delta handling. Firestore retry uses firestore_outbox. */
+    /** Fetch all activity logs that have NOT been synced yet (sync_status = 0). */
     @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND sync_status = 0 ORDER BY timestamp ASC")
     suspend fun getUnsyncedLogs(uid: String): List<ActivityLogEntity>
 
-    /** Mark activity rows as synced for legacy sync-status consumers. */
+    /** Mark a batch of activity log IDs as synced (sync_status = 1). */
     @Query("UPDATE activity_log_table SET sync_status = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<Int>)
 

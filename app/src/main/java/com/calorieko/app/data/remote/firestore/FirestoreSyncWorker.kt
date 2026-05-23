@@ -29,23 +29,28 @@ class FirestoreSyncWorker(
         val outboxDao = database.firestoreOutboxDao()
         val executor = FirestoreOperationExecutor(database)
 
-        val processor = FirestoreOutboxProcessor(
-            outboxDao = outboxDao,
-            executor = executor,
-            batchLimit = BATCH_LIMIT
-        )
+        val pending = outboxDao.getPending(uid, BATCH_LIMIT)
+        if (pending.isEmpty()) return Result.success()
 
-        return when (val result = processor.process(uid)) {
-            FirestoreOutboxProcessResult.Retry -> {
-                Log.w(TAG, "Firestore outbox processing failed; retrying later.")
-                Result.retry()
-            }
-            is FirestoreOutboxProcessResult.Success -> {
-                if (result.shouldEnqueueFollowUp) {
-                    FirestoreAutoSyncManager.triggerSync(applicationContext, uid, immediate = true)
-                }
-                Result.success()
+        for (operation in pending) {
+            try {
+                executor.execute(operation)
+                outboxDao.deleteById(operation.id)
+            } catch (e: Exception) {
+                outboxDao.recordFailure(
+                    id = operation.id,
+                    error = e.message ?: e::class.java.simpleName,
+                    now = System.currentTimeMillis()
+                )
+                Log.w(TAG, "Firestore operation ${operation.id} failed; retrying later.", e)
+                return Result.retry()
             }
         }
+
+        if (outboxDao.pendingCount(uid) > 0) {
+            FirestoreAutoSyncManager.triggerSync(applicationContext, uid, immediate = true)
+        }
+
+        return Result.success()
     }
 }

@@ -79,12 +79,12 @@ interface MealLogDao {
 
     // ═══ OFFLINE-FIRST SYNC QUERIES ═══
 
-    /** Fetch meal rows still pending for legacy API delta handling. Firestore retry uses firestore_outbox. */
+    /** Fetch all meal logs (with items) that have NOT been synced to Firestore yet (sync_status = 0). */
     @Transaction
     @Query("SELECT * FROM meal_log_table WHERE uid = :uid AND sync_status = 0 ORDER BY timestamp ASC")
     suspend fun getUnsyncedMealLogs(uid: String): List<MealLogWithItems>
 
-    /** Mark meal rows as synced for legacy sync-status consumers. */
+    /** Mark a batch of meal log IDs as synced (sync_status = 1). */
     @Query("UPDATE meal_log_table SET sync_status = 1 WHERE meal_log_id IN (:ids)")
     suspend fun markMealLogsAsSynced(ids: List<Long>)
 

@@ -114,7 +114,7 @@ fun AppNavigation() {
     val cloudRestoreManager = remember {
         CloudRestoreManager(
             db = db,
-            restoreSource = firestoreSyncRepo,
+            firestoreSyncRepo = firestoreSyncRepo,
             userDao = userDao,
             activityLogDao = db.activityLogDao(),
             mealLogDao = db.mealLogDao(),

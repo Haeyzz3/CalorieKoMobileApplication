@@ -8,16 +8,216 @@ import com.calorieko.app.data.model.MealLogItemEntity
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.model.WeightLogEntity
+import com.calorieko.app.data.remote.firestore.FirestorePayloadSerializer
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
 
 class FirestoreSyncRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-) : CloudRestoreSource {
+) {
     companion object {
         private const val TAG = "FirestoreSync"
         private const val USERS_COLLECTION = "users"
+    }
+
+    suspend fun syncProfile(uid: String, profile: UserProfile) {
+        userDocument(uid)
+            .set(FirestorePayloadSerializer.profilePayload(profile), SetOptions.merge())
+            .await()
+    }
+
+    suspend fun syncWeightLog(uid: String, log: WeightLogEntity) {
+        userDocument(uid)
+            .collection("weightLogs")
+            .document(log.timestamp.toString())
+            .set(FirestorePayloadSerializer.weightLogPayload(log))
+            .await()
+    }
+
+    suspend fun syncWeightLogsBatch(uid: String, logs: List<WeightLogEntity>) {
+        val collection = userDocument(uid).collection("weightLogs")
+        logs.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { log ->
+                batch.set(collection.document(log.timestamp.toString()), FirestorePayloadSerializer.weightLogPayload(log))
+            }
+            batch.commit().await()
+        }
+    }
+
+    suspend fun syncActivityLog(uid: String, log: ActivityLogEntity) {
+        userDocument(uid)
+            .collection("activityLogs")
+            .document(log.remoteId)
+            .set(FirestorePayloadSerializer.activityPayload(log))
+            .await()
+    }
+
+    suspend fun syncActivityLogsBatch(uid: String, logs: List<ActivityLogEntity>) {
+        val collection = userDocument(uid).collection("activityLogs")
+        logs.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { log ->
+                batch.set(collection.document(log.remoteId), FirestorePayloadSerializer.activityPayload(log))
+            }
+            batch.commit().await()
+        }
+    }
+
+    suspend fun syncMealLog(uid: String, mealLog: MealLogEntity, items: List<MealLogItemEntity>) {
+        val mealDocument = userDocument(uid).collection("mealLogs").document(mealLog.remoteId)
+        val payload = FirestorePayloadSerializer.mealPayload(mealLog, items)
+        val mealPayload = payload["meal"] as Map<*, *>
+        val itemPayloads = payload["items"] as List<*>
+
+        if (items.size + 1 <= 500) {
+            val batch = firestore.batch()
+            batch.set(mealDocument, mealPayload)
+            itemPayloads.forEach { item ->
+                val itemMap = item as Map<*, *>
+                val remoteId = itemMap["remoteId"].toString()
+                val itemData = itemMap["payload"] as Map<*, *>
+                batch.set(mealDocument.collection("items").document(remoteId), itemData)
+            }
+            batch.commit().await()
+            return
+        }
+
+        mealDocument.set(mealPayload).await()
+        itemPayloads.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { item ->
+                val itemMap = item as Map<*, *>
+                val remoteId = itemMap["remoteId"].toString()
+                val itemData = itemMap["payload"] as Map<*, *>
+                batch.set(mealDocument.collection("items").document(remoteId), itemData)
+            }
+            batch.commit().await()
+        }
+    }
+
+    suspend fun deleteMealLog(uid: String, mealLogId: Long) {
+        deleteMealLogRecursive(uid, mealLogId.toString())
+    }
+
+    suspend fun deleteMealLogRecursive(uid: String, mealRemoteId: String) {
+        val mealDocument = userDocument(uid).collection("mealLogs").document(mealRemoteId)
+        val itemSnapshot = mealDocument.collection("items").get().await()
+        itemSnapshot.documents.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { batch.delete(it.reference) }
+            batch.commit().await()
+        }
+        mealDocument.delete().await()
+    }
+
+    suspend fun syncDailyNutritionSummary(uid: String, summary: DailyNutritionSummaryEntity) {
+        userDocument(uid)
+            .collection("dailyNutritionSummaries")
+            .document(summary.dateEpochDay.toString())
+            .set(FirestorePayloadSerializer.dailySummaryPayload(summary))
+            .await()
+    }
+
+    suspend fun syncDailyNutritionSummariesBatch(uid: String, summaries: List<DailyNutritionSummaryEntity>) {
+        val collection = userDocument(uid).collection("dailyNutritionSummaries")
+        summaries.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { summary ->
+                batch.set(collection.document(summary.dateEpochDay.toString()), FirestorePayloadSerializer.dailySummaryPayload(summary))
+            }
+            batch.commit().await()
+        }
+    }
+
+    suspend fun syncPantryItem(uid: String, ingredientName: String) {
+        userDocument(uid)
+            .collection("pantryItems")
+            .document(ingredientName)
+            .set(mapOf("ingredientName" to ingredientName, "addedAt" to System.currentTimeMillis()))
+            .await()
+    }
+
+    suspend fun syncPantryItemsBatch(uid: String, itemNames: List<String>) {
+        val collection = userDocument(uid).collection("pantryItems")
+        val now = System.currentTimeMillis()
+        itemNames.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { name ->
+                batch.set(collection.document(name), mapOf("ingredientName" to name, "addedAt" to now))
+            }
+            batch.commit().await()
+        }
+    }
+
+    suspend fun deletePantryItem(uid: String, ingredientName: String) {
+        userDocument(uid)
+            .collection("pantryItems")
+            .document(ingredientName)
+            .delete()
+            .await()
+    }
+
+    suspend fun syncPlannedMeal(uid: String, meal: PlannedMealEntity) {
+        userDocument(uid)
+            .collection("plannedMeals")
+            .document(FirestorePayloadSerializer.plannedMealDocumentId(meal))
+            .set(FirestorePayloadSerializer.plannedMealPayload(meal))
+            .await()
+    }
+
+    suspend fun syncPlannedMealsBatch(uid: String, meals: List<PlannedMealEntity>) {
+        val collection = userDocument(uid).collection("plannedMeals")
+        meals.chunked(500).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { meal ->
+                batch.set(
+                    collection.document(FirestorePayloadSerializer.plannedMealDocumentId(meal)),
+                    FirestorePayloadSerializer.plannedMealPayload(meal)
+                )
+            }
+            batch.commit().await()
+        }
+    }
+
+    suspend fun deletePlannedMeal(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String) {
+        val meal = PlannedMealEntity(dayIndex = dayIndex, dishLabel = dishLabel, weekStartDate = weekStartDate, mealSlot = mealSlot)
+        userDocument(uid)
+            .collection("plannedMeals")
+            .document(FirestorePayloadSerializer.plannedMealDocumentId(meal))
+            .delete()
+            .await()
+    }
+
+    suspend fun deletePlannedMealSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
+        clearQuery(
+            userDocument(uid).collection("plannedMeals")
+                .whereEqualTo("dayIndex", dayIndex)
+                .whereEqualTo("weekStartDate", weekStartDate)
+                .whereEqualTo("mealSlot", mealSlot)
+        )
+    }
+
+    suspend fun clearWeekPlannedMeals(uid: String, weekStartDate: String) {
+        clearQuery(userDocument(uid).collection("plannedMeals").whereEqualTo("weekStartDate", weekStartDate))
+    }
+
+    suspend fun clearDayPlannedMeals(uid: String, dayIndex: Int, weekStartDate: String) {
+        clearQuery(
+            userDocument(uid).collection("plannedMeals")
+                .whereEqualTo("dayIndex", dayIndex)
+                .whereEqualTo("weekStartDate", weekStartDate)
+        )
+    }
+
+    suspend fun clearPantryItems(uid: String) {
+        clearQuery(userDocument(uid).collection("pantryItems"))
+    }
+
+    suspend fun clearAllPlannedMeals(uid: String) {
+        clearQuery(userDocument(uid).collection("plannedMeals"))
     }
 
     suspend fun wipeAllUserData(uid: String) {
@@ -35,7 +235,7 @@ class FirestoreSyncRepository(
         userDocument(uid).delete().await()
     }
 
-    override suspend fun fetchProfile(uid: String): UserProfile? {
+    suspend fun fetchProfile(uid: String): UserProfile? {
         val doc = userDocument(uid).get().await()
         if (!doc.exists()) return null
         return UserProfile(
@@ -58,7 +258,7 @@ class FirestoreSyncRepository(
         )
     }
 
-    override suspend fun fetchActivityLogs(uid: String): List<ActivityLogEntity> {
+    suspend fun fetchActivityLogs(uid: String): List<ActivityLogEntity> {
         val snapshot = userDocument(uid).collection("activityLogs").get().await()
         return snapshot.documents.mapNotNull { doc ->
             runCatching {
@@ -92,7 +292,7 @@ class FirestoreSyncRepository(
         }
     }
 
-    override suspend fun fetchWeightLogs(uid: String): List<WeightLogEntity> {
+    suspend fun fetchWeightLogs(uid: String): List<WeightLogEntity> {
         val snapshot = userDocument(uid).collection("weightLogs").get().await()
         return snapshot.documents.mapNotNull { doc ->
             runCatching {
@@ -119,7 +319,7 @@ class FirestoreSyncRepository(
         }
     }
 
-    override suspend fun fetchMealLogs(uid: String): List<Pair<MealLogEntity, List<MealLogItemEntity>>> {
+    suspend fun fetchMealLogs(uid: String): List<Pair<MealLogEntity, List<MealLogItemEntity>>> {
         val mealSnapshot = userDocument(uid).collection("mealLogs").get().await()
         val results = mutableListOf<Pair<MealLogEntity, List<MealLogItemEntity>>>()
 
@@ -175,7 +375,7 @@ class FirestoreSyncRepository(
         return results
     }
 
-    override suspend fun fetchDailyNutritionSummaries(uid: String): List<DailyNutritionSummaryEntity> {
+    suspend fun fetchDailyNutritionSummaries(uid: String): List<DailyNutritionSummaryEntity> {
         val snapshot = userDocument(uid).collection("dailyNutritionSummaries").get().await()
         return snapshot.documents.mapNotNull { doc ->
             runCatching {
@@ -210,11 +410,11 @@ class FirestoreSyncRepository(
         }
     }
 
-    override suspend fun fetchPantryItems(uid: String): List<String> {
+    suspend fun fetchPantryItems(uid: String): List<String> {
         return userDocument(uid).collection("pantryItems").get().await().documents.map { it.id }
     }
 
-    override suspend fun fetchPlannedMeals(uid: String): List<PlannedMealEntity> {
+    suspend fun fetchPlannedMeals(uid: String): List<PlannedMealEntity> {
         val snapshot = userDocument(uid).collection("plannedMeals").get().await()
         return snapshot.documents.mapNotNull { doc ->
             runCatching {
@@ -232,17 +432,6 @@ class FirestoreSyncRepository(
     }
 
     private fun userDocument(uid: String) = firestore.collection(USERS_COLLECTION).document(uid)
-
-    private suspend fun deleteMealLogRecursive(uid: String, mealRemoteId: String) {
-        val mealDocument = userDocument(uid).collection("mealLogs").document(mealRemoteId)
-        val itemSnapshot = mealDocument.collection("items").get().await()
-        itemSnapshot.documents.chunked(500).forEach { chunk ->
-            val batch = firestore.batch()
-            chunk.forEach { batch.delete(it.reference) }
-            batch.commit().await()
-        }
-        mealDocument.delete().await()
-    }
 
     private suspend fun clearMealLogs(uid: String) {
         val mealLogs = userDocument(uid).collection("mealLogs").get().await()
