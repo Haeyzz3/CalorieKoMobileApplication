@@ -104,7 +104,10 @@ data class DishResult(
     val appliedTweakedPerServingWeightG: Float = 0f,
     // Weighted readiness score: (core_matched*3 + optional_matched*1) / (core_total*3 + optional_total*1)
     // Used for classification and sorting in the "What Can I Cook?" section.
-    val readinessScore: Float = 0f
+    val readinessScore: Float = 0f,
+    // Number of dish ingredients matched via pantry substitutes (not direct matches).
+    // Used for the "🔄 with subs" visual indicator on recipe cards.
+    val substituteMatchCount: Int = 0
 )
 
 /**
@@ -482,7 +485,41 @@ class PantryViewModel(
     }
 
     /**
+     * Builds a substitute-expanded virtual pantry.
+     *
+     * For each pantry item that is [is_substitutable], finds all other ingredients
+     * in the same [sub_category] and adds them to the virtual pantry. This allows
+     * the recipe matching SQL to treat substitute availability as ingredient presence.
+     *
+     * @return Pair of (expandedPantryList, substituteOnlyKeys) where substituteOnlyKeys
+     *         contains keys that exist ONLY via expansion (not in the real pantry).
+     */
+    private suspend fun buildExpandedPantry(
+        pantryItems: List<String>
+    ): Pair<List<String>, Set<String>> {
+        val subCategoryInfo = rawIngredientDao.getSubCategoryInfo(pantryItems)
+        val substitutableSubCategories = subCategoryInfo
+            .filter { it.is_substitutable }
+            .map { it.sub_category }
+            .distinct()
+
+        if (substitutableSubCategories.isEmpty()) {
+            return pantryItems to emptySet()
+        }
+
+        val expansionKeys = rawIngredientDao.getKeysInSubCategories(substitutableSubCategories)
+        val originalSet = pantryItems.toSet()
+        val substituteOnlyKeys = expansionKeys.toSet() - originalSet
+        val expandedPantry = (pantryItems + substituteOnlyKeys).distinct()
+
+        return expandedPantry to substituteOnlyKeys
+    }
+
+    /**
      * Recomputes recipe matches using a weighted readiness score algorithm.
+     *
+     * Uses a substitute-expanded virtual pantry so that valid substitutes
+     * in the user's inventory count toward ingredient matching.
      *
      * Classification:
      * - "Ready to Cook" = all core ingredients present (optional may be missing)
@@ -501,7 +538,10 @@ class PantryViewModel(
             return
         }
 
-        val matchInfoList = pantryDao.getDishMatchCounts(pantryItems)
+        // Build substitute-expanded virtual pantry
+        val (expandedPantry, substituteOnlyKeys) = buildExpandedPantry(pantryItems)
+
+        val matchInfoList = pantryDao.getDishMatchCounts(expandedPantry)
 
         val ready = mutableListOf<DishResult>()
         val almostReady = mutableListOf<DishResult>()
@@ -510,7 +550,7 @@ class PantryViewModel(
             val allIngredients = pantryDao.getIngredientsForDish(info.dish_label)
             val details = pantryDao.getIngredientDetailsForDish(info.dish_label)
             val missingWithType = if (info.core_matched < info.core_total || info.matched_count < info.total_ingredients) {
-                pantryDao.getMissingIngredients(info.dish_label, pantryItems)
+                pantryDao.getMissingIngredients(info.dish_label, expandedPantry)
             } else {
                 emptyList()
             }
@@ -574,7 +614,14 @@ class PantryViewModel(
             )
 
             val score = computeReadinessScore(info)
-            val scoredResult = result.copy(readinessScore = score)
+
+            // Count how many dish ingredients are matched ONLY via substitutes
+            val subMatchCount = allIngredients.distinct().count { it in substituteOnlyKeys }
+
+            val scoredResult = result.copy(
+                readinessScore = score,
+                substituteMatchCount = subMatchCount
+            )
 
             if (info.core_matched >= info.core_total) {
                 // All core ingredients present → Ready to Cook

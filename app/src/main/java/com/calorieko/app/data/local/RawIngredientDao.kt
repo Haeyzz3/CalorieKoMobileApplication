@@ -65,6 +65,28 @@ interface RawIngredientDao {
     /** Clears all rows. Used before re-seeding from JSON. */
     @Query("DELETE FROM RAW_INGREDIENTS_TABLE")
     suspend fun deleteAll()
+
+    /**
+     * Returns sub_category and is_substitutable status for a list of ingredient keys.
+     * Used by the recipe matching engine to build the substitute-expanded virtual pantry.
+     */
+    @Query("""
+        SELECT ingredient_key, sub_category, is_substitutable 
+        FROM RAW_INGREDIENTS_TABLE 
+        WHERE ingredient_key IN (:keys)
+    """)
+    suspend fun getSubCategoryInfo(keys: List<String>): List<IngredientSubCategoryInfo>
+
+    /**
+     * Returns all ingredient_keys in the given sub_categories.
+     * Used to expand the virtual pantry with substitute-equivalent ingredients.
+     */
+    @Query("""
+        SELECT DISTINCT ingredient_key 
+        FROM RAW_INGREDIENTS_TABLE 
+        WHERE sub_category IN (:subCategories)
+    """)
+    suspend fun getKeysInSubCategories(subCategories: List<String>): List<String>
 }
 
 /**
@@ -82,4 +104,14 @@ data class IngredientKeyCategory(
 data class IngredientKeyDisplayName(
     val ingredient_key: String,
     val display_name: String
+)
+
+/**
+ * Lightweight triple of ingredient_key + sub_category + is_substitutable,
+ * used by the recipe matching engine for substitute expansion.
+ */
+data class IngredientSubCategoryInfo(
+    val ingredient_key: String,
+    val sub_category: String,
+    val is_substitutable: Boolean
 )

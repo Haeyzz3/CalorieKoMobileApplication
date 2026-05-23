@@ -860,6 +860,16 @@ fun RecipeCard(recipe: DishResult, color: Color, onClick: (DishResult) -> Unit) 
                     overflow = TextOverflow.Ellipsis
                 )
             }
+
+            if (recipe.substituteMatchCount > 0) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    "🔄 ${recipe.substituteMatchCount} via subs",
+                    fontSize = 10.sp,
+                    color = Color(0xFF7C3AED),
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -2683,6 +2693,23 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        // ── Substitute Match Indicator ──
+        if (recipe.substituteMatchCount > 0 && !isViewOnly) {
+            Surface(
+                color = Color(0xFFF3E8FF),
+                shape = RoundedCornerShape(50)
+            ) {
+                Text(
+                    "🔄 ${recipe.substituteMatchCount} ingredient${if (recipe.substituteMatchCount > 1) "s" else ""} matched via pantry substitutes",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = Color(0xFF7C3AED),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // ── Serving Size Scaling Card ──
         if (recipe.coreTotalCount > 0 && !isViewOnly) {
