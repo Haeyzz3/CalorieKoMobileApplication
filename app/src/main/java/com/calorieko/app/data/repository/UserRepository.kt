@@ -2,74 +2,100 @@ package com.calorieko.app.data.repository
 
 import android.content.Context
 import android.net.Uri
-import androidx.room.withTransaction
 import com.calorieko.app.data.local.ActivityLogDao
-import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.local.MealLogDao
+import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.local.WeightLogDao
 import com.calorieko.app.data.model.BadgeStats
 import com.calorieko.app.data.model.UserProfile
 import com.calorieko.app.data.model.WeightLogEntity
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.ImageUtils
 import com.calorieko.app.data.remote.api.AutoSyncManager
-import com.calorieko.app.data.remote.firestore.FirestoreAutoSyncManager
-import com.calorieko.app.data.remote.firestore.FirestoreEntityType
-import com.calorieko.app.data.remote.firestore.FirestorePayloadSerializer
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import kotlin.math.abs
 
+/**
+ * Read-write repository for user profile operations.
+ *
+ * Encapsulates:
+ * - Room read/write for UserProfile
+ * - Firestore sync on writes
+ * - Auto-sync to Laravel backend via WorkManager
+ * - Photo compression for profile image updates
+ * - Badge stats aggregation from multiple DAOs
+ */
 class UserRepository(
-    private val db: AppDatabase,
+    private val userDao: UserDao,
+    private val weightLogDao: WeightLogDao,
+    private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) {
-    private val userDao = db.userDao()
-    private val weightLogDao = db.weightLogDao()
-    private val outboxDao = db.firestoreOutboxDao()
 
+    // ── Profile Read ──
+
+    /** Fetch the user profile from Room (one-shot). */
     suspend fun getUserProfile(uid: String): UserProfile? {
         return userDao.getUser(uid)
     }
 
+    /** Observe user profile reactively (Flow — emits on every Room change). */
     fun observeUserProfile(uid: String): Flow<UserProfile?> {
         return userDao.observeUser(uid)
     }
 
+    // ── Profile Write ──
+
+    /** Save a profile to Room, sync to Firestore (with timeout), and trigger auto-sync to Laravel. */
     suspend fun saveProfile(uid: String, profile: UserProfile) {
-        db.withTransaction {
-            val previousProfile = userDao.getUser(uid)
-            val now = System.currentTimeMillis()
-            val persistedProfile = profile.copy(uid = uid, updatedAt = now)
-            userDao.insertUser(persistedProfile)
-            outboxDao.insert(
-                FirestorePayloadSerializer.upsert(
-                    uid = uid,
-                    entityType = FirestoreEntityType.USER_PROFILE,
-                    entityKey = uid,
-                    remotePath = FirestorePayloadSerializer.userProfilePath(uid),
-                    payload = FirestorePayloadSerializer.profilePayload(persistedProfile),
-                    now = now
-                )
-            )
-
-            val weightLog = buildWeightLogIfChanged(uid, previousProfile?.weight, persistedProfile.weight, now)
-            if (weightLog != null) {
-                weightLogDao.upsertWeightLog(weightLog)
-                outboxDao.insert(
-                    FirestorePayloadSerializer.upsert(
-                        uid = uid,
-                        entityType = FirestoreEntityType.WEIGHT_LOG,
-                        entityKey = weightLog.timestamp.toString(),
-                        remotePath = FirestorePayloadSerializer.weightLogPath(uid, weightLog.timestamp),
-                        payload = FirestorePayloadSerializer.weightLogPayload(weightLog),
-                        now = now
-                    )
-                )
-            }
+        val previousProfile = userDao.getUser(uid)
+        userDao.insertUser(profile)
+        recordWeightIfChanged(uid, previousProfile?.weight, profile.weight)
+        withTimeoutOrNull(5_000L) {
+            try { firestoreSyncRepo.syncProfile(uid, profile) } catch (_: Exception) {}
         }
-
-        triggerSync(uid)
+        // Trigger auto-sync to Laravel backend (background, debounced)
+        AutoSyncManager.triggerSync(appContext, uid)
     }
 
+    private suspend fun recordWeightIfChanged(uid: String, previousWeight: Double?, newWeight: Double) {
+        if (newWeight <= 0.0) return
+        if (previousWeight != null && abs(previousWeight - newWeight) < 0.05) return
+
+        val now = System.currentTimeMillis()
+        val weightLog = WeightLogEntity(
+            uid = uid,
+            dateEpochDay = LocalDate.now().toEpochDay(),
+            weightKg = newWeight,
+            timestamp = now,
+            updatedAt = now,
+            syncStatus = 0
+        )
+        weightLogDao.upsertWeightLog(weightLog)
+        withTimeoutOrNull(5_000L) {
+            try { firestoreSyncRepo.syncWeightLog(uid, weightLog) } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Builds an updated [UserProfile] from form data, compressing the photo
+     * if a new image URI is provided. Saves to Room and syncs to Firestore.
+     *
+     * @param context  Needed for ContentResolver to read the selected image URI
+     * @param uid      Firebase UID
+     * @param email    Firebase email (fallback for new profiles)
+     * @param name     Form field
+     * @param age      Form field (String, parsed to Int)
+     * @param weight   Form field (String, parsed to Double)
+     * @param height   Form field (String, parsed to Double)
+     * @param sex      Form field
+     * @param activityLevel  Form field
+     * @param goal     Form field
+     * @param selectedImageUri  New photo URI from gallery picker (nullable)
+     * @param existingPhotoUrl  Current photo URL from the existing profile
+     */
     suspend fun saveProfileFromForm(
         context: Context,
         uid: String,
@@ -84,12 +110,16 @@ class UserRepository(
         selectedImageUri: Uri?,
         existingPhotoUrl: String
     ) {
+        // 1. Compress and encode new photo (if selected)
         val finalPhotoUrl = selectedImageUri?.let { uri ->
             val encodedStr = ImageUtils.compressAndEncode(context, uri, maxDimension = 300, quality = 70)
             encodedStr ?: uri.toString()
         } ?: existingPhotoUrl
 
+        // 2. Fetch existing profile to preserve unchanged fields
         val existingProfile = userDao.getUser(uid)
+
+        // 3. Build the profile (update existing or create new)
         val updatedProfile = if (existingProfile != null) {
             existingProfile.copy(
                 name = name,
@@ -99,7 +129,8 @@ class UserRepository(
                 sex = sex,
                 activityLevel = activityLevel,
                 goal = goal,
-                photoUrl = finalPhotoUrl
+                photoUrl = finalPhotoUrl,
+                updatedAt = System.currentTimeMillis() // Refresh for delta sync
             )
         } else {
             UserProfile(
@@ -116,18 +147,16 @@ class UserRepository(
             )
         }
 
+        // 4. Save to Room + Firestore
         saveProfile(uid, updatedProfile)
     }
 
-    suspend fun saveInitialProfile(uid: String, profile: UserProfile) {
-        saveProfile(uid, profile)
-    }
+    // ── Badge Stats ──
 
-    suspend fun markOnboardingCompleted(uid: String) {
-        val profile = userDao.getUser(uid) ?: return
-        saveProfile(uid, profile.copy(onboardingCompleted = true))
-    }
-
+    /**
+     * Fetches aggregate counts from multiple DAOs for badge calculation.
+     * Each call is wrapped in try/catch so a failing DAO doesn't crash the whole fetch.
+     */
     suspend fun getBadgeStats(
         uid: String,
         mealLogDao: MealLogDao,
@@ -142,29 +171,5 @@ class UserRepository(
             totalWorkouts = workoutsCount,
             totalPhotos = actPhotos
         )
-    }
-
-    private fun buildWeightLogIfChanged(
-        uid: String,
-        previousWeight: Double?,
-        newWeight: Double,
-        now: Long
-    ): WeightLogEntity? {
-        if (newWeight <= 0.0) return null
-        if (previousWeight != null && abs(previousWeight - newWeight) < 0.05) return null
-        return WeightLogEntity(
-            uid = uid,
-            dateEpochDay = LocalDate.now().toEpochDay(),
-            weightKg = newWeight,
-            timestamp = now,
-            updatedAt = now,
-            syncStatus = 0
-        )
-    }
-
-    private fun triggerSync(uid: String) {
-        if (uid.isBlank()) return
-        FirestoreAutoSyncManager.triggerSync(appContext, uid)
-        AutoSyncManager.triggerSync(appContext, uid)
     }
 }

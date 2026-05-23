@@ -12,9 +12,10 @@ import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.model.DishRecipeEntity
 import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.model.NutritionResult
+import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.repository.MealRepository
-import com.calorieko.app.data.repository.PantryRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.util.RecipeCustomizationRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalTime
 import kotlin.math.abs
 
@@ -86,7 +88,7 @@ class ManualLogViewModel(
     private val mealRepository: MealRepository,
     private val calculator: RecipeNutritionCalculator,
     private val pantryDao: PantryDao,
-    private val pantryRepository: PantryRepository,
+    private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) : ViewModel() {
 
@@ -825,7 +827,16 @@ class ManualLogViewModel(
         viewModelScope.launch {
             val uid = auth.currentUser?.uid ?: ""
             withContext(Dispatchers.IO) {
-                pantryRepository.removeIngredients(uid, selectedKeys.toList())
+                pantryDao.deleteItems(selectedKeys.toList())
+                if (uid.isNotEmpty()) {
+                    withTimeoutOrNull(5_000L) {
+                        try {
+                            selectedKeys.forEach { firestoreSyncRepo.deletePantryItem(uid, it) }
+                        } catch (_: Exception) {
+                        }
+                    }
+                    AutoSyncManager.triggerSync(appContext, uid)
+                }
             }
             finishPantryDeduction()
             _events.send(ManualLogEvent.MealConfirmed)
@@ -920,7 +931,7 @@ class ManualLogViewModel(
             mealRepository: MealRepository,
             calculator: RecipeNutritionCalculator,
             pantryDao: PantryDao,
-            pantryRepository: PantryRepository,
+            firestoreSyncRepo: FirestoreSyncRepository,
             appContext: Context
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -934,7 +945,7 @@ class ManualLogViewModel(
                         mealRepository,
                         calculator,
                         pantryDao,
-                        pantryRepository,
+                        firestoreSyncRepo,
                         appContext
                     ) as T
                 }

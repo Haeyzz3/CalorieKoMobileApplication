@@ -15,8 +15,10 @@ import java.util.concurrent.TimeUnit
  *
  * ── Design Decisions ──
  *
- * 1. **Unique Work with APPEND_OR_REPLACE policy**: If a sync is already
- *    running, later requests are appended instead of canceling in-flight work.
+ * 1. **Unique Work with REPLACE policy** — If a sync is already queued/running,
+ *    a new call replaces the pending request. This acts as a natural "debounce":
+ *    rapid consecutive writes (e.g., 3 meal items in quick succession) collapse
+ *    into a single sync that picks up ALL changes via the delta query.
  *
  * 2. **Initial delay of 3 seconds** — Gives the user time to finish a batch of
  *    writes (log multiple dishes, save profile, etc.) before the sync fires.
@@ -42,8 +44,7 @@ object AutoSyncManager {
     /**
      * Enqueues a one-time background sync to the Laravel backend.
      *
-     * Safe to call frequently; rapid writes append a follow-up run without
-     * canceling an in-flight API sync.
+     * Safe to call frequently — duplicate calls are coalesced via REPLACE policy.
      *
      * @param context  Application or Activity context (WorkManager extracts appContext)
      * @param uid      Firebase UID of the currently authenticated user
@@ -68,7 +69,7 @@ object AutoSyncManager {
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
                 UNIQUE_WORK_NAME,
-                ExistingWorkPolicy.APPEND_OR_REPLACE,
+                ExistingWorkPolicy.REPLACE,  // Coalesce: latest request wins
                 syncRequest
             )
 

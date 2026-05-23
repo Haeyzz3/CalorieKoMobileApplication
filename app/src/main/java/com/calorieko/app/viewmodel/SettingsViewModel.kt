@@ -1,7 +1,6 @@
 package com.calorieko.app.viewmodel
 
 import android.content.Context
-import androidx.room.withTransaction
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -12,7 +11,6 @@ import com.calorieko.app.data.remote.api.ApiSyncManager
 import com.calorieko.app.data.remote.api.ApiSyncResult
 import com.calorieko.app.data.remote.api.FoodCatalogSyncManager
 import com.calorieko.app.data.remote.api.RetrofitClient
-import com.calorieko.app.data.remote.firestore.FirestoreAutoSyncManager
 import com.calorieko.app.BuildConfig
 import com.calorieko.app.util.NetworkUtils
 import com.calorieko.app.util.StreakReminderWorker
@@ -65,7 +63,6 @@ class SettingsViewModel(
         data object WipeProgressSuccess : Event()
         data class WipeProgressError(val message: String) : Event()
         data object LogoutReady : Event()
-        data class LogoutBlocked(val message: String) : Event()
         data object AccountDeleted : Event()
         data class AccountDeletionError(val message: String) : Event()
         data class PasswordResetSent(val email: String) : Event()
@@ -235,7 +232,6 @@ class SettingsViewModel(
                     //    where a queued sync re-pushes data to Firestore AFTER the wipe.
                     //    (This mirrors the cancellation pattern used in deleteAccount().)
                     WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
-                    uid?.let { FirestoreAutoSyncManager.cancel(appContext, it) }
 
                     // 2. Wipe Firestore cloud progress data (sub-collections only;
                     //    the user profile document at users/{uid} is preserved).
@@ -246,16 +242,13 @@ class SettingsViewModel(
                     }
                     // 3. Selectively clear progress tables in Room.
                     //    Preserves: user_profile (settings), FOOD_TABLE, DISH_INGREDIENTS_TABLE
-                    db.withTransaction {
-                        db.activityLogDao().deleteAll()
-                        db.mealLogDao().deleteAll()
-                        db.mealLogItemDao().deleteAll()
-                        db.dailyNutritionSummaryDao().deleteAll()
-                        db.pantryDao().clearAllItems()
-                        db.mealPlanDao().deleteAll()
-                        db.weightLogDao().deleteAll()
-                        uid?.let { db.firestoreOutboxDao().deleteAllForUid(it) }
-                    }
+                    db.activityLogDao().deleteAll()
+                    db.mealLogDao().deleteAll()
+                    db.mealLogItemDao().deleteAll()
+                    db.dailyNutritionSummaryDao().deleteAll()
+                    db.pantryDao().clearAllItems()
+                    db.mealPlanDao().deleteAll()
+                    db.weightLogDao().deleteAll()
                     // 4. Reset delta sync timestamp (critical!)
                     apiSyncManager.resetSyncTimestamp()
                     // 5. Clear last-sync display timestamp
@@ -268,7 +261,6 @@ class SettingsViewModel(
                     //    AutoSyncManager.triggerSync(). Cancel it to prevent
                     //    the worker from pushing empty/stale state to Firestore.
                     WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
-                    uid?.let { FirestoreAutoSyncManager.cancel(appContext, it) }
                 }
                 _isWipingProgress.value = false
                 _events.send(Event.WipeProgressSuccess)
@@ -323,43 +315,24 @@ class SettingsViewModel(
      */
     fun logout() {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid
-            var shouldLogout = true
             withContext(Dispatchers.IO) {
                 try {
-                    if (!uid.isNullOrBlank()) {
-                        val pendingCount = db.firestoreOutboxDao().pendingCount(uid)
-                        if (pendingCount > 0) {
-                            _events.send(Event.LogoutBlocked(
-                                "You have $pendingCount pending cloud update${if (pendingCount == 1) "" else "s"}. Please reconnect and let sync finish before logging out."
-                            ))
-                            shouldLogout = false
-                            return@withContext
-                        }
-                    }
-
-                    db.withTransaction {
-                        db.userDao().deleteAll()
-                        db.activityLogDao().deleteAll()
-                        db.mealLogDao().deleteAll()
-                        db.mealLogItemDao().deleteAll()
-                        db.dailyNutritionSummaryDao().deleteAll()
-                        db.pantryDao().clearAllItems()
-                        db.mealPlanDao().deleteAll()
-                        db.weightLogDao().deleteAll()
-                        uid?.let { db.firestoreOutboxDao().deleteAllForUid(it) }
-                    }
-                } catch (e: Exception) {
-                    _events.send(Event.LogoutBlocked(e.localizedMessage ?: "Logout failed. Please try again."))
-                    shouldLogout = false
-                }
+                    // Selectively clear user data tables ONLY.
+                    // Preserve FOOD_TABLE and DISH_INGREDIENTS_TABLE
+                    // (static CSV reference data that is expensive to re-seed).
+                    db.userDao().deleteAll()
+                    db.activityLogDao().deleteAll()
+                    db.mealLogDao().deleteAll()
+                    db.mealLogItemDao().deleteAll()
+                    db.dailyNutritionSummaryDao().deleteAll()
+                    db.pantryDao().clearAllItems()
+                    db.mealPlanDao().deleteAll()
+                    db.weightLogDao().deleteAll()
+                } catch (_: Exception) {}
             }
-            if (!shouldLogout) return@launch
             // Cancel scheduled workers
             StreakReminderWorker.cancel(appContext)
             com.calorieko.app.util.MealPlanReminderWorker.cancel(appContext)
-            WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
-            uid?.let { FirestoreAutoSyncManager.cancel(appContext, it) }
             auth.signOut()
             _events.send(Event.LogoutReady)
         }
@@ -398,23 +371,18 @@ class SettingsViewModel(
                     val credential = EmailAuthProvider.getCredential(email, password)
                     user.reauthenticate(credential).await()
 
-                    // 2. Cancel pending sync and delete ALL Firestore data (sub-collections + profile document)
-                    FirestoreAutoSyncManager.cancel(appContext, user.uid)
-                    WorkManager.getInstance(appContext).cancelUniqueWork("calorieko_auto_sync")
+                    // 2. Delete ALL Firestore data (sub-collections + profile document)
                     firestoreSyncRepo.deleteUserAccount(user.uid)
 
                     // 3. Clear all local Room user data
-                    db.withTransaction {
-                        db.userDao().deleteAll()
-                        db.activityLogDao().deleteAll()
-                        db.mealLogDao().deleteAll()
-                        db.mealLogItemDao().deleteAll()
-                        db.dailyNutritionSummaryDao().deleteAll()
-                        db.pantryDao().clearAllItems()
-                        db.mealPlanDao().deleteAll()
-                        db.weightLogDao().deleteAll()
-                        db.firestoreOutboxDao().deleteAllForUid(user.uid)
-                    }
+                    db.userDao().deleteAll()
+                    db.activityLogDao().deleteAll()
+                    db.mealLogDao().deleteAll()
+                    db.mealLogItemDao().deleteAll()
+                    db.dailyNutritionSummaryDao().deleteAll()
+                    db.pantryDao().clearAllItems()
+                    db.mealPlanDao().deleteAll()
+                    db.weightLogDao().deleteAll()
 
                     // 4. Reset sync timestamps
                     apiSyncManager.resetSyncTimestamp()

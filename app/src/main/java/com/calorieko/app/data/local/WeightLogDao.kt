@@ -40,9 +40,6 @@ interface WeightLogDao {
     @Query("SELECT * FROM weight_log_table WHERE uid = :uid ORDER BY date_epoch_day ASC, timestamp ASC")
     suspend fun getAllWeightLogsForUser(uid: String): List<WeightLogEntity>
 
-    @Query("SELECT * FROM weight_log_table WHERE uid = :uid AND timestamp = :timestamp LIMIT 1")
-    suspend fun getWeightLogByTimestamp(uid: String, timestamp: Long): WeightLogEntity?
-
     @Query(
         """
         SELECT * FROM weight_log_table

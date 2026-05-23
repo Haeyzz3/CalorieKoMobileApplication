@@ -26,10 +26,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [
-        Index("meal_log_id"),
-        Index(value = ["meal_log_id", "remote_id"])
-    ]
+    indices = [Index("meal_log_id")]
 )
 data class MealLogItemEntity(
     @PrimaryKey(autoGenerate = true)
@@ -37,8 +34,6 @@ data class MealLogItemEntity(
 
     /** FK → meal_log_table.meal_log_id */
     @ColumnInfo(name = "meal_log_id") val mealLogId: Long,
-
-    @ColumnInfo(name = "remote_id", defaultValue = "''") val remoteId: String = java.util.UUID.randomUUID().toString(),
 
     /** FK reference to FOOD_TABLE.food_id (not enforced to keep flexibility) */
     @ColumnInfo(name = "food_id") val foodId: Int,

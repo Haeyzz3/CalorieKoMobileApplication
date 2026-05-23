@@ -2,7 +2,6 @@ package com.calorieko.app.data.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -11,17 +10,12 @@ import androidx.room.PrimaryKey
  * One MealLogEntity contains one or more [MealLogItemEntity] children,
  * each representing a dish recognized by the AI and weighed by the IoT scale.
  */
-@Entity(
-    tableName = "meal_log_table",
-    indices = [Index(value = ["uid", "remote_id"])]
-)
+@Entity(tableName = "meal_log_table")
 data class MealLogEntity(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "meal_log_id") val mealLogId: Long = 0,
 
     @ColumnInfo(name = "uid") val uid: String,
-
-    @ColumnInfo(name = "remote_id", defaultValue = "''") val remoteId: String = java.util.UUID.randomUUID().toString(),
 
     /** "Breakfast", "Lunch", "Dinner", or "Snacks" */
     @ColumnInfo(name = "meal_type") val mealType: String,

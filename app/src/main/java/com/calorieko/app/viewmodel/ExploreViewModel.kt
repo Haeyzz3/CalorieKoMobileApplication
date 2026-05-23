@@ -8,7 +8,9 @@ import com.calorieko.app.data.local.FoodDao
 import com.calorieko.app.data.local.PantryDao
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.model.DishRecipeEntity
-import com.calorieko.app.data.repository.PantryRepository
+import com.calorieko.app.data.model.PantryItem
+import com.calorieko.app.data.remote.FirestoreSyncRepository
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Represents a dish for display in the Explore screen.
@@ -54,7 +57,7 @@ class ExploreViewModel(
     private val pantryDao: PantryDao,
     private val rawIngredientDao: RawIngredientDao,
     private val foodDao: FoodDao,
-    private val pantryRepository: PantryRepository,
+    private val firestoreSyncRepo: FirestoreSyncRepository,
     private val appContext: Context
 ) : ViewModel() {
 
@@ -68,13 +71,13 @@ class ExploreViewModel(
             pantryDao: PantryDao,
             rawIngredientDao: RawIngredientDao,
             foodDao: FoodDao,
-            pantryRepository: PantryRepository,
+            firestoreSyncRepo: FirestoreSyncRepository,
             appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ExploreViewModel::class.java)) {
-                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, rawIngredientDao, foodDao, pantryRepository, appContext) as T
+                    return ExploreViewModel(auth, dishRecipeDao, pantryDao, rawIngredientDao, foodDao, firestoreSyncRepo, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -228,7 +231,15 @@ class ExploreViewModel(
             val currentPantry = pantryItems.value.map { normalizePantryKey(it) }.toSet()
             val newIngredients = coreIngredients.filter { it !in currentPantry }
 
-            pantryRepository.addIngredients(uid, newIngredients)
+            for (ingredient in newIngredients) {
+                pantryDao.insertItem(PantryItem(ingredientName = ingredient))
+            }
+            if (uid.isNotEmpty() && newIngredients.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.syncPantryItemsBatch(uid, newIngredients) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
 
             // Emit snackbar feedback
             val message = if (newIngredients.isEmpty()) {
@@ -248,7 +259,13 @@ class ExploreViewModel(
         val normalized = normalizePantryKey(ingredientKey)
         if (normalized.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            pantryRepository.addIngredient(uid, normalized)
+            pantryDao.insertItem(PantryItem(ingredientName = normalized))
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.syncPantryItem(uid, normalized) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
             _snackbarEvent.emit("Added ${displayName.ifBlank { formatName(normalized) }} to Pantry")
         }
     }
@@ -260,7 +277,13 @@ class ExploreViewModel(
         val normalized = normalizePantryKey(ingredientKey)
         if (normalized.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            pantryRepository.removeIngredient(uid, normalized)
+            pantryDao.deleteItem(normalized)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try { firestoreSyncRepo.deletePantryItem(uid, normalized) } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
             _snackbarEvent.emit("Removed ${displayName.ifBlank { formatName(normalized) }} from Pantry")
         }
     }
@@ -284,7 +307,15 @@ class ExploreViewModel(
                 return@launch
             }
 
-            pantryRepository.removeIngredients(uid, ingredientsToRemove)
+            pantryDao.deleteItems(ingredientsToRemove)
+            if (uid.isNotEmpty()) {
+                withTimeoutOrNull(5_000L) {
+                    try {
+                        ingredientsToRemove.forEach { firestoreSyncRepo.deletePantryItem(uid, it) }
+                    } catch (_: Exception) {}
+                }
+                AutoSyncManager.triggerSync(appContext, uid)
+            }
             _snackbarEvent.emit("Removed ${ingredientsToRemove.size} core ingredient${if (ingredientsToRemove.size > 1) "s" else ""} from Pantry")
         }
     }

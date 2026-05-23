@@ -207,14 +207,6 @@ fun SettingsScreen(
                 is SettingsViewModel.Event.LogoutReady -> {
                     onLogout()
                 }
-                is SettingsViewModel.Event.LogoutBlocked -> {
-                    showLogoutDialog = false
-                    showBanner(
-                        NotificationType.WARNING,
-                        "Sync Pending",
-                        event.message
-                    )
-                }
                 is SettingsViewModel.Event.AccountDeleted -> {
                     showDeleteAccountDialog = false
                     deleteAccountPassword = ""

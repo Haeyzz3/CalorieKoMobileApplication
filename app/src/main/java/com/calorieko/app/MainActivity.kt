@@ -44,20 +44,20 @@ import androidx.navigation.navArgument
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
+import com.calorieko.app.data.model.WeightLogEntity
 import com.calorieko.app.data.remote.CloudRestoreManager
 import com.calorieko.app.data.remote.FirestoreSyncRepository
-import com.calorieko.app.data.remote.firestore.FirestoreAutoSyncManager
 import com.calorieko.app.ui.components.*
 import com.calorieko.app.ui.screens.*
 import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoTheme
 import com.calorieko.app.viewmodel.RestoreViewModel
+import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material3.TextButton
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,19 +67,6 @@ class MainActivity : ComponentActivity() {
                 AppNavigation()
             }
         }
-    }
-}
-
-private suspend fun triggerFirestoreCatchUpIfNeeded(
-    db: AppDatabase,
-    context: android.content.Context,
-    uid: String
-) {
-    val pendingCount = withContext(Dispatchers.IO) {
-        db.firestoreOutboxDao().pendingCount(uid)
-    }
-    if (pendingCount > 0) {
-        FirestoreAutoSyncManager.triggerSync(context.applicationContext, uid, immediate = true)
     }
 }
 
@@ -100,12 +87,6 @@ fun AppNavigation() {
 
     // Firestore sync repository for cloud persistence
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
-
-    val userRepo = remember { com.calorieko.app.data.repository.UserRepository(db, context.applicationContext) }
-    val activityRepo = remember { com.calorieko.app.data.repository.ActivityRepository(db, context.applicationContext) }
-    val mealRepo = remember { com.calorieko.app.data.repository.MealRepository(db, context.applicationContext) }
-    val pantryRepository = remember { com.calorieko.app.data.repository.PantryRepository(db, context.applicationContext) }
-    val mealPlanRepository = remember { com.calorieko.app.data.repository.MealPlanRepository(db, context.applicationContext) }
 
     // Auth repository for all authentication screens
     val authRepo = remember { com.calorieko.app.data.repository.AuthRepository(auth) }
@@ -134,9 +115,6 @@ fun AppNavigation() {
     LaunchedEffect(restoreState) {
         when (restoreState) {
             is RestoreViewModel.RestoreState.Success -> {
-                auth.currentUser?.uid?.let { uid ->
-                    triggerFirestoreCatchUpIfNeeded(db, context.applicationContext, uid)
-                }
                 val completed = (restoreState as RestoreViewModel.RestoreState.Success).onboardingCompleted
                 if (completed) {
                     navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
@@ -145,9 +123,6 @@ fun AppNavigation() {
                 }
             }
             is RestoreViewModel.RestoreState.NotNeeded -> {
-                auth.currentUser?.uid?.let { uid ->
-                    triggerFirestoreCatchUpIfNeeded(db, context.applicationContext, uid)
-                }
                 val completed = (restoreState as RestoreViewModel.RestoreState.NotNeeded).onboardingCompleted
                 if (completed) {
                     navController.navigate("dashboard") { popUpTo(0) { inclusive = true } }
@@ -360,7 +335,24 @@ fun AppNavigation() {
                             onboardingCompleted = false // New user, must complete onboarding
                         )
                         scope.launch {
-                            userRepo.saveInitialProfile(currentUser.uid, userProfile)
+                            userDao.insertUser(userProfile)
+                            val initialWeightLog = WeightLogEntity(
+                                uid = currentUser.uid,
+                                dateEpochDay = LocalDate.now().toEpochDay(),
+                                weightKg = userProfile.weight,
+                                timestamp = System.currentTimeMillis()
+                            )
+                            db.weightLogDao().upsertWeightLog(initialWeightLog)
+
+                            // Sync new profile to Firestore
+                            firestoreSyncRepo.syncProfile(currentUser.uid, userProfile)
+                            firestoreSyncRepo.syncWeightLog(currentUser.uid, initialWeightLog)
+
+                            // Auto-sync to Laravel backend
+                            AutoSyncManager.triggerSync(
+                                context.applicationContext, currentUser.uid
+                            )
+
                             navController.navigate("verificationPending") {
                                 popUpTo("intro") { inclusive = true }
                             }
@@ -450,7 +442,12 @@ fun AppNavigation() {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
                         scope.launch {
-                            userRepo.markOnboardingCompleted(uid)
+                            val profile = userDao.getUser(uid)
+                            if (profile != null) {
+                                val updatedProfile = profile.copy(onboardingCompleted = true)
+                                userDao.insertUser(updatedProfile)
+                                firestoreSyncRepo.syncProfile(uid, updatedProfile)
+                            }
                             navController.navigate("dashboard") {
                                 popUpTo(0) { inclusive = true }
                             }
@@ -553,14 +550,20 @@ fun AppNavigation() {
                 activityLogDao = db.activityLogDao(),
                 nutritionalValuesRepo = nutritionalRepo
             )
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                appContext = context.applicationContext
+            )
             val diaryViewModel: com.calorieko.app.viewmodel.DiaryViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.DiaryViewModel.provideFactory(
                     auth = auth,
                     dashboardRepository = dashboardRepo,
                     activityLogDao = db.activityLogDao(),
                     mealLogDao = db.mealLogDao(),
-                    activityRepository = activityRepo,
-                    mealRepository = mealRepo
+                    mealRepository = mealRepo,
+                    appContext = context.applicationContext
                 )
             )
             DiaryScreen(
@@ -576,6 +579,11 @@ fun AppNavigation() {
 
         // --- NEW: Progress Screen ---
         composable("progress") {
+            val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                activityLogDao = db.activityLogDao(),
+                userDao = db.userDao(),
+                appContext = context.applicationContext
+            )
             val progressViewModel: com.calorieko.app.viewmodel.ProgressViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ProgressViewModel.provideFactory(
                     auth = auth,
@@ -600,6 +608,17 @@ fun AppNavigation() {
 
         // --- NEW: Profile Screen ---
         composable("profile") {
+            val userRepo = com.calorieko.app.data.repository.UserRepository(
+                userDao = db.userDao(),
+                weightLogDao = db.weightLogDao(),
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
+            )
+            val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                activityLogDao = db.activityLogDao(),
+                userDao = db.userDao(),
+                appContext = context.applicationContext
+            )
             val profileViewModel: com.calorieko.app.viewmodel.ProfileViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.ProfileViewModel.provideFactory(
                     auth = auth,
@@ -627,6 +646,12 @@ fun AppNavigation() {
 
         // --- NEW: Edit Profile Screen ---
         composable("editProfile") {
+            val userRepo = com.calorieko.app.data.repository.UserRepository(
+                userDao = db.userDao(),
+                weightLogDao = db.weightLogDao(),
+                firestoreSyncRepo = firestoreSyncRepo,
+                appContext = context.applicationContext
+            )
             val editProfileViewModel: com.calorieko.app.viewmodel.EditProfileViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.EditProfileViewModel.provideFactory(
                     auth = auth,
@@ -694,11 +719,10 @@ fun AppNavigation() {
                     auth = auth,
                     pantryDao = db.pantryDao(),
                     mealPlanDao = db.mealPlanDao(),
-                    pantryRepository = pantryRepository,
-                    mealPlanRepository = mealPlanRepository,
                     dishRecipeDao = db.dishRecipeDao(),
                     rawIngredientDao = db.rawIngredientDao(),
                     calculator = pantryCalculator,
+                    firestoreSyncRepo = firestoreSyncRepo,
                     userDao = db.userDao(),
                     nutritionalValuesRepo = nutritionalRepo,
                     appContext = context.applicationContext
@@ -726,7 +750,7 @@ fun AppNavigation() {
                     pantryDao = db.pantryDao(),
                     rawIngredientDao = db.rawIngredientDao(),
                     foodDao = db.foodDao(),
-                    pantryRepository = pantryRepository,
+                    firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
             )
@@ -738,6 +762,12 @@ fun AppNavigation() {
 
         // --- Log Meal Screen ---
         composable("logMeal") {
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                appContext = context.applicationContext
+            )
             val calculator = remember {
                 com.calorieko.app.data.local.RecipeNutritionCalculator(
                     dishRecipeDao = db.dishRecipeDao(),
@@ -753,7 +783,7 @@ fun AppNavigation() {
                     mealRepository = mealRepo,
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
-                    pantryRepository = pantryRepository,
+                    firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
             )
@@ -766,7 +796,7 @@ fun AppNavigation() {
                     mealRepository = mealRepo,
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
-                    pantryRepository = pantryRepository,
+                    firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
             )
@@ -784,6 +814,12 @@ fun AppNavigation() {
         composable("logMeal/quick/{dishLabel}/{mealSlot}") { backStackEntry ->
             val dishLabel = backStackEntry.arguments?.getString("dishLabel") ?: ""
             val mealSlot = backStackEntry.arguments?.getString("mealSlot") ?: "Lunch"
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                appContext = context.applicationContext
+            )
             val calculator = remember {
                 com.calorieko.app.data.local.RecipeNutritionCalculator(
                     dishRecipeDao = db.dishRecipeDao(),
@@ -800,7 +836,7 @@ fun AppNavigation() {
                     mealRepository = mealRepo,
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
-                    pantryRepository = pantryRepository,
+                    firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
             )
@@ -821,6 +857,12 @@ fun AppNavigation() {
 
         // Quick-log entire meal slot (multi-dish, reads from QuickLogBridge)
         composable("logMeal/quickSlot") {
+            val mealRepo = com.calorieko.app.data.repository.MealRepository(
+                mealLogDao = db.mealLogDao(),
+                mealLogItemDao = db.mealLogItemDao(),
+                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
+                appContext = context.applicationContext
+            )
             val calculator = remember {
                 com.calorieko.app.data.local.RecipeNutritionCalculator(
                     dishRecipeDao = db.dishRecipeDao(),
@@ -837,7 +879,7 @@ fun AppNavigation() {
                     mealRepository = mealRepo,
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
-                    pantryRepository = pantryRepository,
+                    firestoreSyncRepo = firestoreSyncRepo,
                     appContext = context.applicationContext
                 )
             )
@@ -873,6 +915,11 @@ fun AppNavigation() {
             })
         ) { backStackEntry ->
             val activityId = backStackEntry.arguments?.getInt("activityId") ?: -1
+            val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                activityLogDao = db.activityLogDao(),
+                userDao = db.userDao(),
+                appContext = context.applicationContext
+            )
             val logWorkoutViewModel: com.calorieko.app.viewmodel.LogWorkoutViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.LogWorkoutViewModel.provideFactory(
                     auth = auth,
@@ -895,6 +942,11 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val activityId = backStackEntry.arguments?.getString("activityId")?.toIntOrNull()
             if (activityId != null) {
+                val activityRepo = com.calorieko.app.data.repository.ActivityRepository(
+                    activityLogDao = db.activityLogDao(),
+                    userDao = db.userDao(),
+                    appContext = context.applicationContext
+                )
                 val activityDetailsViewModel: com.calorieko.app.viewmodel.ActivityDetailsViewModel = viewModel(
                     factory = com.calorieko.app.viewmodel.ActivityDetailsViewModel.provideFactory(
                         auth = auth,

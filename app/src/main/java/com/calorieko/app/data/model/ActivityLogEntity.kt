@@ -2,17 +2,12 @@ package com.calorieko.app.data.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(
-    tableName = "activity_log_table",
-    indices = [Index(value = ["uid", "remote_id"])]
-)
+@Entity(tableName = "activity_log_table")
 data class ActivityLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val uid: String,
-    @ColumnInfo(name = "remote_id", defaultValue = "''") val remoteId: String = java.util.UUID.randomUUID().toString(),
     val type: String,
     val name: String,
     val timeString: String,

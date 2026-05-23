@@ -29,9 +29,6 @@ interface ActivityLogDao {
     @Query("SELECT * FROM activity_log_table WHERE id = :id")
     suspend fun getLogById(id: Int): ActivityLogEntity?
 
-    @Query("SELECT * FROM activity_log_table WHERE uid = :uid AND remote_id = :remoteId LIMIT 1")
-    suspend fun getLogByRemoteId(uid: String, remoteId: String): ActivityLogEntity?
-
     @Query("DELETE FROM activity_log_table WHERE id = :id")
     suspend fun deleteLogById(id: Int)
 
