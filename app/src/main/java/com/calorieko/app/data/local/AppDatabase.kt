@@ -44,7 +44,7 @@ import kotlinx.coroutines.CoroutineScope
         RecipeIngredientEntity::class,
         WeightLogEntity::class
     ],
-    version = 29,
+    version = 30,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -601,6 +601,45 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
+         * Migration 29 → 30: Add `uid` column to PLANNED_MEALS_TABLE.
+         *
+         * This requires **table recreation** because `uid` is added to the composite PK
+         * (ALTER TABLE cannot modify primary keys in SQLite).
+         *
+         * Strategy: CREATE new → INSERT from old → DROP old → RENAME new.
+         * Existing rows get uid = '' (empty string); PantryViewModel backfills
+         * the real uid on first init after upgrade.
+         */
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE PLANNED_MEALS_TABLE_new (
+                        uid TEXT NOT NULL DEFAULT '',
+                        day_index INTEGER NOT NULL,
+                        dish_label TEXT NOT NULL,
+                        week_start_date TEXT NOT NULL,
+                        meal_slot TEXT NOT NULL,
+                        substitutions_json TEXT NOT NULL DEFAULT '',
+                        scaled_servings INTEGER NOT NULL DEFAULT 0,
+                        tweaks_json TEXT NOT NULL DEFAULT '',
+                        status TEXT NOT NULL DEFAULT 'planned',
+                        PRIMARY KEY(uid, day_index, week_start_date, meal_slot, dish_label)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO PLANNED_MEALS_TABLE_new
+                        (uid, day_index, dish_label, week_start_date, meal_slot,
+                         substitutions_json, scaled_servings, tweaks_json, status)
+                    SELECT '', day_index, dish_label, week_start_date, meal_slot,
+                           substitutions_json, scaled_servings, tweaks_json, status
+                    FROM PLANNED_MEALS_TABLE
+                """.trimIndent())
+                db.execSQL("DROP TABLE PLANNED_MEALS_TABLE")
+                db.execSQL("ALTER TABLE PLANNED_MEALS_TABLE_new RENAME TO PLANNED_MEALS_TABLE")
+            }
+        }
+
+        /**
          * Retrieves (or generates) a 256-bit AES key from Android Keystore.
          * The key never leaves the hardware-backed keystore; we use its
          * encoded form as the SQLCipher passphrase.
@@ -653,7 +692,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

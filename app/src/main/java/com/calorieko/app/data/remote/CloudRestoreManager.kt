@@ -186,9 +186,9 @@ class CloudRestoreManager(
                     pantryDao.insertItem(PantryItem(ingredientName = itemName))
                 }
 
-                // 6. Planned Meals
+                // 6. Planned Meals (stamp uid defensively — fetchPlannedMeals already sets it)
                 for (meal in fetchResults.plannedMeals) {
-                    mealPlanDao.insertMeal(meal)
+                    mealPlanDao.insertMeal(meal.copy(uid = uid))
                 }
 
                 // 7. Weight Logs

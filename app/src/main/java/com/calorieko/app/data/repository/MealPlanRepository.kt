@@ -23,9 +23,9 @@ class MealPlanRepository(
      * Called when the user taps "Skip Meal" in the MealDetailDialog.
      */
     suspend fun skipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
-        mealPlanDao.updateSlotStatus(dayIndex, weekStartDate, mealSlot, "skipped")
+        mealPlanDao.updateSlotStatus(uid, dayIndex, weekStartDate, mealSlot, "skipped")
         // Sync updated status to Firestore (re-push each dish in the slot)
-        val meals = mealPlanDao.getMealsForDayOneShot(dayIndex, weekStartDate)
+        val meals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, weekStartDate)
             .filter { it.mealSlot == mealSlot }
         for (meal in meals) {
             firestoreSyncRepo.syncPlannedMeal(uid, meal)
@@ -37,8 +37,8 @@ class MealPlanRepository(
      * Called when the user taps "Undo Skip" in the MealDetailDialog.
      */
     suspend fun unskipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
-        mealPlanDao.updateSlotStatus(dayIndex, weekStartDate, mealSlot, "planned")
-        val meals = mealPlanDao.getMealsForDayOneShot(dayIndex, weekStartDate)
+        mealPlanDao.updateSlotStatus(uid, dayIndex, weekStartDate, mealSlot, "planned")
+        val meals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, weekStartDate)
             .filter { it.mealSlot == mealSlot }
         for (meal in meals) {
             firestoreSyncRepo.syncPlannedMeal(uid, meal)
@@ -58,10 +58,10 @@ class MealPlanRepository(
         dishLabels: List<String>
     ) {
         for (label in dishLabels) {
-            mealPlanDao.updateMealStatus(dayIndex, weekStartDate, mealSlot, label, "logged")
+            mealPlanDao.updateMealStatus(uid, dayIndex, weekStartDate, mealSlot, label, "logged")
         }
         // Sync to Firestore
-        val meals = mealPlanDao.getMealsForDayOneShot(dayIndex, weekStartDate)
+        val meals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, weekStartDate)
             .filter { it.mealSlot == mealSlot && it.dishLabel in dishLabels }
         for (meal in meals) {
             firestoreSyncRepo.syncPlannedMeal(uid, meal)

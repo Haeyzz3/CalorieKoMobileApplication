@@ -16,6 +16,7 @@ import androidx.work.WorkerParameters
 import com.calorieko.app.CalorieKoApplication
 import com.calorieko.app.MainActivity
 import com.calorieko.app.R
+import com.google.firebase.auth.FirebaseAuth
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -130,6 +131,10 @@ class MealPlanReminderWorker(
 
         val db = (context.applicationContext as CalorieKoApplication).database
 
+        // ── Get current user ──
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid.isNullOrBlank()) return Result.success()
+
         // ── Determine today's day index and week start ──
         val today = LocalDate.now()
         val dayIndex = today.dayOfWeek.value - 1  // 0=Mon, 6=Sun
@@ -137,7 +142,7 @@ class MealPlanReminderWorker(
             .toString()  // "2026-04-20"
 
         // ── Fetch today's planned meals ──
-        val todayMeals = db.mealPlanDao().getMealsForDayOneShot(dayIndex, weekStart)
+        val todayMeals = db.mealPlanDao().getMealsForDayOneShot(uid, dayIndex, weekStart)
         if (todayMeals.isEmpty()) return Result.success()
 
         // ── Filter out already-handled meals (logged/skipped) ──

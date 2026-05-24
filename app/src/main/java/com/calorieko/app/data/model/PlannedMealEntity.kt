@@ -5,9 +5,10 @@ import androidx.room.Entity
 
 @Entity(
     tableName = "PLANNED_MEALS_TABLE",
-    primaryKeys = ["day_index", "week_start_date", "meal_slot", "dish_label"]
+    primaryKeys = ["uid", "day_index", "week_start_date", "meal_slot", "dish_label"]
 )
 data class PlannedMealEntity(
+    @ColumnInfo(name = "uid") val uid: String = "",
     @ColumnInfo(name = "day_index") val dayIndex: Int,        // 0=Mon, 6=Sun
     @ColumnInfo(name = "dish_label") val dishLabel: String,
     @ColumnInfo(name = "week_start_date") val weekStartDate: String,  // ISO format, e.g. "2026-03-16"

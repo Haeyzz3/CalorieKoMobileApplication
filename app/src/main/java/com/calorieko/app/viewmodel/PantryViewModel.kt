@@ -209,7 +209,7 @@ class PantryViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val plannedMeals: StateFlow<List<PlannedMealEntity>> = _currentWeekStart
-        .flatMapLatest { weekStart -> mealPlanDao.getMealsForWeek(weekStart) }
+        .flatMapLatest { weekStart -> mealPlanDao.getMealsForWeek(uid, weekStart) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _weeklyCalories = MutableStateFlow(0)
@@ -308,12 +308,11 @@ class PantryViewModel(
     private val _dishDisplayNameCache = mutableMapOf<String, DishDisplayNames>()
 
     init {
-        // Defense-in-depth: ensure reference data is seeded before any queries.
-        // Covers edge cases where db.clearAllTables() was called (e.g., wipe operations)
-        // and the async FoodDatabaseCallback re-seed hasn't completed yet.
+        // Backfill uid on pre-v30 rows (migration sets uid = '')
         viewModelScope.launch(Dispatchers.IO) {
-            // No-op: legacy ensureReferenceDataSeeded removed since we now
-            // use DISH_RECIPES_TABLE which is seeded via FoodDatabaseCallback
+            if (uid.isNotBlank()) {
+                mealPlanDao.backfillUid(uid)
+            }
         }
 
         // Load all unique ingredients for autocomplete
@@ -790,6 +789,7 @@ class PantryViewModel(
             } else ""
 
             val meal = PlannedMealEntity(
+                uid = uid,
                 dayIndex = dayIndex,
                 dishLabel = dishLabel,
                 weekStartDate = weekStartDate,
@@ -816,7 +816,7 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.removeDish(dayIndex, week, mealSlot, dishLabel)
+            mealPlanDao.removeDish(uid, dayIndex, week, mealSlot, dishLabel)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, mealSlot, dishLabel) } catch (_: Exception) {}
@@ -835,7 +835,7 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.clearSlot(dayIndex, week, mealSlot)
+            mealPlanDao.clearSlot(uid, dayIndex, week, mealSlot)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, week, mealSlot) } catch (_: Exception) {}
@@ -855,7 +855,7 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.clearDay(dayIndex, week)
+            mealPlanDao.clearDay(uid, dayIndex, week)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week) } catch (_: Exception) {}
@@ -870,7 +870,7 @@ class PantryViewModel(
     fun clearMealWeek() {
         viewModelScope.launch(Dispatchers.IO) {
             val week = _currentWeekStart.value
-            val weekMeals = mealPlanDao.getMealsForWeekOneShot(week)
+            val weekMeals = mealPlanDao.getMealsForWeekOneShot(uid, week)
             val editableDayIndices = (0..6).filter { isDayEditableForWeek(it, week) }
             val clearableDayIndices = weekMeals
                 .filter { it.dayIndex in editableDayIndices }
@@ -885,9 +885,9 @@ class PantryViewModel(
             val clearedCount = weekMeals.count { it.dayIndex in clearableDayIndices }
             val clearedWholeWeek = editableDayIndices.size == 7
             if (clearedWholeWeek) {
-                mealPlanDao.clearWeek(week)
+                mealPlanDao.clearWeek(uid, week)
             } else {
-                mealPlanDao.clearWeekDays(week, editableDayIndices)
+                mealPlanDao.clearWeekDays(uid, week, editableDayIndices)
             }
 
             if (uid.isNotEmpty()) {
@@ -997,14 +997,14 @@ class PantryViewModel(
                     return@launch
                 }
 
-                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeek)
+                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(uid, sourceWeek)
                 if (sourceMeals.isEmpty()) {
                     _uiEvents.emit(PantryUiEvent.Snackbar("No meals to copy this week."))
                     return@launch
                 }
 
                 val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
-                mealPlanDao.replaceWeek(targetWeek, copiedMeals)
+                mealPlanDao.replaceWeek(uid, targetWeek, copiedMeals)
 
                 if (uid.isNotEmpty()) {
                     withTimeoutOrNull(5_000L) {
@@ -1039,7 +1039,7 @@ class PantryViewModel(
                     return@launch
                 }
 
-                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(sourceWeekStart)
+                val sourceMeals = mealPlanDao.getMealsForWeekOneShot(uid, sourceWeekStart)
                     .filter { it.dayIndex == sourceDayIndex && it.mealSlot == sourceMealSlot }
 
                 if (sourceMeals.isEmpty()) {
@@ -1055,7 +1055,7 @@ class PantryViewModel(
                     )
                 }
 
-                mealPlanDao.replaceSlot(targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
+                mealPlanDao.replaceSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
 
                 if (uid.isNotEmpty()) {
                     withTimeoutOrNull(5_000L) {
@@ -1122,7 +1122,7 @@ class PantryViewModel(
      * Used by the Recipe Card dialog for accurate duplicate detection.
      */
     suspend fun getPlannedMealsForWeekSnapshot(weekStartDate: String): List<PlannedMealEntity> {
-        return mealPlanDao.getMealsForWeekOneShot(weekStartDate)
+        return mealPlanDao.getMealsForWeekOneShot(uid, weekStartDate)
     }
 
     /**
@@ -1645,7 +1645,7 @@ class PantryViewModel(
         val currentWeek = getWeekStartDate()
         val maxWeek = getMaxPlanningWeekStart()
         val mealCounts = if (weekStartDates.isNotEmpty()) {
-            mealPlanDao.getMealCountsForWeeks(weekStartDates)
+            mealPlanDao.getMealCountsForWeeks(uid, weekStartDates)
                 .associate { it.weekStartDate to it.count }
         } else emptyMap()
         val labelFormatter = DateTimeFormatter.ofPattern("MMM d")

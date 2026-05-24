@@ -203,7 +203,7 @@ class DashboardViewModel(
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
         val todayDayIndex = LocalDate.now().dayOfWeek.value - 1 // Mon=0, Sun=6
 
-        mealPlanDao.getMealsForWeek(weekStart)
+        mealPlanDao.getMealsForWeek(uid ?: "", weekStart)
             .map { meals -> meals.filter { it.dayIndex == todayDayIndex } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }

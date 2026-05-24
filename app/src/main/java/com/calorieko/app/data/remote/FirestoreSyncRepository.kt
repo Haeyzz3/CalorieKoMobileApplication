@@ -1057,6 +1057,7 @@ class FirestoreSyncRepository {
             snapshot.documents.mapNotNull { doc ->
                 try {
                     PlannedMealEntity(
+                        uid = uid,
                         dayIndex = (doc.getLong("dayIndex") ?: return@mapNotNull null).toInt(),
                         dishLabel = doc.getString("dishLabel") ?: return@mapNotNull null,
                         weekStartDate = doc.getString("weekStartDate") ?: return@mapNotNull null,
