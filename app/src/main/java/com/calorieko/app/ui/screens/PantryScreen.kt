@@ -1490,6 +1490,7 @@ fun MealPlanCalendarSection(
                                                 PantryViewModel.CellCompletionStatus.LOGGED -> Color(0xFFDCFCE7)
                                                 PantryViewModel.CellCompletionStatus.MISSED -> Color(0xFFFEE2E2)
                                                 PantryViewModel.CellCompletionStatus.PARTIAL -> Color(0xFFFEF3C7)
+                                                PantryViewModel.CellCompletionStatus.SKIPPED -> Color(0xFFF3F4F6)
                                                 else -> slotColors[slot] ?: Color(0xFFECFDF5)
                                             }
                                         ),
@@ -1533,6 +1534,10 @@ fun MealPlanCalendarSection(
                                                 }
                                                 PantryViewModel.CellCompletionStatus.PARTIAL -> {
                                                     Text("◐", fontSize = 10.sp, color = Color(0xFFD97706),
+                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+                                                }
+                                                PantryViewModel.CellCompletionStatus.SKIPPED -> {
+                                                    Text("⊘", fontSize = 10.sp, color = Color(0xFF9CA3AF),
                                                         modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
                                                 }
                                                 else -> { /* no indicator for PLANNED */ }
@@ -1891,6 +1896,34 @@ fun MealPlanCalendarSection(
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     Text("Clear Entire Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                                }
+                            }
+
+                            // Skip Meal — only if not already logged or skipped
+                            val cellKey = "${dayIdx}_${slot}"
+                            val cellStatus = cellCompletionStatus[cellKey]
+                            if (cellStatus != PantryViewModel.CellCompletionStatus.LOGGED &&
+                                cellStatus != PantryViewModel.CellCompletionStatus.SKIPPED) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.skipSlot(dayIdx, slot)
+                                            showMealDetail.value = false
+                                        },
+                                    color = Color(0xFFF3F4F6),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text("⊘", fontSize = 14.sp, color = Color(0xFF9CA3AF))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Skip Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
+                                    }
                                 }
                             }
                         }

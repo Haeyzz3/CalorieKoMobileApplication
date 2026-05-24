@@ -12,6 +12,7 @@ import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.local.IngredientNutritionBreakdown
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.UserDao
+import com.calorieko.app.data.repository.MealPlanRepository
 import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.model.PantryItem
 import com.calorieko.app.data.model.PlannedMealEntity
@@ -141,6 +142,7 @@ class PantryViewModel(
     private val userDao: UserDao,
     private val nutritionalValuesRepo: NutritionalValuesRepository,
     private val mealLogDao: MealLogDao,
+    private val mealPlanRepository: MealPlanRepository,
     private val appContext: Context
 ) : ViewModel() {
 
@@ -159,12 +161,13 @@ class PantryViewModel(
             userDao: UserDao,
             nutritionalValuesRepo: NutritionalValuesRepository,
             mealLogDao: MealLogDao,
+            mealPlanRepository: MealPlanRepository,
             appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, rawIngredientDao, calculator, firestoreSyncRepo, userDao, nutritionalValuesRepo, mealLogDao, appContext) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, rawIngredientDao, calculator, firestoreSyncRepo, userDao, nutritionalValuesRepo, mealLogDao, mealPlanRepository, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -234,7 +237,7 @@ class PantryViewModel(
     val uiEvents: SharedFlow<PantryUiEvent> = _uiEvents.asSharedFlow()
 
     // --- Meal Plan Completion Status ---
-    enum class CellCompletionStatus { LOGGED, PARTIAL, MISSED, PLANNED }
+    enum class CellCompletionStatus { LOGGED, PARTIAL, SKIPPED, MISSED, PLANNED }
 
     /** Logged dish references for the displayed week (reactive from MealLogDao). */
     private val _weekLoggedDishes = MutableStateFlow<Set<Pair<String, String>>>(emptySet())
@@ -1446,8 +1449,8 @@ class PantryViewModel(
     }
 
     /**
-     * Derives per-cell completion status by cross-referencing planned meals
-     * with the set of logged dish references for the week.
+     * Derives per-cell completion status.
+     * Priority: persisted schema status (Phase 2) > read-time derivation (Phase 1 fallback).
      */
     private fun deriveCellCompletionStatus(
         planned: List<PlannedMealEntity>,
@@ -1459,21 +1462,47 @@ class PantryViewModel(
         for ((cellKey, dishes) in grouped) {
             val dayIndex = cellKey.substringBefore("_").toInt()
             val slot = cellKey.substringAfter("_")
-            val normalizedSlot = normalizeSlotName(slot)
 
-            val matchCount = dishes.count { meal ->
-                (normalizedSlot to normalizeDishName(meal.dishLabel)) in loggedSet
+            // Phase 2: Check for explicit persisted statuses first
+            val explicitStatuses = dishes.mapNotNull { meal ->
+                when (meal.status) {
+                    "logged" -> CellCompletionStatus.LOGGED
+                    "skipped" -> CellCompletionStatus.SKIPPED
+                    "missed" -> CellCompletionStatus.MISSED
+                    "partial" -> CellCompletionStatus.PARTIAL
+                    else -> null  // "planned" → fall through to derivation
+                }
             }
 
-            val isPast = !isDayEditable(dayIndex)
-            result[cellKey] = when {
-                matchCount >= dishes.size -> CellCompletionStatus.LOGGED
-                matchCount > 0 -> CellCompletionStatus.PARTIAL
-                isPast -> CellCompletionStatus.MISSED
-                else -> CellCompletionStatus.PLANNED
+            if (explicitStatuses.isNotEmpty()) {
+                // Use highest-priority explicit status: LOGGED > PARTIAL > SKIPPED > MISSED
+                result[cellKey] = explicitStatuses.minByOrNull { it.ordinal }
+                    ?: CellCompletionStatus.PLANNED
+            } else {
+                // Phase 1 fallback: read-time derivation for pre-migration data
+                val normalizedSlot = normalizeSlotName(slot)
+                val matchCount = dishes.count { meal ->
+                    (normalizedSlot to normalizeDishName(meal.dishLabel)) in loggedSet
+                }
+                val isPast = !isDayEditable(dayIndex)
+                result[cellKey] = when {
+                    matchCount >= dishes.size -> CellCompletionStatus.LOGGED
+                    matchCount > 0 -> CellCompletionStatus.PARTIAL
+                    isPast -> CellCompletionStatus.MISSED
+                    else -> CellCompletionStatus.PLANNED
+                }
             }
         }
         return result
+    }
+
+    /** Skips an entire meal slot (sets status = "skipped" for all dishes in the slot). */
+    fun skipSlot(dayIndex: Int, mealSlot: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                mealPlanRepository.skipSlot(uid, dayIndex, _currentWeekStart.value, mealSlot)
+            }
+        }
     }
 
     /** Normalizes slot names: "Snacks" → "snack", "Breakfast" → "breakfast" */

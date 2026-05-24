@@ -26,6 +26,9 @@ data class MealLogEntity(
     /** Optional user notes */
     @ColumnInfo(name = "notes") val notes: String? = null,
 
+    /** Reference to originating PlannedMealEntity: "dayIndex_weekStartDate_mealSlot_dishLabel". Null for ad-hoc logs. */
+    @ColumnInfo(name = "source_plan_key") val sourcePlanKey: String? = null,
+
     // --- DELTA SYNC: Last-modified timestamp (epoch millis) ---
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
 

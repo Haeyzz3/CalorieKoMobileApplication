@@ -88,6 +88,25 @@ interface MealPlanDao {
             insertMeals(meals)
         }
     }
+
+    // ═══ MEAL PLAN STATUS ═══
+
+    /** Update the status of a specific planned meal (single dish in a slot). */
+    @Query("""
+        UPDATE PLANNED_MEALS_TABLE 
+        SET status = :status 
+        WHERE day_index = :dayIndex AND week_start_date = :weekStartDate 
+          AND meal_slot = :mealSlot AND dish_label = :dishLabel
+    """)
+    suspend fun updateMealStatus(dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String, status: String)
+
+    /** Update the status of ALL dishes in a specific slot. */
+    @Query("""
+        UPDATE PLANNED_MEALS_TABLE 
+        SET status = :status 
+        WHERE day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot
+    """)
+    suspend fun updateSlotStatus(dayIndex: Int, weekStartDate: String, mealSlot: String, status: String)
 }
 
 /** Result class for week meal count query. */

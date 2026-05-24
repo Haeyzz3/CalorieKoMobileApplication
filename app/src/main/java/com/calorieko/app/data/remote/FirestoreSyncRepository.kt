@@ -239,7 +239,8 @@ class FirestoreSyncRepository {
                 "mealType" to mealLog.mealType,
                 "timestamp" to mealLog.timestamp,
                 "notes" to mealLog.notes,
-                "updatedAt" to mealLog.updatedAt
+                "updatedAt" to mealLog.updatedAt,
+                "sourcePlanKey" to mealLog.sourcePlanKey
             )
             batch.set(mealDocRef, mealData)
 
@@ -486,7 +487,8 @@ class FirestoreSyncRepository {
                 "mealSlot" to meal.mealSlot,
                 "substitutionsJson" to meal.substitutionsJson,
                 "scaledServings" to meal.scaledServings,
-                "tweaksJson" to meal.tweaksJson
+                "tweaksJson" to meal.tweaksJson,
+                "status" to meal.status
             )
             db.collection(USERS_COLLECTION)
                 .document(uid)
@@ -520,7 +522,8 @@ class FirestoreSyncRepository {
                         "mealSlot" to meal.mealSlot,
                         "substitutionsJson" to meal.substitutionsJson,
                         "scaledServings" to meal.scaledServings,
-                        "tweaksJson" to meal.tweaksJson
+                        "tweaksJson" to meal.tweaksJson,
+                        "status" to meal.status
                     )
                     batch.set(docRef, data)
                 }
@@ -1060,7 +1063,8 @@ class FirestoreSyncRepository {
                         mealSlot = doc.getString("mealSlot") ?: "Lunch",
                         substitutionsJson = doc.getString("substitutionsJson") ?: "",
                         scaledServings = (doc.getLong("scaledServings") ?: 0L).toInt(),
-                        tweaksJson = doc.getString("tweaksJson") ?: ""
+                        tweaksJson = doc.getString("tweaksJson") ?: "",
+                        status = doc.getString("status") ?: "planned"
                     )
                 } catch (e: Exception) {
                     Log.w(TAG, "Skipping malformed planned meal ${doc.id}", e)

@@ -14,6 +14,7 @@ import com.calorieko.app.data.model.LoggedDish
 import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.repository.MealRepository
+import com.calorieko.app.data.repository.MealPlanRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.util.RecipeCustomizationRules
@@ -73,10 +74,15 @@ data class PantryDeductionItem(
 object QuickLogBridge {
     var pendingMealSlot: String = ""
     var pendingDishes: List<QuickLogDishEntry> = emptyList()
+    // Plan context for source_plan_key stamping and status update
+    var pendingWeekStartDate: String = ""
+    var pendingDayIndex: Int = -1
 
     fun clear() {
         pendingMealSlot = ""
         pendingDishes = emptyList()
+        pendingWeekStartDate = ""
+        pendingDayIndex = -1
     }
 }
 
@@ -89,6 +95,7 @@ class ManualLogViewModel(
     private val calculator: RecipeNutritionCalculator,
     private val pantryDao: PantryDao,
     private val firestoreSyncRepo: FirestoreSyncRepository,
+    private val mealPlanRepository: MealPlanRepository,
     private val appContext: Context
 ) : ViewModel() {
 
@@ -153,6 +160,11 @@ class ManualLogViewModel(
 
     private val _showPantryDeduction = MutableStateFlow(false)
     val showPantryDeduction: StateFlow<Boolean> = _showPantryDeduction.asStateFlow()
+
+    // ── Plan context for status update after confirm ──
+
+    private var _pendingWeekStartDate: String = ""
+    private var _pendingDayIndex: Int = -1
 
     // ── Confirm guard (prevents duplicate submissions) ──
 
@@ -409,6 +421,8 @@ class ManualLogViewModel(
         _selectedDish.value = null
         _manualWeightText.value = ""
         _plannedManualWeightText.value = ""
+        _pendingWeekStartDate = QuickLogBridge.pendingWeekStartDate
+        _pendingDayIndex = QuickLogBridge.pendingDayIndex
         resetPlannedScaleState()
         recomputeFilteredDishes()
         refreshCurrentPlannedRecipe()
@@ -766,6 +780,24 @@ class ManualLogViewModel(
             withContext(Dispatchers.IO) {
                 mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value)
             }
+
+            // Mark planned meals as logged (Phase 2: persistent status)
+            if (_isPlannedQuickLog.value && _pendingDayIndex >= 0 && _pendingWeekStartDate.isNotEmpty()) {
+                val dishLabels = _loggedDishes.value
+                    .mapNotNull { it.dishLabel.takeIf { l -> l.isNotBlank() } }
+                if (dishLabels.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        mealPlanRepository.markAsLogged(
+                            uid = uid,
+                            dayIndex = _pendingDayIndex,
+                            weekStartDate = _pendingWeekStartDate,
+                            mealSlot = _mealType.value,
+                            dishLabels = dishLabels
+                        )
+                    }
+                }
+            }
+
             val deductionItems = computePantryOverlap()
             if (deductionItems.isNotEmpty()) {
                 _pantryDeductionItems.value = deductionItems
@@ -932,6 +964,7 @@ class ManualLogViewModel(
             calculator: RecipeNutritionCalculator,
             pantryDao: PantryDao,
             firestoreSyncRepo: FirestoreSyncRepository,
+            mealPlanRepository: MealPlanRepository,
             appContext: Context
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -946,6 +979,7 @@ class ManualLogViewModel(
                         calculator,
                         pantryDao,
                         firestoreSyncRepo,
+                        mealPlanRepository,
                         appContext
                     ) as T
                 }

@@ -355,6 +355,8 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                             slotLoggedStatus = slotLoggedStatus,
                             onQuickLogSlot = { meals ->
                                 QuickLogBridge.pendingMealSlot = meals.first().mealSlot
+                                QuickLogBridge.pendingWeekStartDate = meals.first().weekStartDate
+                                QuickLogBridge.pendingDayIndex = meals.first().dayIndex
                                 QuickLogBridge.pendingDishes = meals.map {
                                     QuickLogDishEntry(
                                         dishLabel = it.dishLabel,
@@ -661,6 +663,26 @@ fun TodayPlannedMealsCard(
                                         contentDescription = null,
                                         tint = Color(0xFFD97706),
                                         modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                        }
+                        SlotLogStatus.SKIPPED -> {
+                            Surface(
+                                color = Color(0xFFF3F4F6),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("⊘", fontSize = 12.sp, color = Color(0xFF9CA3AF))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        "Skipped",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF9CA3AF)
                                     )
                                 }
                             }

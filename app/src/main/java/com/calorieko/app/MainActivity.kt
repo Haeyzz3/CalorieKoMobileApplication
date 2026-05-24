@@ -88,6 +88,14 @@ fun AppNavigation() {
     // Firestore sync repository for cloud persistence
     val firestoreSyncRepo = remember { FirestoreSyncRepository() }
 
+    // Meal plan repository for status lifecycle operations
+    val mealPlanRepository = remember {
+        com.calorieko.app.data.repository.MealPlanRepository(
+            mealPlanDao = db.mealPlanDao(),
+            firestoreSyncRepo = firestoreSyncRepo
+        )
+    }
+
     // Auth repository for all authentication screens
     val authRepo = remember { com.calorieko.app.data.repository.AuthRepository(auth) }
 
@@ -728,6 +736,7 @@ fun AppNavigation() {
                     userDao = db.userDao(),
                     nutritionalValuesRepo = nutritionalRepo,
                     mealLogDao = db.mealLogDao(),
+                    mealPlanRepository = mealPlanRepository,
                     appContext = context.applicationContext
                 )
             )
@@ -800,6 +809,7 @@ fun AppNavigation() {
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
+                    mealPlanRepository = mealPlanRepository,
                     appContext = context.applicationContext
                 )
             )
@@ -840,6 +850,7 @@ fun AppNavigation() {
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
+                    mealPlanRepository = mealPlanRepository,
                     appContext = context.applicationContext
                 )
             )
@@ -883,6 +894,7 @@ fun AppNavigation() {
                     calculator = calculator,
                     pantryDao = db.pantryDao(),
                     firestoreSyncRepo = firestoreSyncRepo,
+                    mealPlanRepository = mealPlanRepository,
                     appContext = context.applicationContext
                 )
             )

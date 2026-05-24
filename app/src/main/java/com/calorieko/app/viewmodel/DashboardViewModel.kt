@@ -210,7 +210,7 @@ class DashboardViewModel(
 
     // ── Slot Completion Status (for disabling duplicate logging) ──
 
-    enum class SlotLogStatus { LOGGED, PARTIAL, UNLOGGED }
+    enum class SlotLogStatus { LOGGED, PARTIAL, SKIPPED, UNLOGGED }
 
     /**
      * Per-slot logged status for today's planned meals.
@@ -354,14 +354,30 @@ class DashboardViewModel(
         }.toSet()
 
         return grouped.mapValues { (slot, dishes) ->
-            val normalizedSlot = normalizeSlotName(slot)
-            val matchCount = dishes.count { plannedMeal ->
-                (normalizedSlot to normalizeDishName(plannedMeal.dishLabel)) in loggedDishes
+            // Phase 2: Check for explicit persisted statuses first
+            val explicitStatuses = dishes.mapNotNull { meal ->
+                when (meal.status) {
+                    "logged" -> SlotLogStatus.LOGGED
+                    "skipped" -> SlotLogStatus.SKIPPED
+                    "partial" -> SlotLogStatus.PARTIAL
+                    else -> null  // "planned" → fall through to derivation
+                }
             }
-            when {
-                matchCount >= dishes.size -> SlotLogStatus.LOGGED
-                matchCount > 0 -> SlotLogStatus.PARTIAL
-                else -> SlotLogStatus.UNLOGGED
+
+            if (explicitStatuses.isNotEmpty()) {
+                // Priority: LOGGED > PARTIAL > SKIPPED
+                explicitStatuses.minByOrNull { it.ordinal } ?: SlotLogStatus.UNLOGGED
+            } else {
+                // Phase 1 fallback: read-time derivation for pre-migration data
+                val normalizedSlot = normalizeSlotName(slot)
+                val matchCount = dishes.count { plannedMeal ->
+                    (normalizedSlot to normalizeDishName(plannedMeal.dishLabel)) in loggedDishes
+                }
+                when {
+                    matchCount >= dishes.size -> SlotLogStatus.LOGGED
+                    matchCount > 0 -> SlotLogStatus.PARTIAL
+                    else -> SlotLogStatus.UNLOGGED
+                }
             }
         }
     }

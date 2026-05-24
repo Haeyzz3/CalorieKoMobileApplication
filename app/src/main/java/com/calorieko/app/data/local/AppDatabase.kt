@@ -44,7 +44,7 @@ import kotlinx.coroutines.CoroutineScope
         RecipeIngredientEntity::class,
         WeightLogEntity::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -580,6 +580,27 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
+         * Migration 28 → 29: Adds persistent status tracking for the meal plan
+         * feedback loop.
+         *
+         * 1. `status` on PLANNED_MEALS_TABLE — "planned", "logged", "partial",
+         *    "skipped", or "missed".
+         * 2. `source_plan_key` on meal_log_table — nullable reference back to
+         *    the PlannedMealEntity that originated a logged meal. Null for
+         *    ad-hoc (non-planned) logs.
+         */
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE PLANNED_MEALS_TABLE ADD COLUMN status TEXT NOT NULL DEFAULT 'planned'"
+                )
+                db.execSQL(
+                    "ALTER TABLE meal_log_table ADD COLUMN source_plan_key TEXT DEFAULT NULL"
+                )
+            }
+        }
+
+        /**
          * Retrieves (or generates) a 256-bit AES key from Android Keystore.
          * The key never leaves the hardware-backed keystore; we use its
          * encoded form as the SQLCipher passphrase.
@@ -632,7 +653,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // Pass a lambda providing the INSTANCE to the callback
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
                     // Register the migration so existing data is preserved
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

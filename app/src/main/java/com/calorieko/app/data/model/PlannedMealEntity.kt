@@ -19,5 +19,9 @@ data class PlannedMealEntity(
     val scaledServings: Int = 0,  // 0 = use original servings (no override)
 
     @ColumnInfo(name = "tweaks_json", defaultValue = "")
-    val tweaksJson: String = ""   // JSON: {"garlic": 2.0, "onion": 0.5}
+    val tweaksJson: String = "",   // JSON: {"garlic": 2.0, "onion": 0.5}
+
+    /** Persistent status: "planned", "logged", "partial", "skipped", "missed" */
+    @ColumnInfo(name = "status", defaultValue = "planned")
+    val status: String = "planned"
 )
