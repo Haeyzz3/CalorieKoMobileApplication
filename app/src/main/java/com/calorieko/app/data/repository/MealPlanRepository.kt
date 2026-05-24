@@ -33,6 +33,19 @@ class MealPlanRepository(
     }
 
     /**
+     * Reverts a skipped slot back to "planned" in Room and syncs to Firestore.
+     * Called when the user taps "Undo Skip" in the MealDetailDialog.
+     */
+    suspend fun unskipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
+        mealPlanDao.updateSlotStatus(dayIndex, weekStartDate, mealSlot, "planned")
+        val meals = mealPlanDao.getMealsForDayOneShot(dayIndex, weekStartDate)
+            .filter { it.mealSlot == mealSlot }
+        for (meal in meals) {
+            firestoreSyncRepo.syncPlannedMeal(uid, meal)
+        }
+    }
+
+    /**
      * Marks specific planned meals as "logged" after a successful meal log save.
      * Called by ManualLogViewModel after confirmMeal() when the log originated
      * from a planned meal (isPlannedQuickLog = true).

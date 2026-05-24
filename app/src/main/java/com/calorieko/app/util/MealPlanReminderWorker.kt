@@ -140,9 +140,13 @@ class MealPlanReminderWorker(
         val todayMeals = db.mealPlanDao().getMealsForDayOneShot(dayIndex, weekStart)
         if (todayMeals.isEmpty()) return Result.success()
 
+        // ── Filter out already-handled meals (logged/skipped) ──
+        val actionableMeals = todayMeals.filter { it.status == "planned" }
+        if (actionableMeals.isEmpty()) return Result.success()
+
         // ── Resolve dish labels → display names ──
         val dishNames = mutableMapOf<String, String>()
-        for (meal in todayMeals) {
+        for (meal in actionableMeals) {
             if (meal.dishLabel !in dishNames) {
                 val recipe = db.dishRecipeDao().getByDishLabel(meal.dishLabel)
                 dishNames[meal.dishLabel] = recipe?.nameEn
@@ -152,7 +156,7 @@ class MealPlanReminderWorker(
 
         // ── Group by slot and find the upcoming one ──
         val now = LocalTime.now()
-        val mealsBySlot = todayMeals.groupBy { it.mealSlot }
+        val mealsBySlot = actionableMeals.groupBy { it.mealSlot }
 
         for ((slot, targetTime) in SLOT_TIMES) {
             val meals = mealsBySlot[slot] ?: continue

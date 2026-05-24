@@ -1505,6 +1505,15 @@ class PantryViewModel(
         }
     }
 
+    /** Reverts a skipped meal slot back to "planned" status. */
+    fun unskipSlot(dayIndex: Int, mealSlot: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                mealPlanRepository.unskipSlot(uid, dayIndex, _currentWeekStart.value, mealSlot)
+            }
+        }
+    }
+
     /** Normalizes slot names: "Snacks" → "snack", "Breakfast" → "breakfast" */
     private fun normalizeSlotName(slot: String): String =
         slot.lowercase().trimEnd('s')

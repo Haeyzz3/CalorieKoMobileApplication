@@ -1899,11 +1899,34 @@ fun MealPlanCalendarSection(
                                 }
                             }
 
-                            // Skip Meal — only if not already logged or skipped
+                            // Skip Meal / Undo Skip — conditional on current status
                             val cellKey = "${dayIdx}_${slot}"
                             val cellStatus = cellCompletionStatus[cellKey]
-                            if (cellStatus != PantryViewModel.CellCompletionStatus.LOGGED &&
-                                cellStatus != PantryViewModel.CellCompletionStatus.SKIPPED) {
+                            if (cellStatus == PantryViewModel.CellCompletionStatus.SKIPPED) {
+                                // Undo Skip — shown when slot is already skipped
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.unskipSlot(dayIdx, slot)
+                                            showMealDetail.value = false
+                                        },
+                                    color = Color(0xFFDCFCE7),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text("↩", fontSize = 14.sp, color = Color(0xFF16A34A))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Undo Skip", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
+                                    }
+                                }
+                            } else if (cellStatus != PantryViewModel.CellCompletionStatus.LOGGED) {
+                                // Skip Meal — shown when not already logged or skipped
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Surface(
                                     modifier = Modifier

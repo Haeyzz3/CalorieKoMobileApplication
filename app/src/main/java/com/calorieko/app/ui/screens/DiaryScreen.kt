@@ -532,11 +532,30 @@ fun MealsTabContent(
                                     fontSize = 14.sp,
                                     color = Color(0xFF1F2937)
                                 )
-                                Text(
-                                    text = timeFormatter.format(Date(mealLog.timestamp)),
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF6B7280)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = timeFormatter.format(Date(mealLog.timestamp)),
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF6B7280)
+                                    )
+                                    if (!mealLog.sourcePlanKey.isNullOrBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(0xFFECFDF5)
+                                        ) {
+                                            Text(
+                                                "📋 From Plan",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF059669),
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
 
                             Row(
