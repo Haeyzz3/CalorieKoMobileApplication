@@ -476,6 +476,7 @@ fun AppNavigation() {
                     dashboardRepository = dashboardRepo,
                     mealPlanDao = db.mealPlanDao(),
                     dishRecipeDao = db.dishRecipeDao(),
+                    mealLogDao = db.mealLogDao(),
                     appContext = context.applicationContext
                 )
             )
@@ -508,6 +509,7 @@ fun AppNavigation() {
                     dashboardRepository = dashboardRepo,
                     mealPlanDao = db.mealPlanDao(),
                     dishRecipeDao = db.dishRecipeDao(),
+                    mealLogDao = db.mealLogDao(),
                     appContext = context.applicationContext
                 )
             )
@@ -725,6 +727,7 @@ fun AppNavigation() {
                     firestoreSyncRepo = firestoreSyncRepo,
                     userDao = db.userDao(),
                     nutritionalValuesRepo = nutritionalRepo,
+                    mealLogDao = db.mealLogDao(),
                     appContext = context.applicationContext
                 )
             )

@@ -10,6 +10,7 @@ import com.calorieko.app.data.model.ActivityLogEntry
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.model.PlannedMealEntity
+import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.MealPlanDao
 import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.repository.DashboardRepository
@@ -53,6 +54,7 @@ class DashboardViewModel(
     private val dashboardRepository: DashboardRepository,
     private val mealPlanDao: MealPlanDao,
     private val dishRecipeDao: DishRecipeDao,
+    private val mealLogDao: MealLogDao,
     private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -206,6 +208,20 @@ class DashboardViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
+    // ── Slot Completion Status (for disabling duplicate logging) ──
+
+    enum class SlotLogStatus { LOGGED, PARTIAL, UNLOGGED }
+
+    /**
+     * Per-slot logged status for today's planned meals.
+     * Derived by cross-referencing planned dishes with actual meal logs.
+     * Key: mealSlot ("Breakfast", "Lunch", etc.)
+     */
+    val slotLoggedStatus: StateFlow<Map<String, SlotLogStatus>> =
+        combine(todayPlannedMeals, todayMealLogs) { planned, logs ->
+            deriveSlotLogStatus(planned, logs)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     /** Formats dish_label to display name. Checks DishRecipeEntity first for proper name. */
     private val _dishNameCache = mutableMapOf<String, String>()
     fun getPlannedDishName(dishLabel: String): String {
@@ -322,18 +338,55 @@ class DashboardViewModel(
         return (mealEntries + workoutEntries).sortedByDescending { it.timestamp }
     }
 
+    // ── Meal Plan Status Derivation ──
+
+    private fun deriveSlotLogStatus(
+        planned: List<PlannedMealEntity>,
+        logs: List<MealLogWithItems>
+    ): Map<String, SlotLogStatus> {
+        if (planned.isEmpty()) return emptyMap()
+
+        val grouped = planned.groupBy { it.mealSlot }
+        val loggedDishes = logs.flatMap { log ->
+            log.items.map { item ->
+                normalizeSlotName(log.mealLog.mealType) to normalizeDishName(item.dishName)
+            }
+        }.toSet()
+
+        return grouped.mapValues { (slot, dishes) ->
+            val normalizedSlot = normalizeSlotName(slot)
+            val matchCount = dishes.count { plannedMeal ->
+                (normalizedSlot to normalizeDishName(plannedMeal.dishLabel)) in loggedDishes
+            }
+            when {
+                matchCount >= dishes.size -> SlotLogStatus.LOGGED
+                matchCount > 0 -> SlotLogStatus.PARTIAL
+                else -> SlotLogStatus.UNLOGGED
+            }
+        }
+    }
+
+    /** Normalizes slot names: "Snacks" → "snack", "Breakfast" → "breakfast" */
+    private fun normalizeSlotName(slot: String): String =
+        slot.lowercase().trimEnd('s')
+
+    /** Normalizes dish names: "chicken_adobo" ↔ "Chicken Adobo" → "chicken adobo" */
+    private fun normalizeDishName(name: String): String =
+        name.lowercase().replace("_", " ").trim()
+
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
             dashboardRepository: DashboardRepository,
             mealPlanDao: MealPlanDao,
             dishRecipeDao: DishRecipeDao,
+            mealLogDao: MealLogDao,
             appContext: android.content.Context
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
-                    return DashboardViewModel(auth, dashboardRepository, mealPlanDao, dishRecipeDao, appContext) as T
+                    return DashboardViewModel(auth, dashboardRepository, mealPlanDao, dishRecipeDao, mealLogDao, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

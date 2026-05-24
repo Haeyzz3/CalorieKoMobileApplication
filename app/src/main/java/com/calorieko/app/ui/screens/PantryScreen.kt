@@ -1124,6 +1124,8 @@ fun MealPlanCalendarSection(
     val currentWeekStart by viewModel.currentWeekStart.collectAsState()
     val weekDayDates by viewModel.weekDayDates.collectAsState()
     val todayColumnIndex by viewModel.todayColumnIndex.collectAsState()
+    val cellCompletionStatus by viewModel.cellCompletionStatus.collectAsState()
+    val weeklyAdherence by viewModel.weeklyAdherence.collectAsState()
 
     var copySource by remember { mutableStateOf<MealPlanCopySource?>(null) }
     var copyTargetWeekStart by remember { mutableStateOf(currentWeekStart) }
@@ -1356,6 +1358,13 @@ fun MealPlanCalendarSection(
                             Text("⚠ Above recommended", fontSize = 10.sp, color = CalorieKoOrange)
                         }
                     }
+                    if (weeklyAdherence.isNotEmpty()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Adherence", fontSize = 12.sp, color = Color.Gray)
+                            Text(weeklyAdherence, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = CalorieKoGreen)
+                            Text("meals logged", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
                 }
             }
         }
@@ -1472,39 +1481,62 @@ fun MealPlanCalendarSection(
                                     .padding(1.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (slotMeals.isNotEmpty()) {
+                if (slotMeals.isNotEmpty()) {
+                                    val cellKey = "${dayIdx}_${slot}"
+                                    val cellStatus = cellCompletionStatus[cellKey]
                                     Card(
                                         colors = CardDefaults.cardColors(
-                                            containerColor = slotColors[slot] ?: Color(0xFFECFDF5)
+                                            containerColor = when (cellStatus) {
+                                                PantryViewModel.CellCompletionStatus.LOGGED -> Color(0xFFDCFCE7)
+                                                PantryViewModel.CellCompletionStatus.MISSED -> Color(0xFFFEE2E2)
+                                                PantryViewModel.CellCompletionStatus.PARTIAL -> Color(0xFFFEF3C7)
+                                                else -> slotColors[slot] ?: Color(0xFFECFDF5)
+                                            }
                                         ),
                                         modifier = Modifier.fillMaxSize()
                                     ) {
-                                        Column(
-                                            modifier = Modifier.padding(2.dp).fillMaxSize(),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center
-                                        ) {
-                                            if (slotMeals.size <= 2) {
-                                                // Show individual emojis
+                                        Box(modifier = Modifier.fillMaxSize()) {
+                                            Column(
+                                                modifier = Modifier.padding(2.dp).fillMaxSize(),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                if (slotMeals.size <= 2) {
+                                                    Text(
+                                                        slotMeals.joinToString("") { getDishEmoji(it.dishLabel) },
+                                                        fontSize = 14.sp
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        "${getDishEmoji(slotMeals.first().dishLabel)} +${slotMeals.size - 1}",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF374151)
+                                                    )
+                                                }
                                                 Text(
-                                                    slotMeals.joinToString("") { getDishEmoji(it.dishLabel) },
-                                                    fontSize = 14.sp
-                                                )
-                                            } else {
-                                                // Show first emoji + count
-                                                Text(
-                                                    "${getDishEmoji(slotMeals.first().dishLabel)} +${slotMeals.size - 1}",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF374151)
+                                                    "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}",
+                                                    fontSize = 7.sp,
+                                                    color = Color(0xFF6B7280),
+                                                    lineHeight = 8.sp
                                                 )
                                             }
-                                            Text(
-                                                "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}",
-                                                fontSize = 7.sp,
-                                                color = Color(0xFF6B7280),
-                                                lineHeight = 8.sp
-                                            )
+                                            // Status indicator overlay (bottom-right corner)
+                                            when (cellStatus) {
+                                                PantryViewModel.CellCompletionStatus.LOGGED -> {
+                                                    Text("✓", fontSize = 10.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+                                                }
+                                                PantryViewModel.CellCompletionStatus.MISSED -> {
+                                                    Text("⊘", fontSize = 10.sp, color = Color(0xFFDC2626),
+                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+                                                }
+                                                PantryViewModel.CellCompletionStatus.PARTIAL -> {
+                                                    Text("◐", fontSize = 10.sp, color = Color(0xFFD97706),
+                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
+                                                }
+                                                else -> { /* no indicator for PLANNED */ }
+                                            }
                                         }
                                     }
                                 }

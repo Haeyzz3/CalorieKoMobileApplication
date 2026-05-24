@@ -1,5 +1,6 @@
 package com.calorieko.app.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -87,4 +88,28 @@ interface MealLogDao {
     /** Deletes all meal logs. Used during logout to clear user data only. */
     @Query("DELETE FROM meal_log_table")
     suspend fun deleteAll()
+
+    // ═══ MEAL PLAN COMPLETION STATUS ═══
+
+    /**
+     * Observe logged dish references (meal_type + dish_name) for a user within a timestamp range.
+     * Lightweight query for meal plan completion status derivation — avoids loading full nutrient columns.
+     */
+    @Query("""
+        SELECT m.meal_type, i.dish_name
+        FROM meal_log_table m
+        INNER JOIN meal_log_item_table i ON m.meal_log_id = i.meal_log_id
+        WHERE m.uid = :uid AND m.timestamp >= :startTimestamp AND m.timestamp < :endTimestamp
+    """)
+    fun observeLoggedDishNames(uid: String, startTimestamp: Long, endTimestamp: Long): Flow<List<LoggedDishRef>>
 }
+
+/**
+ * Lightweight projection of a logged dish for meal plan status cross-referencing.
+ * Avoids loading full MealLogWithItems (with all nutrient columns) when only
+ * meal_type + dish_name are needed for completion status derivation.
+ */
+data class LoggedDishRef(
+    @ColumnInfo(name = "meal_type") val mealType: String,
+    @ColumnInfo(name = "dish_name") val dishName: String
+)

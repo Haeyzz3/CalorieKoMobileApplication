@@ -95,6 +95,8 @@ import com.calorieko.app.viewmodel.DashboardViewModel
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.viewmodel.QuickLogBridge
 import com.calorieko.app.viewmodel.QuickLogDishEntry
+import com.calorieko.app.viewmodel.DashboardViewModel.SlotLogStatus
+import androidx.compose.material.icons.filled.CheckCircle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -129,6 +131,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
     val todayMealLogs by viewModel.todayMealLogs.collectAsState()
     val activityLog by viewModel.activityFeed.collectAsState()
     val todayPlannedMeals by viewModel.todayPlannedMeals.collectAsState()
+    val slotLoggedStatus by viewModel.slotLoggedStatus.collectAsState()
 
     // ── Local UI State ──
     var activeTab by remember { mutableStateOf("home") }
@@ -349,6 +352,7 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                         TodayPlannedMealsCard(
                             plannedMeals = todayPlannedMeals,
                             getDishName = { viewModel.getPlannedDishName(it) },
+                            slotLoggedStatus = slotLoggedStatus,
                             onQuickLogSlot = { meals ->
                                 QuickLogBridge.pendingMealSlot = meals.first().mealSlot
                                 QuickLogBridge.pendingDishes = meals.map {
@@ -534,6 +538,7 @@ fun ActionButtonsRevised(onLogMeal: () -> Unit, onLogWorkout: () -> Unit) {
 fun TodayPlannedMealsCard(
     plannedMeals: List<PlannedMealEntity>,
     getDishName: (String) -> String,
+    slotLoggedStatus: Map<String, DashboardViewModel.SlotLogStatus> = emptyMap(),
     onQuickLogSlot: (meals: List<PlannedMealEntity>) -> Unit
 ) {
     // Group by meal slot for organized display
@@ -608,28 +613,83 @@ fun TodayPlannedMealsCard(
                             )
                         }
                     }
-                    Surface(
-                        onClick = { onQuickLogSlot(dishes) },
-                        color = Color(0xFF16A34A),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Log Meal",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(12.dp)
-                            )
+                    when (slotLoggedStatus[slot]) {
+                        SlotLogStatus.LOGGED -> {
+                            Surface(
+                                color = Color(0xFFDCFCE7),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF16A34A),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        "Logged",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF16A34A)
+                                    )
+                                }
+                            }
+                        }
+                        SlotLogStatus.PARTIAL -> {
+                            Surface(
+                                onClick = { onQuickLogSlot(dishes) },
+                                color = Color(0xFFFEF3C7),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Log Remaining",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFD97706)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                        }
+                        else -> {
+                            Surface(
+                                onClick = { onQuickLogSlot(dishes) },
+                                color = Color(0xFF16A34A),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Log Meal",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

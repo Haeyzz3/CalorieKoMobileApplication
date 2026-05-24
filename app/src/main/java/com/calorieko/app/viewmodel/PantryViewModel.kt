@@ -10,6 +10,7 @@ import com.calorieko.app.data.local.DishMatchInfo
 import com.calorieko.app.data.local.RawIngredientDao
 import com.calorieko.app.data.local.RecipeNutritionCalculator
 import com.calorieko.app.data.local.IngredientNutritionBreakdown
+import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.model.NutritionResult
 import com.calorieko.app.data.model.PantryItem
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -138,6 +140,7 @@ class PantryViewModel(
     private val firestoreSyncRepo: FirestoreSyncRepository,
     private val userDao: UserDao,
     private val nutritionalValuesRepo: NutritionalValuesRepository,
+    private val mealLogDao: MealLogDao,
     private val appContext: Context
 ) : ViewModel() {
 
@@ -155,12 +158,13 @@ class PantryViewModel(
             firestoreSyncRepo: FirestoreSyncRepository,
             userDao: UserDao,
             nutritionalValuesRepo: NutritionalValuesRepository,
+            mealLogDao: MealLogDao,
             appContext: Context
         ): androidx.lifecycle.ViewModelProvider.Factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PantryViewModel::class.java)) {
-                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, rawIngredientDao, calculator, firestoreSyncRepo, userDao, nutritionalValuesRepo, appContext) as T
+                    return PantryViewModel(auth, pantryDao, mealPlanDao, dishRecipeDao, rawIngredientDao, calculator, firestoreSyncRepo, userDao, nutritionalValuesRepo, mealLogDao, appContext) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
@@ -228,6 +232,27 @@ class PantryViewModel(
 
     private val _uiEvents = MutableSharedFlow<PantryUiEvent>(extraBufferCapacity = 1)
     val uiEvents: SharedFlow<PantryUiEvent> = _uiEvents.asSharedFlow()
+
+    // --- Meal Plan Completion Status ---
+    enum class CellCompletionStatus { LOGGED, PARTIAL, MISSED, PLANNED }
+
+    /** Logged dish references for the displayed week (reactive from MealLogDao). */
+    private val _weekLoggedDishes = MutableStateFlow<Set<Pair<String, String>>>(emptySet())
+
+    /**
+     * Per-cell completion status map.
+     * Key: "dayIndex_mealSlot" (e.g., "0_Breakfast")
+     * Value: CellCompletionStatus
+     */
+    private val _cellCompletionStatus = MutableStateFlow<Map<String, CellCompletionStatus>>(emptyMap())
+    val cellCompletionStatus: StateFlow<Map<String, CellCompletionStatus>> = _cellCompletionStatus.asStateFlow()
+
+    /** Weekly adherence string: "X/Y" (meals logged / meals planned). */
+    private val _weeklyAdherence = MutableStateFlow("")
+    val weeklyAdherence: StateFlow<String> = _weeklyAdherence.asStateFlow()
+
+    /** Job for observing logged dishes — cancelled and restarted on week changes. */
+    private var weekLogObservationJob: Job? = null
 
     // --- Cache for dish nutritional data ---
     private val _dishNutritionCache = mutableMapOf<String, DishNutritionInfo>()
@@ -343,11 +368,12 @@ class PantryViewModel(
             }
         }
 
-        // React to current week changes → update day dates + today indicator
+        // React to current week changes → update day dates + today indicator + observe meal logs
         viewModelScope.launch {
             _currentWeekStart.collect { weekStart ->
                 _weekDayDates.value = computeWeekDayDates(weekStart)
                 _todayColumnIndex.value = computeTodayColumnIndex(weekStart)
+                observeLoggedDishesForWeek(weekStart)
             }
         }
 
@@ -355,6 +381,21 @@ class PantryViewModel(
         viewModelScope.launch {
             _displayedMonth.collect {
                 withContext(Dispatchers.IO) { recomputeWeekScrubberData() }
+            }
+        }
+
+        // React to planned meals + logged dishes → derive cell completion status + adherence
+        viewModelScope.launch {
+            combine(plannedMeals, _weekLoggedDishes) { planned, loggedSet ->
+                planned to loggedSet
+            }.collect { (planned, loggedSet) ->
+                _cellCompletionStatus.value = deriveCellCompletionStatus(planned, loggedSet)
+                // Compute adherence
+                val totalPlanned = planned.size
+                val totalLogged = planned.count { meal ->
+                    (normalizeSlotName(meal.mealSlot) to normalizeDishName(meal.dishLabel)) in loggedSet
+                }
+                _weeklyAdherence.value = if (totalPlanned > 0) "$totalLogged/$totalPlanned" else ""
             }
         }
     }
@@ -1368,8 +1409,80 @@ class PantryViewModel(
         }
 
         _weeklyCalories.value = totalCalories
-        _avgDailySodium.value = totalSodium / meals.size
+        val daysWithMeals = meals.map { it.dayIndex }.distinct().size
+        _avgDailySodium.value = if (daysWithMeals > 0) totalSodium / daysWithMeals else 0
     }
+
+    // ============================================================
+    // Meal Plan Completion Status Derivation
+    // ============================================================
+
+    /**
+     * Observes logged dish names for the given week from MealLogDao.
+     * Cancels any previous observation job and starts a new one.
+     * Populates [_weekLoggedDishes] with normalized (slot, dishName) pairs.
+     */
+    private fun observeLoggedDishesForWeek(weekStart: String) {
+        weekLogObservationJob?.cancel()
+        val currentUid = uid
+        if (currentUid.isEmpty()) {
+            _weekLoggedDishes.value = emptySet()
+            return
+        }
+
+        val weekStartDate = LocalDate.parse(weekStart)
+        val startEpoch = weekStartDate.atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        val endEpoch = weekStartDate.plusDays(7).atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+
+        weekLogObservationJob = viewModelScope.launch {
+            mealLogDao.observeLoggedDishNames(currentUid, startEpoch, endEpoch).collect { refs ->
+                _weekLoggedDishes.value = refs.map {
+                    normalizeSlotName(it.mealType) to normalizeDishName(it.dishName)
+                }.toSet()
+            }
+        }
+    }
+
+    /**
+     * Derives per-cell completion status by cross-referencing planned meals
+     * with the set of logged dish references for the week.
+     */
+    private fun deriveCellCompletionStatus(
+        planned: List<PlannedMealEntity>,
+        loggedSet: Set<Pair<String, String>>
+    ): Map<String, CellCompletionStatus> {
+        val result = mutableMapOf<String, CellCompletionStatus>()
+        val grouped = planned.groupBy { "${it.dayIndex}_${it.mealSlot}" }
+
+        for ((cellKey, dishes) in grouped) {
+            val dayIndex = cellKey.substringBefore("_").toInt()
+            val slot = cellKey.substringAfter("_")
+            val normalizedSlot = normalizeSlotName(slot)
+
+            val matchCount = dishes.count { meal ->
+                (normalizedSlot to normalizeDishName(meal.dishLabel)) in loggedSet
+            }
+
+            val isPast = !isDayEditable(dayIndex)
+            result[cellKey] = when {
+                matchCount >= dishes.size -> CellCompletionStatus.LOGGED
+                matchCount > 0 -> CellCompletionStatus.PARTIAL
+                isPast -> CellCompletionStatus.MISSED
+                else -> CellCompletionStatus.PLANNED
+            }
+        }
+        return result
+    }
+
+    /** Normalizes slot names: "Snacks" → "snack", "Breakfast" → "breakfast" */
+    private fun normalizeSlotName(slot: String): String =
+        slot.lowercase().trimEnd('s')
+
+    /** Normalizes dish names: "chicken_adobo" ↔ "Chicken Adobo" → "chicken adobo" */
+    private fun normalizeDishName(name: String): String =
+        name.lowercase().replace("_", " ").trim()
 
     // ============================================================
     // Helpers
