@@ -109,6 +109,32 @@ interface MealPlanDao {
     """)
     suspend fun updateSlotStatus(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, status: String)
 
+    // ═══ STATUS-AWARE CLEAR (preserves logged & skipped) ═══
+
+    /** Clears only clearable meals (planned/missed) for a specific day. Preserves logged & skipped. */
+    @Query("""
+        DELETE FROM PLANNED_MEALS_TABLE 
+        WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate 
+        AND status IN ('planned', 'missed')
+    """)
+    suspend fun clearDayClearableOnly(uid: String, dayIndex: Int, weekStartDate: String)
+
+    /** Clears only clearable meals (planned/missed) for an entire week. Preserves logged & skipped. */
+    @Query("""
+        DELETE FROM PLANNED_MEALS_TABLE 
+        WHERE uid = :uid AND week_start_date = :weekStartDate 
+        AND status IN ('planned', 'missed')
+    """)
+    suspend fun clearWeekClearableOnly(uid: String, weekStartDate: String)
+
+    /** Clears only clearable meals (planned/missed) for selected days within a week. Preserves logged & skipped. */
+    @Query("""
+        DELETE FROM PLANNED_MEALS_TABLE 
+        WHERE uid = :uid AND week_start_date = :weekStartDate AND day_index IN (:dayIndices) 
+        AND status IN ('planned', 'missed')
+    """)
+    suspend fun clearWeekDaysClearableOnly(uid: String, weekStartDate: String, dayIndices: List<Int>)
+
     // ═══ UID BACKFILL ═══
 
     /** Stamps the user's uid on pre-migration rows that have uid = ''. Idempotent. */

@@ -873,15 +873,30 @@ class PantryViewModel(
                 return@launch
             }
 
-            mealPlanDao.clearDay(uid, dayIndex, week)
+            // Fetch clearable meals first for accurate count and Firestore sync
+            val dayMeals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, week)
+            val clearableMeals = dayMeals.filter { it.status in listOf("planned", "missed") }
+
+            if (clearableMeals.isEmpty()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("No clearable meals — logged and skipped meals are preserved."))
+                return@launch
+            }
+
+            mealPlanDao.clearDayClearableOnly(uid, dayIndex, week)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week) } catch (_: Exception) {}
+                    try {
+                        for (meal in clearableMeals) {
+                            firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, meal.mealSlot, meal.dishLabel)
+                        }
+                    } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
             recomputeWeekScrubberData()
-            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared planned meals for ${formatDateLabel(week, dayIndex)}."))
+            val protectedCount = dayMeals.size - clearableMeals.size
+            val suffix = if (protectedCount > 0) " ($protectedCount logged/skipped preserved)" else ""
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared ${clearableMeals.size} planned dish${if (clearableMeals.size == 1) "" else "es"}$suffix."))
         }
     }
 
@@ -890,40 +905,50 @@ class PantryViewModel(
             val week = _currentWeekStart.value
             val weekMeals = mealPlanDao.getMealsForWeekOneShot(uid, week)
             val editableDayIndices = (0..6).filter { isDayEditableForWeek(it, week) }
-            val clearableDayIndices = weekMeals
-                .filter { it.dayIndex in editableDayIndices }
-                .map { it.dayIndex }
-                .distinct()
 
-            if (clearableDayIndices.isEmpty()) {
-                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+            // Filter to only clearable meals: editable day + clearable status
+            val clearableMeals = weekMeals.filter {
+                it.dayIndex in editableDayIndices && it.status in listOf("planned", "missed")
+            }
+
+            if (clearableMeals.isEmpty()) {
+                val hasProtected = weekMeals.any {
+                    it.dayIndex in editableDayIndices && it.status in listOf("logged", "skipped")
+                }
+                val message = if (hasProtected) {
+                    "No clearable meals — logged and skipped meals are preserved."
+                } else {
+                    "Past planned meals can only be viewed."
+                }
+                _uiEvents.emit(PantryUiEvent.Snackbar(message))
                 return@launch
             }
 
-            val clearedCount = weekMeals.count { it.dayIndex in clearableDayIndices }
+            // Use status-aware DAO queries
             val clearedWholeWeek = editableDayIndices.size == 7
             if (clearedWholeWeek) {
-                mealPlanDao.clearWeek(uid, week)
+                mealPlanDao.clearWeekClearableOnly(uid, week)
             } else {
-                mealPlanDao.clearWeekDays(uid, week, editableDayIndices)
+                mealPlanDao.clearWeekDaysClearableOnly(uid, week, editableDayIndices)
             }
 
+            // Sync: delete individual clearable meals from Firestore
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try {
-                        if (clearedWholeWeek) {
-                            firestoreSyncRepo.clearWeekPlannedMeals(uid, week)
-                        } else {
-                            editableDayIndices.forEach { dayIndex ->
-                                firestoreSyncRepo.clearDayPlannedMeals(uid, dayIndex, week)
-                            }
+                        for (meal in clearableMeals) {
+                            firestoreSyncRepo.deletePlannedMeal(uid, meal.dayIndex, week, meal.mealSlot, meal.dishLabel)
                         }
                     } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
             recomputeWeekScrubberData()
-            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $clearedCount planned dish${if (clearedCount == 1) "" else "es"}."))
+            val protectedCount = weekMeals.count {
+                it.dayIndex in editableDayIndices && it.status in listOf("logged", "skipped")
+            }
+            val suffix = if (protectedCount > 0) " ($protectedCount logged/skipped preserved)" else ""
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared ${clearableMeals.size} planned dish${if (clearableMeals.size == 1) "" else "es"}$suffix."))
         }
     }
 

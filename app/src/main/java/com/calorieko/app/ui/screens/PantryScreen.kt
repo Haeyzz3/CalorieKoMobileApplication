@@ -1141,7 +1141,9 @@ fun MealPlanCalendarSection(
 
     // Check if the entire displayed week is editable (has at least one editable day)
     val hasEditableDay = days.indices.any { viewModel.isDayEditable(it) }
-    val clearablePlannedMeals = plannedMeals.filter { viewModel.isDayEditable(it.dayIndex) }
+    val clearablePlannedMeals = plannedMeals.filter {
+        viewModel.isDayEditable(it.dayIndex) && it.status in listOf("planned", "missed")
+    }
     val hasPastPlannedMeals = clearablePlannedMeals.size < plannedMeals.size
 
     // Combined recipe list for calendar pickers (recipes + store-bought)
@@ -1388,6 +1390,9 @@ fun MealPlanCalendarSection(
                         val isToday = todayColumnIndex == dayIdx
                         val isDayEditable = viewModel.isDayEditable(dayIdx)
                         val dayHasMeals = plannedMeals.any { it.dayIndex == dayIdx }
+                        val dayHasClearableMeals = plannedMeals.any {
+                            it.dayIndex == dayIdx && it.status in listOf("planned", "missed")
+                        }
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -1398,7 +1403,7 @@ fun MealPlanCalendarSection(
                                 .alpha(if (isDayEditable) 1f else 0.45f)
                                 .padding(vertical = 6.dp)
                                 .clickable {
-                                    if (dayHasMeals && isDayEditable) {
+                                    if (dayHasClearableMeals && isDayEditable) {
                                         clearDayIndex.intValue = dayIdx
                                         showClearDayDialog.value = true
                                     }
@@ -1586,6 +1591,7 @@ fun MealPlanCalendarSection(
         val cellStatusForSlot = cellCompletionStatus["${dayIdx}_${slot}"]
         val isEditable = viewModel.isDayEditable(dayIdx)
             && cellStatusForSlot != PantryViewModel.CellCompletionStatus.LOGGED
+            && cellStatusForSlot != PantryViewModel.CellCompletionStatus.SKIPPED
         val nutrition = slotNutritionMap.value
         val slotDishDisplayResults = slotDishResults.value
 
@@ -1886,11 +1892,11 @@ fun MealPlanCalendarSection(
                                     Text("Clear Entire Meal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
                                 }
                             }
+                        }
 
-                            // Skip Meal / Undo Skip — conditional on current status
-                            val cellKey = "${dayIdx}_${slot}"
-                            val cellStatus = cellCompletionStatus[cellKey]
-                            if (cellStatus == PantryViewModel.CellCompletionStatus.SKIPPED) {
+                        // Skip Meal / Undo Skip — independent block, gated only by day editability
+                        if (slotMeals.isNotEmpty() && viewModel.isDayEditable(dayIdx)) {
+                            if (cellStatusForSlot == PantryViewModel.CellCompletionStatus.SKIPPED) {
                                 // Undo Skip — shown when slot is already skipped
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Surface(
@@ -1913,7 +1919,7 @@ fun MealPlanCalendarSection(
                                         Text("Undo Skip", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
                                     }
                                 }
-                            } else if (cellStatus != PantryViewModel.CellCompletionStatus.LOGGED) {
+                            } else if (cellStatusForSlot != PantryViewModel.CellCompletionStatus.LOGGED) {
                                 // Skip Meal — shown when not already logged or skipped
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Surface(
@@ -2271,10 +2277,14 @@ fun MealPlanCalendarSection(
     // ================================================================
     if (showClearWeekDialog.value && clearablePlannedMeals.isNotEmpty()) {
         val clearableCount = clearablePlannedMeals.size
+        val protectedCount = plannedMeals.count {
+            viewModel.isDayEditable(it.dayIndex) && it.status in listOf("logged", "skipped")
+        }
+        val protectedNote = if (protectedCount > 0) " Logged and skipped meals will be preserved." else ""
         val clearWeekMessage = if (hasPastPlannedMeals) {
-            "Are you sure you want to remove $clearableCount remaining planned dish${if (clearableCount == 1) "" else "es"}? Past planned meals will be kept."
+            "Are you sure you want to remove $clearableCount remaining planned dish${if (clearableCount == 1) "" else "es"}? Past planned meals will be kept.$protectedNote"
         } else {
-            "Are you sure you want to remove all $clearableCount planned dish${if (clearableCount == 1) "" else "es"} for this week?"
+            "Are you sure you want to remove all $clearableCount planned dish${if (clearableCount == 1) "" else "es"} for this week?$protectedNote"
         }
         AlertDialog(
             onDismissRequest = { showClearWeekDialog.value = false },
@@ -2297,11 +2307,17 @@ fun MealPlanCalendarSection(
     // ================================================================
     if (showClearDayDialog.value && clearDayIndex.intValue >= 0) {
         val dayName = "${days[clearDayIndex.intValue].first} ${days[clearDayIndex.intValue].second}"
-        val dayMealCount = plannedMeals.count { it.dayIndex == clearDayIndex.intValue }
+        val dayMealCount = plannedMeals.count {
+            it.dayIndex == clearDayIndex.intValue && it.status in listOf("planned", "missed")
+        }
+        val protectedDayCount = plannedMeals.count {
+            it.dayIndex == clearDayIndex.intValue && it.status in listOf("logged", "skipped")
+        }
+        val dayProtectedNote = if (protectedDayCount > 0) " Logged and skipped meals will be preserved." else ""
         AlertDialog(
             onDismissRequest = { showClearDayDialog.value = false },
             title = { Text("Clear $dayName") },
-            text = { Text("Are you sure you want to remove all $dayMealCount planned dish${if (dayMealCount > 1) "es" else ""} for $dayName?") },
+            text = { Text("Are you sure you want to remove $dayMealCount planned dish${if (dayMealCount > 1) "es" else ""} for $dayName?$dayProtectedNote") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearMealDay(clearDayIndex.intValue)
