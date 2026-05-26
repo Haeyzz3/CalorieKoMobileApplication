@@ -1425,6 +1425,28 @@ private fun WeightInputContent(
 // Manual Meal Summary Overlay
 // ───────────────────────────────────────────────────────────────
 
+@Composable
+private fun LogMealConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Log this meal?") },
+        text = { Text("Are you sure you want to save this meal? Once logged, meals cannot be edited or deleted.") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Log Meal")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ManualMealSummaryOverlay(
@@ -1459,6 +1481,7 @@ private fun ManualMealSummaryOverlay(
     var substitutionTarget by remember { mutableStateOf<String?>(null) }
     var substitutionCandidates by remember { mutableStateOf<List<com.calorieko.app.data.model.RawIngredientEntity>>(emptyList()) }
     var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var showLogMealConfirmation by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
@@ -1708,7 +1731,7 @@ private fun ManualMealSummaryOverlay(
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Button(
-                        onClick = onConfirmMeal,
+                        onClick = { showLogMealConfirmation = true },
                         enabled = canConfirmMeal && !isConfirming,
                         colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
                         shape = RoundedCornerShape(16.dp),
@@ -1778,6 +1801,16 @@ private fun ManualMealSummaryOverlay(
     }
 
     // ── Ingredient Bottom Sheet ──
+    if (showLogMealConfirmation) {
+        LogMealConfirmationDialog(
+            onDismiss = { showLogMealConfirmation = false },
+            onConfirm = {
+                showLogMealConfirmation = false
+                onConfirmMeal()
+            }
+        )
+    }
+
     val manualSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     if (ingredientSheetDishIndex >= 0 && manualViewModel != null) {
         val dish = dishes.getOrNull(ingredientSheetDishIndex)
@@ -2649,6 +2682,7 @@ private fun MealSummaryOverlay(
     var ingredientHasAlternatives by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showLogMealConfirmation by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))
@@ -2899,7 +2933,7 @@ private fun MealSummaryOverlay(
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Button(
-                        onClick = onConfirmMeal,
+                        onClick = { showLogMealConfirmation = true },
                         enabled = dishes.isNotEmpty() && !isConfirming,
                         colors = ButtonDefaults.buttonColors(containerColor = CalorieKoGreen, disabledContainerColor = Color.Gray),
                         shape = RoundedCornerShape(16.dp),
@@ -2929,6 +2963,16 @@ private fun MealSummaryOverlay(
     }
 
     // ── Ingredient Detail Bottom Sheet ──
+    if (showLogMealConfirmation) {
+        LogMealConfirmationDialog(
+            onDismiss = { showLogMealConfirmation = false },
+            onConfirm = {
+                showLogMealConfirmation = false
+                onConfirmMeal()
+            }
+        )
+    }
+
     if (ingredientSheetDishIndex != null) {
         val dishIdx = ingredientSheetDishIndex!!
         val dish = dishes.getOrNull(dishIdx)

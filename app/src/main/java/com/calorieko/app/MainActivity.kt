@@ -560,20 +560,12 @@ fun AppNavigation() {
                 activityLogDao = db.activityLogDao(),
                 nutritionalValuesRepo = nutritionalRepo
             )
-            val mealRepo = com.calorieko.app.data.repository.MealRepository(
-                mealLogDao = db.mealLogDao(),
-                mealLogItemDao = db.mealLogItemDao(),
-                dailyNutritionSummaryDao = db.dailyNutritionSummaryDao(),
-                appContext = context.applicationContext
-            )
             val diaryViewModel: com.calorieko.app.viewmodel.DiaryViewModel = viewModel(
                 factory = com.calorieko.app.viewmodel.DiaryViewModel.provideFactory(
                     auth = auth,
                     dashboardRepository = dashboardRepo,
                     activityLogDao = db.activityLogDao(),
-                    mealLogDao = db.mealLogDao(),
-                    mealRepository = mealRepo,
-                    appContext = context.applicationContext
+                    mealLogDao = db.mealLogDao()
                 )
             )
             DiaryScreen(

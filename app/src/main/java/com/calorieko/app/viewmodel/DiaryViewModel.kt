@@ -3,16 +3,13 @@ package com.calorieko.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import android.content.Context
 import com.calorieko.app.data.local.ActivityLogDao
 import com.calorieko.app.data.local.MealLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.repository.DashboardRepository
-import com.calorieko.app.data.repository.MealRepository
 import com.calorieko.app.data.repository.NutritionalTarget
-import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,9 +25,7 @@ class DiaryViewModel(
     private val auth: FirebaseAuth,
     private val dashboardRepository: DashboardRepository,
     private val activityLogDao: ActivityLogDao,
-    private val mealLogDao: MealLogDao,
-    private val mealRepository: MealRepository,
-    private val appContext: Context
+    private val mealLogDao: MealLogDao
 ) : ViewModel() {
 
     // ── Targets ──
@@ -232,57 +227,17 @@ class DiaryViewModel(
         }
     }
 
-    fun deleteMeal(mealLogId: Long) {
-        viewModelScope.launch {
-            // 1. Delete from Room + update summary (fast IO operation)
-            //    Returns the updated nutrition summary so we can sync it to Firestore.
-            val updatedSummary = withContext(Dispatchers.IO) {
-                mealRepository.deleteMealLogLocally(uid, mealLogId)
-            }
-            
-            // 2. Reload UI immediately (uses flow, very fast)
-            loadMealLogs()
-            loadDaySummary()
-            
-            // 3. Handle Firestore deletion + summary sync in background (non-blocking)
-            launch {
-                withContext(Dispatchers.IO) {
-                    try {
-                        val firestoreRepo = com.calorieko.app.data.remote.FirestoreSyncRepository()
-                        firestoreRepo.deleteMealLog(uid, mealLogId)
-                        // Sync the updated nutrition summary to Firestore so the
-                        // subtracted nutrients are persisted in the cloud. Without this,
-                        // a fresh login would restore the stale pre-deletion summary.
-                        if (updatedSummary != null) {
-                            firestoreRepo.syncDailyNutritionSummary(uid, updatedSummary)
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("DiaryViewModel", "Background Firestore delete failed: ${e.message}")
-                    }
-                    
-                    // Trigger WorkManager for syncing other pending changes
-                    AutoSyncManager.triggerSync(
-                        appContext,
-                        uid
-                    )
-                }
-            }
-        }
-    }
-
     companion object {
         fun provideFactory(
             auth: FirebaseAuth,
             dashboardRepository: DashboardRepository,
             activityLogDao: ActivityLogDao,
-            mealLogDao: MealLogDao,
-            mealRepository: MealRepository,
-            appContext: Context
+            mealLogDao: MealLogDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(DiaryViewModel::class.java)) {
-                    return DiaryViewModel(auth, dashboardRepository, activityLogDao, mealLogDao, mealRepository, appContext) as T
+                    return DiaryViewModel(auth, dashboardRepository, activityLogDao, mealLogDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

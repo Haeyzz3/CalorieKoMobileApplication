@@ -326,7 +326,6 @@ fun DiaryScreen(viewModel: DiaryViewModel, onBackClick: () -> Unit, onNavigateTo
                         mealLogs = mealLogs,
                         viewMode = viewMode,
                         dateText = dateText,
-                        onDelete = { viewModel.deleteMeal(it) },
                         weekDaySummaries = weekDaySummaries,
                         weekDayLabels = weekDayLabels
                     )
@@ -385,7 +384,6 @@ fun MealsTabContent(
     mealLogs: List<MealLogWithItems>,
     viewMode: String,
     dateText: String,
-    onDelete: (Long) -> Unit = {},
     weekDaySummaries: List<DailyNutritionSummaryEntity?> = emptyList(),
     weekDayLabels: List<String> = emptyList()
 ) {
@@ -393,10 +391,6 @@ fun MealsTabContent(
 
     // Track which meal is selected for the detail bottom sheet
     var selectedMeal by remember { mutableStateOf<MealLogWithItems?>(null) }
-
-    // Track delete confirmation dialog state
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
-    var mealToDelete by remember { mutableStateOf<Long?>(null) }
 
     if (viewMode == "week") {
         MealsWeekSummary(weekDaySummaries = weekDaySummaries, weekDayLabels = weekDayLabels)
@@ -558,48 +552,26 @@ fun MealsTabContent(
                                 }
                             }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFF0FDF4)
                             ) {
-                                // Calorie badge
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFF0FDF4)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                            contentDescription = null,
-                                            tint = Color(0xFF16A34A),
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "${totalCalories.roundToInt()} cal",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF374151)
-                                        )
-                                    }
-                                }
-
-                                // Delete button
-                                IconButton(
-                                    modifier = Modifier.size(28.dp),
-                                    onClick = {
-                                        mealToDelete = mealLog.mealLogId
-                                        showDeleteConfirmation = true
-                                    }
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = Color(0xFFEF4444),
-                                        modifier = Modifier.size(16.dp)
+                                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                        contentDescription = null,
+                                        tint = Color(0xFF16A34A),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${totalCalories.roundToInt()} cal",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF374151)
                                     )
                                 }
                             }
@@ -653,40 +625,6 @@ fun MealsTabContent(
                 }
             }
         }
-    }
-
-    // ── Delete Confirmation Dialog ──
-    if (showDeleteConfirmation && mealToDelete != null) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeleteConfirmation = false
-                mealToDelete = null
-            },
-            title = { Text("Delete Meal") },
-            text = { Text("Are you sure you want to delete this meal? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        mealToDelete?.let { onDelete(it) }
-                        showDeleteConfirmation = false
-                        mealToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
-                ) {
-                    Text("Delete", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirmation = false
-                        mealToDelete = null
-                    }
-                ) {
-                    Text("Cancel", color = Color(0xFF6B7280))
-                }
-            }
-        )
     }
 
     // ── Meal Detail Bottom Sheet (reuses DashboardScreen's component) ──
