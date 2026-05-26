@@ -22,7 +22,7 @@ data class PlannedMealEntity(
     @ColumnInfo(name = "tweaks_json", defaultValue = "")
     val tweaksJson: String = "",   // JSON: {"garlic": 2.0, "onion": 0.5}
 
-    /** Persistent status: "planned", "logged", "partial", "skipped", "missed" */
+    /** Persistent status: "planned", "logged", "skipped", "missed" */
     @ColumnInfo(name = "status", defaultValue = "planned")
     val status: String = "planned"
 )

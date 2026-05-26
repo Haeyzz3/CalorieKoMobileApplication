@@ -641,32 +641,6 @@ fun TodayPlannedMealsCard(
                                 }
                             }
                         }
-                        SlotLogStatus.PARTIAL -> {
-                            Surface(
-                                onClick = { onQuickLogSlot(dishes) },
-                                color = Color(0xFFFEF3C7),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        "Log Remaining",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFD97706)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD97706),
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
-                            }
-                        }
                         SlotLogStatus.SKIPPED -> {
                             Surface(
                                 color = Color(0xFFF3F4F6),

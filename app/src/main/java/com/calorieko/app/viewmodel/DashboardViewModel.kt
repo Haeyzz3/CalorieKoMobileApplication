@@ -210,7 +210,7 @@ class DashboardViewModel(
 
     // ── Slot Completion Status (for disabling duplicate logging) ──
 
-    enum class SlotLogStatus { LOGGED, PARTIAL, SKIPPED, UNLOGGED }
+    enum class SlotLogStatus { LOGGED, SKIPPED, UNLOGGED }
 
     /**
      * Per-slot logged status for today's planned meals.
@@ -359,13 +359,12 @@ class DashboardViewModel(
                 when (meal.status) {
                     "logged" -> SlotLogStatus.LOGGED
                     "skipped" -> SlotLogStatus.SKIPPED
-                    "partial" -> SlotLogStatus.PARTIAL
                     else -> null  // "planned" → fall through to derivation
                 }
             }
 
             if (explicitStatuses.isNotEmpty()) {
-                // Priority: LOGGED > PARTIAL > SKIPPED
+                // Priority: LOGGED > SKIPPED
                 explicitStatuses.minByOrNull { it.ordinal } ?: SlotLogStatus.UNLOGGED
             } else {
                 // Phase 1 fallback: read-time derivation for pre-migration data
@@ -375,7 +374,7 @@ class DashboardViewModel(
                 }
                 when {
                     matchCount >= dishes.size -> SlotLogStatus.LOGGED
-                    matchCount > 0 -> SlotLogStatus.PARTIAL
+                    matchCount > 0 -> SlotLogStatus.LOGGED
                     else -> SlotLogStatus.UNLOGGED
                 }
             }

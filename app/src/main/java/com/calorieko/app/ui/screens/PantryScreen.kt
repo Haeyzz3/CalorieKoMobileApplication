@@ -1489,59 +1489,45 @@ fun MealPlanCalendarSection(
                                             containerColor = when (cellStatus) {
                                                 PantryViewModel.CellCompletionStatus.LOGGED -> Color(0xFFDCFCE7)
                                                 PantryViewModel.CellCompletionStatus.MISSED -> Color(0xFFFEE2E2)
-                                                PantryViewModel.CellCompletionStatus.PARTIAL -> Color(0xFFFEF3C7)
                                                 PantryViewModel.CellCompletionStatus.SKIPPED -> Color(0xFFF3F4F6)
                                                 else -> slotColors[slot] ?: Color(0xFFECFDF5)
                                             }
                                         ),
                                         modifier = Modifier.fillMaxSize()
                                     ) {
-                                        Box(modifier = Modifier.fillMaxSize()) {
-                                            Column(
-                                                modifier = Modifier.padding(2.dp).fillMaxSize(),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                if (slotMeals.size <= 2) {
-                                                    Text(
-                                                        slotMeals.joinToString("") { getDishEmoji(it.dishLabel) },
-                                                        fontSize = 14.sp
-                                                    )
-                                                } else {
-                                                    Text(
-                                                        "${getDishEmoji(slotMeals.first().dishLabel)} +${slotMeals.size - 1}",
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFF374151)
-                                                    )
-                                                }
+                                        Column(
+                                            modifier = Modifier.padding(2.dp).fillMaxSize(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            // Emoji: swap dish emoji for status emoji on non-PLANNED cells
+                                            val statusEmoji = when (cellStatus) {
+                                                PantryViewModel.CellCompletionStatus.LOGGED -> "✅"
+                                                PantryViewModel.CellCompletionStatus.MISSED -> "❌"
+                                                PantryViewModel.CellCompletionStatus.SKIPPED -> "⏭️"
+                                                else -> null  // PLANNED → show normal dish emoji
+                                            }
+                                            if (statusEmoji != null) {
+                                                Text(statusEmoji, fontSize = 14.sp)
+                                            } else if (slotMeals.size <= 2) {
                                                 Text(
-                                                    "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}",
-                                                    fontSize = 7.sp,
-                                                    color = Color(0xFF6B7280),
-                                                    lineHeight = 8.sp
+                                                    slotMeals.joinToString("") { getDishEmoji(it.dishLabel) },
+                                                    fontSize = 14.sp
+                                                )
+                                            } else {
+                                                Text(
+                                                    "${getDishEmoji(slotMeals.first().dishLabel)} +${slotMeals.size - 1}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF374151)
                                                 )
                                             }
-                                            // Status indicator overlay (bottom-right corner)
-                                            when (cellStatus) {
-                                                PantryViewModel.CellCompletionStatus.LOGGED -> {
-                                                    Text("✓", fontSize = 10.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold,
-                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
-                                                }
-                                                PantryViewModel.CellCompletionStatus.MISSED -> {
-                                                    Text("⊘", fontSize = 10.sp, color = Color(0xFFDC2626),
-                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
-                                                }
-                                                PantryViewModel.CellCompletionStatus.PARTIAL -> {
-                                                    Text("◐", fontSize = 10.sp, color = Color(0xFFD97706),
-                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
-                                                }
-                                                PantryViewModel.CellCompletionStatus.SKIPPED -> {
-                                                    Text("⊘", fontSize = 10.sp, color = Color(0xFF9CA3AF),
-                                                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp))
-                                                }
-                                                else -> { /* no indicator for PLANNED */ }
-                                            }
+                                            Text(
+                                                "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}",
+                                                fontSize = 7.sp,
+                                                color = Color(0xFF6B7280),
+                                                lineHeight = 8.sp
+                                            )
                                         }
                                     }
                                 }

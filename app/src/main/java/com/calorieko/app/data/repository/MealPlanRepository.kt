@@ -11,7 +11,7 @@ import com.calorieko.app.data.remote.FirestoreSyncRepository
  * - Marking planned meals as logged (after confirmMeal)
  * - Building source_plan_key for provenance linking
  *
- * Status transitions: planned → logged | skipped | missed | partial
+ * Status transitions: planned → logged | skipped | missed
  */
 class MealPlanRepository(
     private val mealPlanDao: MealPlanDao,

@@ -237,7 +237,7 @@ class PantryViewModel(
     val uiEvents: SharedFlow<PantryUiEvent> = _uiEvents.asSharedFlow()
 
     // --- Meal Plan Completion Status ---
-    enum class CellCompletionStatus { LOGGED, PARTIAL, SKIPPED, MISSED, PLANNED }
+    enum class CellCompletionStatus { LOGGED, SKIPPED, MISSED, PLANNED }
 
     /** Logged dish references for the displayed week (reactive from MealLogDao). */
     private val _weekLoggedDishes = MutableStateFlow<Set<Pair<String, String>>>(emptySet())
@@ -1469,13 +1469,12 @@ class PantryViewModel(
                     "logged" -> CellCompletionStatus.LOGGED
                     "skipped" -> CellCompletionStatus.SKIPPED
                     "missed" -> CellCompletionStatus.MISSED
-                    "partial" -> CellCompletionStatus.PARTIAL
                     else -> null  // "planned" → fall through to derivation
                 }
             }
 
             if (explicitStatuses.isNotEmpty()) {
-                // Use highest-priority explicit status: LOGGED > PARTIAL > SKIPPED > MISSED
+                // Use highest-priority explicit status: LOGGED > SKIPPED > MISSED
                 result[cellKey] = explicitStatuses.minByOrNull { it.ordinal }
                     ?: CellCompletionStatus.PLANNED
             } else {
@@ -1487,7 +1486,7 @@ class PantryViewModel(
                 val isPast = !isDayEditable(dayIndex)
                 result[cellKey] = when {
                     matchCount >= dishes.size -> CellCompletionStatus.LOGGED
-                    matchCount > 0 -> CellCompletionStatus.PARTIAL
+                    matchCount > 0 -> CellCompletionStatus.LOGGED
                     isPast -> CellCompletionStatus.MISSED
                     else -> CellCompletionStatus.PLANNED
                 }
