@@ -778,7 +778,14 @@ class ManualLogViewModel(
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value)
+                // Build source_plan_key for planned meals (provenance linking)
+                val planKey = if (_isPlannedQuickLog.value && _pendingDayIndex >= 0 && _pendingWeekStartDate.isNotEmpty()) {
+                    val dishLabels = _loggedDishes.value.mapNotNull { it.dishLabel.takeIf { l -> l.isNotBlank() } }
+                    if (dishLabels.isNotEmpty()) {
+                        mealPlanRepository.buildPlanKey(_pendingDayIndex, _pendingWeekStartDate, _mealType.value, dishLabels.first())
+                    } else null
+                } else null
+                mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value, sourcePlanKey = planKey)
             }
 
             // Mark planned meals as logged (Phase 2: persistent status)

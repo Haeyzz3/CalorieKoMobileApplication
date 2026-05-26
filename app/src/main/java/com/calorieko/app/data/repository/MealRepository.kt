@@ -37,12 +37,12 @@ class MealRepository(
      * @param mealType  One of "Breakfast", "Lunch", "Dinner", or "Snacks".
      * @param dishes    The list of logged dishes with pre-computed nutrients.
      */
-    suspend fun saveMeal(uid: String, mealType: String, dishes: List<LoggedDish>) {
+    suspend fun saveMeal(uid: String, mealType: String, dishes: List<LoggedDish>, sourcePlanKey: String? = null) {
         val now = System.currentTimeMillis()
 
         // 1. Insert the meal log header
         val mealLogId = mealLogDao.insertMealLog(
-            MealLogEntity(uid = uid, mealType = mealType, timestamp = now)
+            MealLogEntity(uid = uid, mealType = mealType, timestamp = now, sourcePlanKey = sourcePlanKey)
         )
 
         // 2. Insert all meal log items

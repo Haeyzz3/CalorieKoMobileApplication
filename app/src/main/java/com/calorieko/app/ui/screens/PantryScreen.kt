@@ -1583,7 +1583,9 @@ fun MealPlanCalendarSection(
         val dayIdx = detailDayIndex.intValue
         val slot = detailSlot.value
         val slotMeals = plannedMeals.filter { it.dayIndex == dayIdx && it.mealSlot == slot }
+        val cellStatusForSlot = cellCompletionStatus["${dayIdx}_${slot}"]
         val isEditable = viewModel.isDayEditable(dayIdx)
+            && cellStatusForSlot != PantryViewModel.CellCompletionStatus.LOGGED
         val nutrition = slotNutritionMap.value
         val slotDishDisplayResults = slotDishResults.value
 
@@ -2160,12 +2162,15 @@ fun MealPlanCalendarSection(
                         val alreadyInSlot = plannedMeals.any {
                             it.dayIndex == selectedDayIndex.intValue && it.mealSlot == slot && it.dishLabel == dishToAdd
                         }
+                        val isSlotLogged = cellCompletionStatus["${selectedDayIndex.intValue}_${slot}"] == PantryViewModel.CellCompletionStatus.LOGGED
+                        val isDisabled = alreadyInSlot || isSlotLogged
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
+                                .alpha(if (isSlotLogged) 0.5f else 1f)
                                 .clickable {
-                                    if (!alreadyInSlot) {
+                                    if (!isDisabled) {
                                         viewModel.addMealToPlan(
                                             selectedDayIndex.intValue,
                                             dishToAdd,
@@ -2188,10 +2193,24 @@ fun MealPlanCalendarSection(
                                     slot,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (alreadyInSlot) Color(0xFF9CA3AF) else Color(0xFF374151),
+                                    color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151),
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (alreadyInSlot) {
+                                if (isSlotLogged) {
+                                    Surface(
+                                        color = Color(0xFFDCFCE7),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(10.dp))
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text("Logged", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                } else if (alreadyInSlot) {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
                                         shape = RoundedCornerShape(4.dp)
@@ -4119,12 +4138,18 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         val alreadyInSlot = targetWeekMeals.any {
                             it.dayIndex == dayIdx && it.mealSlot == slot && it.dishLabel == recipe.dishLabel
                         }
+                        // Check logged status when targeting the current calendar week
+                        val isSlotLogged = if (targetWeekStart == calendarWeekStart) {
+                            cellCompletionStatus["${dayIdx}_${slot}"] == PantryViewModel.CellCompletionStatus.LOGGED
+                        } else false
+                        val isDisabled = alreadyInSlot || isSlotLogged
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
+                                .alpha(if (isSlotLogged) 0.5f else 1f)
                                 .clickable {
-                                    if (!alreadyInSlot) {
+                                    if (!isDisabled) {
                                         viewModel.addMealToPlan(
                                             dayIdx,
                                             recipe.dishLabel,
@@ -4152,10 +4177,24 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     slot,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (alreadyInSlot) Color(0xFF9CA3AF) else Color(0xFF374151),
+                                    color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151),
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (alreadyInSlot) {
+                                if (isSlotLogged) {
+                                    Surface(
+                                        color = Color(0xFFDCFCE7),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Check, null, tint = CalorieKoGreen, modifier = Modifier.size(10.dp))
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text("Logged", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                } else if (alreadyInSlot) {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
                                         shape = RoundedCornerShape(4.dp)

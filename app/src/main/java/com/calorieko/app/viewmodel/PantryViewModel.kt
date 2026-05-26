@@ -778,6 +778,12 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
                 return@launch
             }
+            // Prevent adding dishes to logged slots
+            val slotKey = "${dayIndex}_${mealSlot}"
+            if (_cellCompletionStatus.value[slotKey] == CellCompletionStatus.LOGGED) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+                return@launch
+            }
 
             val sanitizedSubstitutions = RecipeCustomizationRules.sanitizeSubstitutions(substitutions)
             val substitutionsJson = if (sanitizedSubstitutions.isNotEmpty()) {
@@ -815,6 +821,12 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
                 return@launch
             }
+            // Prevent removing dishes from logged slots
+            val slotKey = "${dayIndex}_${mealSlot}"
+            if (_cellCompletionStatus.value[slotKey] == CellCompletionStatus.LOGGED) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+                return@launch
+            }
 
             mealPlanDao.removeDish(uid, dayIndex, week, mealSlot, dishLabel)
             if (uid.isNotEmpty()) {
@@ -832,6 +844,12 @@ class PantryViewModel(
             val week = _currentWeekStart.value
             if (!isDayEditableForWeek(dayIndex, week)) {
                 _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
+            }
+            // Prevent clearing logged slots
+            val slotKey = "${dayIndex}_${mealSlot}"
+            if (_cellCompletionStatus.value[slotKey] == CellCompletionStatus.LOGGED) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
                 return@launch
             }
 
