@@ -2800,6 +2800,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
     // --- Target week for planning (may differ from calendar's selected week) ---
     val calendarWeekStart by viewModel.currentWeekStart.collectAsState()
+    val cellCompletionStatus by viewModel.cellCompletionStatus.collectAsState()
     var targetWeekStart by remember { mutableStateOf(calendarWeekStart) }
     var targetWeekDayDates by remember { mutableStateOf(viewModel.computeWeekDayDatesPublic(calendarWeekStart)) }
     var targetWeekMeals by remember { mutableStateOf(plannedMeals) }
