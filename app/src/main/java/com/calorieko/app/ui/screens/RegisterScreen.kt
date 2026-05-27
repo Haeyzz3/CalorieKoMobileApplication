@@ -68,6 +68,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel,
+    onRegisterAttempt: (normalizedEmail: String) -> Unit,
     onSignUpSuccess: (initialVerificationEmailSent: Boolean, message: String?) -> Unit
 ) {
     // ── Collect ViewModel State ──
@@ -366,6 +367,7 @@ fun RegisterScreen(
                 Button(
                     onClick = {
                         if (isFormValid) {
+                            onRegisterAttempt(emailValidation.normalizedEmail)
                             viewModel.register(emailValidation.normalizedEmail, password)
                         }
                     },

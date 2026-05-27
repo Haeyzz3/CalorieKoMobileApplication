@@ -3,7 +3,7 @@ package com.calorieko.app.util
 import android.content.Context
 
 data class PendingOnboardingProfile(
-    val uid: String,
+    val uid: String?,
     val name: String,
     val email: String,
     val age: Int,
@@ -24,9 +24,53 @@ class PendingOnboardingStore(context: Context) {
         Context.MODE_PRIVATE
     )
 
-    fun save(profile: PendingOnboardingProfile) {
-        prefs.edit()
-            .putString(KEY_UID, profile.uid)
+    fun saveDraft(profile: PendingOnboardingProfile) {
+        save(profile.copy(uid = null))
+    }
+
+    fun saveBound(profile: PendingOnboardingProfile) {
+        if (profile.uid != null) {
+            save(profile)
+        }
+    }
+
+    fun attachUid(
+        uid: String,
+        email: String,
+        initialVerificationEmailSent: Boolean,
+        initialVerificationMessage: String?
+    ): PendingOnboardingProfile? {
+        val profile = getDraft() ?: return getForUid(uid)
+        val attachedProfile = profile.copy(
+            uid = uid,
+            email = email.ifEmpty { profile.email },
+            initialVerificationEmailSent = initialVerificationEmailSent,
+            initialVerificationMessage = initialVerificationMessage
+        )
+        save(attachedProfile)
+        return attachedProfile
+    }
+
+    fun getDraft(): PendingOnboardingProfile? {
+        val storedUid = prefs.getString(KEY_UID, null)
+        if (storedUid != null) return null
+        return readProfile(uid = null)
+    }
+
+    fun getForUid(uid: String): PendingOnboardingProfile? {
+        val storedUid = prefs.getString(KEY_UID, null) ?: return null
+        if (storedUid != uid) return null
+        return readProfile(uid = storedUid)
+    }
+
+    private fun save(profile: PendingOnboardingProfile) {
+        val editor = prefs.edit()
+        if (profile.uid == null) {
+            editor.remove(KEY_UID)
+        } else {
+            editor.putString(KEY_UID, profile.uid)
+        }
+        editor
             .putString(KEY_NAME, profile.name)
             .putString(KEY_EMAIL, profile.email)
             .putInt(KEY_AGE, profile.age)
@@ -39,15 +83,12 @@ class PendingOnboardingStore(context: Context) {
             .putLong(KEY_CREATED_AT_MILLIS, profile.createdAtMillis)
             .putBoolean(KEY_INITIAL_VERIFICATION_EMAIL_SENT, profile.initialVerificationEmailSent)
             .putString(KEY_INITIAL_VERIFICATION_MESSAGE, profile.initialVerificationMessage)
-            .apply()
+            .commit()
     }
 
-    fun getForUid(uid: String): PendingOnboardingProfile? {
-        val storedUid = prefs.getString(KEY_UID, null) ?: return null
-        if (storedUid != uid) return null
-
+    private fun readProfile(uid: String?): PendingOnboardingProfile? {
         return PendingOnboardingProfile(
-            uid = storedUid,
+            uid = uid,
             name = prefs.getString(KEY_NAME, null) ?: return null,
             email = prefs.getString(KEY_EMAIL, null) ?: return null,
             age = prefs.getInt(KEY_AGE, 25),
@@ -67,7 +108,7 @@ class PendingOnboardingStore(context: Context) {
     fun clear(uid: String? = null) {
         val storedUid = prefs.getString(KEY_UID, null)
         if (uid == null || storedUid == uid) {
-            prefs.edit().clear().apply()
+            prefs.edit().clear().commit()
         }
     }
 

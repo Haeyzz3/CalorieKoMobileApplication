@@ -200,13 +200,28 @@ fun AppNavigation() {
 
     fun applyInitialVerificationState(uid: String) {
         val pendingProfile = pendingOnboardingStore.getForUid(uid)
+            ?: auth.currentUser?.let { user ->
+                pendingOnboardingStore.attachUid(
+                    uid = uid,
+                    email = user.email ?: "",
+                    initialVerificationEmailSent = true,
+                    initialVerificationMessage = null
+                )
+            }
         initialVerificationEmailSent = pendingProfile?.initialVerificationEmailSent ?: true
         initialVerificationMessage = pendingProfile?.initialVerificationMessage
     }
 
     suspend fun createVerifiedPendingProfile(uid: String): Boolean {
-        val pendingProfile = pendingOnboardingStore.getForUid(uid) ?: return false
         val currentUser = auth.currentUser ?: return false
+        val pendingProfile = pendingOnboardingStore.getForUid(uid)
+            ?: pendingOnboardingStore.attachUid(
+                uid = uid,
+                email = currentUser.email ?: "",
+                initialVerificationEmailSent = true,
+                initialVerificationMessage = null
+            )
+            ?: return false
         val existingProfile = userDao.getUser(uid)
         if (existingProfile != null) {
             pendingOnboardingStore.clear(uid)
@@ -402,11 +417,33 @@ fun AppNavigation() {
             )
             RegisterScreen(
                 viewModel = registerViewModel,
+                onRegisterAttempt = { normalizedEmail ->
+                    val draftProfile = PendingOnboardingProfile(
+                        uid = null,
+                        name = setupName,
+                        email = normalizedEmail,
+                        age = setupAge,
+                        weight = setupWeight,
+                        height = setupHeight,
+                        sex = setupSex,
+                        activityLevel = setupActivityLevel,
+                        goal = setupGoalId,
+                        goalTitle = setupGoalTitle,
+                        createdAtMillis = System.currentTimeMillis(),
+                        initialVerificationEmailSent = true,
+                        initialVerificationMessage = null
+                    )
+                    pendingOnboardingStore.saveDraft(draftProfile)
+                },
                 onSignUpSuccess = { verificationEmailSent, verificationMessage ->
                     val currentUser = auth.currentUser
                     if (currentUser != null) {
-                        val createdAtMillis = System.currentTimeMillis()
-                        val pendingProfile = PendingOnboardingProfile(
+                        val pendingProfile = pendingOnboardingStore.attachUid(
+                            uid = currentUser.uid,
+                            email = currentUser.email ?: "",
+                            initialVerificationEmailSent = verificationEmailSent,
+                            initialVerificationMessage = verificationMessage
+                        ) ?: PendingOnboardingProfile(
                             uid = currentUser.uid,
                             name = setupName.ifEmpty { currentUser.displayName ?: "User" },
                             email = currentUser.email ?: "",
@@ -417,14 +454,19 @@ fun AppNavigation() {
                             activityLevel = setupActivityLevel,
                             goal = setupGoalId,
                             goalTitle = setupGoalTitle,
-                            createdAtMillis = createdAtMillis,
+                            createdAtMillis = System.currentTimeMillis(),
                             initialVerificationEmailSent = verificationEmailSent,
                             initialVerificationMessage = verificationMessage
+                        ).also { fallbackProfile ->
+                            pendingOnboardingStore.saveBound(fallbackProfile)
+                        }
+                        applyPendingTargets(
+                            pendingProfile.copy(
+                                name = pendingProfile.name.ifEmpty { currentUser.displayName ?: "User" }
+                            )
                         )
-                        applyPendingTargets(pendingProfile)
                         initialVerificationEmailSent = verificationEmailSent
                         initialVerificationMessage = verificationMessage
-                        pendingOnboardingStore.save(pendingProfile)
                         navController.navigate("verificationPending") {
                             popUpTo("intro") { inclusive = true }
                         }
@@ -453,7 +495,7 @@ fun AppNavigation() {
                     }
                 },
                 onCancel = {
-                    pendingOnboardingStore.clear(auth.currentUser?.uid)
+                    pendingOnboardingStore.clear()
                     navController.navigate("intro") { popUpTo(0) { inclusive = true } }
                 }
             )
