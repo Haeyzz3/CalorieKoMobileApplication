@@ -336,7 +336,7 @@ fun EditProfileScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     EditField(
-                        label = "Full Name",
+                        label = "Preferred Name",
                         value = name,
                         onValueChange = { viewModel.updateName(it) },
                         icon = Icons.Default.Person,
