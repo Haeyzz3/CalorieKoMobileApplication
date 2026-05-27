@@ -156,7 +156,7 @@ fun BioFormScreen(onContinue: (String, String, String, String, String) -> Unit) 
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Full Name
-            NameInput(value = name, onValueChange = { name = it }, label = "Full Name", placeholder = "Enter your full name")
+            NameInput(value = name, onValueChange = { name = it }, label = "Preferred Name", placeholder = "What should we call you?")
 
             // Age
             Column {
