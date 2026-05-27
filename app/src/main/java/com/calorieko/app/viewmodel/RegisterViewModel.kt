@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.repository.AuthRepository
+import com.calorieko.app.util.EmailValidator
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,10 @@ class RegisterViewModel(
     // ── One-shot Events ──
 
     sealed class Event {
-        data object SignUpSuccess : Event()
+        data class SignUpSuccess(
+            val initialVerificationEmailSent: Boolean,
+            val message: String?
+        ) : Event()
     }
 
     private val _events = Channel<Event>(Channel.BUFFERED)
@@ -50,21 +54,30 @@ class RegisterViewModel(
     // ── Register ──
 
     fun register(email: String, password: String) {
+        if (_isLoading.value) return
+
+        val emailValidation = EmailValidator.validate(email)
+        if (!emailValidation.isValid) {
+            _errorMessage.value = emailValidation.message
+            return
+        }
+
         _isLoading.value = true
         _errorMessage.value = null
 
         viewModelScope.launch {
-            val result = authRepository.createAccount(email, password)
+            val result = authRepository.createAccount(emailValidation.normalizedEmail, password)
             _isLoading.value = false
             when (result) {
-                is AuthRepository.AuthResult.Success -> {
-                    _events.send(Event.SignUpSuccess)
+                is AuthRepository.RegistrationResult.AccountCreated -> {
+                    _events.send(
+                        Event.SignUpSuccess(
+                            initialVerificationEmailSent = result.initialVerificationEmailSent,
+                            message = result.message
+                        )
+                    )
                 }
-                is AuthRepository.AuthResult.UnverifiedEmail -> {
-                    // Shouldn't happen for createAccount, but handle gracefully
-                    _events.send(Event.SignUpSuccess)
-                }
-                is AuthRepository.AuthResult.Error -> {
+                is AuthRepository.RegistrationResult.Error -> {
                     _errorMessage.value = result.message
                 }
             }

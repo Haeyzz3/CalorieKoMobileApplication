@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.repository.AuthRepository
+import com.calorieko.app.util.EmailValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,14 +42,9 @@ class ForgotPasswordViewModel(
     // ── Reset Password ──
 
     fun resetPassword(email: String) {
-        if (email.isBlank()) {
-            _errorMessage.value = "Please enter your email address."
-            return
-        }
-
-        // Basic client-side email format check before hitting Firebase
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
-            _errorMessage.value = "Please enter a valid email address format."
+        val emailValidation = EmailValidator.validate(email)
+        if (!emailValidation.isValid) {
+            _errorMessage.value = emailValidation.message
             return
         }
 
@@ -57,7 +53,7 @@ class ForgotPasswordViewModel(
         _successMessage.value = null
 
         viewModelScope.launch {
-            val result = authRepository.sendPasswordResetEmail(email.trim())
+            val result = authRepository.sendPasswordResetEmail(emailValidation.normalizedEmail)
             _isLoading.value = false
             when (result) {
                 is AuthRepository.ResetResult.Success -> {

@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
@@ -36,8 +35,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +57,7 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoLightOrange
 import com.calorieko.app.ui.theme.CalorieKoOrange
+import com.calorieko.app.util.EmailValidator
 import com.calorieko.app.viewmodel.RegisterViewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,8 +68,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel,
-    onSignUpSuccess: () -> Unit,
-    onNavigateBack: () -> Unit
+    onSignUpSuccess: (initialVerificationEmailSent: Boolean, message: String?) -> Unit
 ) {
     // ── Collect ViewModel State ──
     val isLoading by viewModel.isLoading.collectAsState()
@@ -86,7 +84,8 @@ fun RegisterScreen(
     val focusManager = LocalFocusManager.current
 
     // Validation
-    val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    val emailValidation = remember(email) { EmailValidator.validate(email) }
+    val isEmailValid = emailValidation.isValid
     
     // Strength Calculation
     val passwordStrength = remember(password) {
@@ -125,7 +124,10 @@ fun RegisterScreen(
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is RegisterViewModel.Event.SignUpSuccess -> onSignUpSuccess()
+                is RegisterViewModel.Event.SignUpSuccess -> onSignUpSuccess(
+                    event.initialVerificationEmailSent,
+                    event.message
+                )
             }
         }
     }
@@ -242,7 +244,23 @@ fun RegisterScreen(
                     singleLine = true
                 )
                 if (email.isNotEmpty() && !isEmailValid) {
-                    ErrorText("Please enter a valid email address")
+                    ErrorText(emailValidation.message ?: "Please enter a valid email address")
+                    emailValidation.suggestedEmail?.let { suggestedEmail ->
+                        TextButton(
+                            onClick = {
+                                email = suggestedEmail
+                                viewModel.clearError()
+                            },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                text = "Use $suggestedEmail",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -288,7 +306,10 @@ fun RegisterScreen(
                 if (password.isNotEmpty() && !isPasswordValid) {
                     val errorMsg = when {
                         passwordStrength == 1 -> "Password must be at least 8 characters"
-                        password.lowercase().windowed(3).any { it[1] == it[0] + 1 && it[2] == it[1] + 1 } -> "Avoid simple sequences like '123' or 'abc'"
+                        password.lowercase().windowed(3).any {
+                            (it[1] == it[0] + 1 && it[2] == it[1] + 1) ||
+                                (it[1] == it[0] - 1 && it[2] == it[1] - 1)
+                        } -> "Avoid simple sequences like '123' or 'abc'"
                         passwordStrength == 2 -> "Mix uppercase, lowercase, numbers, and symbols"
                         else -> "Password must be 'Good' or 'Strong'"
                     }
@@ -345,7 +366,7 @@ fun RegisterScreen(
                 Button(
                     onClick = {
                         if (isFormValid) {
-                            viewModel.register(email, password)
+                            viewModel.register(emailValidation.normalizedEmail, password)
                         }
                     },
                     enabled = isFormValid && !isLoading,

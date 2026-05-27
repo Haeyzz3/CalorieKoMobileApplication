@@ -41,6 +41,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.room.withTransaction
 import com.calorieko.app.ble.BleScaleManager
 import com.calorieko.app.data.local.AppDatabase
 import com.calorieko.app.data.model.UserProfile
@@ -54,6 +55,8 @@ import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoTheme
 import com.calorieko.app.viewmodel.RestoreViewModel
 import com.calorieko.app.data.remote.api.AutoSyncManager
+import com.calorieko.app.util.PendingOnboardingProfile
+import com.calorieko.app.util.PendingOnboardingStore
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material3.TextButton
 import kotlinx.coroutines.launch
@@ -98,6 +101,7 @@ fun AppNavigation() {
 
     // Auth repository for all authentication screens
     val authRepo = remember { com.calorieko.app.data.repository.AuthRepository(auth) }
+    val pendingOnboardingStore = remember { PendingOnboardingStore(context) }
 
     // Cloud restore manager for pull-from-cloud on login
     val cloudRestoreManager = remember {
@@ -166,8 +170,94 @@ fun AppNavigation() {
     var targetFats by remember { mutableStateOf(65) }
 
     var setupGoalId by remember { mutableStateOf("") } // Add this to hold the goal ID temporarily
+    var initialVerificationEmailSent by remember { mutableStateOf(true) }
+    var initialVerificationMessage by remember { mutableStateOf<String?>(null) }
 
+    fun applyPendingTargets(profile: PendingOnboardingProfile) {
+        setupName = profile.name
+        setupAge = profile.age
+        setupHeight = profile.height
+        setupWeight = profile.weight
+        setupSex = profile.sex
+        setupActivityLevel = profile.activityLevel
+        setupGoalId = profile.goal
+        setupGoalTitle = profile.goalTitle
 
+        val targets = nutritionalRepo.getTargets(
+            age = profile.age,
+            sex = profile.sex,
+            heightCm = profile.height,
+            weightKg = profile.weight,
+            activityLevel = profile.activityLevel,
+            goal = profile.goal
+        )
+        targetCalories = targets.targetCalories
+        targetProtein = targets.targetProtein
+        targetCarbs = targets.targetCarbs
+        targetFats = targets.targetFats
+        targetSodium = targets.targetSodium
+    }
+
+    fun applyInitialVerificationState(uid: String) {
+        val pendingProfile = pendingOnboardingStore.getForUid(uid)
+        initialVerificationEmailSent = pendingProfile?.initialVerificationEmailSent ?: true
+        initialVerificationMessage = pendingProfile?.initialVerificationMessage
+    }
+
+    suspend fun createVerifiedPendingProfile(uid: String): Boolean {
+        val pendingProfile = pendingOnboardingStore.getForUid(uid) ?: return false
+        val currentUser = auth.currentUser ?: return false
+        val existingProfile = userDao.getUser(uid)
+        if (existingProfile != null) {
+            pendingOnboardingStore.clear(uid)
+            return false
+        }
+
+        applyPendingTargets(pendingProfile)
+        val userProfile = UserProfile(
+            uid = uid,
+            name = pendingProfile.name.ifEmpty { currentUser.displayName ?: "User" },
+            email = pendingProfile.email.ifEmpty { currentUser.email ?: "" },
+            age = pendingProfile.age,
+            weight = pendingProfile.weight,
+            height = pendingProfile.height,
+            sex = pendingProfile.sex,
+            activityLevel = pendingProfile.activityLevel,
+            goal = pendingProfile.goal,
+            onboardingCompleted = false
+        )
+
+        val initialWeightLog = WeightLogEntity(
+            uid = uid,
+            dateEpochDay = LocalDate.now().toEpochDay(),
+            weightKg = userProfile.weight,
+            timestamp = pendingProfile.createdAtMillis
+        )
+
+        db.withTransaction {
+            userDao.insertUser(userProfile)
+            db.weightLogDao().upsertWeightLog(initialWeightLog)
+        }
+
+        firestoreSyncRepo.syncProfile(uid, userProfile)
+        firestoreSyncRepo.syncWeightLog(uid, initialWeightLog)
+        AutoSyncManager.triggerSync(context.applicationContext, uid)
+        pendingOnboardingStore.clear(uid)
+        return true
+    }
+
+    fun continueAfterVerifiedAuth(uid: String) {
+        scope.launch {
+            val createdPendingProfile = createVerifiedPendingProfile(uid)
+            if (createdPendingProfile) {
+                navController.navigate("targetSummary") {
+                    popUpTo(0) { inclusive = true }
+                }
+            } else {
+                restoreViewModel.restore(uid)
+            }
+        }
+    }
 
     // ── Global keyboard dismissal on navigation ──
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -192,7 +282,7 @@ fun AppNavigation() {
                 onAlreadyLoggedIn = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
-                        restoreViewModel.restore(uid)
+                        continueAfterVerifiedAuth(uid)
                     } else {
                         navController.navigate("dashboard") {
                             popUpTo("splash") { inclusive = true }
@@ -200,6 +290,7 @@ fun AppNavigation() {
                     }
                 },
                 onVerificationRequired = {
+                    auth.currentUser?.uid?.let { uid -> applyInitialVerificationState(uid) }
                     navController.navigate("verificationPending") {
                         popUpTo("splash") { inclusive = true }
                     }
@@ -233,7 +324,7 @@ fun AppNavigation() {
                 onLoginSuccess = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
-                        restoreViewModel.restore(uid)
+                        continueAfterVerifiedAuth(uid)
                     } else {
                         navController.navigate("dashboard") {
                             popUpTo(0) { inclusive = true }
@@ -311,26 +402,11 @@ fun AppNavigation() {
             )
             RegisterScreen(
                 viewModel = registerViewModel,
-                onSignUpSuccess = {
-                    // --- 1. Metric calculations ---
-                    val targets = nutritionalRepo.getTargets(
-                        age = setupAge,
-                        sex = setupSex,
-                        heightCm = setupHeight,
-                        weightKg = setupWeight,
-                        activityLevel = setupActivityLevel,
-                        goal = setupGoalId
-                    )
-                    targetCalories = targets.targetCalories
-                    targetProtein = targets.targetProtein
-                    targetCarbs = targets.targetCarbs
-                    targetFats = targets.targetFats
-                    targetSodium = targets.targetSodium
-
-                    // --- 2. Database Save & Navigation ---
+                onSignUpSuccess = { verificationEmailSent, verificationMessage ->
                     val currentUser = auth.currentUser
                     if (currentUser != null) {
-                        val userProfile = UserProfile(
+                        val createdAtMillis = System.currentTimeMillis()
+                        val pendingProfile = PendingOnboardingProfile(
                             uid = currentUser.uid,
                             name = setupName.ifEmpty { currentUser.displayName ?: "User" },
                             email = currentUser.email ?: "",
@@ -340,35 +416,19 @@ fun AppNavigation() {
                             sex = setupSex,
                             activityLevel = setupActivityLevel,
                             goal = setupGoalId,
-                            onboardingCompleted = false // New user, must complete onboarding
+                            goalTitle = setupGoalTitle,
+                            createdAtMillis = createdAtMillis,
+                            initialVerificationEmailSent = verificationEmailSent,
+                            initialVerificationMessage = verificationMessage
                         )
-                        scope.launch {
-                            userDao.insertUser(userProfile)
-                            val initialWeightLog = WeightLogEntity(
-                                uid = currentUser.uid,
-                                dateEpochDay = LocalDate.now().toEpochDay(),
-                                weightKg = userProfile.weight,
-                                timestamp = System.currentTimeMillis()
-                            )
-                            db.weightLogDao().upsertWeightLog(initialWeightLog)
-
-                            // Sync new profile to Firestore
-                            firestoreSyncRepo.syncProfile(currentUser.uid, userProfile)
-                            firestoreSyncRepo.syncWeightLog(currentUser.uid, initialWeightLog)
-
-                            // Auto-sync to Laravel backend
-                            AutoSyncManager.triggerSync(
-                                context.applicationContext, currentUser.uid
-                            )
-
-                            navController.navigate("verificationPending") {
-                                popUpTo("intro") { inclusive = true }
-                            }
+                        applyPendingTargets(pendingProfile)
+                        initialVerificationEmailSent = verificationEmailSent
+                        initialVerificationMessage = verificationMessage
+                        pendingOnboardingStore.save(pendingProfile)
+                        navController.navigate("verificationPending") {
+                            popUpTo("intro") { inclusive = true }
                         }
                     }
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
                 }
             )
         }
@@ -382,16 +442,18 @@ fun AppNavigation() {
             )
             VerificationPendingScreen(
                 viewModel = verificationViewModel,
+                initialVerificationEmailSent = initialVerificationEmailSent,
+                initialMessage = initialVerificationMessage,
                 onVerificationSuccess = {
                     val uid = auth.currentUser?.uid
                     if (uid != null) {
-                        // After verification, we try to restore (which checks onboarding status)
-                        restoreViewModel.restore(uid)
+                        continueAfterVerifiedAuth(uid)
                     } else {
                         navController.navigate("intro") { popUpTo(0) { inclusive = true } }
                     }
                 },
                 onCancel = {
+                    pendingOnboardingStore.clear(auth.currentUser?.uid)
                     navController.navigate("intro") { popUpTo(0) { inclusive = true } }
                 }
             )

@@ -35,10 +35,6 @@ class VerificationViewModel(
     private val _resendCooldown = MutableStateFlow(0)
     val resendCooldown: StateFlow<Int> = _resendCooldown.asStateFlow()
 
-    init {
-        startCooldown()
-    }
-
     fun checkVerificationStatus() {
         _isLoading.value = true
         viewModelScope.launch {
@@ -69,6 +65,13 @@ class VerificationViewModel(
                 _message.value = "We've sent too many requests recently. For your security, please wait a minute before trying again, and remember to check your spam folder."
                 startCooldown()
             }
+        }
+    }
+
+    fun setInitialVerificationState(emailSent: Boolean, message: String?) {
+        _message.value = message
+        if (emailSent && _resendCooldown.value == 0) {
+            startCooldown()
         }
     }
 

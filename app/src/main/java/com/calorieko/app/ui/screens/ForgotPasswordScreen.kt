@@ -61,6 +61,7 @@ import com.calorieko.app.ui.theme.CalorieKoGreen
 import com.calorieko.app.ui.theme.CalorieKoLightGreen
 import com.calorieko.app.ui.theme.CalorieKoOrange
 import com.calorieko.app.ui.theme.CalorieKoDarkOrange
+import com.calorieko.app.util.EmailValidator
 
 // (Brand Colors are inherited from theme or Color.kt)
 
@@ -77,6 +78,7 @@ fun ForgotPasswordScreen(
 
     // ── Local form state ──
     var email by remember { mutableStateOf("") }
+    val emailValidation = remember(email) { EmailValidator.validate(email) }
     val focusManager = LocalFocusManager.current
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -231,6 +233,25 @@ fun ForgotPasswordScreen(
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
+
+                if (email.isNotEmpty() && !emailValidation.isValid) {
+                    emailValidation.suggestedEmail?.let { suggestedEmail ->
+                        TextButton(
+                            onClick = {
+                                email = suggestedEmail
+                                viewModel.clearMessages()
+                            },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                text = "Use $suggestedEmail",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 

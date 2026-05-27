@@ -1,5 +1,6 @@
 package com.calorieko.app.data.repository
 
+import com.calorieko.app.util.EmailValidator
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
 
@@ -22,6 +23,15 @@ class AuthRepository(
         data class Error(val message: String) : AuthResult()
     }
 
+    sealed class RegistrationResult {
+        data class AccountCreated(
+            val initialVerificationEmailSent: Boolean,
+            val message: String?
+        ) : RegistrationResult()
+
+        data class Error(val message: String) : RegistrationResult()
+    }
+
     sealed class ResetResult {
         data class Success(val message: String) : ResetResult()
         data class Error(val message: String) : ResetResult()
@@ -41,7 +51,7 @@ class AuthRepository(
      */
     suspend fun signInWithEmail(email: String, password: String): AuthResult {
         return try {
-            auth.signInWithEmailAndPassword(email.trim(), password).await()
+            auth.signInWithEmailAndPassword(EmailValidator.normalize(email), password).await()
             val user = auth.currentUser
             if (user != null && user.isEmailVerified) {
                 AuthResult.Success
@@ -67,22 +77,33 @@ class AuthRepository(
     /**
      * Creates a new account with email/password and sends a verification email.
      */
-    suspend fun createAccount(email: String, password: String): AuthResult {
+    suspend fun createAccount(email: String, password: String): RegistrationResult {
         return try {
-            auth.createUserWithEmailAndPassword(email, password).await()
-            // Send email verification (fire-and-forget)
-            auth.currentUser?.sendEmailVerification()
-            AuthResult.Success
+            auth.createUserWithEmailAndPassword(EmailValidator.normalize(email), password).await()
+            val user = auth.currentUser
+                ?: return RegistrationResult.Error("Registration failed. Please try again.")
+            try {
+                user.sendEmailVerification().await()
+                RegistrationResult.AccountCreated(
+                    initialVerificationEmailSent = true,
+                    message = null
+                )
+            } catch (_: Exception) {
+                RegistrationResult.AccountCreated(
+                    initialVerificationEmailSent = false,
+                    message = "Your account was created, but we couldn't send the verification email. Please use Resend Verification Email to try again."
+                )
+            }
         } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
-            AuthResult.Error("This email is already registered. Please login instead.")
+            RegistrationResult.Error("This email is already registered. Please login instead.")
         } catch (e: com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
-            AuthResult.Error("Password is too weak. Please use at least 8 characters.")
+            RegistrationResult.Error("Password is too weak. Please use at least 8 characters.")
         } catch (e: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
-            AuthResult.Error("Please enter a valid email address.")
+            RegistrationResult.Error("Please enter a valid email address.")
         } catch (e: com.google.firebase.FirebaseNetworkException) {
-            AuthResult.Error("No internet connection. Please check your network and try again.")
+            RegistrationResult.Error("No internet connection. Please check your network and try again.")
         } catch (e: Exception) {
-            AuthResult.Error("Registration failed. Please check your details and try again.")
+            RegistrationResult.Error("Registration failed. Please check your details and try again.")
         }
     }
 
@@ -93,8 +114,9 @@ class AuthRepository(
      */
     suspend fun sendPasswordResetEmail(email: String): ResetResult {
         return try {
-            auth.sendPasswordResetEmail(email.trim()).await()
-            ResetResult.Success("A password reset link has been sent to $email")
+            val normalizedEmail = EmailValidator.normalize(email)
+            auth.sendPasswordResetEmail(normalizedEmail).await()
+            ResetResult.Success("A password reset link has been sent to $normalizedEmail")
         } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
             ResetResult.Error("No account found with that email address.")
         } catch (e: com.google.firebase.FirebaseNetworkException) {

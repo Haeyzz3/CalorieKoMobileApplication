@@ -34,6 +34,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun VerificationPendingScreen(
     viewModel: VerificationViewModel,
+    initialVerificationEmailSent: Boolean = true,
+    initialMessage: String? = null,
     onVerificationSuccess: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -43,6 +45,10 @@ fun VerificationPendingScreen(
     val message by viewModel.message.collectAsState()
 
     var showContent by remember { mutableStateOf(false) }
+
+    LaunchedEffect(initialVerificationEmailSent, initialMessage) {
+        viewModel.setInitialVerificationState(initialVerificationEmailSent, initialMessage)
+    }
 
     LaunchedEffect(Unit) {
         delay(300)
