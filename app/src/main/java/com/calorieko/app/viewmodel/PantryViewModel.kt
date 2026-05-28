@@ -391,13 +391,17 @@ class PantryViewModel(
             combine(plannedMeals, _weekLoggedDishes) { planned, loggedSet ->
                 planned to loggedSet
             }.collect { (planned, loggedSet) ->
-                _cellCompletionStatus.value = deriveCellCompletionStatus(planned, loggedSet)
-                // Compute adherence
-                val totalPlanned = planned.size
-                val totalLogged = planned.count { meal ->
-                    (normalizeSlotName(meal.mealSlot) to normalizeDishName(meal.dishLabel)) in loggedSet
-                }
-                _weeklyAdherence.value = if (totalPlanned > 0) "$totalLogged/$totalPlanned" else ""
+                val cellStatuses = deriveCellCompletionStatus(planned, loggedSet)
+                _cellCompletionStatus.value = cellStatuses
+
+                val loggedCount = cellStatuses.values.count { it == CellCompletionStatus.LOGGED }
+                val skippedCount = cellStatuses.values.count { it == CellCompletionStatus.SKIPPED }
+                val activePlannedCount = cellStatuses.size - skippedCount
+                _weeklyAdherence.value = formatWeeklyAdherence(
+                    loggedCount = loggedCount,
+                    activePlannedCount = activePlannedCount,
+                    skippedCount = skippedCount
+                )
             }
         }
     }
@@ -1536,6 +1540,19 @@ class PantryViewModel(
             }
         }
         return result
+    }
+
+    private fun formatWeeklyAdherence(
+        loggedCount: Int,
+        activePlannedCount: Int,
+        skippedCount: Int
+    ): String {
+        if (activePlannedCount == 0 && skippedCount == 0) return ""
+
+        val base = "$loggedCount/$activePlannedCount"
+        if (skippedCount == 0) return base
+
+        return "$base ($skippedCount skipped)"
     }
 
     /** Skips an entire meal slot (sets status = "skipped" for all dishes in the slot). */
