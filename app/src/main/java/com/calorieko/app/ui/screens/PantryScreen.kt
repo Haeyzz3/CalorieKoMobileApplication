@@ -1057,6 +1057,17 @@ fun MealPlanCalendarSection(
     // "Add Dish to this slot" flow from Meal Detail Dialog
     val showAddDishToSlot = remember { mutableStateOf(false) }
 
+    // Destructive action confirmations from Meal Detail Dialog
+    val dishPendingRemoval = remember { mutableStateOf<PlannedMealEntity?>(null) }
+    val dishRemovalDayIndex = remember { mutableIntStateOf(-1) }
+    val dishRemovalSlot = remember { mutableStateOf("") }
+    val dishRemovalDisplayName = remember { mutableStateOf("") }
+    val dishRemovalLeavesMealEmpty = remember { mutableStateOf(false) }
+    val showClearMealSlotDialog = remember { mutableStateOf(false) }
+    val clearMealSlotDayIndex = remember { mutableIntStateOf(-1) }
+    val clearMealSlotName = remember { mutableStateOf("") }
+    val clearMealSlotDishCount = remember { mutableIntStateOf(0) }
+
     val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
     val slotEmojis = mapOf("Breakfast" to "☀️", "Lunch" to "🌤️", "Dinner" to "🌙", "Snack" to "🍿")
     val slotColors = mapOf(
@@ -1740,10 +1751,11 @@ fun MealPlanCalendarSection(
                                             if (isEditable) {
                                                 IconButton(
                                                     onClick = {
-                                                        viewModel.removeDishFromSlot(dayIdx, slot, meal.dishLabel)
-                                                        if (slotMeals.size <= 1) {
-                                                            showMealDetail.value = false
-                                                        }
+                                                        dishPendingRemoval.value = meal
+                                                        dishRemovalDayIndex.intValue = dayIdx
+                                                        dishRemovalSlot.value = slot
+                                                        dishRemovalDisplayName.value = primaryDishName
+                                                        dishRemovalLeavesMealEmpty.value = slotMeals.size <= 1
                                                     },
                                                     modifier = Modifier.size(28.dp)
                                                 ) {
@@ -1878,8 +1890,10 @@ fun MealPlanCalendarSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.clearMealSlot(dayIdx, slot)
-                                        showMealDetail.value = false
+                                        clearMealSlotDayIndex.intValue = dayIdx
+                                        clearMealSlotName.value = slot
+                                        clearMealSlotDishCount.intValue = slotMeals.size
+                                        showClearMealSlotDialog.value = true
                                     },
                                 color = Color(0xFFFEE2E2),
                                 shape = RoundedCornerShape(12.dp)
@@ -1954,6 +1968,103 @@ fun MealPlanCalendarSection(
                     }
                 }
             }
+        }
+    }
+
+    dishPendingRemoval.value?.let { meal ->
+        val dayIdx = dishRemovalDayIndex.intValue
+        val slot = dishRemovalSlot.value
+        if (dayIdx in days.indices && slot.isNotBlank()) {
+            val dayLabel = "${days[dayIdx].first} ${days[dayIdx].second}"
+            val dishName = dishRemovalDisplayName.value.ifBlank { viewModel.formatIngredientName(meal.dishLabel) }
+            AlertDialog(
+                onDismissRequest = {
+                    dishPendingRemoval.value = null
+                    dishRemovalDayIndex.intValue = -1
+                    dishRemovalSlot.value = ""
+                    dishRemovalDisplayName.value = ""
+                    dishRemovalLeavesMealEmpty.value = false
+                },
+                title = { Text("Remove dish?") },
+                text = {
+                    Text(
+                        if (dishRemovalLeavesMealEmpty.value) {
+                            "Remove $dishName from $dayLabel $slot? This will leave the meal empty."
+                        } else {
+                            "Remove $dishName from $dayLabel $slot? You can add it again later."
+                        }
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.removeDishFromSlot(dayIdx, slot, meal.dishLabel)
+                        if (dishRemovalLeavesMealEmpty.value) {
+                            showMealDetail.value = false
+                        }
+                        dishPendingRemoval.value = null
+                        dishRemovalDayIndex.intValue = -1
+                        dishRemovalSlot.value = ""
+                        dishRemovalDisplayName.value = ""
+                        dishRemovalLeavesMealEmpty.value = false
+                    }) {
+                        Text("Remove Dish", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        dishPendingRemoval.value = null
+                        dishRemovalDayIndex.intValue = -1
+                        dishRemovalSlot.value = ""
+                        dishRemovalDisplayName.value = ""
+                        dishRemovalLeavesMealEmpty.value = false
+                    }) {
+                        Text("Keep Dish")
+                    }
+                }
+            )
+        }
+    }
+
+    if (showClearMealSlotDialog.value) {
+        val dayIdx = clearMealSlotDayIndex.intValue
+        val slot = clearMealSlotName.value
+        if (dayIdx in days.indices && slot.isNotBlank()) {
+            val dayLabel = "${days[dayIdx].first} ${days[dayIdx].second}"
+            val dishCount = clearMealSlotDishCount.intValue
+            AlertDialog(
+                onDismissRequest = {
+                    showClearMealSlotDialog.value = false
+                    clearMealSlotDayIndex.intValue = -1
+                    clearMealSlotName.value = ""
+                    clearMealSlotDishCount.intValue = 0
+                },
+                title = { Text("Clear meal?") },
+                text = {
+                    Text("Remove all $dishCount dish${if (dishCount == 1) "" else "es"} from $dayLabel $slot? You can add dishes again later.")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.clearMealSlot(dayIdx, slot)
+                        showMealDetail.value = false
+                        showClearMealSlotDialog.value = false
+                        clearMealSlotDayIndex.intValue = -1
+                        clearMealSlotName.value = ""
+                        clearMealSlotDishCount.intValue = 0
+                    }) {
+                        Text("Clear Meal", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showClearMealSlotDialog.value = false
+                        clearMealSlotDayIndex.intValue = -1
+                        clearMealSlotName.value = ""
+                        clearMealSlotDishCount.intValue = 0
+                    }) {
+                        Text("Keep Meal")
+                    }
+                }
+            )
         }
     }
 
@@ -2282,9 +2393,9 @@ fun MealPlanCalendarSection(
         }
         val protectedNote = if (protectedCount > 0) " Logged and skipped meals will be preserved." else ""
         val clearWeekMessage = if (hasPastPlannedMeals) {
-            "Are you sure you want to remove $clearableCount remaining planned dish${if (clearableCount == 1) "" else "es"}? Past planned meals will be kept.$protectedNote"
+            "Remove $clearableCount remaining planned dish${if (clearableCount == 1) "" else "es"} from this week? Past planned meals will be kept.$protectedNote"
         } else {
-            "Are you sure you want to remove all $clearableCount planned dish${if (clearableCount == 1) "" else "es"} for this week?$protectedNote"
+            "Remove all $clearableCount planned dish${if (clearableCount == 1) "" else "es"} from this week?$protectedNote"
         }
         AlertDialog(
             onDismissRequest = { showClearWeekDialog.value = false },
@@ -2317,7 +2428,7 @@ fun MealPlanCalendarSection(
         AlertDialog(
             onDismissRequest = { showClearDayDialog.value = false },
             title = { Text("Clear $dayName") },
-            text = { Text("Are you sure you want to remove $dayMealCount planned dish${if (dayMealCount > 1) "es" else ""} for $dayName?$dayProtectedNote") },
+            text = { Text("Remove $dayMealCount planned dish${if (dayMealCount == 1) "" else "es"} from $dayName?$dayProtectedNote") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearMealDay(clearDayIndex.intValue)

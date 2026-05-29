@@ -825,14 +825,27 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
                 return@launch
             }
-            // Prevent removing dishes from logged slots
+            // Prevent removing dishes from protected slots.
             val slotKey = "${dayIndex}_${mealSlot}"
-            if (_cellCompletionStatus.value[slotKey] == CellCompletionStatus.LOGGED) {
-                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+            val slotStatus = _cellCompletionStatus.value[slotKey]
+            if (slotStatus == CellCompletionStatus.LOGGED || slotStatus == CellCompletionStatus.SKIPPED) {
+                val message = if (slotStatus == CellCompletionStatus.LOGGED) {
+                    "This meal has already been logged."
+                } else {
+                    "This meal is skipped."
+                }
+                _uiEvents.emit(PantryUiEvent.Snackbar(message))
                 return@launch
             }
 
-            mealPlanDao.removeDish(uid, dayIndex, week, mealSlot, dishLabel)
+            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
+            val mealToRemove = slotMeals.firstOrNull { it.dishLabel == dishLabel }
+            if (mealToRemove == null || mealToRemove.status !in listOf("planned", "missed")) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Logged and skipped meals are preserved."))
+                return@launch
+            }
+
+            mealPlanDao.removeDishClearableOnly(uid, dayIndex, week, mealSlot, dishLabel)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try { firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, mealSlot, dishLabel) } catch (_: Exception) {}
@@ -850,22 +863,41 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
                 return@launch
             }
-            // Prevent clearing logged slots
+            // Prevent clearing protected slots.
             val slotKey = "${dayIndex}_${mealSlot}"
-            if (_cellCompletionStatus.value[slotKey] == CellCompletionStatus.LOGGED) {
-                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+            val slotStatus = _cellCompletionStatus.value[slotKey]
+            if (slotStatus == CellCompletionStatus.LOGGED || slotStatus == CellCompletionStatus.SKIPPED) {
+                val message = if (slotStatus == CellCompletionStatus.LOGGED) {
+                    "This meal has already been logged."
+                } else {
+                    "This meal is skipped."
+                }
+                _uiEvents.emit(PantryUiEvent.Snackbar(message))
                 return@launch
             }
 
-            mealPlanDao.clearSlot(uid, dayIndex, week, mealSlot)
+            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
+            val clearableMeals = slotMeals.filter { it.status in listOf("planned", "missed") }
+            if (clearableMeals.isEmpty()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("No clearable meals - logged and skipped meals are preserved."))
+                return@launch
+            }
+
+            mealPlanDao.clearSlotClearableOnly(uid, dayIndex, week, mealSlot)
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
-                    try { firestoreSyncRepo.deletePlannedMealSlot(uid, dayIndex, week, mealSlot) } catch (_: Exception) {}
+                    try {
+                        for (meal in clearableMeals) {
+                            firestoreSyncRepo.deletePlannedMeal(uid, dayIndex, week, mealSlot, meal.dishLabel)
+                        }
+                    } catch (_: Exception) {}
                 }
                 AutoSyncManager.triggerSync(appContext, uid)
             }
             recomputeWeekScrubberData()
-            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared $mealSlot."))
+            val protectedCount = slotMeals.size - clearableMeals.size
+            val suffix = if (protectedCount > 0) " ($protectedCount logged/skipped preserved)" else ""
+            _uiEvents.emit(PantryUiEvent.Snackbar("Cleared ${clearableMeals.size} planned dish${if (clearableMeals.size == 1) "" else "es"} from $mealSlot$suffix."))
         }
     }
 
@@ -1216,30 +1248,64 @@ class PantryViewModel(
         val fats: Int
     )
 
+    private suspend fun getPlannedDishNutrition(
+        dishLabel: String,
+        substitutionsJson: String = "",
+        scaledServings: Int = 0,
+        tweaksJson: String = ""
+    ): DishNutritionInfo {
+        val subs = parseSubstitutionsJson(substitutionsJson)
+        val tweaks = parseTweaksJson(tweaksJson)
+        val baseNutrition = if (tweaks.isNotEmpty()) {
+            calculator.calculateWithTweaks(dishLabel, tweaks, subs).first.toDishNutritionInfo()
+        } else if (subs.isNotEmpty()) {
+            calculator.calculateWithSubstitution(dishLabel, subs).toDishNutritionInfo()
+        } else {
+            getDishNutrition(dishLabel)
+        }
+        return scaleNutritionForServings(dishLabel, baseNutrition, scaledServings)
+    }
+
+    private suspend fun scaleNutritionForServings(
+        dishLabel: String,
+        nutrition: DishNutritionInfo,
+        scaledServings: Int
+    ): DishNutritionInfo {
+        if (scaledServings <= 0) return nutrition
+
+        val originalServings = getDishDisplayNames(dishLabel).servings.coerceAtLeast(1)
+        val factor = scaledServings.toFloat() / originalServings.toFloat()
+        if (factor == 1f) return nutrition
+
+        return nutrition.copy(
+            calories = (nutrition.calories * factor).toInt(),
+            protein = (nutrition.protein * factor).toInt(),
+            carbs = (nutrition.carbs * factor).toInt(),
+            fats = (nutrition.fats * factor).toInt(),
+            fiber = nutrition.fiber * factor,
+            sugar = nutrition.sugar * factor,
+            sodium = (nutrition.sodium * factor).toInt(),
+            potassium = nutrition.potassium * factor,
+            vitaminA = nutrition.vitaminA * factor,
+            vitaminC = nutrition.vitaminC * factor,
+            calcium = nutrition.calcium * factor,
+            iron = nutrition.iron * factor
+        )
+    }
+
     /**
      * Returns compact nutrition info for a dish.
      * Used for inline display in the Meal Detail Dialog without loading full ingredient details.
      * When [substitutionsJson] is non-empty, nutrition is recalculated with the substitutions.
      */
-    @Suppress("UNUSED_PARAMETER")
     suspend fun getCompactNutrition(
         dishLabel: String,
         substitutionsJson: String = "",
         scaledServings: Int = 0,
         tweaksJson: String = ""
     ): CompactDishNutrition {
-        val subs = parseSubstitutionsJson(substitutionsJson)
-        val tweaks = parseTweaksJson(tweaksJson)
-        return if (tweaks.isNotEmpty()) {
-            val r = calculator.calculateWithTweaks(dishLabel, tweaks, subs).first
-            CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
-        } else if (subs.isNotEmpty()) {
-            val r = calculator.calculateWithSubstitution(dishLabel, subs)
-            CompactDishNutrition(r.calories.toInt(), r.protein.toInt(), r.carbs.toInt(), r.fat.toInt())
-        } else {
-            val n = getDishNutrition(dishLabel)
-            CompactDishNutrition(n.calories, n.protein, n.carbs, n.fats)
-        }
+        val nutrition = getPlannedDishNutrition(dishLabel, substitutionsJson, scaledServings, tweaksJson)
+        return CompactDishNutrition(nutrition.calories, nutrition.protein, nutrition.carbs, nutrition.fats)
     }
 
     /**
@@ -1266,6 +1332,7 @@ class PantryViewModel(
             val recipe = dishRecipeDao.getByDishLabel(dishLabel) ?: return null
             val dishDisplayNames = getDishDisplayNames(dishLabel)
             val nutrition = getDishNutrition(dishLabel)
+            val scaledNutrition = scaleNutritionForServings(dishLabel, nutrition, scaledServings)
             return DishResult(
                 dishLabel = dishLabel,
                 dishName = dishDisplayNames.primaryName,
@@ -1277,18 +1344,18 @@ class PantryViewModel(
                 missingOptionalIngredients = emptyList(),
                 coreMatchedCount = 0,
                 coreTotalCount = recipe.ingredientCount,
-                calories = nutrition.calories,
-                protein = nutrition.protein,
-                carbs = nutrition.carbs,
-                fats = nutrition.fats,
-                fiber = nutrition.fiber,
-                sugar = nutrition.sugar,
-                sodium = nutrition.sodium,
-                potassium = nutrition.potassium,
-                vitaminA = nutrition.vitaminA,
-                vitaminC = nutrition.vitaminC,
-                calcium = nutrition.calcium,
-                iron = nutrition.iron,
+                calories = scaledNutrition.calories,
+                protein = scaledNutrition.protein,
+                carbs = scaledNutrition.carbs,
+                fats = scaledNutrition.fats,
+                fiber = scaledNutrition.fiber,
+                sugar = scaledNutrition.sugar,
+                sodium = scaledNutrition.sodium,
+                potassium = scaledNutrition.potassium,
+                vitaminA = scaledNutrition.vitaminA,
+                vitaminC = scaledNutrition.vitaminC,
+                calcium = scaledNutrition.calcium,
+                iron = scaledNutrition.iron,
                 servingSizeDescription = dishDisplayNames.servingSizeDescription,
                 originalServings = dishDisplayNames.servings,
                 appliedSubstitutions = subs,
@@ -1349,6 +1416,7 @@ class PantryViewModel(
         }
 
         val dishDisplayNames = getDishDisplayNames(dishLabel)
+        val scaledNutrition = scaleNutritionForServings(dishLabel, nutrition, scaledServings)
 
         // Get actual ingredient count from recipe entity for accurate UI rendering
         val recipeEntity = dishRecipeDao.getByDishLabel(dishLabel)
@@ -1370,18 +1438,18 @@ class PantryViewModel(
             missingOptionalIngredients = emptyList(),
             coreMatchedCount = actualIngredientCount,
             coreTotalCount = actualIngredientCount,
-            calories = nutrition.calories,
-            protein = nutrition.protein,
-            carbs = nutrition.carbs,
-            fats = nutrition.fats,
-            fiber = nutrition.fiber,
-            sugar = nutrition.sugar,
-            sodium = nutrition.sodium,
-            potassium = nutrition.potassium,
-            vitaminA = nutrition.vitaminA,
-            vitaminC = nutrition.vitaminC,
-            calcium = nutrition.calcium,
-            iron = nutrition.iron,
+            calories = scaledNutrition.calories,
+            protein = scaledNutrition.protein,
+            carbs = scaledNutrition.carbs,
+            fats = scaledNutrition.fats,
+            fiber = scaledNutrition.fiber,
+            sugar = scaledNutrition.sugar,
+            sodium = scaledNutrition.sodium,
+            potassium = scaledNutrition.potassium,
+            vitaminA = scaledNutrition.vitaminA,
+            vitaminC = scaledNutrition.vitaminC,
+            calcium = scaledNutrition.calcium,
+            iron = scaledNutrition.iron,
             servingSizeDescription = dishDisplayNames.servingSizeDescription,
             originalServings = dishDisplayNames.servings,
             perServingWeightG = dishDisplayNames.perServingWeightG,
@@ -1441,21 +1509,14 @@ class PantryViewModel(
         var totalSodium = 0
 
         for (meal in meals) {
-            val substitutions = parseSubstitutionsJson(meal.substitutionsJson)
-            val tweaks = parseTweaksJson(meal.tweaksJson)
-            if (tweaks.isNotEmpty()) {
-                val nutrition = calculator.calculateWithTweaks(meal.dishLabel, tweaks, substitutions).first
-                totalCalories += nutrition.calories.toInt()
-                totalSodium += nutrition.sodium.toInt()
-            } else if (substitutions.isNotEmpty()) {
-                val nutrition = calculator.calculateWithSubstitution(meal.dishLabel, substitutions)
-                totalCalories += nutrition.calories.toInt()
-                totalSodium += nutrition.sodium.toInt()
-            } else {
-                val nutrition = getDishNutrition(meal.dishLabel)
-                totalCalories += nutrition.calories
-                totalSodium += nutrition.sodium
-            }
+            val nutrition = getPlannedDishNutrition(
+                meal.dishLabel,
+                meal.substitutionsJson,
+                meal.scaledServings,
+                meal.tweaksJson
+            )
+            totalCalories += nutrition.calories
+            totalSodium += nutrition.sodium
         }
 
         _weeklyCalories.value = totalCalories

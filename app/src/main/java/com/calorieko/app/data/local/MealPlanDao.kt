@@ -19,9 +19,26 @@ interface MealPlanDao {
     @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot AND dish_label = :dishLabel")
     suspend fun removeDish(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String)
 
+    /** Removes one clearable dish from a specific slot. Preserves logged & skipped rows. */
+    @Query("""
+        DELETE FROM PLANNED_MEALS_TABLE
+        WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate
+          AND meal_slot = :mealSlot AND dish_label = :dishLabel
+          AND status IN ('planned', 'missed')
+    """)
+    suspend fun removeDishClearableOnly(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String)
+
     /** Removes all dishes from a specific slot (clears the entire meal). */
     @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot")
     suspend fun clearSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String)
+
+    /** Removes only clearable dishes from a specific slot. Preserves logged & skipped rows. */
+    @Query("""
+        DELETE FROM PLANNED_MEALS_TABLE
+        WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate
+          AND meal_slot = :mealSlot AND status IN ('planned', 'missed')
+    """)
+    suspend fun clearSlotClearableOnly(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String)
 
     @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND week_start_date = :weekStartDate ORDER BY day_index ASC")
     fun getMealsForWeek(uid: String, weekStartDate: String): Flow<List<PlannedMealEntity>>
@@ -48,6 +65,10 @@ interface MealPlanDao {
     /** One-shot fetch of meals for a specific day and week (for notifications, status updates). */
     @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate")
     suspend fun getMealsForDayOneShot(uid: String, dayIndex: Int, weekStartDate: String): List<PlannedMealEntity>
+
+    /** One-shot fetch of meals for a specific slot. */
+    @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot")
+    suspend fun getMealsForSlotOneShot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String): List<PlannedMealEntity>
 
     /** Meal counts per week for scrubber density dots. */
     @Query("""
