@@ -107,10 +107,6 @@ class ManualLogViewModel(
     private val appContext: Context
 ) : ViewModel() {
 
-    private companion object {
-        const val TAG = "ManualLogViewModel"
-    }
-
     // --- Display name cache: ingredient_key → display_name from RAW_INGREDIENTS_TABLE ---
     private val _displayNameCache = mutableMapOf<String, String>()
 
@@ -987,6 +983,8 @@ class ManualLogViewModel(
     }
 
     companion object {
+        private const val TAG = "ManualLogViewModel"
+
         /** Sentinel value for removed ingredients (matches PantryViewModel.REMOVED_INGREDIENT). */
         const val REMOVED_INGREDIENT = "__REMOVED__"
 
