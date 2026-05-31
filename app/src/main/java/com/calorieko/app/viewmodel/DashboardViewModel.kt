@@ -16,6 +16,8 @@ import com.calorieko.app.data.local.DishRecipeDao
 import com.calorieko.app.data.repository.DashboardRepository
 import com.calorieko.app.data.repository.NutritionalTarget
 import com.calorieko.app.util.DurationFormatter
+import com.calorieko.app.util.MealPlanSlotStatus
+import com.calorieko.app.util.MealPlanStatusRules
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -38,13 +40,13 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 /**
- * DashboardViewModel — fully reactive via Room Flow observation.
+ * DashboardViewModel - fully reactive via Room Flow observation.
  *
- * ── How it works ──
+ * How it works:
  * Instead of one-shot `suspend` fetches that require manual `refreshData()` calls,
  * all dashboard data (nutrition summary, meal logs, workout logs) is observed via
  * Room `Flow<T>` queries. Room automatically re-emits whenever the underlying tables
- * change, so the UI updates instantly when a meal or workout is logged — no navigation
+ * change, so the UI updates instantly when a meal or workout is logged - no navigation
  * callback or manual refresh needed.
  *
  * User profile & targets are observed reactively so edits propagate back to the UI.
@@ -60,7 +62,7 @@ class DashboardViewModel(
 
     private val uid: String? = auth.currentUser?.uid
 
-    // ── User Info ──
+    // User Info
 
     private val profileFlow: StateFlow<UserProfile?> =
         if (uid != null) {
@@ -73,7 +75,7 @@ class DashboardViewModel(
     val userName: StateFlow<String> = profileFlow
         .map { profile ->
             // Guard: displayName or profile.name might be "" (empty but not null),
-            // which wouldn't fall through the ?: chain. Use takeIf to convert blanks → null.
+            // which wouldn't fall through the ?: chain. Use takeIf to convert blanks to null.
             auth.currentUser?.displayName
                 ?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() }
                 ?: profile?.name?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() }
@@ -99,7 +101,7 @@ class DashboardViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "General Health & Wellness")
 
-    // ── Targets ──
+    // Targets
 
     val targetCalories: StateFlow<Int> = profileFlow
         .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetCalories } ?: 2000 }
@@ -125,7 +127,7 @@ class DashboardViewModel(
         .map { profile -> profile?.let { dashboardRepository.getTargetsForUser(it).targetFats } ?: 65 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 65)
 
-    // ── Reactive Data State (Flow-based — auto-updates on Room changes) ──
+    // Reactive Data State (Flow-based, auto-updates on Room changes)
 
     /** Today's nutrition summary, observed reactively from Room. */
     val nutritionSummary: StateFlow<DailyNutritionSummaryEntity?> =
@@ -154,14 +156,14 @@ class DashboardViewModel(
             MutableStateFlow(emptyList())
         }
 
-    // ── Computed Activity Feed (derived from the reactive meal + workout Flows) ──
+    // Computed Activity Feed (derived from the reactive meal + workout Flows)
 
     val activityFeed: StateFlow<List<ActivityLogEntry>> =
         combine(todayMealLogs, todayWorkoutLogs) { meals, workouts ->
             buildActivityFeed(meals, workouts)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // ── Pull-to-Refresh ──
+    // Pull-to-Refresh
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
@@ -194,7 +196,7 @@ class DashboardViewModel(
         loadDishNames()
     }
 
-    // ── Today's Planned Meals ──
+    // Today's Planned Meals
 
     /** Today's planned meals, reactively observed from Room. */
     val todayPlannedMeals: StateFlow<List<PlannedMealEntity>> = run {
@@ -208,7 +210,7 @@ class DashboardViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
-    // ── Slot Completion Status (for disabling duplicate logging) ──
+    // Slot Completion Status (for disabling duplicate logging)
 
     enum class SlotLogStatus { LOGGED, SKIPPED, UNLOGGED }
 
@@ -267,7 +269,7 @@ class DashboardViewModel(
         return if (isWeightLoss) baseBurn + 300 else baseBurn
     }
 
-    // ── Private Helpers ──
+    // Private Helpers
 
     private fun buildActivityFeed(
         mealLogs: List<MealLogWithItems>,
@@ -307,8 +309,8 @@ class DashboardViewModel(
         // Convert workout logs to feed entries
         val workoutEntries = workoutLogs.map { entity ->
             // Standardise duration display:
-            //  - GPS workouts have movingTimeSeconds → use DurationFormatter directly
-            //  - Manual workouts only have weightOrDuration ("30 min") → parse & reformat
+            //  - GPS workouts have movingTimeSeconds, so use DurationFormatter directly
+            //  - Manual workouts only have weightOrDuration ("30 min"), so parse and reformat
             // Always use weightOrDuration (total elapsed time) for display consistency.
             // movingTimeSeconds only counts GPS-moving time, which can be much less than
             // the actual workout duration and would mismatch the Diary screen.
@@ -338,7 +340,7 @@ class DashboardViewModel(
         return (mealEntries + workoutEntries).sortedByDescending { it.timestamp }
     }
 
-    // ── Meal Plan Status Derivation ──
+    // Meal Plan Status Derivation
 
     private fun deriveSlotLogStatus(
         planned: List<PlannedMealEntity>,
@@ -349,45 +351,27 @@ class DashboardViewModel(
         val grouped = planned.groupBy { it.mealSlot }
         val loggedDishes = logs.flatMap { log ->
             log.items.map { item ->
-                normalizeSlotName(log.mealLog.mealType) to normalizeDishName(item.dishName)
+                MealPlanStatusRules.normalizeSlotName(log.mealLog.mealType) to
+                    MealPlanStatusRules.normalizeDishName(item.dishName)
             }
         }.toSet()
 
         return grouped.mapValues { (slot, dishes) ->
-            // Phase 2: Check for explicit persisted statuses first
-            val explicitStatuses = dishes.mapNotNull { meal ->
-                when (meal.status) {
-                    "logged" -> SlotLogStatus.LOGGED
-                    "skipped" -> SlotLogStatus.SKIPPED
-                    else -> null  // "planned" → fall through to derivation
-                }
-            }
-
-            if (explicitStatuses.isNotEmpty()) {
-                // Priority: LOGGED > SKIPPED
-                explicitStatuses.minByOrNull { it.ordinal } ?: SlotLogStatus.UNLOGGED
-            } else {
-                // Phase 1 fallback: read-time derivation for pre-migration data
-                val normalizedSlot = normalizeSlotName(slot)
-                val matchCount = dishes.count { plannedMeal ->
-                    (normalizedSlot to normalizeDishName(plannedMeal.dishLabel)) in loggedDishes
-                }
-                when {
-                    matchCount >= dishes.size -> SlotLogStatus.LOGGED
-                    matchCount > 0 -> SlotLogStatus.LOGGED
-                    else -> SlotLogStatus.UNLOGGED
-                }
+            when (
+                MealPlanStatusRules.deriveSlotStatus(
+                    dishes = dishes,
+                    loggedSet = loggedDishes,
+                    mealSlot = slot,
+                    isPast = false
+                )
+            ) {
+                MealPlanSlotStatus.LOGGED -> SlotLogStatus.LOGGED
+                MealPlanSlotStatus.SKIPPED -> SlotLogStatus.SKIPPED
+                MealPlanSlotStatus.MISSED,
+                MealPlanSlotStatus.PLANNED -> SlotLogStatus.UNLOGGED
             }
         }
     }
-
-    /** Normalizes slot names: "Snacks" → "snack", "Breakfast" → "breakfast" */
-    private fun normalizeSlotName(slot: String): String =
-        slot.lowercase().trimEnd('s')
-
-    /** Normalizes dish names: "chicken_adobo" ↔ "Chicken Adobo" → "chicken adobo" */
-    private fun normalizeDishName(name: String): String =
-        name.lowercase().replace("_", " ").trim()
 
     companion object {
         fun provideFactory(

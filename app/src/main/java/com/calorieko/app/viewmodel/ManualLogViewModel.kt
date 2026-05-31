@@ -49,6 +49,13 @@ data class QuickLogDishEntry(
     val tweaksJson: String = ""
 )
 
+data class QuickLogPayload(
+    val mealSlot: String,
+    val weekStartDate: String,
+    val dayIndex: Int,
+    val dishes: List<QuickLogDishEntry>
+)
+
 enum class PlannedWeightMethod {
     SMART_SCALE,
     MANUAL
@@ -74,17 +81,16 @@ data class PantryDeductionItem(
  * Set before navigating to the quick-log screen, read on arrival, then cleared.
  */
 object QuickLogBridge {
-    var pendingMealSlot: String = ""
-    var pendingDishes: List<QuickLogDishEntry> = emptyList()
-    // Plan context for source_plan_key stamping and status update
-    var pendingWeekStartDate: String = ""
-    var pendingDayIndex: Int = -1
+    private var pendingPayload: QuickLogPayload? = null
 
-    fun clear() {
-        pendingMealSlot = ""
-        pendingDishes = emptyList()
-        pendingWeekStartDate = ""
-        pendingDayIndex = -1
+    fun setPending(payload: QuickLogPayload) {
+        pendingPayload = payload
+    }
+
+    fun consumePending(): QuickLogPayload? {
+        val payload = pendingPayload
+        pendingPayload = null
+        return payload
     }
 }
 
@@ -412,11 +418,21 @@ class ManualLogViewModel(
      * Quick-log shortcut for an entire meal slot. Dishes remain pending until
      * each planned dish receives an actual consumed weight.
      */
-    fun quickLogSlotFromPlan(mealSlot: String, dishEntries: List<QuickLogDishEntry>) {
-        initializePlannedQuickLog(mealSlot = mealSlot, dishEntries = dishEntries)
+    fun quickLogSlotFromPlan(payload: QuickLogPayload) {
+        initializePlannedQuickLog(
+            mealSlot = payload.mealSlot,
+            dishEntries = payload.dishes,
+            weekStartDate = payload.weekStartDate,
+            dayIndex = payload.dayIndex
+        )
     }
 
-    private fun initializePlannedQuickLog(mealSlot: String, dishEntries: List<QuickLogDishEntry>) {
+    private fun initializePlannedQuickLog(
+        mealSlot: String,
+        dishEntries: List<QuickLogDishEntry>,
+        weekStartDate: String = "",
+        dayIndex: Int = -1
+    ) {
         _mealType.value = mealSlot
         _plannedQuickLogEntries.value = dishEntries
         _plannedWeightMethod.value = null
@@ -427,8 +443,8 @@ class ManualLogViewModel(
         _selectedDish.value = null
         _manualWeightText.value = ""
         _plannedManualWeightText.value = ""
-        _pendingWeekStartDate = QuickLogBridge.pendingWeekStartDate
-        _pendingDayIndex = QuickLogBridge.pendingDayIndex
+        _pendingWeekStartDate = weekStartDate
+        _pendingDayIndex = dayIndex
         resetPlannedScaleState()
         recomputeFilteredDishes()
         refreshCurrentPlannedRecipe()

@@ -20,6 +20,8 @@ import com.calorieko.app.data.model.RawIngredientEntity
 import com.calorieko.app.data.remote.FirestoreSyncRepository
 import com.calorieko.app.data.remote.api.AutoSyncManager
 import com.calorieko.app.data.repository.NutritionalValuesRepository
+import com.calorieko.app.util.MealPlanSlotStatus
+import com.calorieko.app.util.MealPlanStatusRules
 import com.calorieko.app.util.RecipeCustomizationRules
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -1589,7 +1591,8 @@ class PantryViewModel(
         weekLogObservationJob = viewModelScope.launch {
             mealLogDao.observeLoggedDishNames(currentUid, startEpoch, endEpoch).collect { refs ->
                 _weekLoggedDishes.value = refs.map {
-                    normalizeSlotName(it.mealType) to normalizeDishName(it.dishName)
+                    MealPlanStatusRules.normalizeSlotName(it.mealType) to
+                        MealPlanStatusRules.normalizeDishName(it.dishName)
                 }.toSet()
             }
         }
@@ -1603,43 +1606,23 @@ class PantryViewModel(
         planned: List<PlannedMealEntity>,
         loggedSet: Set<Pair<String, String>>
     ): Map<String, CellCompletionStatus> {
-        val result = mutableMapOf<String, CellCompletionStatus>()
-        val grouped = planned.groupBy { "${it.dayIndex}_${it.mealSlot}" }
-
-        for ((cellKey, dishes) in grouped) {
+        return planned.groupBy { "${it.dayIndex}_${it.mealSlot}" }.mapValues { (cellKey, dishes) ->
             val dayIndex = cellKey.substringBefore("_").toInt()
             val slot = cellKey.substringAfter("_")
-
-            // Phase 2: Check for explicit persisted statuses first
-            val explicitStatuses = dishes.mapNotNull { meal ->
-                when (meal.status) {
-                    "logged" -> CellCompletionStatus.LOGGED
-                    "skipped" -> CellCompletionStatus.SKIPPED
-                    "missed" -> CellCompletionStatus.MISSED
-                    else -> null  // "planned" → fall through to derivation
-                }
-            }
-
-            if (explicitStatuses.isNotEmpty()) {
-                // Use highest-priority explicit status: LOGGED > SKIPPED > MISSED
-                result[cellKey] = explicitStatuses.minByOrNull { it.ordinal }
-                    ?: CellCompletionStatus.PLANNED
-            } else {
-                // Phase 1 fallback: read-time derivation for pre-migration data
-                val normalizedSlot = normalizeSlotName(slot)
-                val matchCount = dishes.count { meal ->
-                    (normalizedSlot to normalizeDishName(meal.dishLabel)) in loggedSet
-                }
-                val isPast = !isDayEditable(dayIndex)
-                result[cellKey] = when {
-                    matchCount >= dishes.size -> CellCompletionStatus.LOGGED
-                    matchCount > 0 -> CellCompletionStatus.LOGGED
-                    isPast -> CellCompletionStatus.MISSED
-                    else -> CellCompletionStatus.PLANNED
-                }
+            when (
+                MealPlanStatusRules.deriveSlotStatus(
+                    dishes = dishes,
+                    loggedSet = loggedSet,
+                    mealSlot = slot,
+                    isPast = !isDayEditable(dayIndex)
+                )
+            ) {
+                MealPlanSlotStatus.LOGGED -> CellCompletionStatus.LOGGED
+                MealPlanSlotStatus.SKIPPED -> CellCompletionStatus.SKIPPED
+                MealPlanSlotStatus.MISSED -> CellCompletionStatus.MISSED
+                MealPlanSlotStatus.PLANNED -> CellCompletionStatus.PLANNED
             }
         }
-        return result
     }
 
     private fun formatWeeklyAdherence(
@@ -1715,13 +1698,6 @@ class PantryViewModel(
         }
     }
 
-    /** Normalizes slot names: "Snacks" → "snack", "Breakfast" → "breakfast" */
-    private fun normalizeSlotName(slot: String): String =
-        slot.lowercase().trimEnd('s')
-
-    /** Normalizes dish names: "chicken_adobo" ↔ "Chicken Adobo" → "chicken adobo" */
-    private fun normalizeDishName(name: String): String =
-        name.lowercase().replace("_", " ").trim()
 
     // ============================================================
     // Helpers

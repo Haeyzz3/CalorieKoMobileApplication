@@ -995,21 +995,19 @@ fun AppNavigation() {
                 )
             )
 
-            // Read bridge data and pre-load all dishes for the slot
-            val bridgeSlot = remember { com.calorieko.app.viewmodel.QuickLogBridge.pendingMealSlot }
-            val bridgeDishes = remember { com.calorieko.app.viewmodel.QuickLogBridge.pendingDishes.toList() }
+            // Read bridge data once and pre-load all dishes for the slot.
+            val quickLogPayload = remember { com.calorieko.app.viewmodel.QuickLogBridge.consumePending() }
 
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                if (bridgeSlot.isNotEmpty() && bridgeDishes.isNotEmpty()) {
-                    manualLogViewModel.quickLogSlotFromPlan(bridgeSlot, bridgeDishes)
+            androidx.compose.runtime.LaunchedEffect(quickLogPayload) {
+                if (quickLogPayload != null && quickLogPayload.dishes.isNotEmpty()) {
+                    manualLogViewModel.quickLogSlotFromPlan(quickLogPayload)
                 }
-                com.calorieko.app.viewmodel.QuickLogBridge.clear()
             }
 
             QuickLogScreen(
                 viewModel = manualLogViewModel,
-                dishLabel = bridgeDishes.firstOrNull()?.dishLabel ?: "",
-                mealSlot = bridgeSlot,
+                dishLabel = quickLogPayload?.dishes?.firstOrNull()?.dishLabel ?: "",
+                mealSlot = quickLogPayload?.mealSlot ?: "",
                 onBack = { navController.popBackStack() },
                 onMealConfirmed = { navController.popBackStack() },
                 bleScaleManager = bleScaleManager,

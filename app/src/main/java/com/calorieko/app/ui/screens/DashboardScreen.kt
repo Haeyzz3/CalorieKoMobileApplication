@@ -95,6 +95,7 @@ import com.calorieko.app.viewmodel.DashboardViewModel
 import com.calorieko.app.data.model.PlannedMealEntity
 import com.calorieko.app.viewmodel.QuickLogBridge
 import com.calorieko.app.viewmodel.QuickLogDishEntry
+import com.calorieko.app.viewmodel.QuickLogPayload
 import com.calorieko.app.viewmodel.DashboardViewModel.SlotLogStatus
 import androidx.compose.material.icons.filled.CheckCircle
 import java.time.LocalDate
@@ -354,18 +355,25 @@ fun DashboardScreen(viewModel: DashboardViewModel, bleScaleManager: BleScaleMana
                             getDishName = { viewModel.getPlannedDishName(it) },
                             slotLoggedStatus = slotLoggedStatus,
                             onQuickLogSlot = { meals ->
-                                QuickLogBridge.pendingMealSlot = meals.first().mealSlot
-                                QuickLogBridge.pendingWeekStartDate = meals.first().weekStartDate
-                                QuickLogBridge.pendingDayIndex = meals.first().dayIndex
-                                QuickLogBridge.pendingDishes = meals.map {
-                                    QuickLogDishEntry(
-                                        dishLabel = it.dishLabel,
-                                        substitutionsJson = it.substitutionsJson,
-                                        scaledServings = it.scaledServings,
-                                        tweaksJson = it.tweaksJson
+                                val firstMeal = meals.firstOrNull()
+                                if (firstMeal != null) {
+                                    QuickLogBridge.setPending(
+                                        QuickLogPayload(
+                                            mealSlot = firstMeal.mealSlot,
+                                            weekStartDate = firstMeal.weekStartDate,
+                                            dayIndex = firstMeal.dayIndex,
+                                            dishes = meals.map {
+                                                QuickLogDishEntry(
+                                                    dishLabel = it.dishLabel,
+                                                    substitutionsJson = it.substitutionsJson,
+                                                    scaledServings = it.scaledServings,
+                                                    tweaksJson = it.tweaksJson
+                                                )
+                                            }
+                                        )
                                     )
+                                    onNavigate("logMeal/quickSlot")
                                 }
-                                onNavigate("logMeal/quickSlot")
                             }
                         )
                     }
