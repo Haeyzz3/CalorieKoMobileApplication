@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -357,6 +358,9 @@ fun LogMealScreenWithManual(
         manualLogViewModel.events.collect { event ->
             when (event) {
                 ManualLogEvent.MealConfirmed -> onMealConfirmed()
+                ManualLogEvent.MealConfirmFailed -> {
+                    Toast.makeText(context, "Could not confirm meal. Please try again.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -3486,6 +3490,7 @@ fun QuickLogScreen(
     bleScaleManager: BleScaleManager,
     onNavigateToPairing: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val dishes by viewModel.loggedDishes.collectAsState()
     val mealType by viewModel.mealType.collectAsState()
     val showSummary by viewModel.showSummary.collectAsState()
@@ -3517,6 +3522,9 @@ fun QuickLogScreen(
         viewModel.events.collect { event ->
             when (event) {
                 ManualLogEvent.MealConfirmed -> onMealConfirmed()
+                ManualLogEvent.MealConfirmFailed -> {
+                    Toast.makeText(context, "Could not confirm meal. Please try again.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

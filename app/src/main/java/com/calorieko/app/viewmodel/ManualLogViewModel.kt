@@ -1,6 +1,7 @@
 package com.calorieko.app.viewmodel
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -37,6 +38,7 @@ import kotlin.math.abs
 /** One-shot navigation/UI events emitted by ManualLogViewModel. */
 sealed interface ManualLogEvent {
     data object MealConfirmed : ManualLogEvent
+    data object MealConfirmFailed : ManualLogEvent
 }
 
 /** Data class for a planned dish to quick-log. */
@@ -98,6 +100,10 @@ class ManualLogViewModel(
     private val mealPlanRepository: MealPlanRepository,
     private val appContext: Context
 ) : ViewModel() {
+
+    private companion object {
+        const val TAG = "ManualLogViewModel"
+    }
 
     // --- Display name cache: ingredient_key → display_name from RAW_INGREDIENTS_TABLE ---
     private val _displayNameCache = mutableMapOf<String, String>()
@@ -777,40 +783,46 @@ class ManualLogViewModel(
         }
 
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                // Build source_plan_key for planned meals (provenance linking)
-                val planKey = if (_isPlannedQuickLog.value && _pendingDayIndex >= 0 && _pendingWeekStartDate.isNotEmpty()) {
-                    val dishLabels = _loggedDishes.value.mapNotNull { it.dishLabel.takeIf { l -> l.isNotBlank() } }
-                    if (dishLabels.isNotEmpty()) {
-                        mealPlanRepository.buildPlanKey(_pendingDayIndex, _pendingWeekStartDate, _mealType.value, dishLabels.first())
+            try {
+                withContext(Dispatchers.IO) {
+                    // Build source_plan_key for planned meals (provenance linking)
+                    val planKey = if (_isPlannedQuickLog.value && _pendingDayIndex >= 0 && _pendingWeekStartDate.isNotEmpty()) {
+                        val dishLabels = _loggedDishes.value.mapNotNull { it.dishLabel.takeIf { l -> l.isNotBlank() } }
+                        if (dishLabels.isNotEmpty()) {
+                            mealPlanRepository.buildPlanKey(_pendingDayIndex, _pendingWeekStartDate, _mealType.value, dishLabels.first())
+                        } else null
                     } else null
-                } else null
-                mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value, sourcePlanKey = planKey)
-            }
+                    mealRepository.saveMeal(uid, _mealType.value, _loggedDishes.value, sourcePlanKey = planKey)
+                }
 
-            // Mark planned meals as logged (Phase 2: persistent status)
-            if (_isPlannedQuickLog.value && _pendingDayIndex >= 0 && _pendingWeekStartDate.isNotEmpty()) {
-                val dishLabels = _loggedDishes.value
-                    .mapNotNull { it.dishLabel.takeIf { l -> l.isNotBlank() } }
-                if (dishLabels.isNotEmpty()) {
-                    withContext(Dispatchers.IO) {
-                        mealPlanRepository.markAsLogged(
-                            uid = uid,
-                            dayIndex = _pendingDayIndex,
-                            weekStartDate = _pendingWeekStartDate,
-                            mealSlot = _mealType.value,
-                            dishLabels = dishLabels
-                        )
+                // Mark planned meals as logged (Phase 2: persistent status)
+                if (_isPlannedQuickLog.value && _pendingDayIndex >= 0 && _pendingWeekStartDate.isNotEmpty()) {
+                    val dishLabels = _loggedDishes.value
+                        .mapNotNull { it.dishLabel.takeIf { l -> l.isNotBlank() } }
+                    if (dishLabels.isNotEmpty()) {
+                        withContext(Dispatchers.IO) {
+                            mealPlanRepository.markAsLogged(
+                                uid = uid,
+                                dayIndex = _pendingDayIndex,
+                                weekStartDate = _pendingWeekStartDate,
+                                mealSlot = _mealType.value,
+                                dishLabels = dishLabels
+                            )
+                        }
                     }
                 }
-            }
 
-            val deductionItems = computePantryOverlap()
-            if (deductionItems.isNotEmpty()) {
-                _pantryDeductionItems.value = deductionItems
-                _showPantryDeduction.value = true
-            } else {
-                _events.send(ManualLogEvent.MealConfirmed)
+                val deductionItems = computePantryOverlap()
+                if (deductionItems.isNotEmpty()) {
+                    _pantryDeductionItems.value = deductionItems
+                    _showPantryDeduction.value = true
+                } else {
+                    _events.send(ManualLogEvent.MealConfirmed)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to confirm manual meal", e)
+                _isConfirming.value = false
+                _events.send(ManualLogEvent.MealConfirmFailed)
             }
         }
     }

@@ -95,7 +95,7 @@ fun AppNavigation() {
     val mealPlanRepository = remember {
         com.calorieko.app.data.repository.MealPlanRepository(
             mealPlanDao = db.mealPlanDao(),
-            firestoreSyncRepo = firestoreSyncRepo
+            scheduleSync = { uid -> AutoSyncManager.triggerSync(context.applicationContext, uid) }
         )
     }
 

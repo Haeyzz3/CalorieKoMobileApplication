@@ -1,7 +1,7 @@
 package com.calorieko.app.data.repository
 
+import android.util.Log
 import com.calorieko.app.data.local.MealPlanDao
-import com.calorieko.app.data.remote.FirestoreSyncRepository
 
 /**
  * Repository that centralizes meal plan status lifecycle operations.
@@ -9,40 +9,36 @@ import com.calorieko.app.data.remote.FirestoreSyncRepository
  * Handles:
  * - Skipping a meal slot (user-initiated)
  * - Marking planned meals as logged (after confirmMeal)
+ * - Scheduling offline-first background sync after local status changes
  * - Building source_plan_key for provenance linking
  *
  * Status transitions: planned → logged | skipped | missed
  */
 class MealPlanRepository(
     private val mealPlanDao: MealPlanDao,
-    private val firestoreSyncRepo: FirestoreSyncRepository
+    private val scheduleSync: (String) -> Unit
 ) {
 
+    private companion object {
+        const val TAG = "MealPlanRepository"
+    }
+
     /**
-     * Marks an entire meal slot as "skipped" in Room and syncs to Firestore.
+     * Marks an entire meal slot as "skipped" in Room and schedules background sync.
      * Called when the user taps "Skip Meal" in the MealDetailDialog.
      */
     suspend fun skipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
         mealPlanDao.updateSlotStatus(uid, dayIndex, weekStartDate, mealSlot, "skipped")
-        // Sync updated status to Firestore (re-push each dish in the slot)
-        val meals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, weekStartDate)
-            .filter { it.mealSlot == mealSlot }
-        for (meal in meals) {
-            firestoreSyncRepo.syncPlannedMeal(uid, meal)
-        }
+        scheduleSyncIfAuthenticated(uid)
     }
 
     /**
-     * Reverts a skipped slot back to "planned" in Room and syncs to Firestore.
+     * Reverts a skipped slot back to "planned" in Room and schedules background sync.
      * Called when the user taps "Undo Skip" in the MealDetailDialog.
      */
     suspend fun unskipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
         mealPlanDao.updateSlotStatus(uid, dayIndex, weekStartDate, mealSlot, "planned")
-        val meals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, weekStartDate)
-            .filter { it.mealSlot == mealSlot }
-        for (meal in meals) {
-            firestoreSyncRepo.syncPlannedMeal(uid, meal)
-        }
+        scheduleSyncIfAuthenticated(uid)
     }
 
     /**
@@ -60,12 +56,7 @@ class MealPlanRepository(
         for (label in dishLabels) {
             mealPlanDao.updateMealStatus(uid, dayIndex, weekStartDate, mealSlot, label, "logged")
         }
-        // Sync to Firestore
-        val meals = mealPlanDao.getMealsForDayOneShot(uid, dayIndex, weekStartDate)
-            .filter { it.mealSlot == mealSlot && it.dishLabel in dishLabels }
-        for (meal in meals) {
-            firestoreSyncRepo.syncPlannedMeal(uid, meal)
-        }
+        scheduleSyncIfAuthenticated(uid)
     }
 
     /**
@@ -74,4 +65,14 @@ class MealPlanRepository(
      */
     fun buildPlanKey(dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String): String =
         "${dayIndex}_${weekStartDate}_${mealSlot}_${dishLabel}"
+
+    private fun scheduleSyncIfAuthenticated(uid: String) {
+        if (uid.isNotEmpty()) {
+            try {
+                scheduleSync(uid)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to schedule meal plan sync", e)
+            }
+        }
+    }
 }
