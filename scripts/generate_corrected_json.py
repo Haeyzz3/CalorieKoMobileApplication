@@ -98,7 +98,9 @@ VERIFIED_FDC = {
     "tomato_sauce":     (170054, "update"),   # Tomato products, canned, sauce
     "odong_noodles":    (168908, "update"),   # Noodles, japanese, somen, dry
     "sardines_tomato_sauce_canned": (175140, "update"),  # Sardine, Pacific, canned in tomato sauce
-    "brown_rice":       (169703, "update"),   # Rice, brown, long-grain, raw
+    "brown_rice_bigas": (169703, "update"),   # Rice, brown, long-grain, raw
+    "black_rice_bigas": (2710825, "update"),  # Rice, black, unenriched, raw
+    "mais_rice_bigas":  (172015, "update"),   # Cornmeal, degermed, unenriched, white (corn rice proxy)
     "bihon_noodles":    (169742, "update"),   # Rice noodles, dry
     "canton_noodles":   (169731, "update"),   # Noodles, egg, dry, enriched
     "lime_juice":       (168156, "update"),   # Lime juice, raw
@@ -136,6 +138,16 @@ def extract_portions(food_data):
         if desc and grams:
             portions.append({"description": desc, "grams": round(grams, 1)})
     return portions
+
+def infer_data_source(food_data):
+    data_type = food_data.get("dataType", "Unknown")
+    if data_type == "SR Legacy":
+        return "USDA_SR_LEGACY"
+    if data_type == "Foundation":
+        return "USDA_FOUNDATION"
+    if data_type == "Branded":
+        return "USDA_BRANDED"
+    return f"USDA_{data_type.upper().replace(' ', '_')}"
 
 
 def main():
@@ -193,7 +205,7 @@ def main():
                 "category": item["category"],
                 "sub_category": item["sub_category"],
                 "fdc_id": target_fdc,
-                "data_source": "USDA_SR_LEGACY",
+                "data_source": infer_data_source(food_data),
                 "nutrients_per_100g": {
                     "calories": nutrients.get("calories", 0.0),
                     "protein": nutrients.get("protein", 0.0),

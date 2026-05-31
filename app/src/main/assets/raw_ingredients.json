@@ -3262,5 +3262,95 @@
     },
     "portions": [],
     "nutrient_proxy_note": ""
+  },
+  {
+    "ingredient_key": "brown_rice_bigas",
+    "display_name": "Raw Brown Rice Grain (Bigas na Kayumanggi)",
+    "category": "grain_starch",
+    "sub_category": "grain",
+    "fdc_id": 169703,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 367.0,
+      "protein": 7.54,
+      "carbs": 76.25,
+      "fat": 3.2,
+      "fiber": 3.6,
+      "sugar": 0.66,
+      "sodium": 5.0,
+      "potassium": 250.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 9.0,
+      "iron": 1.29
+    },
+    "portions": [
+      {
+        "description": "cup",
+        "grams": 185.0
+      }
+    ],
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
+  },
+  {
+    "ingredient_key": "black_rice_bigas",
+    "display_name": "Raw Black Rice Grain (Bigas na Itim)",
+    "category": "grain_starch",
+    "sub_category": "grain",
+    "fdc_id": 2710825,
+    "data_source": "USDA_FOUNDATION",
+    "nutrients_per_100g": {
+      "calories": 369.97,
+      "protein": 7.57,
+      "carbs": 77.19,
+      "fat": 3.44,
+      "fiber": 4.18,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 255.6,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 14.4,
+      "iron": 1.12
+    },
+    "portions": [
+      {
+        "description": "RACC",
+        "grams": 45.0
+      }
+    ],
+    "is_substitutable": false,
+    "nutrient_proxy_note": ""
+  },
+  {
+    "ingredient_key": "mais_rice_bigas",
+    "display_name": "Raw Corn Rice Grain (Bigas na Mais)",
+    "category": "grain_starch",
+    "sub_category": "grain",
+    "fdc_id": 172015,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 370.0,
+      "protein": 7.11,
+      "carbs": 79.45,
+      "fat": 1.75,
+      "fiber": 3.9,
+      "sugar": 1.61,
+      "sodium": 7.0,
+      "potassium": 142.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 3.0,
+      "iron": 1.1
+    },
+    "portions": [
+      {
+        "description": "cup",
+        "grams": 157.0
+      }
+    ],
+    "is_substitutable": false,
+    "nutrient_proxy_note": "USDA proxy for dry corn rice/white corn grits; selected because exact non-enriched dry corn rice was unavailable."
   }
 ]

@@ -60,7 +60,8 @@ DENSITY = {
     "chicken_thigh": 0.67, "chicken_drumstick": 0.67,
     "pork_shoulder": 0.75, "ground_pork": 0.73, "pork_belly": 0.75,
     # Dry noodles/grains
-    "rice_bigas": 0.75, "brown_rice": 0.75,
+    "rice_bigas": 0.75, "brown_rice_bigas": 0.75, "black_rice_bigas": 0.75,
+    "mais_rice_bigas": 0.65,
     "odong_noodles": 0.5, "bihon_noodles": 0.5, "canton_noodles": 0.5,
     "sardines_tomato_sauce_canned": 1.0,
 }
@@ -110,7 +111,8 @@ CUP_WEIGHT = {
     "sugar_brown": 220.0, "sugar_white": 200.0, "raisins": 145.0,
     "salt_iodized": 292.0, "black_beans": 240.0,
     # Grains/noodles
-    "rice_bigas": 185.0, "brown_rice": 185.0,
+    "rice_bigas": 185.0, "brown_rice_bigas": 185.0,
+    "black_rice_bigas": 185.0, "mais_rice_bigas": 157.0,
 }
 
 # Grams per tablespoon
@@ -166,6 +168,9 @@ DISH_COOKING_METHODS = {
     "milkfish_fried": "pan_fried",
     "mackerel_fried": "pan_fried",
     "rice_well_milled": "boiled",
+    "rice_black": "boiled",
+    "rice_brown": "boiled",
+    "rice_corn": "boiled",
     "egg_sunny": "pan_fried",
     "egg_boiled": "boiled",
     "chicken_wing": "store_bought_roasted",
@@ -205,6 +210,9 @@ DISH_SERVINGS = {
     "milkfish_fried": 1,
     "mackerel_fried": 1,
     "rice_well_milled": 1,
+    "rice_black": 1,
+    "rice_brown": 1,
+    "rice_corn": 1,
     "egg_sunny": 1,
     "egg_boiled": 1,
     "chicken_wing": 1,
@@ -416,14 +424,14 @@ def main():
             ing_type = row.get("ingredient_type", "core").strip()
             ing_cat = row.get("ingredient_category", "").strip()
             
-            grams = portion_to_grams(ing_key, portion)
+            grams = round(portion_to_grams(ing_key, portion), 1)
             
             recipe_ingredients.append({
                 "dish_label": label,
                 "ingredient_key": ing_key,
                 "ingredient_type": ing_type,
                 "ingredient_category": ing_cat,
-                "raw_weight_grams": round(grams, 1),
+                "raw_weight_grams": grams,
                 "portion_original": portion,
                 "preparation_method": prep,
                 "step": step,
@@ -466,7 +474,7 @@ def main():
         for row in rows:
             ing_key = row["ingredient_name"].strip()
             portion = row.get("portion_quantity", "").strip()
-            grams = portion_to_grams(ing_key, portion)
+            grams = round(portion_to_grams(ing_key, portion), 1)
             
             if ing_key not in seen_ingredients:
                 ingredient_count += 1
@@ -475,8 +483,9 @@ def main():
             if grams > 0 and ing_key in nutrients_by_key:
                 total_weight += grams
                 n = nutrients_by_key[ing_key]
+                factor = grams / 100.0
                 for nkey in total_nutrients:
-                    total_nutrients[nkey] += n.get(nkey, 0) * grams / 100.0
+                    total_nutrients[nkey] += factor * n.get(nkey, 0)
             elif grams > 0:
                 total_weight += grams  # Still add weight even if no nutrient data
         

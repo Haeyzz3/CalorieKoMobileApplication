@@ -4153,5 +4153,131 @@
       "calcium": 10.0,
       "iron": 0.0
     }
+  },
+  {
+    "key": "brown_rice_bigas",
+    "display": "Raw Brown Rice Grain (Bigas na Kayumanggi)",
+    "fdc_id": 169703,
+    "usda_desc": "Rice, brown, long-grain, raw (Includes foods for USDA's Food Distribution Program)",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 367.0,
+      "protein": 7.54,
+      "carbs": 76.25,
+      "fat": 3.2,
+      "fiber": 3.6,
+      "sugar": 0.66,
+      "sodium": 5.0,
+      "potassium": 250.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 9.0,
+      "iron": 1.29
+    },
+    "current_nutrients": {
+      "calories": 367.0,
+      "protein": 7.54,
+      "carbs": 76.25,
+      "fat": 3.2,
+      "fiber": 3.6,
+      "sugar": 0.66,
+      "sodium": 5.0,
+      "potassium": 250.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 9.0,
+      "iron": 1.29
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 185.0
+      }
+    ]
+  },
+  {
+    "key": "black_rice_bigas",
+    "display": "Raw Black Rice Grain (Bigas na Itim)",
+    "fdc_id": 2710825,
+    "usda_desc": "Rice, black, unenriched, raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 369.97,
+      "protein": 7.57,
+      "carbs": 77.19,
+      "fat": 3.44,
+      "fiber": 4.18,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 255.6,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 14.4,
+      "iron": 1.12
+    },
+    "current_nutrients": {
+      "calories": 369.97,
+      "protein": 7.57,
+      "carbs": 77.19,
+      "fat": 3.44,
+      "fiber": 4.18,
+      "sugar": 0.0,
+      "sodium": 0.0,
+      "potassium": 255.6,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 14.4,
+      "iron": 1.12
+    },
+    "usda_portions": [
+      {
+        "description": "RACC",
+        "grams": 45.0
+      }
+    ]
+  },
+  {
+    "key": "mais_rice_bigas",
+    "display": "Raw Corn Rice Grain (Bigas na Mais)",
+    "fdc_id": 172015,
+    "usda_desc": "Cornmeal, degermed, unenriched, white",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 370.0,
+      "protein": 7.11,
+      "carbs": 79.45,
+      "fat": 1.75,
+      "fiber": 3.9,
+      "sugar": 1.61,
+      "sodium": 7.0,
+      "potassium": 142.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 3.0,
+      "iron": 1.1
+    },
+    "current_nutrients": {
+      "calories": 370.0,
+      "protein": 7.11,
+      "carbs": 79.45,
+      "fat": 1.75,
+      "fiber": 3.9,
+      "sugar": 1.61,
+      "sodium": 7.0,
+      "potassium": 142.0,
+      "vitamin_a": 0.0,
+      "vitamin_c": 0.0,
+      "calcium": 3.0,
+      "iron": 1.1
+    },
+    "usda_portions": [
+      {
+        "description": "cup",
+        "grams": 157.0
+      }
+    ]
   }
 ]

@@ -21,6 +21,9 @@ menudo
 milkfish_fried
 negative
 pinakbet
+rice_black
+rice_brown
+rice_corn
 rice_well_milled
 sinabawang_bangus
 sinigang_pork
