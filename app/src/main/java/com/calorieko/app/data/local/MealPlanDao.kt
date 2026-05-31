@@ -153,6 +153,24 @@ interface MealPlanDao {
     """)
     suspend fun updateSlotStatus(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, status: String)
 
+    /** Marks only clearable rows in a slot as skipped. Preserves logged rows. */
+    @Query("""
+        UPDATE PLANNED_MEALS_TABLE
+        SET status = 'skipped'
+        WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate
+          AND meal_slot = :mealSlot AND status IN ('planned', 'missed')
+    """)
+    suspend fun skipSlotClearableOnly(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String): Int
+
+    /** Reverts only skipped rows in a slot back to planned. Preserves logged rows. */
+    @Query("""
+        UPDATE PLANNED_MEALS_TABLE
+        SET status = 'planned'
+        WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate
+          AND meal_slot = :mealSlot AND status = 'skipped'
+    """)
+    suspend fun unskipSlotSkippedOnly(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String): Int
+
     // ═══ STATUS-AWARE CLEAR (preserves logged & skipped) ═══
 
     /** Clears only clearable meals (planned/missed) for a specific day. Preserves logged & skipped. */

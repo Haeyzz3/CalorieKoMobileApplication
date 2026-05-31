@@ -24,21 +24,25 @@ class MealPlanRepository(
     }
 
     /**
-     * Marks an entire meal slot as "skipped" in Room and schedules background sync.
+     * Marks clearable dishes in a meal slot as "skipped" in Room and schedules background sync.
      * Called when the user taps "Skip Meal" in the MealDetailDialog.
      */
     suspend fun skipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
-        mealPlanDao.updateSlotStatus(uid, dayIndex, weekStartDate, mealSlot, "skipped")
-        scheduleSyncIfAuthenticated(uid)
+        val updatedRows = mealPlanDao.skipSlotClearableOnly(uid, dayIndex, weekStartDate, mealSlot)
+        if (updatedRows > 0) {
+            scheduleSyncIfAuthenticated(uid)
+        }
     }
 
     /**
-     * Reverts a skipped slot back to "planned" in Room and schedules background sync.
+     * Reverts skipped dishes in a slot back to "planned" in Room and schedules background sync.
      * Called when the user taps "Undo Skip" in the MealDetailDialog.
      */
     suspend fun unskipSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String) {
-        mealPlanDao.updateSlotStatus(uid, dayIndex, weekStartDate, mealSlot, "planned")
-        scheduleSyncIfAuthenticated(uid)
+        val updatedRows = mealPlanDao.unskipSlotSkippedOnly(uid, dayIndex, weekStartDate, mealSlot)
+        if (updatedRows > 0) {
+            scheduleSyncIfAuthenticated(uid)
+        }
     }
 
     /**

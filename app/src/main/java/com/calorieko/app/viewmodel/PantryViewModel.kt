@@ -824,20 +824,12 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
                 return@launch
             }
-            // Prevent removing dishes from protected slots.
-            val slotKey = "${dayIndex}_${mealSlot}"
-            val slotStatus = _cellCompletionStatus.value[slotKey]
-            if (slotStatus == CellCompletionStatus.LOGGED || slotStatus == CellCompletionStatus.SKIPPED) {
-                val message = if (slotStatus == CellCompletionStatus.LOGGED) {
-                    "This meal has already been logged."
-                } else {
-                    "This meal is skipped."
-                }
-                _uiEvents.emit(PantryUiEvent.Snackbar(message))
+            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
+            protectedSlotStatus(slotMeals)?.let { status ->
+                _uiEvents.emit(PantryUiEvent.Snackbar(protectedSlotMessage(status)))
                 return@launch
             }
 
-            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
             val mealToRemove = slotMeals.firstOrNull { it.dishLabel == dishLabel }
             if (mealToRemove == null || mealToRemove.status !in listOf("planned", "missed")) {
                 _uiEvents.emit(PantryUiEvent.Snackbar("Logged and skipped meals are preserved."))
@@ -862,20 +854,12 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
                 return@launch
             }
-            // Prevent clearing protected slots.
-            val slotKey = "${dayIndex}_${mealSlot}"
-            val slotStatus = _cellCompletionStatus.value[slotKey]
-            if (slotStatus == CellCompletionStatus.LOGGED || slotStatus == CellCompletionStatus.SKIPPED) {
-                val message = if (slotStatus == CellCompletionStatus.LOGGED) {
-                    "This meal has already been logged."
-                } else {
-                    "This meal is skipped."
-                }
-                _uiEvents.emit(PantryUiEvent.Snackbar(message))
+            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
+            protectedSlotStatus(slotMeals)?.let { status ->
+                _uiEvents.emit(PantryUiEvent.Snackbar(protectedSlotMessage(status)))
                 return@launch
             }
 
-            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
             val clearableMeals = slotMeals.filter { it.status in listOf("planned", "missed") }
             if (clearableMeals.isEmpty()) {
                 _uiEvents.emit(PantryUiEvent.Snackbar("No clearable meals - logged and skipped meals are preserved."))
@@ -1671,21 +1655,63 @@ class PantryViewModel(
         return "$base ($skippedCount skipped)"
     }
 
-    /** Skips an entire meal slot (sets status = "skipped" for all dishes in the slot). */
+    /** Skips clearable dishes in a meal slot. Logged dishes are protected. */
     fun skipSlot(dayIndex: Int, mealSlot: String) {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                mealPlanRepository.skipSlot(uid, dayIndex, _currentWeekStart.value, mealSlot)
+        viewModelScope.launch(Dispatchers.IO) {
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
             }
+
+            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
+            if (slotMeals.isEmpty()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("No dishes found in this meal."))
+                return@launch
+            }
+            if (slotMeals.any { it.status == "logged" }) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+                return@launch
+            }
+            val clearableMeals = slotMeals.filter { it.status in listOf("planned", "missed") }
+            if (clearableMeals.isEmpty()) {
+                val message = if (slotMeals.any { it.status == "skipped" }) {
+                    "This meal is already skipped."
+                } else {
+                    "No clearable meals - logged and skipped meals are preserved."
+                }
+                _uiEvents.emit(PantryUiEvent.Snackbar(message))
+                return@launch
+            }
+
+            mealPlanRepository.skipSlot(uid, dayIndex, week, mealSlot)
         }
     }
 
-    /** Reverts a skipped meal slot back to "planned" status. */
+    /** Reverts skipped dishes in a meal slot back to "planned" status. */
     fun unskipSlot(dayIndex: Int, mealSlot: String) {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                mealPlanRepository.unskipSlot(uid, dayIndex, _currentWeekStart.value, mealSlot)
+        viewModelScope.launch(Dispatchers.IO) {
+            val week = _currentWeekStart.value
+            if (!isDayEditableForWeek(dayIndex, week)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("Past planned meals can only be viewed."))
+                return@launch
             }
+
+            val slotMeals = mealPlanDao.getMealsForSlotOneShot(uid, dayIndex, week, mealSlot)
+            if (slotMeals.isEmpty()) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("No dishes found in this meal."))
+                return@launch
+            }
+            if (slotMeals.any { it.status == "logged" }) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+                return@launch
+            }
+            if (slotMeals.none { it.status == "skipped" }) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal is not skipped."))
+                return@launch
+            }
+
+            mealPlanRepository.unskipSlot(uid, dayIndex, week, mealSlot)
         }
     }
 
@@ -1762,6 +1788,22 @@ class PantryViewModel(
 
     private suspend fun isSlotProtected(weekStartDate: String, dayIndex: Int, mealSlot: String): Boolean {
         return mealPlanDao.countProtectedMealsInSlot(uid, dayIndex, weekStartDate, mealSlot) > 0
+    }
+
+    private fun protectedSlotStatus(meals: List<PlannedMealEntity>): String? {
+        return when {
+            meals.any { it.status == "logged" } -> "logged"
+            meals.any { it.status == "skipped" } -> "skipped"
+            else -> null
+        }
+    }
+
+    private fun protectedSlotMessage(status: String): String {
+        return if (status == "logged") {
+            "This meal has already been logged."
+        } else {
+            "This meal is skipped."
+        }
     }
 
     private fun formatDateLabel(weekStartDate: String, dayIndex: Int): String {
