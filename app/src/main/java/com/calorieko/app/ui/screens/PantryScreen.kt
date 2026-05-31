@@ -2149,6 +2149,11 @@ fun MealPlanCalendarSection(
             .filter { it.dayIndex == dayIdx && it.mealSlot == slot }
             .map { it.dishLabel }
             .toSet()
+        val slotProtectedStatus = plannedMeals
+            .filter { it.dayIndex == dayIdx && it.mealSlot == slot }
+            .firstOrNull { it.status == "logged" || it.status == "skipped" }
+            ?.status
+        val isSlotProtected = slotProtectedStatus != null
         AlertDialog(
             onDismissRequest = { showAddDishToSlot.value = false },
             title = { Text("Add Dish to ${days[dayIdx].first} ${days[dayIdx].second} $slot") },
@@ -2156,12 +2161,14 @@ fun MealPlanCalendarSection(
                 Column(modifier = Modifier.heightIn(max = 300.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                     allAvailableRecipes.forEach { recipe ->
                         val alreadyAdded = recipe.dishLabel in existingDishLabels
+                        val isDisabled = alreadyAdded || isSlotProtected
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
+                                .alpha(if (isSlotProtected) 0.5f else 1f)
                                 .clickable {
-                                    if (!alreadyAdded) {
+                                    if (!isDisabled) {
                                         viewModel.addMealToPlan(dayIdx, recipe.dishLabel, slot)
                                         showAddDishToSlot.value = false
                                     }
@@ -2182,7 +2189,7 @@ fun MealPlanCalendarSection(
                                         recipe.primaryDishName(),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = if (alreadyAdded) Color(0xFF9CA3AF) else Color(0xFF374151)
+                                        color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151)
                                     )
                                     if (secondaryDishName.isNotBlank()) {
                                         Text(
@@ -2196,7 +2203,20 @@ fun MealPlanCalendarSection(
                                     }
                                     Text("${recipe.calories} kcal", fontSize = 11.sp, color = Color.Gray)
                                 }
-                                if (alreadyAdded) {
+                                if (isSlotProtected) {
+                                    Surface(
+                                        color = if (slotProtectedStatus == "logged") Color(0xFFDCFCE7) else Color(0xFFF3F4F6),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            if (slotProtectedStatus == "logged") "Logged" else "Skipped",
+                                            fontSize = 9.sp,
+                                            color = if (slotProtectedStatus == "logged") CalorieKoGreen else Color(0xFF6B7280),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                } else if (alreadyAdded) {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
                                         shape = RoundedCornerShape(4.dp)
@@ -2279,13 +2299,15 @@ fun MealPlanCalendarSection(
                         val alreadyInSlot = plannedMeals.any {
                             it.dayIndex == selectedDayIndex.intValue && it.mealSlot == slot && it.dishLabel == dishToAdd
                         }
-                        val isSlotLogged = cellCompletionStatus["${selectedDayIndex.intValue}_${slot}"] == PantryViewModel.CellCompletionStatus.LOGGED
-                        val isDisabled = alreadyInSlot || isSlotLogged
+                        val slotStatus = cellCompletionStatus["${selectedDayIndex.intValue}_${slot}"]
+                        val isSlotProtected = slotStatus == PantryViewModel.CellCompletionStatus.LOGGED ||
+                            slotStatus == PantryViewModel.CellCompletionStatus.SKIPPED
+                        val isDisabled = alreadyInSlot || isSlotProtected
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .alpha(if (isSlotLogged) 0.5f else 1f)
+                                .alpha(if (isSlotProtected) 0.5f else 1f)
                                 .clickable {
                                     if (!isDisabled) {
                                         viewModel.addMealToPlan(
@@ -2293,8 +2315,8 @@ fun MealPlanCalendarSection(
                                             dishToAdd,
                                             slot
                                         )
+                                        showSlotPicker.value = false
                                     }
-                                    showSlotPicker.value = false
                                 },
                             color = slotColors[slot] ?: Color(0xFFF3F4F6),
                             shape = RoundedCornerShape(12.dp),
@@ -2313,7 +2335,7 @@ fun MealPlanCalendarSection(
                                     color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151),
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (isSlotLogged) {
+                                if (slotStatus == PantryViewModel.CellCompletionStatus.LOGGED) {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
                                         shape = RoundedCornerShape(4.dp)
@@ -2326,6 +2348,19 @@ fun MealPlanCalendarSection(
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Text("Logged", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
                                         }
+                                    }
+                                } else if (slotStatus == PantryViewModel.CellCompletionStatus.SKIPPED) {
+                                    Surface(
+                                        color = Color(0xFFF3F4F6),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "Skipped",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFF6B7280),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
                                     }
                                 } else if (alreadyInSlot) {
                                     Surface(
@@ -2475,8 +2510,12 @@ private fun MealPlanCopyTargetDialog(
     } else {
         emptyList()
     }
+    val selectedProtectedStatus = selectedSlotMeals
+        .firstOrNull { it.status == "logged" || it.status == "skipped" }
+        ?.status
     val confirmEnabled = targetDayIndex in 0..6 && targetSlot != null &&
-        viewModel.isDayEditableForWeek(targetDayIndex, targetWeekStart)
+        viewModel.isDayEditableForWeek(targetDayIndex, targetWeekStart) &&
+        selectedProtectedStatus == null
 
     val sourceSummary = when (source) {
         is MealPlanCopySource.Week -> "Week of ${mealPlanWeekRangeLabel(source.sourceWeekStart)}"
@@ -2497,14 +2536,15 @@ private fun MealPlanCopyTargetDialog(
 
     val conflictText = when (source) {
         is MealPlanCopySource.Week -> ""
-        is MealPlanCopySource.MealSlot -> if (selectedSlotMeals.isNotEmpty()) {
-            "This will replace ${selectedSlotMeals.size} existing dish${if (selectedSlotMeals.size == 1) "" else "es"}."
-        } else {
-            "This will copy the meal into an empty slot."
+        is MealPlanCopySource.MealSlot -> when {
+            selectedProtectedStatus != null -> "This target meal is $selectedProtectedStatus and cannot be changed."
+            selectedSlotMeals.isNotEmpty() -> "This will replace ${selectedSlotMeals.size} existing dish${if (selectedSlotMeals.size == 1) "" else "es"}."
+            else -> "This will copy the meal into an empty slot."
         }
         is MealPlanCopySource.Dish -> {
             val sameDishExists = selectedSlotMeals.any { it.dishLabel == source.meal.dishLabel }
             when {
+                selectedProtectedStatus != null -> "This target meal is $selectedProtectedStatus and cannot be changed."
                 sameDishExists -> "This will replace the existing copy of this dish."
                 selectedSlotMeals.isNotEmpty() -> "This will add this dish to the selected meal."
                 else -> "This will copy the dish into an empty slot."
@@ -2624,8 +2664,11 @@ private fun MealPlanCopyTargetDialog(
                     val slotMeals = plannedMealsForTargetWeek.filter {
                         it.dayIndex == targetDayIndex && it.mealSlot == slot
                     }
+                    val protectedStatus = slotMeals
+                        .firstOrNull { it.status == "logged" || it.status == "skipped" }
+                        ?.status
                     val selected = targetSlot == slot
-                    val canSelectSlot = targetDayIndex >= 0
+                    val canSelectSlot = targetDayIndex >= 0 && protectedStatus == null
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2651,6 +2694,21 @@ private fun MealPlanCopyTargetDialog(
                                     fontSize = 11.sp,
                                     color = Color(0xFF6B7280)
                                 )
+                            }
+                            if (protectedStatus != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = if (protectedStatus == "logged") Color(0xFFDCFCE7) else Color(0xFFF3F4F6),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        if (protectedStatus == "logged") "Logged" else "Skipped",
+                                        fontSize = 9.sp,
+                                        color = if (protectedStatus == "logged") CalorieKoGreen else Color(0xFF6B7280),
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -2927,13 +2985,12 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
 
     // --- Target week for planning (may differ from calendar's selected week) ---
     val calendarWeekStart by viewModel.currentWeekStart.collectAsState()
-    val cellCompletionStatus by viewModel.cellCompletionStatus.collectAsState()
     var targetWeekStart by remember { mutableStateOf(calendarWeekStart) }
     var targetWeekDayDates by remember { mutableStateOf(viewModel.computeWeekDayDatesPublic(calendarWeekStart)) }
     var targetWeekMeals by remember { mutableStateOf(plannedMeals) }
 
     // Refresh day dates and meals when target week changes
-    LaunchedEffect(targetWeekStart) {
+    LaunchedEffect(targetWeekStart, calendarWeekStart, plannedMeals) {
         targetWeekDayDates = viewModel.computeWeekDayDatesPublic(targetWeekStart)
         targetWeekMeals = if (targetWeekStart == calendarWeekStart) {
             plannedMeals
@@ -4266,16 +4323,20 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                         val alreadyInSlot = targetWeekMeals.any {
                             it.dayIndex == dayIdx && it.mealSlot == slot && it.dishLabel == recipe.dishLabel
                         }
-                        // Check logged status when targeting the current calendar week
-                        val isSlotLogged = if (targetWeekStart == calendarWeekStart) {
-                            cellCompletionStatus["${dayIdx}_${slot}"] == PantryViewModel.CellCompletionStatus.LOGGED
-                        } else false
-                        val isDisabled = alreadyInSlot || isSlotLogged
+                        val protectedStatus = targetWeekMeals
+                            .firstOrNull {
+                                it.dayIndex == dayIdx &&
+                                    it.mealSlot == slot &&
+                                    (it.status == "logged" || it.status == "skipped")
+                            }
+                            ?.status
+                        val isSlotProtected = protectedStatus != null
+                        val isDisabled = alreadyInSlot || isSlotProtected
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .alpha(if (isSlotLogged) 0.5f else 1f)
+                                .alpha(if (isSlotProtected) 0.5f else 1f)
                                 .clickable {
                                     if (!isDisabled) {
                                         viewModel.addMealToPlan(
@@ -4287,9 +4348,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                             scaledServings = if (isScaled) targetServings else 0,
                                             tweaks = dishTweaks
                                         )
+                                        showSlotPickerForPlan.value = false
+                                        onAddToPlan()
                                     }
-                                    showSlotPickerForPlan.value = false
-                                    onAddToPlan()
                                 },
                             color = slotColors[slot] ?: Color(0xFFF3F4F6),
                             shape = RoundedCornerShape(12.dp),
@@ -4308,7 +4369,7 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151),
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (isSlotLogged) {
+                                if (protectedStatus == "logged") {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
                                         shape = RoundedCornerShape(4.dp)
@@ -4321,6 +4382,19 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Text("Logged", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
                                         }
+                                    }
+                                } else if (protectedStatus == "skipped") {
+                                    Surface(
+                                        color = Color(0xFFF3F4F6),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "Skipped",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFF6B7280),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
                                     }
                                 } else if (alreadyInSlot) {
                                     Surface(

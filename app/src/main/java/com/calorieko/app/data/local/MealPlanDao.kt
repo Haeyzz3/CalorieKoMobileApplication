@@ -70,6 +70,14 @@ interface MealPlanDao {
     @Query("SELECT * FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot")
     suspend fun getMealsForSlotOneShot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String): List<PlannedMealEntity>
 
+    /** Returns the number of logged/skipped rows in a specific slot. */
+    @Query("""
+        SELECT COUNT(*) FROM PLANNED_MEALS_TABLE
+        WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate
+          AND meal_slot = :mealSlot AND status IN ('logged', 'skipped')
+    """)
+    suspend fun countProtectedMealsInSlot(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String): Int
+
     /** Meal counts per week for scrubber density dots. */
     @Query("""
         SELECT week_start_date, COUNT(*) as count 
@@ -106,6 +114,21 @@ interface MealPlanDao {
         meals: List<PlannedMealEntity>
     ) {
         clearSlot(uid, dayIndex, weekStartDate, mealSlot)
+        if (meals.isNotEmpty()) {
+            insertMeals(meals)
+        }
+    }
+
+    /** Replaces only clearable meals in a target meal slot. Preserves logged & skipped rows. */
+    @Transaction
+    suspend fun replaceSlotClearableOnly(
+        uid: String,
+        dayIndex: Int,
+        weekStartDate: String,
+        mealSlot: String,
+        meals: List<PlannedMealEntity>
+    ) {
+        clearSlotClearableOnly(uid, dayIndex, weekStartDate, mealSlot)
         if (meals.isNotEmpty()) {
             insertMeals(meals)
         }

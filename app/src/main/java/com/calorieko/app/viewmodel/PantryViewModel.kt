@@ -782,10 +782,9 @@ class PantryViewModel(
                 _uiEvents.emit(PantryUiEvent.Snackbar("Choose today or a future date."))
                 return@launch
             }
-            // Prevent adding dishes to logged slots
-            val slotKey = "${dayIndex}_${mealSlot}"
-            if (_cellCompletionStatus.value[slotKey] == CellCompletionStatus.LOGGED) {
-                _uiEvents.emit(PantryUiEvent.Snackbar("This meal has already been logged."))
+            // Prevent adding dishes to slots that are no longer editable.
+            if (isSlotProtected(weekStartDate, dayIndex, mealSlot)) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal is logged or skipped."))
                 return@launch
             }
 
@@ -1082,13 +1081,42 @@ class PantryViewModel(
                     return@launch
                 }
 
-                val copiedMeals = sourceMeals.map { it.copy(weekStartDate = targetWeek) }
-                mealPlanDao.replaceWeek(uid, targetWeek, copiedMeals)
+                val targetMeals = mealPlanDao.getMealsForWeekOneShot(uid, targetWeek)
+                val protectedTargetSlots = targetMeals
+                    .filter { it.status in listOf("logged", "skipped") }
+                    .map { mealPlanSlotKey(it.dayIndex, it.mealSlot) }
+                    .toSet()
+                val copiedMeals = sourceMeals.map {
+                    it.copy(
+                        uid = uid,
+                        weekStartDate = targetWeek,
+                        status = "planned"
+                    )
+                }.filterNot { mealPlanSlotKey(it.dayIndex, it.mealSlot) in protectedTargetSlots }
+
+                val targetClearableMeals = targetMeals.filter {
+                    it.status in listOf("planned", "missed") &&
+                        mealPlanSlotKey(it.dayIndex, it.mealSlot) !in protectedTargetSlots
+                }
+
+                val mealSlots = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+                for (dayIndex in 0..6) {
+                    for (mealSlot in mealSlots) {
+                        if (mealPlanSlotKey(dayIndex, mealSlot) !in protectedTargetSlots) {
+                            mealPlanDao.clearSlotClearableOnly(uid, dayIndex, targetWeek, mealSlot)
+                        }
+                    }
+                }
+                if (copiedMeals.isNotEmpty()) {
+                    mealPlanDao.insertMeals(copiedMeals)
+                }
 
                 if (uid.isNotEmpty()) {
                     withTimeoutOrNull(5_000L) {
                         try {
-                            firestoreSyncRepo.clearWeekPlannedMeals(uid, targetWeek)
+                            for (meal in targetClearableMeals) {
+                                firestoreSyncRepo.deletePlannedMeal(uid, meal.dayIndex, targetWeek, meal.mealSlot, meal.dishLabel)
+                            }
                             firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
                         } catch (_: Exception) {}
                     }
@@ -1096,7 +1124,15 @@ class PantryViewModel(
                 }
 
                 recomputeWeekScrubberData()
-                _uiEvents.emit(PantryUiEvent.Snackbar("Copied week to ${formatWeekRange(targetWeek)}."))
+                val protectedSuffix = if (protectedTargetSlots.isNotEmpty()) {
+                    " ${protectedTargetSlots.size} protected meal slot${if (protectedTargetSlots.size == 1) "" else "s"} preserved."
+                } else ""
+                val copiedText = if (copiedMeals.isEmpty()) {
+                    "No meals copied to ${formatWeekRange(targetWeek)}."
+                } else {
+                    "Copied week to ${formatWeekRange(targetWeek)}."
+                }
+                _uiEvents.emit(PantryUiEvent.Snackbar("$copiedText$protectedSuffix"))
             } catch (_: Exception) {
                 _uiEvents.emit(PantryUiEvent.Snackbar("Could not copy meal plan. Please try again."))
             }
@@ -1118,6 +1154,11 @@ class PantryViewModel(
                     return@launch
                 }
 
+                if (isSlotProtected(targetWeekStart, targetDayIndex, targetMealSlot)) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("This target meal is logged or skipped."))
+                    return@launch
+                }
+
                 val sourceMeals = mealPlanDao.getMealsForWeekOneShot(uid, sourceWeekStart)
                     .filter { it.dayIndex == sourceDayIndex && it.mealSlot == sourceMealSlot }
 
@@ -1128,18 +1169,25 @@ class PantryViewModel(
 
                 val copiedMeals = sourceMeals.map {
                     it.copy(
+                        uid = uid,
                         weekStartDate = targetWeekStart,
                         dayIndex = targetDayIndex,
-                        mealSlot = targetMealSlot
+                        mealSlot = targetMealSlot,
+                        status = "planned"
                     )
                 }
 
-                mealPlanDao.replaceSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
+                val targetClearableMeals = mealPlanDao.getMealsForSlotOneShot(uid, targetDayIndex, targetWeekStart, targetMealSlot)
+                    .filter { it.status in listOf("planned", "missed") }
+
+                mealPlanDao.replaceSlotClearableOnly(uid, targetDayIndex, targetWeekStart, targetMealSlot, copiedMeals)
 
                 if (uid.isNotEmpty()) {
                     withTimeoutOrNull(5_000L) {
                         try {
-                            firestoreSyncRepo.deletePlannedMealSlot(uid, targetDayIndex, targetWeekStart, targetMealSlot)
+                            for (meal in targetClearableMeals) {
+                                firestoreSyncRepo.deletePlannedMeal(uid, targetDayIndex, targetWeekStart, targetMealSlot, meal.dishLabel)
+                            }
                             firestoreSyncRepo.syncPlannedMealsBatch(uid, copiedMeals)
                         } catch (_: Exception) {}
                     }
@@ -1168,10 +1216,17 @@ class PantryViewModel(
                     return@launch
                 }
 
+                if (isSlotProtected(targetWeekStart, targetDayIndex, targetMealSlot)) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("This target meal is logged or skipped."))
+                    return@launch
+                }
+
                 val copiedMeal = sourceMeal.copy(
+                    uid = uid,
                     weekStartDate = targetWeekStart,
                     dayIndex = targetDayIndex,
-                    mealSlot = targetMealSlot
+                    mealSlot = targetMealSlot,
+                    status = "planned"
                 )
 
                 mealPlanDao.insertMeal(copiedMeal)
@@ -1700,6 +1755,13 @@ class PantryViewModel(
         if (dayIndex !in 0..6) return false
         val targetDate = LocalDate.parse(weekStartDate).plusDays(dayIndex.toLong())
         return !targetDate.isBefore(LocalDate.now()) && weekStartDate <= getMaxPlanningWeekStart()
+    }
+
+    private fun mealPlanSlotKey(dayIndex: Int, mealSlot: String): String =
+        "${dayIndex}_${mealSlot}"
+
+    private suspend fun isSlotProtected(weekStartDate: String, dayIndex: Int, mealSlot: String): Boolean {
+        return mealPlanDao.countProtectedMealsInSlot(uid, dayIndex, weekStartDate, mealSlot) > 0
     }
 
     private fun formatDateLabel(weekStartDate: String, dayIndex: Int): String {
