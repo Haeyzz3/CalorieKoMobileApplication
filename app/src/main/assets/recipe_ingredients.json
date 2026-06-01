@@ -2018,5 +2018,185 @@
     "portion_original": "1/2 cup",
     "preparation_method": "",
     "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "chicken_whole",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 1000.0,
+    "portion_original": "1 kilo",
+    "preparation_method": "cut into serving pieces",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "laurel_leaves",
+    "ingredient_type": "core",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 1.8,
+    "portion_original": "3 pieces",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "soy_sauce",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 64.0,
+    "portion_original": "4 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 34.0,
+    "portion_original": "1/4 cup",
+    "preparation_method": "crushed",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 354.9,
+    "portion_original": "1 1/2 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "cooking_oil",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 54.4,
+    "portion_original": "4 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "sugar_brown",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 4.6,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "vinegar_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 67.5,
+    "portion_original": "4 1/2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 2.3,
+    "portion_original": "1 tsp",
+    "preparation_method": "whole",
+    "step": 1
+  },
+  {
+    "dish_label": "chicken_adobo",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "pork_liempo",
+    "ingredient_type": "core",
+    "ingredient_category": "protein",
+    "raw_weight_grams": 900.0,
+    "portion_original": "4 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "garlic",
+    "ingredient_type": "optional",
+    "ingredient_category": "produce",
+    "raw_weight_grams": 17.0,
+    "portion_original": "2 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "laurel_leaves",
+    "ingredient_type": "core",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 3.0,
+    "portion_original": "5 pieces",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "vinegar_white",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 60.0,
+    "portion_original": "4 tbsps",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "soy_sauce",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 127.5,
+    "portion_original": "1/2 cup",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "black_pepper",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.8,
+    "portion_original": "1 tbsp",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "water",
+    "ingredient_type": "optional",
+    "ingredient_category": "pantry_staple",
+    "raw_weight_grams": 473.2,
+    "portion_original": "2 cups",
+    "preparation_method": "",
+    "step": 1
+  },
+  {
+    "dish_label": "pork_adobo",
+    "ingredient_key": "salt_iodized",
+    "ingredient_type": "optional",
+    "ingredient_category": "seasoning",
+    "raw_weight_grams": 6.0,
+    "portion_original": "1 tsp",
+    "preparation_method": "",
+    "step": 1
   }
 ]

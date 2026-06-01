@@ -388,6 +388,56 @@
     ]
   },
   {
+    "key": "chicken_whole",
+    "display": "Whole Chicken (raw)",
+    "fdc_id": 171447,
+    "usda_desc": "Chicken, broilers or fryers, meat and skin, raw",
+    "status": "OK",
+    "issues": [],
+    "usda_nutrients": {
+      "calories": 215.0,
+      "protein": 18.6,
+      "carbs": 0.0,
+      "fat": 15.06,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 70.0,
+      "potassium": 189.0,
+      "vitamin_a": 41.0,
+      "vitamin_c": 1.6,
+      "calcium": 11.0,
+      "iron": 0.9
+    },
+    "current_nutrients": {
+      "calories": 215.0,
+      "protein": 18.6,
+      "carbs": 0.0,
+      "fat": 15.06,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 70.0,
+      "potassium": 189.0,
+      "vitamin_a": 41.0,
+      "vitamin_c": 1.6,
+      "calcium": 11.0,
+      "iron": 0.9
+    },
+    "usda_portions": [
+      {
+        "description": "chicken, bone removed",
+        "grams": 460.0
+      },
+      {
+        "description": "unit (yield from 1 lb ready-to-cook chicken)",
+        "grams": 276.0
+      },
+      {
+        "description": "oz",
+        "grams": 113.0
+      }
+    ]
+  },
+  {
     "key": "pork_tenderloin",
     "display": "Pork Tenderloin",
     "fdc_id": 168249,

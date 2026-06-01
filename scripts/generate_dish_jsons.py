@@ -184,6 +184,8 @@ DISH_COOKING_METHODS = {
     "linatan": "simmered",
     "humba_pork": "braised",
     "lawuy": "simmered",
+    "chicken_adobo": "braised",
+    "pork_adobo": "braised",
 }
 
 # ─── Servings per dish (from DOST-FNRI Menu Guide PDFs) ───
@@ -206,6 +208,8 @@ DISH_SERVINGS = {
     "linatan": 5,
     "humba_pork": 5,
     "lawuy": 5,
+    "chicken_adobo": 4,
+    "pork_adobo": 4,
     # Simple/single-serving dishes
     "milkfish_fried": 1,
     "mackerel_fried": 1,
@@ -243,6 +247,8 @@ SERVING_SIZE_DESCRIPTIONS = {
     "linatan": "1/3 cup meat + 3/4 cup vegetables",
     "lawuy": "1 cup vegetables + 1 cup soup",
     "humba_pork": "1/2 cup pork + 3 tbsps sauce",
+    "chicken_adobo": "1/4 recipe",
+    "pork_adobo": "1/4 recipe",
 }
 
 
@@ -541,13 +547,14 @@ def main():
         cooked_weight = round(total_weight * yield_factor, 1)
         per_serving_weight = round(cooked_weight / servings, 1) if servings > 0 else cooked_weight
         
-        # Compute per-serving nutrients
-        per_serving_nutrients = {}
-        for nkey, val in total_nutrients.items():
-            per_serving_nutrients[nkey] = round(val / servings, 2) if servings > 0 else round(val, 2)
-        
         # Round total nutrients
         total_nutrients_rounded = {k: round(v, 2) for k, v in total_nutrients.items()}
+
+        # Compute per-serving nutrients from rounded batch totals so generated
+        # assets match the dish validation contract exactly.
+        per_serving_nutrients = {}
+        for nkey, val in total_nutrients_rounded.items():
+            per_serving_nutrients[nkey] = round(val / servings, 2) if servings > 0 else val
         
         dish_recipes.append({
             "dish_label": label,

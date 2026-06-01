@@ -28,6 +28,8 @@ egg_scrambled,Scrambled Egg,Tortang Itlog,Egg,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 linatan,Boiled Pork Stew,Linat-an na Baboy,Soup,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
 humba_pork,Braised Pork,Humba,Main Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
 lawuy,Vegetable Stew,Law-Uy,Vegetable Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
-rice_black,Black Rice,Bigas na Itim,Rice,228.27,4.67,47.63,2.12,2.58,0.0,0,0,0,0,0,0.0,157.71,0.0,0.0,8.88,0.69,USDA_FDC
-rice_brown,Brown Rice,Bigas na Kayumanggi,Rice,226.44,4.65,47.05,1.97,2.22,0.41,0,0,0,0,0,3.08,154.25,0.0,0.0,5.55,0.8,USDA_FDC
-rice_corn,Corn Rice,Bigas na Mais,Rice,193.51,3.72,41.55,0.92,2.04,0.84,0,0,0,0,0,3.66,74.27,0.0,0.0,1.57,0.58,USDA_FDC
+rice_black,Black Rice,Bigas na Itim,Rice,228.27,4.67,47.63,2.12,2.58,0,0,0,0,0,0,0,157.71,0,0,8.88,0.69,USDA_FDC
+rice_brown,Brown Rice,Bigas na Kayumanggi,Rice,226.44,4.65,47.05,1.97,2.22,0.41,0,0,0,0,0,3.08,154.25,0,0,5.55,0.8,USDA_FDC
+rice_corn,Corn Rice,Bigas na Mais,Rice,193.51,3.72,41.55,0.92,2.04,0.84,0,0,0,0,0,3.66,74.27,0,0,1.57,0.58,USDA_FDC
+chicken_adobo,Chicken Adobo,Adobong Manok,Main Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
+pork_adobo,Pork Adobo,Adobong Baboy,Main Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC

@@ -292,6 +292,44 @@
     "nutrient_proxy_note": ""
   },
   {
+    "ingredient_key": "chicken_whole",
+    "display_name": "Whole Chicken (raw)",
+    "category": "protein",
+    "sub_category": "poultry",
+    "fdc_id": 171447,
+    "data_source": "USDA_SR_LEGACY",
+    "nutrients_per_100g": {
+      "calories": 215.0,
+      "protein": 18.6,
+      "carbs": 0.0,
+      "fat": 15.06,
+      "fiber": 0.0,
+      "sugar": 0.0,
+      "sodium": 70.0,
+      "potassium": 189.0,
+      "vitamin_a": 41.0,
+      "vitamin_c": 1.6,
+      "calcium": 11.0,
+      "iron": 0.9
+    },
+    "portions": [
+      {
+        "description": "whole chicken",
+        "grams": 1000.0
+      },
+      {
+        "description": "lb",
+        "grams": 453.6
+      },
+      {
+        "description": "oz",
+        "grams": 28.4
+      }
+    ],
+    "is_substitutable": true,
+    "nutrient_proxy_note": "Nutritional values approximated from USDA Chicken, broilers or fryers, meat and skin, raw"
+  },
+  {
     "ingredient_key": "pork_tenderloin",
     "display_name": "Pork Tenderloin",
     "category": "protein",

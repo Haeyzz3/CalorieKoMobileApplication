@@ -38,15 +38,15 @@ class FoodDatabaseCallback(
                 val hasSyncedFromServer = seedPrefs.getBoolean(KEY_FOOD_CATALOG_SYNCED, false)
                 val dishCount = database.pantryDao().getDishIngredientCount()
                 val foodCount = database.foodDao().getAllFoods().size
-                if (!hasSyncedFromServer && (dishCount == 0 || foodCount == 0)) {
+                val assetDishIngredients = readDishIngredientsFromCsv(context)
+                val needsDishIngredientReseed = dishCount == 0 || dishCount < assetDishIngredients.size
+                if (!hasSyncedFromServer && (needsDishIngredientReseed || foodCount == 0)) {
                     populateDatabase(context, database.foodDao(), database.pantryDao())
-                } else if (dishCount == 0) {
+                } else if (needsDishIngredientReseed) {
                     // Even after server sync, DISH_INGREDIENTS_TABLE still needs CSV seeding
                     // (it's not synced from server)
-                    context.assets.open("dish_ingredients.csv").use { inputStream ->
-                        val dishIngredients = FoodCsvParser.parseDishIngredients(inputStream)
-                        database.pantryDao().insertAllDishIngredients(dishIngredients)
-                    }
+                    database.pantryDao().deleteAllDishIngredients()
+                    database.pantryDao().insertAllDishIngredients(assetDishIngredients)
                 }
 
                 // New JSON seeding for raw ingredient tables (Phase 2)
@@ -86,6 +86,11 @@ class FoodDatabaseCallback(
     }
 }
 
+private fun readDishIngredientsFromCsv(context: Context) =
+    context.assets.open("dish_ingredients.csv").use { inputStream ->
+        FoodCsvParser.parseDishIngredients(inputStream)
+    }
+
 suspend fun populateDatabase(context: Context, foodDao: FoodDao, pantryDao: PantryDao) {
     // Clear existing rows first to prevent duplicates.
     // This is necessary because FoodItem uses autoGenerate = true for food_id,
@@ -102,10 +107,7 @@ suspend fun populateDatabase(context: Context, foodDao: FoodDao, pantryDao: Pant
     }
 
     // Seed the dish ingredients table
-    context.assets.open("dish_ingredients.csv").use { inputStream ->
-        val dishIngredients = FoodCsvParser.parseDishIngredients(inputStream)
-        pantryDao.insertAllDishIngredients(dishIngredients)
-    }
+    pantryDao.insertAllDishIngredients(readDishIngredientsFromCsv(context))
 }
 
 /**
@@ -163,13 +165,13 @@ suspend fun ensureReferenceDataSeeded(context: Context, foodDao: FoodDao, pantry
     val hasSyncedFromServer = seedPrefs.getBoolean(FoodDatabaseCallback.KEY_FOOD_CATALOG_SYNCED, false)
     val dishCount = pantryDao.getDishIngredientCount()
     val foodCount = foodDao.getAllFoods().size
-    if (!hasSyncedFromServer && (dishCount == 0 || foodCount == 0)) {
+    val assetDishIngredients = readDishIngredientsFromCsv(context)
+    val needsDishIngredientReseed = dishCount == 0 || dishCount < assetDishIngredients.size
+    if (!hasSyncedFromServer && (needsDishIngredientReseed || foodCount == 0)) {
         populateDatabase(context, foodDao, pantryDao)
-    } else if (dishCount == 0) {
+    } else if (needsDishIngredientReseed) {
         // DISH_INGREDIENTS_TABLE still needs CSV seeding (not synced from server)
-        context.assets.open("dish_ingredients.csv").use { inputStream ->
-            val dishIngredients = FoodCsvParser.parseDishIngredients(inputStream)
-            pantryDao.insertAllDishIngredients(dishIngredients)
-        }
+        pantryDao.deleteAllDishIngredients()
+        pantryDao.insertAllDishIngredients(assetDishIngredients)
     }
 }
