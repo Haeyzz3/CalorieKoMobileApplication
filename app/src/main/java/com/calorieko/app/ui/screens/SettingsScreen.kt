@@ -33,7 +33,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -126,7 +125,6 @@ fun SettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showWipeDialog by remember { mutableStateOf(false) }
     var showPasswordResetDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var deleteAccountPassword by remember { mutableStateOf("") }
@@ -134,7 +132,6 @@ fun SettingsScreen(
 
     // Collect ViewModel State
     val isSyncing by viewModel.isSyncing.collectAsState()
-    val isWipingProgress by viewModel.isWipingProgress.collectAsState()
     val isDeletingAccount by viewModel.isDeletingAccount.collectAsState()
     val lastSyncedAt by viewModel.lastSyncedAt.collectAsState()
     val lastFoodCatalogSyncedAt by viewModel.lastFoodCatalogSyncedAt.collectAsState()
@@ -188,22 +185,8 @@ fun SettingsScreen(
                         event.message
                     )
                 }
-                is SettingsViewModel.Event.WipeProgressSuccess -> {
-                    showWipeDialog = false
-                    showBanner(
-                        NotificationType.SUCCESS,
-                        "Progress Reset",
-                        "All meals, activities, and plans have been cleared."
-                    )
-                }
-                is SettingsViewModel.Event.WipeProgressError -> {
-                    showWipeDialog = false
-                    showBanner(
-                        NotificationType.ERROR,
-                        "Reset Failed",
-                        event.message
-                    )
-                }
+                is SettingsViewModel.Event.WipeProgressSuccess,
+                is SettingsViewModel.Event.WipeProgressError -> Unit
                 is SettingsViewModel.Event.LogoutReady -> {
                     onLogout()
                 }
@@ -475,12 +458,6 @@ fun SettingsScreen(
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
                     Column {
                         SettingsRow(
-                            icon = Icons.Default.DeleteForever, title = "Reset Progress", subtitle = "Clear all meals, activities, and plans",
-                            iconColor = Color(0xFFEF4444), textColor = Color(0xFFEF4444), showArrow = false,
-                            onClick = { showWipeDialog = true }
-                        )
-                        SettingsDivider()
-                        SettingsRow(
                             icon = Icons.AutoMirrored.Filled.Logout, title = "Logout", subtitle = "Sign out of your account",
                             iconColor = Color(0xFF6B7280), showArrow = false,
                             onClick = { showLogoutDialog = true }
@@ -523,32 +500,6 @@ fun SettingsScreen(
                     .zIndex(10f)
             )
         }
-    }
-
-    // --- RESET PROGRESS DIALOG ---
-    if (showWipeDialog) {
-        AlertDialog(
-            onDismissRequest = { if (!isWipingProgress) showWipeDialog = false },
-            title = { Text("Reset All Progress?", fontWeight = FontWeight.Bold, color = Color(0xFF1F2937)) },
-            text = { Text("This will permanently delete all your logged meals, activities, nutrition history, pantry items, and meal plans from this device and the cloud.\n\nYour profile and settings (name, weight, height, goals) will be preserved.\n\nThis action cannot be undone.", color = Color(0xFF4B5563)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.wipeProgress()
-                    },
-                    enabled = !isWipingProgress
-                ) {
-                    Text(if (isWipingProgress) "Resetting..." else "Yes, Reset Progress", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showWipeDialog = false }, enabled = !isWipingProgress) {
-                    Text("Cancel", color = Color(0xFF6B7280))
-                }
-            },
-            containerColor = Color.White,
-            properties = DialogProperties(dismissOnBackPress = !isWipingProgress, dismissOnClickOutside = !isWipingProgress)
-        )
     }
 
     // --- LOGOUT DIALOG ---
