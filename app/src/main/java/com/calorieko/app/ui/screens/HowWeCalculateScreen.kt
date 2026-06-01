@@ -237,7 +237,7 @@ fun HowWeCalculateScreen(
                 BulletPoint(
                     title = "Step 2 \u2014 Activity Factor",
                     body = "Your activity level maps to an NDAP energy factor (kcal per kg of DBW): " +
-                           "Sedentary \u2192 30, Light \u2192 35, Moderate \u2192 40, Vigorous \u2192 45."
+                           "Sedentary = 30, Light = 35, Moderate = 40, Vigorous = 45."
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 BulletPoint(

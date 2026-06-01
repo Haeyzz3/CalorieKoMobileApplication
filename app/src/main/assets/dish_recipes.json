@@ -674,7 +674,7 @@
   {
     "dish_label": "rice_well_milled",
     "name_en": "White Rice",
-    "name_ph": "Bigas na Puti",
+    "name_ph": "Kanin na Puti",
     "category": "Rice",
     "cooking_method": "boiled",
     "servings": 1,
@@ -1052,7 +1052,7 @@
   {
     "dish_label": "rice_black",
     "name_en": "Black Rice",
-    "name_ph": "Bigas na Itim",
+    "name_ph": "Kanin na Itim",
     "category": "Rice",
     "cooking_method": "boiled",
     "servings": 1,
@@ -1094,7 +1094,7 @@
   {
     "dish_label": "rice_brown",
     "name_en": "Brown Rice",
-    "name_ph": "Bigas na Kayumanggi",
+    "name_ph": "Kanin na Kayumanggi",
     "category": "Rice",
     "cooking_method": "boiled",
     "servings": 1,
@@ -1136,7 +1136,7 @@
   {
     "dish_label": "rice_corn",
     "name_en": "Corn Rice",
-    "name_ph": "Bigas na Mais",
+    "name_ph": "Kanin na Mais",
     "category": "Rice",
     "cooking_method": "boiled",
     "servings": 1,

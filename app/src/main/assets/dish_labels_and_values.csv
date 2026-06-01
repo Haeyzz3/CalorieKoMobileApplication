@@ -15,7 +15,7 @@ chicken_tinola,Chicken Stew,Tinolang Manok,Soup,73.7,7.4,2.4,3.8,0.8,0.5,0.9,1.1
 sinuglaw_pork,Grilled Pork Ceviche,Sinuglaw na Baboy,Main Dish,142.22,7.95,5.63,9.78,0.89,2.07,3.85,1.04,4.35,0,29.14,163.46,190.12,141.73,23.16,40.74,1.66,DOST_FNRI_MENU_GUIDE
 milkfish_fried,Fried Milkfish,Pritong Bangus,Fish,188,23.6,0,10.4,0,0,3.5,2.2,4,0,67,106,374,85,0,116,1,DOST_FNRI_FCT
 mackerel_fried,Fried Mackerel,Pritong Alumahan,Fish,221,21.6,0,14.9,0,0,4.24,3.66,4.97,0,121.6,117,401,70,0,202,2.1,DOST_FNRI_FCT
-rice_well_milled,White Rice,Bigas na Puti,Rice,129,2.1,29.7,0.2,0.4,0.1,0.05,0.05,0.06,0,0,3,35,0,0,11,0.6,DOST_FNRI_FCT
+rice_well_milled,White Rice,Kanin na Puti,Rice,129,2.1,29.7,0.2,0.4,0.1,0.05,0.05,0.06,0,0,3,35,0,0,11,0.6,DOST_FNRI_FCT
 egg_sunny,Sunny Side Up Egg,Itlog na Sunny Side Up,Egg,192,11.56,0.9,15.81,0,0.19,3.85,4.2,6.14,0,383,228,123,168,0,45,1.57,USDA_FNDDS
 egg_boiled,Boiled Egg,Nilagang Itlog,Egg,155,12.6,1.12,10.6,0,1.12,3.27,1.41,4.08,0,373,124,126,149,0,50,1.19,USDA_FNDDS
 chicken_wing,Rotisserie Chicken - Wing,Lechon Manok - Pakpak,Main Dish,257,23.4,0.6,18,0,0.6,4.63,2.18,7.33,0.16,129,579,285,26,0,33,0.93,USDA_FNDDS
@@ -28,8 +28,8 @@ egg_scrambled,Scrambled Egg,Tortang Itlog,Egg,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 linatan,Boiled Pork Stew,Linat-an na Baboy,Soup,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
 humba_pork,Braised Pork,Humba,Main Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
 lawuy,Vegetable Stew,Law-Uy,Vegetable Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
-rice_black,Black Rice,Bigas na Itim,Rice,228.27,4.67,47.63,2.12,2.58,0,0,0,0,0,0,0,157.71,0,0,8.88,0.69,USDA_FDC
-rice_brown,Brown Rice,Bigas na Kayumanggi,Rice,226.44,4.65,47.05,1.97,2.22,0.41,0,0,0,0,0,3.08,154.25,0,0,5.55,0.8,USDA_FDC
-rice_corn,Corn Rice,Bigas na Mais,Rice,193.51,3.72,41.55,0.92,2.04,0.84,0,0,0,0,0,3.66,74.27,0,0,1.57,0.58,USDA_FDC
+rice_black,Black Rice,Kanin na Itim,Rice,228.27,4.67,47.63,2.12,2.58,0,0,0,0,0,0,0,157.71,0,0,8.88,0.69,USDA_FDC
+rice_brown,Brown Rice,Kanin na Kayumanggi,Rice,226.44,4.65,47.05,1.97,2.22,0.41,0,0,0,0,0,3.08,154.25,0,0,5.55,0.8,USDA_FDC
+rice_corn,Corn Rice,Kanin na Mais,Rice,193.51,3.72,41.55,0.92,2.04,0.84,0,0,0,0,0,3.66,74.27,0,0,1.57,0.58,USDA_FDC
 chicken_adobo,Chicken Adobo,Adobong Manok,Main Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
 pork_adobo,Pork Adobo,Adobong Baboy,Main Dish,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,USDA_FDC
