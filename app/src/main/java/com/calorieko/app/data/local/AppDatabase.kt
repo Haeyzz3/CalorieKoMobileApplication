@@ -688,43 +688,74 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                // SQLCipher SupportOpenHelperFactory — encrypts the entire .db file
-                // transparently; no changes required to DAOs or Repositories.
-                val passphrase = getOrCreatePassphrase()
-                val factory = SupportOpenHelperFactory(passphrase)
+                val instance = buildDatabase(context, scope)
+                INSTANCE = instance
+                instance
+            }
+        }
 
-                // Use a holder so the callback lambda can safely access the
-                // database instance. Room may call onOpen() during .build(),
-                // before INSTANCE is assigned. The callback's seed work runs
-                // on Dispatchers.IO via scope.launch, so by the time the
-                // coroutine executes, this holder will be populated.
-                var holder: AppDatabase? = null
+        /**
+         * Builds the Room database with SQLCipher encryption.
+         *
+         * If the existing database file can't be decrypted (e.g., due to
+         * Android Keystore key invalidation, app re-signing, or file corruption),
+         * the old database files are deleted and a fresh database is created.
+         * User data will be restored from the Firestore cloud backup on next login.
+         */
+        private fun buildDatabase(context: Context, scope: CoroutineScope): AppDatabase {
+            val passphrase = getOrCreatePassphrase()
+            val factory = SupportOpenHelperFactory(passphrase)
+            var holder: AppDatabase? = null
 
-                val instance = Room.databaseBuilder(
+            val dbName = "calorieko_database"
+
+            fun createBuilder(): androidx.room.RoomDatabase.Builder<AppDatabase> {
+                return Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "calorieko_database"
+                    dbName
                 )
-                    // Inject encrypted SQLite driver (AES-256)
-                    .openHelperFactory(factory)
-                    // Pass a lambda providing the database to the callback.
-                    // The lambda reads from `holder` first (set right after .build()),
-                    // falling back to INSTANCE for safety.
+                    .openHelperFactory(SupportOpenHelperFactory(getOrCreatePassphrase()))
                     .addCallback(FoodDatabaseCallback(context.applicationContext, scope) {
                         holder ?: INSTANCE
                             ?: throw IllegalStateException("Database not initialized")
                     })
-                    // Register the migration so existing data is preserved
                     .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30)
-                    // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
-                    .build()
+            }
 
-                // Set holder immediately so the callback's deferred coroutine
-                // can access the database instance.
+            return try {
+                val instance = createBuilder().build()
+                // Force-open the database to detect encryption errors early.
+                // Without this, the "file is not a database" error would
+                // surface later in a ViewModel or DAO call.
+                instance.openHelper.writableDatabase
                 holder = instance
-                INSTANCE = instance
                 instance
+            } catch (e: Exception) {
+                val msg = e.message ?: ""
+                if (msg.contains("file is not a database") || msg.contains("code 26")) {
+                    android.util.Log.w(
+                        "AppDatabase",
+                        "Database decryption failed — deleting corrupted DB and starting fresh. " +
+                                "User data will be restored from cloud backup on next login.",
+                        e
+                    )
+                    // Delete all database-related files
+                    context.applicationContext.let { ctx ->
+                        ctx.deleteDatabase(dbName)
+                        // SQLCipher may leave -wal and -shm journal files
+                        ctx.getDatabasePath("$dbName-wal").delete()
+                        ctx.getDatabasePath("$dbName-shm").delete()
+                        ctx.getDatabasePath("$dbName-journal").delete()
+                    }
+                    // Rebuild with a fresh database
+                    val freshInstance = createBuilder().build()
+                    holder = freshInstance
+                    freshInstance
+                } else {
+                    throw e
+                }
             }
         }
     }
