@@ -19,6 +19,10 @@ class CalorieKoApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // Load SQLCipher native library before any database access.
+        // Required by the new sqlcipher-android library.
+        System.loadLibrary("sqlcipher")
+
         // Initialize Mapbox access token BEFORE any MapView is created.
         // The token is injected as a string resource by build.gradle.kts from local.properties.
         MapboxOptions.accessToken = getString(R.string.mapbox_access_token)

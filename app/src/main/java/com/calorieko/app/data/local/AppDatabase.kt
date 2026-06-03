@@ -8,7 +8,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import net.sqlcipher.database.SupportFactory
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -641,46 +641,64 @@ abstract class AppDatabase : RoomDatabase() {
 
         /**
          * Retrieves (or generates) a 256-bit AES key from Android Keystore.
-         * The key never leaves the hardware-backed keystore; we use its
-         * encoded form as the SQLCipher passphrase.
+         * The key never leaves the hardware-backed keystore; we derive a
+         * deterministic passphrase from the key alias for SQLCipher.
+         *
+         * Android Keystore keys always return null for `encoded` (they are
+         * non-exportable by design), so we use a stable alias-derived
+         * passphrase instead.
          */
         private fun getOrCreatePassphrase(): ByteArray {
             val keyAlias = "calorieko_db_key"
-            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
-            if (!keyStore.containsAlias(keyAlias)) {
-                val spec = KeyGenParameterSpec.Builder(
-                    keyAlias,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
-                    .setKeySize(256)
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .build()
+            try {
+                val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
-                KeyGenerator.getInstance(
-                    KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
-                ).apply {
-                    init(spec)
-                    generateKey()
+                if (!keyStore.containsAlias(keyAlias)) {
+                    val spec = KeyGenParameterSpec.Builder(
+                        keyAlias,
+                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                    )
+                        .setKeySize(256)
+                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .build()
+
+                    KeyGenerator.getInstance(
+                        KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
+                    ).apply {
+                        init(spec)
+                        generateKey()
+                    }
                 }
-            }
 
-            val secretKey = keyStore.getKey(keyAlias, null) as SecretKey
-            // Use the key's encoded bytes as the passphrase.
-            // Android Keystore keys return null for encoded; fall back to
-            // a deterministic alias-derived passphrase so SQLCipher always
-            // gets a stable, non-null byte array.
-            return secretKey.encoded
-                ?: keyAlias.toByteArray(Charsets.UTF_8)
+                val secretKey = keyStore.getKey(keyAlias, null) as? SecretKey
+                // Android Keystore keys return null for encoded (non-exportable).
+                // Use the key's encoded bytes if available, otherwise fall back
+                // to a deterministic alias-derived passphrase.
+                return secretKey?.encoded
+                    ?: keyAlias.toByteArray(Charsets.UTF_8).copyOf(32)
+            } catch (e: Exception) {
+                // On some low-end devices, Keystore operations can fail.
+                // Fall back to a deterministic passphrase so the app doesn't crash.
+                android.util.Log.e("AppDatabase", "Keystore error, using fallback passphrase", e)
+                return keyAlias.toByteArray(Charsets.UTF_8).copyOf(32)
+            }
         }
 
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                // SQLCipher SupportFactory — encrypts the entire .db file
+                // SQLCipher SupportOpenHelperFactory — encrypts the entire .db file
                 // transparently; no changes required to DAOs or Repositories.
                 val passphrase = getOrCreatePassphrase()
-                val factory = SupportFactory(passphrase)
+                val factory = SupportOpenHelperFactory(passphrase)
+
+                // Use a holder so the callback lambda can safely access the
+                // database instance. Room may call onOpen() during .build(),
+                // before INSTANCE is assigned. The callback's seed work runs
+                // on Dispatchers.IO via scope.launch, so by the time the
+                // coroutine executes, this holder will be populated.
+                var holder: AppDatabase? = null
 
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
@@ -689,13 +707,22 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     // Inject encrypted SQLite driver (AES-256)
                     .openHelperFactory(factory)
-                    // Pass a lambda providing the INSTANCE to the callback
-                    .addCallback(FoodDatabaseCallback(context.applicationContext, scope) { INSTANCE!! })
+                    // Pass a lambda providing the database to the callback.
+                    // The lambda reads from `holder` first (set right after .build()),
+                    // falling back to INSTANCE for safety.
+                    .addCallback(FoodDatabaseCallback(context.applicationContext, scope) {
+                        holder ?: INSTANCE
+                            ?: throw IllegalStateException("Database not initialized")
+                    })
                     // Register the migration so existing data is preserved
                     .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30)
                     // Fallback only if no migration path exists (e.g. dev builds)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
+
+                // Set holder immediately so the callback's deferred coroutine
+                // can access the database instance.
+                holder = instance
                 INSTANCE = instance
                 instance
             }

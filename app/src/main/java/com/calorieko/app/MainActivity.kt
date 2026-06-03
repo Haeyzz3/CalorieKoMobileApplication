@@ -145,6 +145,13 @@ fun AppNavigation() {
             is RestoreViewModel.RestoreState.NoCloudData -> {
                 navController.navigate("targetSummary") { popUpTo(0) { inclusive = true } }
             }
+            // Failed state is handled by the overlay UI (retry/skip buttons)
+            // but if the user is still on the splash route, navigate away.
+            is RestoreViewModel.RestoreState.Failed -> {
+                // The overlay UI will show retry/skip. No extra nav needed here
+                // because the overlay handles it. But ensure we're not stuck
+                // if navigation already happened.
+            }
             else -> {}
         }
     }

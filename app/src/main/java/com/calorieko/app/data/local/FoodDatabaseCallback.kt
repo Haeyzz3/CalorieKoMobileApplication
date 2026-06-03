@@ -30,8 +30,28 @@ class FoodDatabaseCallback(
      */
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
-        databaseProvider().let { database ->
-            scope.launch(Dispatchers.IO) {
+
+        // IMPORTANT: Room calls onOpen() during .build(), BEFORE the INSTANCE
+        // field is assigned in the companion object. If databaseProvider() is
+        // { INSTANCE!! }, it will throw a NullPointerException at this point.
+        // We catch that and retry once after a short delay to give .build()
+        // time to finish and set INSTANCE.
+        scope.launch(Dispatchers.IO) {
+            val database = try {
+                databaseProvider()
+            } catch (e: Exception) {
+                // INSTANCE not yet assigned — wait briefly and retry once.
+                Log.w("FoodDatabaseCallback", "Database not ready in onOpen, retrying after delay...")
+                kotlinx.coroutines.delay(500)
+                try {
+                    databaseProvider()
+                } catch (e2: Exception) {
+                    Log.e("FoodDatabaseCallback", "Database still not ready after retry, skipping seed", e2)
+                    return@launch
+                }
+            }
+
+            try {
                 // Legacy CSV seeding (kept for backward compatibility)
                 // Guard: skip FOOD_TABLE CSV re-seeding if server sync has already run.
                 // Once the admin server has pushed food data, it becomes the authority.
@@ -74,6 +94,8 @@ class FoodDatabaseCallback(
                         Log.e("FoodDatabaseCallback", "JSON seeding failed", e)
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("FoodDatabaseCallback", "Database seeding failed", e)
             }
         }
     }
