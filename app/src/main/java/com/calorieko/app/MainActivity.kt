@@ -703,7 +703,9 @@ fun AppNavigation() {
                     activityRepository = activityRepo,
                     nutritionSummaryDao = db.dailyNutritionSummaryDao(),
                     mealLogDao = db.mealLogDao(),
-                    weightLogDao = db.weightLogDao()
+                    weightLogDao = db.weightLogDao(),
+                    nutritionalValuesRepo = nutritionalRepo,
+                    userDao = db.userDao()
                 )
             )
             ProgressScreen(

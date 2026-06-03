@@ -453,6 +453,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
     val selectedMetric by viewModel.selectedMetric.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
     val dataLoaded by viewModel.dataLoaded.collectAsState()
+    val targetCalories by viewModel.targetCalories.collectAsState()
 
     var activeTab by remember { mutableStateOf("progress") }
 
@@ -531,7 +532,10 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
                         enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
                     ) {
                         when (selectedMetric) {
-                            "Calorie Balance" -> CalorieBalanceCard(data = calorieData, viewMode = viewMode)
+                            "Calorie Balance" -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                CalorieBalanceCard(data = calorieData, viewMode = viewMode)
+                                NetCalorieTargetCard(data = calorieData, targetCalories = targetCalories, viewMode = viewMode)
+                            }
                             "Sodium Trend" -> SodiumTrendCard(data = sodiumData, dailyLimit = 2300, viewMode = viewMode)
                             "Daily Steps" -> DailyStepsCard(data = stepsData, viewMode = viewMode)
                             "Weight & Body Metrics" -> WeightTrackingCard(data = weightData, viewMode = viewMode)
@@ -845,7 +849,6 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
     // Fix: treat 0-data as a special case and use 2200 kcal (typical daily goal) as the
     // visual baseline so the Y-axis always shows meaningful, readable labels.
     val maxDataValue = data.maxOfOrNull { maxOf(it.intake, it.burned) } ?: 0
-    val averageTDEE = if (data.isNotEmpty()) data.sumOf { it.intake - it.burned } / data.size else 0
     val allCalorieDataEmpty = maxDataValue == 0
     val yMax = if (allCalorieDataEmpty) 2200 else ((maxDataValue / 550) + 1) * 550
 
@@ -853,12 +856,6 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
         "30_days" -> "Weekly Average Intake vs. Output"
         "90_days" -> "Monthly Average Intake vs. Output"
         else -> "Daily Intake vs. Output"
-    }
-
-    val footerLabel = when (viewMode) {
-        "30_days" -> "Weekly Net Average"
-        "90_days" -> "Monthly Net Average"
-        else -> "Daily Net Average"
     }
     val intakeColor = RingEaten
     val burnedColor = RingBurned
@@ -981,17 +978,245 @@ private fun CalorieBalanceCard(data: List<DayCalorieData>, viewMode: String) {
                 Spacer(Modifier.width(6.dp)); Text("Burned", fontSize = 12.sp, color = Color(0xFF6B7280))
             }
 
+            } // end else (!allCalorieDataEmpty)
+        }
+    }
+}
+
+// ==================== NET CALORIE vs TARGET CHART ====================
+
+@Composable
+private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int, viewMode: String) {
+    val netValues = data.map { it.intake - it.burned }
+    val allEmpty = data.all { it.intake == 0 && it.burned == 0 }
+    val averageNet = if (netValues.isNotEmpty()) netValues.sum() / netValues.size else 0
+    val diff = averageNet - targetCalories
+
+    // Scale: accommodate both net values and target
+    val maxAbsValue = maxOf(
+        netValues.maxOrNull() ?: 0,
+        targetCalories
+    ).coerceAtLeast(100)
+    val yMax = ((maxAbsValue / 550) + 1) * 550
+
+    val subtitleText = when (viewMode) {
+        "30_days" -> "Weekly Avg Net Calories vs. Target"
+        "90_days" -> "Monthly Avg Net Calories vs. Target"
+        else -> "Daily Net Calories vs. Target"
+    }
+
+    val netBarColor = Color(0xFF6C63FF)  // Purple for net bars
+    val targetColor = Color(0xFFFF6B35)  // Warm orange for target line — distinct from net
+
+    // Animate bars growing up
+    val animProgress = remember { Animatable(0f) }
+    LaunchedEffect(data) {
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(800, delayMillis = 200, easing = FastOutSlowInEasing))
+    }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Net vs. Target",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0F172A)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (allEmpty) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🎯", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "Log meals to compare against your target",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Target: $targetCalories kcal/day",
+                            fontSize = 12.sp,
+                            color = Color(0xFFCBD5E1),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+
+            val density = LocalDensity.current
+            Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+                val chartW = size.width; val chartH = size.height
+                val leftPad = with(density) { 40.dp.toPx() }
+                val bottomPad = with(density) { 24.dp.toPx() }
+                val drawW = chartW - leftPad; val drawH = chartH - bottomPad
+                val progress = animProgress.value
+
+                val labelPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#94A3B8")
+                    textSize = with(density) { 10.sp.toPx() }
+                    textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
+                }
+                val yLabelPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#94A3B8")
+                    textSize = with(density) { 10.sp.toPx() }
+                    textAlign = android.graphics.Paint.Align.RIGHT; isAntiAlias = true
+                }
+
+                // Grid lines
+                val ySteps = 4
+                for (i in 0..ySteps) {
+                    val value = (yMax.toFloat() / ySteps) * i
+                    val y = drawH - (drawH * (value / yMax.toFloat()))
+                    drawLine(Color(0xFFF1F5F9), Offset(leftPad, y), Offset(chartW, y), 1.5f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
+                    drawContext.canvas.nativeCanvas.drawText(
+                        value.roundToInt().toString(),
+                        leftPad - with(density) { 8.dp.toPx() },
+                        y + with(density) { 4.dp.toPx() },
+                        yLabelPaint
+                    )
+                }
+
+                // Net calorie bars
+                val barGroupW = drawW / data.size
+                val barW = barGroupW * 0.40f
+                val cornerR = with(density) { 4.dp.toPx() }
+
+                data.forEachIndexed { index, day ->
+                    val cx = leftPad + barGroupW * (index + 0.5f)
+                    val net = (day.intake - day.burned).coerceAtLeast(0)
+                    val barH = (net.toFloat() / yMax) * drawH * progress
+                    // Color bar green if within ±100 of target, orange if over, blue/purple otherwise
+                    val barColor = when {
+                        net > targetCalories + 100 -> Color(0xFFEF4444) // Over target — red
+                        net >= targetCalories - 100 -> Color(0xFF22C55E) // On target — green
+                        else -> netBarColor // Under target — purple
+                    }
+                    if (barH > 0) drawRoundRect(
+                        barColor,
+                        Offset(cx - barW / 2, drawH - barH),
+                        Size(barW, barH),
+                        CornerRadius(cornerR, cornerR)
+                    )
+                    drawContext.canvas.nativeCanvas.drawText(
+                        day.dayLabel, cx, chartH - with(density) { 4.dp.toPx() }, labelPaint)
+                }
+
+                // ── Target dashed line ──
+                val targetY = drawH - (drawH * (targetCalories.toFloat() / yMax.toFloat()))
+                drawLine(
+                    color = targetColor,
+                    start = Offset(leftPad, targetY),
+                    end = Offset(chartW, targetY),
+                    strokeWidth = with(density) { 2.dp.toPx() },
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+                )
+                val targetLabelPaint = android.graphics.Paint().apply {
+                    color = targetColor.toArgb()
+                    textSize = with(density) { 9.sp.toPx() }
+                    textAlign = android.graphics.Paint.Align.RIGHT
+                    isAntiAlias = true
+                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    "Target: $targetCalories kcal",
+                    chartW - with(density) { 4.dp.toPx() },
+                    targetY - with(density) { 6.dp.toPx() },
+                    targetLabelPaint
+                )
+            } // end Canvas
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Legend
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(10.dp).background(netBarColor, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text("Net (Intake − Burned)", fontSize = 11.sp, color = Color(0xFF6B7280))
+                Spacer(Modifier.width(16.dp))
+                Box(
+                    Modifier
+                        .width(14.dp)
+                        .height(3.dp)
+                        .background(targetColor, RoundedCornerShape(1.dp))
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Target", fontSize = 11.sp, color = Color(0xFF6B7280))
+            }
+
             Spacer(modifier = Modifier.height(14.dp))
             HorizontalDivider(color = Color(0xFFF1F5F9))
             Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(footerLabel, fontSize = 13.sp, color = Color(0xFF94A3B8))
-                Text("$averageTDEE kcal", fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF0F172A))
+
+            // Footer: average net vs target with difference indicator
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Avg Net", fontSize = 13.sp, color = Color(0xFF94A3B8))
+                    Text(
+                        "$averageNet kcal",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isOver = diff > 0
+                    val diffColor = when {
+                        abs(diff) <= 100 -> Color(0xFF22C55E) // On target
+                        isOver -> Color(0xFFEF4444) // Over
+                        else -> Color(0xFF6C63FF) // Under
+                    }
+                    val diffLabel = when {
+                        abs(diff) <= 100 -> "On Target"
+                        isOver -> "+$diff over"
+                        else -> "${abs(diff)} under"
+                    }
+                    Icon(
+                        imageVector = if (isOver && abs(diff) > 100)
+                            Icons.AutoMirrored.Outlined.TrendingUp
+                        else if (abs(diff) > 100)
+                            Icons.AutoMirrored.Outlined.TrendingDown
+                        else Icons.Outlined.TipsAndUpdates,
+                        contentDescription = null,
+                        tint = diffColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        diffLabel,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = diffColor
+                    )
+                }
             }
 
-            } // end else (!allCalorieDataEmpty)
+            } // end else (!allEmpty)
         }
     }
 }

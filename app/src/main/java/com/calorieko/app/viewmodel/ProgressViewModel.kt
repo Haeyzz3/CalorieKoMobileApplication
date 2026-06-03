@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calorieko.app.data.local.DailyNutritionSummaryDao
 import com.calorieko.app.data.local.MealLogDao
+import com.calorieko.app.data.local.UserDao
 import com.calorieko.app.data.local.WeightLogDao
 import com.calorieko.app.data.model.ActivityLogEntity
 import com.calorieko.app.data.model.DailyNutritionSummaryEntity
 import com.calorieko.app.data.model.MealLogWithItems
 import com.calorieko.app.data.model.WeightLogEntity
 import com.calorieko.app.data.repository.ActivityRepository
+import com.calorieko.app.data.repository.NutritionalValuesRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,7 +38,9 @@ class ProgressViewModel(
     private val activityRepository: ActivityRepository,
     private val nutritionSummaryDao: DailyNutritionSummaryDao,
     private val mealLogDao: MealLogDao,
-    private val weightLogDao: WeightLogDao
+    private val weightLogDao: WeightLogDao,
+    private val nutritionalValuesRepo: NutritionalValuesRepository,
+    private val userDao: UserDao
 ) : ViewModel() {
 
     // ── State ──
@@ -63,6 +67,10 @@ class ProgressViewModel(
 
     private val _selectedMetric = MutableStateFlow("Calorie Balance")
     val selectedMetric: StateFlow<String> = _selectedMetric.asStateFlow()
+
+    /** User's personalized daily calorie target (from NutritionalValuesRepository). */
+    private val _targetCalories = MutableStateFlow(2000)
+    val targetCalories: StateFlow<Int> = _targetCalories.asStateFlow()
 
     private val _dataLoaded = MutableStateFlow(false)
     val dataLoaded: StateFlow<Boolean> = _dataLoaded.asStateFlow()
@@ -98,8 +106,12 @@ class ProgressViewModel(
 
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // 1. Fetch user weight
+                // 1. Fetch user weight and target calories
                 _userWeight.value = activityRepository.getUserWeight(uid)
+                val profile = userDao.getUser(uid)
+                if (profile != null) {
+                    _targetCalories.value = nutritionalValuesRepo.getTargetsForUser(profile).targetCalories
+                }
 
                 // 2. Compute time range
                 val calendar = Calendar.getInstance()
@@ -165,12 +177,14 @@ class ProgressViewModel(
             activityRepository: ActivityRepository,
             nutritionSummaryDao: DailyNutritionSummaryDao,
             mealLogDao: MealLogDao,
-            weightLogDao: WeightLogDao
+            weightLogDao: WeightLogDao,
+            nutritionalValuesRepo: NutritionalValuesRepository,
+            userDao: UserDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(ProgressViewModel::class.java)) {
-                    return ProgressViewModel(auth, activityRepository, nutritionSummaryDao, mealLogDao, weightLogDao) as T
+                    return ProgressViewModel(auth, activityRepository, nutritionSummaryDao, mealLogDao, weightLogDao, nutritionalValuesRepo, userDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
