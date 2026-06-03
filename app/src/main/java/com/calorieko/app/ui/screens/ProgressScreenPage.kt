@@ -533,8 +533,8 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
                     ) {
                         when (selectedMetric) {
                             "Calorie Trend" -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                CalorieBalanceCard(data = calorieData, viewMode = viewMode)
                                 NetCalorieTargetCard(data = calorieData, targetCalories = targetCalories, viewMode = viewMode)
+                                CalorieBalanceCard(data = calorieData, viewMode = viewMode)
                             }
                             "Sodium Trend" -> SodiumTrendCard(data = sodiumData, dailyLimit = 2300, viewMode = viewMode)
                             "Daily Steps" -> DailyStepsCard(data = stepsData, viewMode = viewMode)
@@ -991,6 +991,11 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
     val allEmpty = data.all { it.intake == 0 && it.burned == 0 }
     val averageNet = if (netValues.isNotEmpty()) netValues.sum() / netValues.size else 0
     val diff = averageNet - targetCalories
+    val rangeDays = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
+    }
 
     // Scale: accommodate both net values and target
     val maxAbsValue = maxOf(
@@ -1176,7 +1181,7 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Avg Net", fontSize = 13.sp, color = Color(0xFF94A3B8))
+                    Text("Avg Net in $rangeDays days", fontSize = 13.sp, color = Color(0xFF94A3B8))
                     Text(
                         "$averageNet kcal",
                         fontSize = 18.sp,
@@ -1184,35 +1189,45 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                         color = Color(0xFF0F172A)
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.End) {
                     val isOver = diff > 0
                     val diffColor = when {
                         abs(diff) <= 100 -> Color(0xFF22C55E) // On target
                         isOver -> Color(0xFFEF4444) // Over
                         else -> Color(0xFF6C63FF) // Under
                     }
-                    val diffLabel = when {
-                        abs(diff) <= 100 -> "On Target"
-                        isOver -> "+$diff over"
-                        else -> "${abs(diff)} under"
+                    val rightLabelText = when {
+                        abs(diff) <= 100 -> "on target"
+                        isOver -> "+$diff kcal over"
+                        else -> "${abs(diff)} kcal under"
                     }
-                    Icon(
-                        imageVector = if (isOver && abs(diff) > 100)
-                            Icons.AutoMirrored.Outlined.TrendingUp
-                        else if (abs(diff) > 100)
-                            Icons.AutoMirrored.Outlined.TrendingDown
-                        else Icons.Outlined.TipsAndUpdates,
-                        contentDescription = null,
-                        tint = diffColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
                     Text(
-                        diffLabel,
+                        text = "Your Avg Net in $rangeDays days is,",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = diffColor
+                        color = Color(0xFF94A3B8)
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isOver && abs(diff) > 100)
+                                Icons.AutoMirrored.Outlined.TrendingUp
+                            else if (abs(diff) > 100)
+                                Icons.AutoMirrored.Outlined.TrendingDown
+                            else Icons.Outlined.TipsAndUpdates,
+                            contentDescription = null,
+                            tint = diffColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = rightLabelText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = diffColor
+                        )
+                    }
                 }
             }
 
