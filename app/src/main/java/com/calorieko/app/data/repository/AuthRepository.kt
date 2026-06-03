@@ -137,6 +137,11 @@ class AuthRepository(
         val user = auth.currentUser ?: return AuthState.NotLoggedIn
         try {
             user.reload().await()
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+            // User was deleted from Firebase (e.g., by admin panel).
+            // Sign out locally and route to login screen.
+            auth.signOut()
+            return AuthState.NotLoggedIn
         } catch (_: Exception) {
             // Offline — use cached verification status
         }
@@ -154,6 +159,10 @@ class AuthRepository(
         return try {
             auth.currentUser?.reload()?.await()
             auth.currentUser?.isEmailVerified ?: false
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+            // User deleted from Firebase — sign out locally
+            auth.signOut()
+            false
         } catch (e: Exception) {
             false
         }
@@ -166,6 +175,10 @@ class AuthRepository(
         return try {
             auth.currentUser?.sendEmailVerification()?.await()
             true
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+            // User deleted from Firebase — sign out locally
+            auth.signOut()
+            false
         } catch (e: Exception) {
             false
         }
