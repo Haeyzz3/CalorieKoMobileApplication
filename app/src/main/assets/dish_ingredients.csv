@@ -8,7 +8,7 @@ kwekwek,salt_iodized,optional,seasoning,1 tsp,,2
 kwekwek,black_pepper,optional,seasoning,1/8 tsp,ground,1
 kwekwek,food_coloring_orange,core,pantry_staple,1/4 tsp,powder,1
 kwekwek,chicken_egg,core,protein,1 pc,beaten,2
-kwekwek,cooking_oil,optional,pantry_staple,2 1/2 cups,,1
+kwekwek,cooking_oil,core,pantry_staple,2 1/2 cups,,1
 kwekwek,onion_red,optional,produce,1/4 cup,chopped,1
 kwekwek,garlic,optional,produce,1 tbsp,chopped,1
 kwekwek,vinegar_cane,optional,seasoning,1/2 cup,,1
@@ -16,7 +16,7 @@ kwekwek,sugar_brown,optional,seasoning,1 tsp,,1
 kwekwek,black_pepper,optional,seasoning,1/8 tsp,crushed,2
 kwekwek,cucumber,core,produce,3/4 cup,quarter cut,1
 kwekwek,lato_seaweed,core,produce,1 1/2 cups,cleaned & sliced,1
-kwekwek,water,optional,pantry_staple,2 tbsps,,1
+kwekwek,water,core,pantry_staple,2 tbsps,,1
 kinilaw_tuna,tuna_fish,core,protein,1 1/2 cups,cubed,1
 kinilaw_tuna,vinegar_white,optional,seasoning,3/4 cup,,1
 kinilaw_tuna,vinegar_white,optional,seasoning,1/4 cup,,2
@@ -27,8 +27,8 @@ kinilaw_tuna,ginger,optional,produce,1/3 cup,chopped,1
 kinilaw_tuna,calamansi_juice,optional,seasoning,1/4 cup,freshly squeezed,1
 kinilaw_tuna,salt_iodized,optional,seasoning,3/4 tsp,,1
 kinilaw_tuna,black_pepper,optional,seasoning,1/2 tsp,ground,1
-kinilaw_tuna,water,optional,pantry_staple,2 cups,,1
-tinapa_ginisa,cooking_oil,optional,pantry_staple,2 tbsps,,1
+kinilaw_tuna,water,core,pantry_staple,2 cups,,1
+tinapa_ginisa,cooking_oil,core,pantry_staple,2 tbsps,,1
 tinapa_ginisa,onion_bombay,optional,produce,1 tbsp,chopped,1
 tinapa_ginisa,garlic,optional,produce,1 tbsp,chopped,1
 tinapa_ginisa,tinapa_fish,core,protein,2 1/2 cups,smoked & flaked,1
@@ -36,9 +36,9 @@ tinapa_ginisa,eggplant,core,produce,1 1/4 cups,sliced,1
 tinapa_ginisa,okra,core,produce,1 1/4 cups,sliced,1
 tinapa_ginisa,squash,core,produce,1 1/4 cups,cubed,1
 tinapa_ginisa,sitaw,core,produce,1 1/4 cups,cut into 2-inch pieces,1
-tinapa_ginisa,water,optional,pantry_staple,2 cups,,1
+tinapa_ginisa,water,core,pantry_staple,2 cups,,1
 tinapa_ginisa,black_pepper,optional,seasoning,1/8 tsp,ground,1
-egg_ampalaya,cooking_oil,optional,pantry_staple,2 tbsps,,1
+egg_ampalaya,cooking_oil,core,pantry_staple,2 tbsps,,1
 egg_ampalaya,onion_bombay,optional,produce,1 tbsp,chopped,1
 egg_ampalaya,garlic,optional,produce,1 tbsp,chopped,1
 egg_ampalaya,tomato,optional,produce,1/2 cup,chopped,1
@@ -47,45 +47,45 @@ egg_ampalaya,malunggay_leaves,optional,produce,1 cup,,1
 egg_ampalaya,salt_iodized,optional,seasoning,1 tsp,,1
 egg_ampalaya,black_pepper,optional,seasoning,1/8 tsp,ground,1
 egg_ampalaya,chicken_egg,core,protein,10 pcs,beaten,1
-sinigang_pork,cooking_oil,optional,pantry_staple,1/2 cup,,1
+sinigang_pork,cooking_oil,core,pantry_staple,1/2 cup,,1
 sinigang_pork,onion_white,optional,produce,1/4 cup,sliced,1
 sinigang_pork,tomato,optional,produce,2 1/2 cups,sliced,1
 sinigang_pork,pork_liempo,core,protein,4 cups,lean & sliced,1
-sinigang_pork,water,optional,pantry_staple,6 cups,,1
+sinigang_pork,water,core,pantry_staple,6 cups,,1
 sinigang_pork,gabi,optional,produce,2 cups,cubed,1
 sinigang_pork,sitaw,optional,produce,3 cups,sliced,1
 sinigang_pork,sinigang_mix,core,seasoning,1 pack,44 gram,1
 sinigang_pork,patis,optional,seasoning,2 tbsps,,1
 sinigang_pork,salt_iodized,optional,seasoning,1 tbsp,,1
 sinigang_pork,kangkong_leaves,optional,produce,17 1/2 cups,stem & sliced,1
-menudo,cooking_oil,optional,pantry_staple,1/3 cup,,1
+menudo,cooking_oil,core,pantry_staple,1/3 cup,,1
 menudo,garlic,optional,produce,2 tbsps,chopped,1
 menudo,onion_white,optional,produce,1/4 cup,chopped,1
 menudo,pork_liempo,core,protein,4 cups,lean & ground,1
 menudo,salt_iodized,optional,seasoning,1 tbsp,,1
 menudo,black_pepper,optional,seasoning,1/8 tsp,ground,1
-menudo,water,optional,pantry_staple,1 cup,,1
+menudo,water,core,pantry_staple,1 cup,,1
 menudo,tomato_sauce,core,pantry_staple,2 packs,,1
 menudo,potato,core,produce,3 1/2 cups,cubed,1
 menudo,bell_pepper_red,core,produce,1/3 cup,strips,1
 menudo,sugar_white,optional,seasoning,2 tbsps,,1
 menudo,green_peas,core,produce,2 1/2 cups,frozen,1
 menudo,raisins,optional,pantry_staple,1 pack,50 gram,1
-udong,cooking_oil,optional,pantry_staple,1/3 cup,,1
+udong,cooking_oil,core,pantry_staple,1/3 cup,,1
 udong,garlic,optional,produce,2 tbsps,chopped,1
 udong,onion_bombay,optional,produce,1/4 cup,chopped,1
 udong,upo,optional,produce,3 cups,sliced,1
-udong,water,optional,pantry_staple,1 1/4 cups,,1
+udong,water,core,pantry_staple,1 1/4 cups,,1
 udong,salt_iodized,optional,seasoning,1 tsp,,1
 udong,black_pepper,optional,seasoning,1/4 tsp,ground,1
 udong,odong_noodles,core,pantry_staple,8 packs,10 gram per pack,1
 udong,sardines_tomato_sauce_canned,core,protein,6 cans,155 gram per can,1
 udong,kamote_tops_green,optional,produce,6 cups,,1
-sinabawang_bangus,cooking_oil,optional,pantry_staple,1/8 cup,,1
+sinabawang_bangus,cooking_oil,core,pantry_staple,1/8 cup,,1
 sinabawang_bangus,ginger,optional,produce,1/8 cup,strips,1
 sinabawang_bangus,garlic,optional,produce,1 1/2 tbsps,crushed & chopped,1
 sinabawang_bangus,onion_bombay,optional,produce,1/8 cup,chopped,1
-sinabawang_bangus,water,optional,pantry_staple,3 cups,,1
+sinabawang_bangus,water,core,pantry_staple,3 cups,,1
 sinabawang_bangus,salt_iodized,optional,seasoning,1/2 tsp,refined,1
 sinabawang_bangus,sayote,core,produce,2 1/4 cups,sliced,1
 sinabawang_bangus,bangus_fish,core,protein,3/4 kilo or 5 pcs small sized,boneless & sliced,1
@@ -94,18 +94,18 @@ galunggong_grilled,galunggong_fish,core,protein,10 pcs,whole,1
 galunggong_grilled,salt_iodized,optional,seasoning,1 tsp,,1
 tilapia_fried,tilapya_fish,core,protein,1 kilo or 5 pcs small size,whole,1
 tilapia_fried,salt_iodized,optional,seasoning,1/4 tbsp,refined,1
-tilapia_fried,cooking_oil,optional,pantry_staple,1 cup,,1
-pinakbet,cooking_oil,optional,pantry_staple,3 tbsps,,1
+tilapia_fried,cooking_oil,core,pantry_staple,1 cup,,1
+pinakbet,cooking_oil,core,pantry_staple,3 tbsps,,1
 pinakbet,garlic,optional,produce,3 tbsps,crushed & chopped,1
 pinakbet,onion_bombay,optional,produce,3 tbsps,chopped,1
 pinakbet,tomato,optional,produce,1/2 cup + 1/8 cup,chopped,1
 pinakbet,alamang_bagoong,core,seasoning,1/8 cup,,1
 pinakbet,squash,core,produce,2 1/2 cups,cubed,1
-pinakbet,water,optional,pantry_staple,1 cup,,1
+pinakbet,water,core,pantry_staple,1 cup,,1
 pinakbet,okra,core,produce,1 1/2 cups,sliced,1
 pinakbet,sitaw,core,produce,2 cups,"cut into 1""",1
 pinakbet,eggplant,core,produce,2 cups,sliced,1
-chopseuy,cooking_oil,optional,pantry_staple,3 tbsps,,1
+chopseuy,cooking_oil,core,pantry_staple,3 tbsps,,1
 chopseuy,garlic,optional,produce,3 tbsps,crushed & chopped,1
 chopseuy,onion_bombay,optional,produce,3 tbsps,chopped,1
 chopseuy,chicken_breast,core,protein,3 cups,fillet & strips,1
@@ -117,18 +117,18 @@ chopseuy,cauliflower,core,produce,3 cups,sliced,1
 chopseuy,carrot,core,produce,2 cups,sliced,1
 chopseuy,baguio_beans,core,produce,2 cups,sliced,1
 chopseuy,bell_pepper_red,optional,produce,1/2 cup,strips,1
-chopseuy,water,optional,pantry_staple,1/2 cup,,1
-chicken_tinola,cooking_oil,optional,pantry_staple,3 tbsps,,1
+chopseuy,water,core,pantry_staple,1/2 cup,,1
+chicken_tinola,cooking_oil,core,pantry_staple,3 tbsps,,1
 chicken_tinola,ginger,optional,produce,1/4 cup,crushed,1
 chicken_tinola,onion_bombay,optional,produce,3 tbsps,chopped,1
 chicken_tinola,garlic,optional,produce,3 tbsps,crushed & chopped,1
 chicken_tinola,chicken_breast,core,protein,3 cups,fillet & sliced,1
 chicken_tinola,salt_iodized,optional,seasoning,2 tsps,,1
 chicken_tinola,papaya_green,core,produce,3 1/4 cups,unripe & sliced,1
-chicken_tinola,water,optional,pantry_staple,5 cups,,1
+chicken_tinola,water,core,pantry_staple,5 cups,,1
 chicken_tinola,malunggay_leaves,core,produce,3 cups,,1
 sinuglaw_pork,pork_tenderloin,core,protein,5 slices,90 gram per slice,1
-sinuglaw_pork,cooking_oil,optional,pantry_staple,1 tbsps,,1
+sinuglaw_pork,cooking_oil,core,pantry_staple,1 tbsps,,1
 sinuglaw_pork,calamansi_juice,core,seasoning,2 tbsps,,1
 sinuglaw_pork,garlic,core,produce,1 tbsps,grated,1
 sinuglaw_pork,thyme,optional,seasoning,1 tsp,,1
@@ -142,29 +142,29 @@ sinuglaw_pork,pansit-pansitan,optional,produce,1/2 cup,blanched,1
 sinuglaw_pork,onion_red,core,produce,2 tbsps,sliced into thin quarters,1
 sinuglaw_pork,radish,core,produce,3/4 cup,sliced into thin quarters,1
 milkfish_fried,bangus_fish,core,protein,1 pc,,1
-milkfish_fried,cooking_oil,optional,pantry_staple,1 tbsp,,1
+milkfish_fried,cooking_oil,core,pantry_staple,1 tbsp,,1
 milkfish_fried,salt_iodized,optional,seasoning,1/8 tsp,,1
 mackerel_fried,mackerel_fish,core,protein,1 pc,,1
-mackerel_fried,cooking_oil,optional,pantry_staple,1 tbsp,,1
+mackerel_fried,cooking_oil,core,pantry_staple,1 tbsp,,1
 mackerel_fried,salt_iodized,optional,seasoning,1/8 tsp,,1
 rice_well_milled,rice_bigas,core,grain_starch,1/3 cup,,1
-rice_well_milled,water,optional,pantry_staple,1/2 cup,,1
+rice_well_milled,water,core,pantry_staple,1/2 cup,,1
 egg_sunny,chicken_egg,core,protein,1 pc,,1
-egg_sunny,cooking_oil,optional,pantry_staple,1 tsp,,1
+egg_sunny,cooking_oil,core,pantry_staple,1 tsp,,1
 egg_boiled,chicken_egg,core,protein,1 pc,,1
-egg_boiled,water,optional,pantry_staple,enough to cover,,1
+egg_boiled,water,core,pantry_staple,enough to cover,,1
 galunggong_fried,galunggong_fish,core,protein,2 pcs,,1
 galunggong_fried,cooking_oil,core,pantry_staple,2 tsps,,1
 galunggong_fried,salt_iodized,optional,seasoning,1/8 tsp,,1
 egg_omelette,chicken_egg,core,protein,1 pc,,1
-egg_omelette,cooking_oil,optional,pantry_staple,1 tsp,,1
+egg_omelette,cooking_oil,core,pantry_staple,1 tsp,,1
 egg_scrambled,chicken_egg,core,protein,1 pc,,1
-egg_scrambled,cooking_oil,optional,pantry_staple,1 tsp,,1
-linatan,cooking_oil,optional,pantry_staple,1 Tbsp,,1
+egg_scrambled,cooking_oil,core,pantry_staple,1 tsp,,1
+linatan,cooking_oil,core,pantry_staple,1 Tbsp,,1
 linatan,onion_red,optional,produce,1/4 cup,sliced,1
 linatan,tomato,optional,produce,1 cup,sliced,1
 linatan,pork_tenderloin,core,protein,1 3/4 cups,sliced,1
-linatan,water,optional,pantry_staple,4 cups,,1
+linatan,water,core,pantry_staple,4 cups,,1
 linatan,patis,optional,seasoning,2 tsps,,1
 linatan,black_pepper,optional,seasoning,1/4 tsp,ground,1
 linatan,tanglad,core,produce,1 stalk,crushed & tied,1
@@ -173,10 +173,10 @@ linatan,gabi,optional,produce,2 cups,cubed,1
 linatan,sitaw,optional,produce,3 cups,sliced,1
 linatan,bell_pepper_red,optional,produce,1/3 cup,cubed,1
 linatan,spring_onion,optional,produce,1/3 cup,chopped,1
-lawuy,cooking_oil,optional,pantry_staple,2 Tbsps,,1
+lawuy,cooking_oil,core,pantry_staple,2 Tbsps,,1
 lawuy,onion_red,optional,produce,1/4 cup,sliced,1
 lawuy,ginger,optional,produce,1/3 cup,crushed,1
-lawuy,water,optional,pantry_staple,5 cups,,1
+lawuy,water,core,pantry_staple,5 cups,,1
 lawuy,tanglad,optional,produce,4 pcs,lightly crushed,1
 lawuy,squash,core,produce,2 cups,cubed,1
 lawuy,okra,core,produce,1 cup,sliced,1
@@ -184,8 +184,8 @@ lawuy,eggplant,core,produce,1 cup,sliced,1
 lawuy,tomato,optional,produce,1/4 cup,sliced,1
 lawuy,salt_iodized,optional,seasoning,1 Tbsp,,1
 lawuy,alugbati,optional,produce,3 cups,leaves and stem,1
-humba_pork,water,optional,pantry_staple,3 cups,,1
-humba_pork,cooking_oil,optional,pantry_staple,1 tbsp,,1
+humba_pork,water,core,pantry_staple,3 cups,,1
+humba_pork,cooking_oil,core,pantry_staple,1 tbsp,,1
 humba_pork,pork_liempo,core,protein,2 1/2 cups,sliced,1
 humba_pork,garlic,optional,produce,1/4 cup,chopped,1
 humba_pork,onion_red,optional,produce,1/4 cup,chopped,1
@@ -196,17 +196,17 @@ humba_pork,soy_sauce,optional,seasoning,1/2 cup,,1
 humba_pork,sugar_brown,optional,seasoning,1/2 cup,,1
 humba_pork,vinegar_white,optional,seasoning,3 Tbsps,,1
 rice_black,black_rice_bigas,core,grain_starch,1/3 cup,,1
-rice_black,water,optional,pantry_staple,1/2 cup,,1
+rice_black,water,core,pantry_staple,1/2 cup,,1
 rice_brown,brown_rice_bigas,core,grain_starch,1/3 cup,,1
-rice_brown,water,optional,pantry_staple,1/2 cup,,1
+rice_brown,water,core,pantry_staple,1/2 cup,,1
 rice_corn,mais_rice_bigas,core,grain_starch,1/3 cup,,1
-rice_corn,water,optional,pantry_staple,1/2 cup,,1
+rice_corn,water,core,pantry_staple,1/2 cup,,1
 chicken_adobo,chicken_whole,core,protein,1 kilo,cut into serving pieces,1
 chicken_adobo,laurel_leaves,core,seasoning,3 pieces,,1
 chicken_adobo,soy_sauce,optional,seasoning,4 tbsps,,1
 chicken_adobo,garlic,optional,produce,1/4 cup,crushed,1
-chicken_adobo,water,optional,pantry_staple,1 1/2 cups,,1
-chicken_adobo,cooking_oil,optional,pantry_staple,4 tbsps,,1
+chicken_adobo,water,core,pantry_staple,1 1/2 cups,,1
+chicken_adobo,cooking_oil,core,pantry_staple,4 tbsps,,1
 chicken_adobo,sugar_brown,optional,seasoning,1 tsp,,1
 chicken_adobo,vinegar_white,optional,seasoning,4 1/2 tbsps,,1
 chicken_adobo,black_pepper,optional,seasoning,1 tsp,whole,1
@@ -217,5 +217,5 @@ pork_adobo,laurel_leaves,core,seasoning,5 pieces,,1
 pork_adobo,vinegar_white,optional,seasoning,4 tbsps,,1
 pork_adobo,soy_sauce,optional,seasoning,1/2 cup,,1
 pork_adobo,black_pepper,optional,seasoning,1 tbsp,,1
-pork_adobo,water,optional,pantry_staple,2 cups,,1
+pork_adobo,water,core,pantry_staple,2 cups,,1
 pork_adobo,salt_iodized,optional,seasoning,1 tsp,,1

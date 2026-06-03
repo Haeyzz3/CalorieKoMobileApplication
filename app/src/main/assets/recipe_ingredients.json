@@ -92,7 +92,7 @@
   {
     "dish_label": "kwekwek",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 545.0,
     "portion_original": "2 1/2 cups",
@@ -172,7 +172,7 @@
   {
     "dish_label": "kwekwek",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 29.6,
     "portion_original": "2 tbsps",
@@ -282,7 +282,7 @@
   {
     "dish_label": "kinilaw_tuna",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 473.2,
     "portion_original": "2 cups",
@@ -292,7 +292,7 @@
   {
     "dish_label": "tinapa_ginisa",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 27.2,
     "portion_original": "2 tbsps",
@@ -372,7 +372,7 @@
   {
     "dish_label": "tinapa_ginisa",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 473.2,
     "portion_original": "2 cups",
@@ -392,7 +392,7 @@
   {
     "dish_label": "egg_ampalaya",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 27.2,
     "portion_original": "2 tbsps",
@@ -482,7 +482,7 @@
   {
     "dish_label": "sinigang_pork",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 109.0,
     "portion_original": "1/2 cup",
@@ -522,7 +522,7 @@
   {
     "dish_label": "sinigang_pork",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 1419.6,
     "portion_original": "6 cups",
@@ -592,7 +592,7 @@
   {
     "dish_label": "menudo",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 72.7,
     "portion_original": "1/3 cup",
@@ -652,7 +652,7 @@
   {
     "dish_label": "menudo",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 236.6,
     "portion_original": "1 cup",
@@ -722,7 +722,7 @@
   {
     "dish_label": "udong",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 72.7,
     "portion_original": "1/3 cup",
@@ -762,7 +762,7 @@
   {
     "dish_label": "udong",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 295.8,
     "portion_original": "1 1/4 cups",
@@ -822,7 +822,7 @@
   {
     "dish_label": "sinabawang_bangus",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 27.2,
     "portion_original": "1/8 cup",
@@ -862,7 +862,7 @@
   {
     "dish_label": "sinabawang_bangus",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 709.8,
     "portion_original": "3 cups",
@@ -952,7 +952,7 @@
   {
     "dish_label": "tilapia_fried",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 218.0,
     "portion_original": "1 cup",
@@ -962,7 +962,7 @@
   {
     "dish_label": "pinakbet",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 40.8,
     "portion_original": "3 tbsps",
@@ -1022,7 +1022,7 @@
   {
     "dish_label": "pinakbet",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 236.6,
     "portion_original": "1 cup",
@@ -1062,7 +1062,7 @@
   {
     "dish_label": "chopseuy",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 40.8,
     "portion_original": "3 tbsps",
@@ -1182,7 +1182,7 @@
   {
     "dish_label": "chopseuy",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
@@ -1192,7 +1192,7 @@
   {
     "dish_label": "chicken_tinola",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 40.8,
     "portion_original": "3 tbsps",
@@ -1262,7 +1262,7 @@
   {
     "dish_label": "chicken_tinola",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 1183.0,
     "portion_original": "5 cups",
@@ -1292,7 +1292,7 @@
   {
     "dish_label": "sinuglaw_pork",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 13.6,
     "portion_original": "1 tbsps",
@@ -1432,7 +1432,7 @@
   {
     "dish_label": "milkfish_fried",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 13.6,
     "portion_original": "1 tbsp",
@@ -1462,7 +1462,7 @@
   {
     "dish_label": "mackerel_fried",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 13.6,
     "portion_original": "1 tbsp",
@@ -1492,7 +1492,7 @@
   {
     "dish_label": "rice_well_milled",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
@@ -1512,7 +1512,7 @@
   {
     "dish_label": "egg_sunny",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 4.5,
     "portion_original": "1 tsp",
@@ -1532,7 +1532,7 @@
   {
     "dish_label": "egg_boiled",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 0.0,
     "portion_original": "enough to cover",
@@ -1582,7 +1582,7 @@
   {
     "dish_label": "egg_omelette",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 4.5,
     "portion_original": "1 tsp",
@@ -1602,7 +1602,7 @@
   {
     "dish_label": "egg_scrambled",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 4.5,
     "portion_original": "1 tsp",
@@ -1612,7 +1612,7 @@
   {
     "dish_label": "linatan",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 13.6,
     "portion_original": "1 Tbsp",
@@ -1652,7 +1652,7 @@
   {
     "dish_label": "linatan",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 946.4,
     "portion_original": "4 cups",
@@ -1742,7 +1742,7 @@
   {
     "dish_label": "lawuy",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 27.2,
     "portion_original": "2 Tbsps",
@@ -1772,7 +1772,7 @@
   {
     "dish_label": "lawuy",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 1183.0,
     "portion_original": "5 cups",
@@ -1852,7 +1852,7 @@
   {
     "dish_label": "humba_pork",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 709.8,
     "portion_original": "3 cups",
@@ -1862,7 +1862,7 @@
   {
     "dish_label": "humba_pork",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 13.6,
     "portion_original": "1 tbsp",
@@ -1972,7 +1972,7 @@
   {
     "dish_label": "rice_black",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
@@ -1992,7 +1992,7 @@
   {
     "dish_label": "rice_brown",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
@@ -2012,7 +2012,7 @@
   {
     "dish_label": "rice_corn",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 118.3,
     "portion_original": "1/2 cup",
@@ -2062,7 +2062,7 @@
   {
     "dish_label": "chicken_adobo",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 354.9,
     "portion_original": "1 1/2 cups",
@@ -2072,7 +2072,7 @@
   {
     "dish_label": "chicken_adobo",
     "ingredient_key": "cooking_oil",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 54.4,
     "portion_original": "4 tbsps",
@@ -2182,7 +2182,7 @@
   {
     "dish_label": "pork_adobo",
     "ingredient_key": "water",
-    "ingredient_type": "optional",
+    "ingredient_type": "core",
     "ingredient_category": "pantry_staple",
     "raw_weight_grams": 473.2,
     "portion_original": "2 cups",
