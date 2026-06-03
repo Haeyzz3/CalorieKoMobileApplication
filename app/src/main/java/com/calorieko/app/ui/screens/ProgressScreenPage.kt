@@ -532,7 +532,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
                         enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
                     ) {
                         when (selectedMetric) {
-                            "Calorie Balance" -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            "Calorie Trend" -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 CalorieBalanceCard(data = calorieData, viewMode = viewMode)
                                 NetCalorieTargetCard(data = calorieData, targetCalories = targetCalories, viewMode = viewMode)
                             }
@@ -602,7 +602,7 @@ private fun ProgressHeaderSection(
                     label = "METRIC",
                     value = selectedMetric,
                     options = listOf(
-                        "Calorie Balance" to "Calorie Balance",
+                        "Calorie Trend" to "Calorie Trend",
                         "Sodium Trend" to "Sodium Trend",
                         "Daily Steps" to "Daily Steps",
                         "Weight & Body Metrics" to "Weight & Body",
@@ -1610,7 +1610,7 @@ private fun EntriesHistorySection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 24.dp)
     ) {
         // Section header
         Text(
@@ -1625,7 +1625,7 @@ private fun EntriesHistorySection(
         // Prevents days that only have a workout log (no meals) from showing "0 kcal"
         // under Calorie Balance, and similarly for Sodium Trend.
         val filteredEntries = when (selectedMetric) {
-            "Calorie Balance" -> entries.filter { it.intakeCalories > 0 || it.burnedCalories > 0 }
+            "Calorie Trend" -> entries.filter { it.intakeCalories > 0 || it.burnedCalories > 0 }
             "Sodium Trend"    -> entries.filter { it.sodium > 0 }
             "Daily Steps"     -> entries.filter { it.steps > 0 }
             "Weight & Body Metrics" -> entries.filter { it.weightKg != null }
@@ -1696,7 +1696,7 @@ private fun EntryRow(
     //   • Sodium: show mg; only called for days with sodium > 0 (filtered upstream).
     //   • Weight: always the user's current stored weight.
     val (valueText, unitText, valueColor) = when (selectedMetric) {
-        "Calorie Balance" -> when {
+        "Calorie Trend" -> when {
             entry.intakeCalories > 0 -> Triple(
                 "%,d".format(entry.intakeCalories),
                 "kcal in",

@@ -65,7 +65,7 @@ class ProgressViewModel(
     private val _viewMode = MutableStateFlow("7_days")
     val viewMode: StateFlow<String> = _viewMode.asStateFlow()
 
-    private val _selectedMetric = MutableStateFlow("Calorie Balance")
+    private val _selectedMetric = MutableStateFlow("Calorie Trend")
     val selectedMetric: StateFlow<String> = _selectedMetric.asStateFlow()
 
     /** User's personalized daily calorie target (from NutritionalValuesRepository). */
