@@ -12,7 +12,6 @@ FNRI = {
     "kinilaw_tuna":       {"servings": 5, "desc": "1 cup"},
     "sinuglaw_pork":      {"servings": 5, "desc": "1 cup salad + 1/4 cup pork"},
     "kwekwek":            {"servings": 5, "desc": "1 pc egg + 1/3 cup salad"},
-    "tinapa_ginisa":      {"servings": 5, "desc": "1 cup"},
     "egg_ampalaya":       {"servings": 5, "desc": "1 1/4 cups"},
     "sinigang_pork":      {"servings": 10, "desc": "1 1/2 cups"},
     "menudo":             {"servings": 10, "desc": "3/4 cup"},

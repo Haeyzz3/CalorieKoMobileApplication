@@ -153,7 +153,6 @@ DISH_COOKING_METHODS = {
     # Existing dishes
     "kwekwek": "deep_fried",
     "kinilaw_tuna": "raw_cured",
-    "tinapa_ginisa": "sauteed",
     "egg_ampalaya": "sauteed",
     "sinigang_pork": "simmered",
     "menudo": "stewed",
@@ -193,7 +192,6 @@ DISH_SERVINGS = {
     # Complex dishes (FNRI-verified serving counts)
     "kwekwek": 5,
     "kinilaw_tuna": 5,
-    "tinapa_ginisa": 5,
     "egg_ampalaya": 5,
     "sinigang_pork": 10,
     "menudo": 10,
@@ -232,7 +230,6 @@ DISH_SERVINGS = {
 SERVING_SIZE_DESCRIPTIONS = {
     "kwekwek": "1 pc egg + 1/3 cup salad",
     "kinilaw_tuna": "1 cup",
-    "tinapa_ginisa": "1 cup",
     "egg_ampalaya": "1 1/4 cups",
     "sinigang_pork": "1 1/2 cups",
     "menudo": "3/4 cup",

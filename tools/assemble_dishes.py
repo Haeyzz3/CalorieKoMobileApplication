@@ -53,13 +53,6 @@ DISH_METADATA = {
         "cooking_method": "raw_cured",
         "servings": 6,
     },
-    "tinapa_ginisa": {
-        "name_en": "Ginisang Tinapa",
-        "name_ph": "Ginisang Tinapa",
-        "category": "Fish",
-        "cooking_method": "sauteed",
-        "servings": 6,
-    },
     "egg_ampalaya": {
         "name_en": "Ampalaya with Egg",
         "name_ph": "Ginisang Ampalaya na may Itlog",
@@ -226,7 +219,6 @@ YIELD_FACTORS = {
     "chicken_tinola":       0.85,   # Simmered soup with leafy greens
 
     # Sauteed/stir-fried: vegetable moisture loss, some oil absorption
-    "tinapa_ginisa":        0.75,   # Sauteed with veggies, water evaporates
     "egg_ampalaya":         0.80,   # Sauteed, eggs retain moisture
     "pinakbet":             0.75,   # Sauteed veggies, bagoong is dense
     "chopseuy":             0.78,   # Stir-fried, quick cook retains more
@@ -290,7 +282,6 @@ OIL_ABSORPTION_RATE = {
     "egg_fried":            1.00,   # 5g oil, all absorbed
 
     # Sauteed/stir-fried: small oil, all absorbed into dish
-    "tinapa_ginisa":        1.00,   # 2 tbsps oil
     "egg_ampalaya":         1.00,   # 2 tbsps oil
     "pinakbet":             1.00,   # 3 tbsps oil
     "chopseuy":             1.00,   # 3 tbsps oil

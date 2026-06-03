@@ -1,7 +1,6 @@
 ml_label,name_en,name_ph,category,calories_kcal,protein_g,carbs_g,fat_g,fiber_g,sugar_g,saturated_fat_g,polyunsaturated_fat_g,monounsaturated_fat_g,trans_fat_g,cholesterol_mg,sodium_mg,potassium_mg,vitamin_a_mcg,vitamin_c_mg,calcium_mg,iron_mg,data_source
 kwekwek,Kwek-kwek,Kwek-kwek,Street Food,196.8,6.8,15.8,11.8,1.2,1.1,3.1,2.8,4.6,0,172,488,145,224,2.8,96,8.7,DOST_FNRI_MENU_GUIDE
 kinilaw_tuna,Tuna Ceviche,Kinilaw na Tuna,Fish,76.5,9.95,6.4,1.25,0.3,1.1,0.2,0.4,0.3,0,14.5,192.5,244,80.5,4.2,183.75,0.78,DOST_FNRI_MENU_GUIDE
-tinapa_ginisa,Sauteed Smoked Fish,Ginisang Tinapa,Fish,151,6.97,22.1,3.87,2.4,3.1,0.85,1.15,1.6,0,28.5,345,215,108,11,64.67,1.2,DOST_FNRI_MENU_GUIDE
 egg_ampalaya,Ampalaya with Egg,Ginisang Ampalaya na may Itlog,Vegetable Dish,264.2,9.26,35.74,9.37,2.1,1.8,2.6,1.4,3.8,0,195,245,285,206.3,23.7,78.9,2.58,DOST_FNRI_MENU_GUIDE
 sinigang_pork,Sour Pork Stew,Sinigang na Baboy,Soup,159.51,4.85,3.59,14.02,1.05,0.44,4.76,2.1,6.46,0,20.45,467.43,191.41,43.82,7.6,24.25,1.08,DOST_FNRI_MENU_GUIDE
 menudo,Menudo,Menudo,Main Dish,450.4,14,22.8,33.6,3.2,8.4,10.2,4.1,15.8,0,48,465,412,128,16.8,49.6,2.4,DOST_FNRI_MENU_GUIDE

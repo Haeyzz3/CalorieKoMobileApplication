@@ -104,7 +104,7 @@ class FoodDatabaseCallback(
         private const val REFERENCE_DATA_PREFS = "reference_data_seed"
         private const val KEY_JSON_REFERENCE_VERSION = "json_reference_version"
         const val KEY_FOOD_CATALOG_SYNCED = "food_catalog_synced"
-        private const val CURRENT_JSON_REFERENCE_VERSION = 5
+        private const val CURRENT_JSON_REFERENCE_VERSION = 6
     }
 }
 

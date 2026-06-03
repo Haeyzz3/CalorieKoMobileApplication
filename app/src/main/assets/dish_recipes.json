@@ -84,48 +84,6 @@
     "serving_size_description": "1 cup"
   },
   {
-    "dish_label": "tinapa_ginisa",
-    "name_en": "Sauteed Smoked Fish",
-    "name_ph": "Ginisang Tinapa",
-    "category": "Fish",
-    "cooking_method": "sauteed",
-    "servings": 5,
-    "total_raw_weight_g": 1396.7,
-    "dish_yield_factor": 0.8,
-    "cooked_weight_g": 1117.4,
-    "per_serving_weight_g": 223.5,
-    "total_nutrients_raw": {
-      "calories": 1015.04,
-      "protein": 72.18,
-      "carbs": 50.1,
-      "fat": 59.99,
-      "fiber": 11.02,
-      "sugar": 9.99,
-      "sodium": 339.41,
-      "potassium": 2725.25,
-      "vitamin_a": 1128.86,
-      "vitamin_c": 97.18,
-      "calcium": 475.94,
-      "iron": 6.89
-    },
-    "per_serving_nutrients": {
-      "calories": 203.01,
-      "protein": 14.44,
-      "carbs": 10.02,
-      "fat": 12.0,
-      "fiber": 2.2,
-      "sugar": 2.0,
-      "sodium": 67.88,
-      "potassium": 545.05,
-      "vitamin_a": 225.77,
-      "vitamin_c": 19.44,
-      "calcium": 95.19,
-      "iron": 1.38
-    },
-    "ingredient_count": 10,
-    "serving_size_description": "1 cup"
-  },
-  {
     "dish_label": "egg_ampalaya",
     "name_en": "Ampalaya with Egg",
     "name_ph": "Ginisang Ampalaya na may Itlog",

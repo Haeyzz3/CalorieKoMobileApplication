@@ -4696,7 +4696,7 @@ private fun getRecipeSourceDocument(mlLabel: String): DishProofDocument {
         "galunggong_grilled", "kinilaw_tuna",
         "menudo", "sinabawang_bangus", "pinakbet",
         "sinigang_pork", "sinuglaw_pork",
-        "tilapia_fried", "tinapa_ginisa", "kwekwek", "udong",
+        "tilapia_fried", "kwekwek", "udong",
         "linatan", "humba_pork", "lawuy"
     )
 
