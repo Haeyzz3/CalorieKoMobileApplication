@@ -169,6 +169,9 @@ class ManualLogViewModel(
     private val _showPantryDeduction = MutableStateFlow(false)
     val showPantryDeduction: StateFlow<Boolean> = _showPantryDeduction.asStateFlow()
 
+    private val _showDishLimitBanner = MutableStateFlow(false)
+    val showDishLimitBanner: StateFlow<Boolean> = _showDishLimitBanner.asStateFlow()
+
     // ── Plan context for status update after confirm ──
 
     private var _pendingWeekStartDate: String = ""
@@ -249,6 +252,11 @@ class ManualLogViewModel(
     }
 
     private fun recomputeFilteredDishes() {
+        if (hasReachedDishLimit()) {
+            _filteredDishes.value = emptyList()
+            return
+        }
+
         val all = _allDishes.value
         val loggedLabels = _loggedDishes.value
             .mapNotNull { it.dishLabel.takeIf { label -> label.isNotBlank() } }
@@ -268,6 +276,10 @@ class ManualLogViewModel(
     }
 
     fun selectDish(dish: DishRecipeEntity) {
+        if (hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            return
+        }
         if (isDishAlreadyLogged(dish.dishLabel)) return
         _selectedDish.value = dish
         _manualWeightText.value = defaultWeightText(dish)
@@ -292,6 +304,12 @@ class ManualLogViewModel(
         val recipe = _selectedDish.value ?: return
         val weightGrams = _manualWeightText.value.toFloatOrNull() ?: return
         if (weightGrams <= 0f) return
+        if (hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            clearSelectedDish()
+            recomputeFilteredDishes()
+            return
+        }
         if (isDishAlreadyLogged(recipe.dishLabel)) {
             clearSelectedDish()
             recomputeFilteredDishes()
@@ -372,18 +390,38 @@ class ManualLogViewModel(
 
     fun removeDish(index: Int) {
         _loggedDishes.update { list -> list.filterIndexed { i, _ -> i != index } }
+        _showDishLimitBanner.value = false
         recomputeFilteredDishes()
     }
 
     private fun isDishAlreadyLogged(dishLabel: String): Boolean =
         dishLabel.isNotBlank() && _loggedDishes.value.any { it.dishLabel == dishLabel }
 
+    private fun hasReachedDishLimit(): Boolean =
+        _loggedDishes.value.size >= MAX_DISHES_PER_MEAL
+
     fun updateMealType(type: String) {
         _mealType.value = type
     }
 
     fun setShowSummary(show: Boolean) {
+        if (!show && hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            return
+        }
         _showSummary.value = show
+    }
+
+    fun hideDishLimitBanner() {
+        _showDishLimitBanner.value = false
+    }
+
+    private fun triggerDishLimitBanner() {
+        _showDishLimitBanner.value = true
+        viewModelScope.launch {
+            delay(5000)
+            _showDishLimitBanner.value = false
+        }
     }
 
     /**
@@ -987,6 +1025,7 @@ class ManualLogViewModel(
 
         /** Sentinel value for removed ingredients (matches PantryViewModel.REMOVED_INGREDIENT). */
         const val REMOVED_INGREDIENT = "__REMOVED__"
+        const val MAX_DISHES_PER_MEAL = 7
 
         fun provideFactory(
             dishRecipeDao: DishRecipeDao,

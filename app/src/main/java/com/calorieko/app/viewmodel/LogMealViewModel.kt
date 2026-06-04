@@ -87,6 +87,9 @@ class LogMealViewModel(
     private val _showDuplicateDishBanner = MutableStateFlow(false)
     val showDuplicateDishBanner: StateFlow<Boolean> = _showDuplicateDishBanner.asStateFlow()
 
+    private val _showDishLimitBanner = MutableStateFlow(false)
+    val showDishLimitBanner: StateFlow<Boolean> = _showDishLimitBanner.asStateFlow()
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
@@ -215,6 +218,10 @@ class LogMealViewModel(
 
     fun processCapture() {
         if (_isProcessing.value) return
+        if (hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            return
+        }
         val results = _latestResults.value
         val currentWeight = _weight.value
         if (results.isEmpty() || !_weightStable.value || currentWeight <= 0f) return
@@ -280,6 +287,7 @@ class LogMealViewModel(
 
     private fun triggerUnsupportedBanner() {
         _showDuplicateDishBanner.value = false
+        _showDishLimitBanner.value = false
         _showUnsupportedBanner.value = true
         viewModelScope.launch {
             delay(5000)
@@ -297,6 +305,11 @@ class LogMealViewModel(
     }
 
     fun onCandidateSelected(dish: DishRecipeEntity, confidence: Float) {
+        if (hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            resetScanningVariables()
+            return
+        }
         if (isDishAlreadyLogged(dish.dishLabel)) {
             triggerDuplicateDishBanner()
             resetScanningVariables()
@@ -325,6 +338,11 @@ class LogMealViewModel(
 
         if (dishLabel.isEmpty()) {
             triggerLogFailedBanner()
+            return
+        }
+        if (hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            resetScanningVariables()
             return
         }
         if (isDishAlreadyLogged(dishLabel)) {
@@ -399,8 +417,13 @@ class LogMealViewModel(
         _showDuplicateDishBanner.value = false
     }
 
+    fun hideDishLimitBanner() {
+        _showDishLimitBanner.value = false
+    }
+
     private fun triggerLogFailedBanner() {
         _showDuplicateDishBanner.value = false
+        _showDishLimitBanner.value = false
         _showLogFailedBanner.value = true
         viewModelScope.launch {
             delay(5000)
@@ -411,6 +434,7 @@ class LogMealViewModel(
     private fun triggerDuplicateDishBanner() {
         _showUnsupportedBanner.value = false
         _showLogFailedBanner.value = false
+        _showDishLimitBanner.value = false
         _showDuplicateDishBanner.value = true
         viewModelScope.launch {
             delay(5000)
@@ -418,16 +442,35 @@ class LogMealViewModel(
         }
     }
 
+    private fun triggerDishLimitBanner() {
+        _showUnsupportedBanner.value = false
+        _showLogFailedBanner.value = false
+        _showDuplicateDishBanner.value = false
+        _showDishLimitBanner.value = true
+        viewModelScope.launch {
+            delay(5000)
+            _showDishLimitBanner.value = false
+        }
+    }
+
     fun setPhase(newPhase: LogMealPhase) {
+        if (newPhase == LogMealPhase.SCANNING && hasReachedDishLimit()) {
+            triggerDishLimitBanner()
+            return
+        }
         _phase.value = newPhase
     }
 
     fun removeDish(index: Int) {
         _loggedDishes.update { list -> list.filterIndexed { i, _ -> i != index } }
+        _showDishLimitBanner.value = false
     }
 
     private fun isDishAlreadyLogged(dishLabel: String): Boolean =
         dishLabel.isNotBlank() && _loggedDishes.value.any { it.dishLabel == dishLabel }
+
+    private fun hasReachedDishLimit(): Boolean =
+        _loggedDishes.value.size >= MAX_DISHES_PER_MEAL
 
     fun updateMealType(type: String) {
         _mealType.value = type
@@ -768,6 +811,7 @@ class LogMealViewModel(
 
     companion object {
         const val CONFIDENCE_THRESHOLD = 0.70f
+        const val MAX_DISHES_PER_MEAL = 7
         const val REMOVED_INGREDIENT = "__REMOVED__"
 
         fun provideFactory(

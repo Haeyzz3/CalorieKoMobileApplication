@@ -448,6 +448,7 @@ private fun AiScaleMealContent(
     val showUnsupportedBanner by viewModel.showUnsupportedBanner.collectAsState()
     val showLogFailedBanner by viewModel.showLogFailedBanner.collectAsState()
     val showDuplicateDishBanner by viewModel.showDuplicateDishBanner.collectAsState()
+    val showDishLimitBanner by viewModel.showDishLimitBanner.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val isLoggingDish by viewModel.isLoggingDish.collectAsState()
     val showCandidateSelection by viewModel.showCandidateSelection.collectAsState()
@@ -461,6 +462,7 @@ private fun AiScaleMealContent(
     val isScaleConnected by viewModel.isScaleConnected.collectAsState()
     val showPantryDeduction by viewModel.showPantryDeduction.collectAsState()
     val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
+    val dishLimitReached = loggedDishes.size >= LogMealViewModel.MAX_DISHES_PER_MEAL
 
     val connectionState by bleScaleManager.connectionState.collectAsState()
     LaunchedEffect(connectionState) {
@@ -562,7 +564,8 @@ private fun AiScaleMealContent(
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
             isConfirming = isConfirming,
-            viewModel = viewModel
+            viewModel = viewModel,
+            canAddMore = !dishLimitReached
         )
         return
     }
@@ -758,7 +761,7 @@ private fun AiScaleMealContent(
 
             // Capture Button (while scanning)
             if (phase == LogMealPhase.SCANNING) {
-                val isReady = weightStable && weight > 0 && latestResults.isNotEmpty()
+                val isReady = !dishLimitReached && weightStable && weight > 0 && latestResults.isNotEmpty()
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     contentAlignment = Alignment.Center
@@ -779,6 +782,7 @@ private fun AiScaleMealContent(
                 }
                 
                 val statusText = when {
+                    dishLimitReached -> "Meal limit reached"
                     isProcessing -> "Processing..."
                     !weightStable && weight == 0f -> "Waiting for scale data..."
                     !weightStable -> "Stabilizing weight..."
@@ -804,7 +808,8 @@ private fun AiScaleMealContent(
                 estimatedCalories = pendingCaloriesEst,
                 onLogDish = { viewModel.logCurrentDish() },
                 onCancel = { viewModel.cancelDishReady() },
-                isLogging = isLoggingDish
+                isLogging = isLoggingDish,
+                canLogDish = !dishLimitReached
             )
         }
 
@@ -813,8 +818,9 @@ private fun AiScaleMealContent(
             CandidateSelectionSheet(
                 candidate1 = candidate1!!,
                 candidate2 = candidate2!!,
-                candidate1Enabled = loggedDishes.none { it.dishLabel == candidate1!!.first.dishLabel },
-                candidate2Enabled = loggedDishes.none { it.dishLabel == candidate2!!.first.dishLabel },
+                candidate1Enabled = !dishLimitReached && loggedDishes.none { it.dishLabel == candidate1!!.first.dishLabel },
+                candidate2Enabled = !dishLimitReached && loggedDishes.none { it.dishLabel == candidate2!!.first.dishLabel },
+                dishLimitReached = dishLimitReached,
                 onSelect = { food, conf -> viewModel.onCandidateSelected(food, conf) },
                 onCancel = { viewModel.cancelCandidateSelection() }
             )
@@ -933,6 +939,44 @@ private fun AiScaleMealContent(
                 }
             }
         }
+
+        // 12. Inline dish-limit banner
+        AnimatedVisibility(
+            visible = showDishLimitBanner,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 160.dp, start = 24.dp, end = 24.dp)
+        ) {
+            Surface(
+                color = Color(0xFF7C3AED).copy(alpha = 0.94f),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.hideDishLimitBanner() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Meal limit reached - you can log up to 7 dishes per meal",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -955,9 +999,11 @@ private fun ManualMealContent(
     val showSummary by viewModel.showSummary.collectAsState()
     val showPantryDeduction by viewModel.showPantryDeduction.collectAsState()
     val pantryDeductionItems by viewModel.pantryDeductionItems.collectAsState()
+    val showDishLimitBanner by viewModel.showDishLimitBanner.collectAsState()
 
     val isConfirming by viewModel.isConfirming.collectAsState()
     val isAddingDish by viewModel.isAddingDish.collectAsState()
+    val dishLimitReached = loggedDishes.size >= ManualLogViewModel.MAX_DISHES_PER_MEAL
 
     if (showPantryDeduction && pantryDeductionItems.isNotEmpty()) {
         PantryDeductionScreen(
@@ -979,7 +1025,8 @@ private fun ManualMealContent(
             onConfirmMeal = { viewModel.confirmMeal() },
             onCancel = onBack,
             isConfirming = isConfirming,
-            manualViewModel = viewModel
+            manualViewModel = viewModel,
+            canAddMore = !dishLimitReached
         )
         return
     }
@@ -1024,6 +1071,7 @@ private fun ManualMealContent(
                 DishSelectionContent(
                     searchQuery = searchQuery,
                     filteredDishes = filteredDishes,
+                    dishLimitReached = dishLimitReached,
                     onSearchChange = { viewModel.updateSearchQuery(it) },
                     onSelectDish = { viewModel.selectDish(it) }
                 )
@@ -1035,7 +1083,8 @@ private fun ManualMealContent(
                     onWeightChange = { viewModel.updateWeightText(it) },
                     onChangeDish = { viewModel.clearSelectedDish() },
                     onAddDish = { viewModel.addDish() },
-                    isAdding = isAddingDish
+                    isAdding = isAddingDish,
+                    canAddDish = !dishLimitReached
                 )
             }
 
@@ -1066,6 +1115,43 @@ private fun ManualMealContent(
                     }
                 }
             }
+
+            AnimatedVisibility(
+                visible = showDishLimitBanner,
+                enter = slideInVertically { -it },
+                exit = slideOutVertically { -it },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp, start = 24.dp, end = 24.dp)
+            ) {
+                Surface(
+                    color = Color(0xFF7C3AED).copy(alpha = 0.94f),
+                    shape = RoundedCornerShape(16.dp),
+                    shadowElevation = 6.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.hideDishLimitBanner() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Meal limit reached - you can log up to 7 dishes per meal",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1074,6 +1160,7 @@ private fun ManualMealContent(
 private fun DishSelectionContent(
     searchQuery: String,
     filteredDishes: List<DishRecipeEntity>,
+    dishLimitReached: Boolean,
     onSearchChange: (String) -> Unit,
     onSelectDish: (DishRecipeEntity) -> Unit
 ) {
@@ -1120,7 +1207,9 @@ private fun DishSelectionContent(
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            if (searchQuery.isBlank()) {
+                            if (dishLimitReached) {
+                                "Meal limit reached"
+                            } else if (searchQuery.isBlank()) {
                                 "All available dishes have already been logged"
                             } else {
                                 "No available dishes match your search"
@@ -1132,7 +1221,11 @@ private fun DishSelectionContent(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Remove a dish from the summary to select it again.",
+                            if (dishLimitReached) {
+                                "Review or remove a dish before adding another."
+                            } else {
+                                "Remove a dish from the summary to select it again."
+                            },
                             fontSize = 12.sp,
                             color = Color(0xFF9CA3AF),
                             textAlign = TextAlign.Center
@@ -1215,7 +1308,8 @@ private fun WeightInputContent(
     progressText: String? = null,
     dishLabelFallback: String = "",
     showDefaultServingPrefillHint: Boolean = true,
-    isAdding: Boolean = false
+    isAdding: Boolean = false,
+    canAddDish: Boolean = true
 ) {
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val scrollState = rememberScrollState()
@@ -1404,7 +1498,7 @@ private fun WeightInputContent(
         // Add Dish button
         Button(
             onClick = onAddDish,
-            enabled = isValid && !isAdding,
+            enabled = isValid && !isAdding && canAddDish,
             colors = ButtonDefaults.buttonColors(
                 containerColor = CalorieKoOrange,
                 disabledContainerColor = Color(0xFFD1D5DB)
@@ -1417,7 +1511,11 @@ private fun WeightInputContent(
             Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                if (isAdding) "Adding..." else actionText,
+                when {
+                    isAdding -> "Adding..."
+                    !canAddDish -> "Meal Limit Reached"
+                    else -> actionText
+                },
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -1465,7 +1563,8 @@ private fun ManualMealSummaryOverlay(
     manualViewModel: ManualLogViewModel? = null,
     isPlannedMeal: Boolean = false,
     canConfirmMeal: Boolean = dishes.isNotEmpty(),
-    confirmDisabledReason: String? = null
+    confirmDisabledReason: String? = null,
+    canAddMore: Boolean = true
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -1787,7 +1886,7 @@ private fun ManualMealSummaryOverlay(
                                 )
                             }
                         }
-                    } else {
+                    } else if (canAddMore) {
                         Button(
                             onClick = onAddMore,
                             colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
@@ -2292,6 +2391,7 @@ private fun CandidateSelectionSheet(
     candidate2: Pair<com.calorieko.app.data.model.DishRecipeEntity, Float>,
     candidate1Enabled: Boolean,
     candidate2Enabled: Boolean,
+    dishLimitReached: Boolean = false,
     onSelect: (com.calorieko.app.data.model.DishRecipeEntity, Float) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -2345,10 +2445,10 @@ private fun CandidateSelectionSheet(
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
                     Text(
-                        if (candidate1Enabled) {
-                            "${candidate1.first.namePh} (${(candidate1.second * 100).toInt()}%)"
-                        } else {
-                            "${candidate1.first.namePh} - Already logged"
+                        when {
+                            candidate1Enabled -> "${candidate1.first.namePh} (${(candidate1.second * 100).toInt()}%)"
+                            dishLimitReached -> "${candidate1.first.namePh} - Meal limit reached"
+                            else -> "${candidate1.first.namePh} - Already logged"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -2366,10 +2466,10 @@ private fun CandidateSelectionSheet(
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
                     Text(
-                        if (candidate2Enabled) {
-                            "${candidate2.first.namePh} (${(candidate2.second * 100).toInt()}%)"
-                        } else {
-                            "${candidate2.first.namePh} - Already logged"
+                        when {
+                            candidate2Enabled -> "${candidate2.first.namePh} (${(candidate2.second * 100).toInt()}%)"
+                            dishLimitReached -> "${candidate2.first.namePh} - Meal limit reached"
+                            else -> "${candidate2.first.namePh} - Already logged"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -2399,7 +2499,8 @@ private fun DishReadySheet(
     estimatedCalories: Float,
     onLogDish: () -> Unit,
     onCancel: () -> Unit,
-    isLogging: Boolean = false
+    isLogging: Boolean = false,
+    canLogDish: Boolean = true
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -2459,7 +2560,7 @@ private fun DishReadySheet(
                 // Buttons
                 Button(
                     onClick = onLogDish,
-                    enabled = !isLogging,
+                    enabled = !isLogging && canLogDish,
                     colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -2467,7 +2568,11 @@ private fun DishReadySheet(
                     Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        if (isLogging) "Logging..." else "Log This Dish",
+                        when {
+                            isLogging -> "Logging..."
+                            !canLogDish -> "Meal Limit Reached"
+                            else -> "Log This Dish"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -2665,7 +2770,8 @@ private fun MealSummaryOverlay(
     onConfirmMeal: () -> Unit,
     onCancel: () -> Unit,
     isConfirming: Boolean = false,
-    viewModel: LogMealViewModel
+    viewModel: LogMealViewModel,
+    canAddMore: Boolean = true
 ) {
     val totalCalories = dishes.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein = dishes.sumOf { it.protein.toDouble() }.toFloat()
@@ -2951,15 +3057,17 @@ private fun MealSummaryOverlay(
                         )
                     }
                     Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = onAddMore,
-                        colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Add More Dishes", fontWeight = FontWeight.SemiBold)
+                    if (canAddMore) {
+                        Button(
+                            onClick = onAddMore,
+                            colors = ButtonDefaults.buttonColors(containerColor = CalorieKoOrange),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add More Dishes", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
