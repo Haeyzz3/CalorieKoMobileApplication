@@ -1112,6 +1112,7 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
         "90_days" -> 90
         else -> 7
     }
+    val daysOverLimit = data.count { (it.intake - it.burned) > targetCalories + 100 }
 
     // Scale: accommodate both net values and target
     val maxAbsValue = maxOf(
@@ -1143,14 +1144,49 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "Net vs. Target",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A)
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = "Net vs. Target",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+                }
+                if (daysOverLimit > 0) {
+                    val unit = when (viewMode) {
+                        "30_days" -> "week"
+                        "90_days" -> "month"
+                        else -> "day"
+                    }
+                    Row(
+                        modifier = Modifier
+                            .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFFEF4444)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "$daysOverLimit $unit${if (daysOverLimit > 1) "s" else ""} over target",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFEF4444)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             if (allEmpty) {
