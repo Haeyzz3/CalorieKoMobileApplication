@@ -1332,8 +1332,18 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val footerLeftLabel = when (viewMode) {
+                    "30_days" -> "Weekly Avg Net"
+                    "90_days" -> "Monthly Avg Net"
+                    else -> "Daily Avg Net"
+                }
+                val footerRightLabel = when (viewMode) {
+                    "30_days" -> "Your Weekly Avg Net is,"
+                    "90_days" -> "Your Monthly Avg Net is,"
+                    else -> "Your Daily Avg Net is,"
+                }
                 Column {
-                    Text("Avg Net in $rangeDays days", fontSize = 13.sp, color = Color(0xFF94A3B8))
+                    Text(footerLeftLabel, fontSize = 13.sp, color = Color(0xFF94A3B8))
                     Text(
                         "$averageNet kcal",
                         fontSize = 18.sp,
@@ -1348,13 +1358,22 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                         isOver -> Color(0xFFEF4444) // Over
                         else -> Color(0xFF6C63FF) // Under
                     }
-                    val rightLabelText = when {
-                        abs(diff) <= 100 -> "on target"
-                        isOver -> "+$diff kcal over"
-                        else -> "${abs(diff)} kcal under"
+                    val row1Text = when {
+                        abs(diff) <= 100 -> "on"
+                        isOver -> "+$diff"
+                        else -> "${abs(diff)}"
+                    }
+                    val row2Line1 = when {
+                        abs(diff) <= 100 -> "target"
+                        else -> "kcal"
+                    }
+                    val row2Line2 = when {
+                        abs(diff) <= 100 -> ""
+                        isOver -> "over target"
+                        else -> "under target"
                     }
                     Text(
-                        text = "Your Avg Net in $rangeDays days is,",
+                        text = footerRightLabel,
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -1374,11 +1393,33 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = rightLabelText,
+                            text = row1Text,
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = diffColor
                         )
+                        Spacer(Modifier.width(6.dp))
+                        Column(
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = row2Line1,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = diffColor,
+                                lineHeight = 10.sp
+                            )
+                            if (row2Line2.isNotEmpty()) {
+                                Text(
+                                    text = row2Line2,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = diffColor,
+                                    lineHeight = 10.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
