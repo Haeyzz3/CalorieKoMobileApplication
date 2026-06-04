@@ -1359,8 +1359,8 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
     val daysOverLimit = data.count { it.sodium > dailyLimit }
     val average = if (data.isNotEmpty()) data.sumOf { it.sodium } / data.size else 0
     // Same safeguard fix as CalorieBalanceCard: use 3000 mg as visual baseline when no data.
-    val maxSodium = data.maxOfOrNull { it.sodium } ?: 0
-    val allSodiumDataEmpty = maxSodium == 0
+    val allSodiumDataEmpty = data.isEmpty() || data.all { it.sodium == 0 }
+    val maxSodium = maxOf(data.maxOfOrNull { it.sodium } ?: 0, dailyLimit)
     val yMax = if (allSodiumDataEmpty) 3000 else ((maxSodium / 500) + 1) * 500
 
     val footerLabel = when (viewMode) {
@@ -1393,6 +1393,11 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                     Text("Hypertension Monitoring", fontSize = 12.sp, color = Color(0xFF94A3B8))
                 }
                 if (daysOverLimit > 0) {
+                    val unit = when (viewMode) {
+                        "30_days" -> "week"
+                        "90_days" -> "month"
+                        else -> "day"
+                    }
                     Row(
                         modifier = Modifier
                             .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
@@ -1401,7 +1406,7 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                     ) {
                         Icon(Icons.Filled.Warning, null, Modifier.size(12.dp), limitColor)
                         Spacer(Modifier.width(4.dp))
-                        Text("$daysOverLimit day${if (daysOverLimit > 1) "s" else ""} over limit",
+                        Text("$daysOverLimit $unit${if (daysOverLimit > 1) "s" else ""} over limit",
                             fontSize = 11.sp, fontWeight = FontWeight.Medium, color = limitColor)
                     }
                 }
