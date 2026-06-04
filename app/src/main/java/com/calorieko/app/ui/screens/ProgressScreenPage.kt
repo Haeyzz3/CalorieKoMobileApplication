@@ -100,6 +100,13 @@ private fun buildCalorieChartData(
     viewMode: String
 ): List<DayCalorieData> {
     val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
+    }
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
 
     return when (viewMode) {
         "7_days" -> (6 downTo 0).map { daysAgo ->
@@ -124,15 +131,33 @@ private fun buildCalorieChartData(
             cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
             cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-            val weekStart = cal.timeInMillis
-            val weekEnd = weekStart + 7 * 86_400_000L
             val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
 
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             ).toEpochDay()
-            val intake = (0..6).sumOf { d -> summaryMap[startEpoch + d]?.totalCalories?.toInt() ?: 0 } / 7
-            val burned = workoutLogs.filter { it.timestamp in weekStart until weekEnd }.sumOf { it.calories } / 7
+
+            var validDaysCount = 0
+            var intakeSum = 0
+            var burnedSum = 0
+
+            for (d in 0..6) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    intakeSum += summaryMap[currentEpochDay]?.totalCalories?.toInt() ?: 0
+                    
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    burnedSum += workoutLogs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.calories }
+                }
+            }
+
+            val divisor = validDaysCount.coerceAtLeast(1)
+            val intake = intakeSum / divisor
+            val burned = burnedSum / divisor
             DayCalorieData(label, intake, burned)
         }
         "90_days" -> (2 downTo 0).map { monthsAgo ->
@@ -151,8 +176,28 @@ private fun buildCalorieChartData(
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
             ).toEpochDay()
-            val intake = (0 until daysInMonth).sumOf { d -> summaryMap[startEpoch + d]?.totalCalories?.toInt() ?: 0 } / daysInMonth
-            val burned = workoutLogs.filter { it.timestamp in monthStart until monthEnd }.sumOf { it.calories } / daysInMonth
+
+            var validDaysCount = 0
+            var intakeSum = 0
+            var burnedSum = 0
+
+            for (d in 0 until daysInMonth) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    intakeSum += summaryMap[currentEpochDay]?.totalCalories?.toInt() ?: 0
+                    
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    burnedSum += workoutLogs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.calories }
+                }
+            }
+
+            val divisor = validDaysCount.coerceAtLeast(1)
+            val intake = intakeSum / divisor
+            val burned = burnedSum / divisor
             DayCalorieData(label, intake, burned)
         }
         else -> emptyList()
@@ -164,6 +209,13 @@ private fun buildSodiumChartData(
     viewMode: String
 ): List<DaySodiumData> {
     val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
+    }
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
 
     return when (viewMode) {
         "7_days" -> (6 downTo 0).map { daysAgo ->
@@ -183,8 +235,18 @@ private fun buildSodiumChartData(
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             ).toEpochDay()
-            val avgSodium = (0..6).sumOf { d -> summaryMap[startEpoch + d]?.totalSodium?.toInt() ?: 0 } / 7
-            DaySodiumData(label, avgSodium)
+
+            var validDaysCount = 0
+            var sodiumSum = 0
+            for (d in 0..6) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    sodiumSum += summaryMap[currentEpochDay]?.totalSodium?.toInt() ?: 0
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DaySodiumData(label, sodiumSum / divisor)
         }
         "90_days" -> (2 downTo 0).map { monthsAgo ->
             val cal = Calendar.getInstance()
@@ -198,8 +260,18 @@ private fun buildSodiumChartData(
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
             ).toEpochDay()
-            val avgSodium = (0 until daysInMonth).sumOf { d -> summaryMap[startEpoch + d]?.totalSodium?.toInt() ?: 0 } / daysInMonth
-            DaySodiumData(label, avgSodium)
+
+            var validDaysCount = 0
+            var sodiumSum = 0
+            for (d in 0 until daysInMonth) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    sodiumSum += summaryMap[currentEpochDay]?.totalSodium?.toInt() ?: 0
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DaySodiumData(label, sodiumSum / divisor)
         }
         else -> emptyList()
     }
@@ -208,46 +280,90 @@ private fun buildSodiumChartData(
 private fun buildStepsChartData(
     logs: List<ActivityLogEntity>,
     viewMode: String
-): List<DayStepsData> = when (viewMode) {
-    "7_days" -> (6 downTo 0).map { daysAgo ->
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        val dayStart = cal.timeInMillis
-        val dayEnd = dayStart + 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
-        DayStepsData(label, dayLogs.sumOf { it.steps ?: 0 })
+): List<DayStepsData> {
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
     }
-    "30_days" -> (3 downTo 0).map { weeksAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-        val weekStart = cal.timeInMillis
-        val weekEnd = weekStart + 7 * 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val weekLogs = logs.filter { it.timestamp in weekStart until weekEnd }
-        DayStepsData(label, weekLogs.sumOf { it.steps ?: 0 } / 7)
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
+
+    return when (viewMode) {
+        "7_days" -> (6 downTo 0).map { daysAgo ->
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            val dayStart = cal.timeInMillis
+            val dayEnd = dayStart + 86_400_000L
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+            val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
+            DayStepsData(label, dayLogs.sumOf { it.steps ?: 0 })
+        }
+        "30_days" -> (3 downTo 0).map { weeksAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+
+            var validDaysCount = 0
+            var stepsSum = 0
+            for (d in 0..6) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    stepsSum += logs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.steps ?: 0 }
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DayStepsData(label, stepsSum / divisor)
+        }
+        "90_days" -> (2 downTo 0).map { monthsAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.MONTH, -monthsAgo)
+            val monthStart = cal.timeInMillis
+            val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
+            val nextCal = cal.clone() as Calendar
+            nextCal.add(Calendar.MONTH, 1)
+            val monthEnd = nextCal.timeInMillis
+            val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
+
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
+            ).toEpochDay()
+
+            var validDaysCount = 0
+            var stepsSum = 0
+            for (d in 0 until daysInMonth) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    stepsSum += logs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.steps ?: 0 }
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DayStepsData(label, stepsSum / divisor)
+        }
+        else -> emptyList()
     }
-    "90_days" -> (2 downTo 0).map { monthsAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.MONTH, -monthsAgo)
-        val monthStart = cal.timeInMillis
-        val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
-        val nextCal = cal.clone() as Calendar
-        nextCal.add(Calendar.MONTH, 1)
-        val monthEnd = nextCal.timeInMillis
-        val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
-        val monthLogs = logs.filter { it.timestamp in monthStart until monthEnd }
-        DayStepsData(label, monthLogs.sumOf { it.steps ?: 0 } / daysInMonth)
-    }
-    else -> emptyList()
 }
 
 private fun buildWeightChartData(
@@ -996,6 +1112,7 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
         "90_days" -> 90
         else -> 7
     }
+    val daysOverLimit = data.count { (it.intake - it.burned) > targetCalories + 100 }
 
     // Scale: accommodate both net values and target
     val maxAbsValue = maxOf(
@@ -1027,14 +1144,49 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "Net vs. Target",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A)
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = "Net vs. Target",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+                }
+                if (daysOverLimit > 0) {
+                    val unit = when (viewMode) {
+                        "30_days" -> "week"
+                        "90_days" -> "month"
+                        else -> "day"
+                    }
+                    Row(
+                        modifier = Modifier
+                            .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFFEF4444)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "$daysOverLimit $unit${if (daysOverLimit > 1) "s" else ""} over target",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFEF4444)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             if (allEmpty) {
@@ -1180,8 +1332,18 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val footerLeftLabel = when (viewMode) {
+                    "30_days" -> "Weekly Avg Net"
+                    "90_days" -> "Monthly Avg Net"
+                    else -> "Daily Avg Net"
+                }
+                val footerRightLabel = when (viewMode) {
+                    "30_days" -> "Your Weekly Avg Net is,"
+                    "90_days" -> "Your Monthly Avg Net is,"
+                    else -> "Your Daily Avg Net is,"
+                }
                 Column {
-                    Text("Avg Net in $rangeDays days", fontSize = 13.sp, color = Color(0xFF94A3B8))
+                    Text(footerLeftLabel, fontSize = 13.sp, color = Color(0xFF94A3B8))
                     Text(
                         "$averageNet kcal",
                         fontSize = 18.sp,
@@ -1196,13 +1358,22 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                         isOver -> Color(0xFFEF4444) // Over
                         else -> Color(0xFF6C63FF) // Under
                     }
-                    val rightLabelText = when {
-                        abs(diff) <= 100 -> "on target"
-                        isOver -> "+$diff kcal over"
-                        else -> "${abs(diff)} kcal under"
+                    val row1Text = when {
+                        abs(diff) <= 100 -> "on"
+                        isOver -> "+$diff"
+                        else -> "${abs(diff)}"
+                    }
+                    val row2Line1 = when {
+                        abs(diff) <= 100 -> "target"
+                        else -> "kcal"
+                    }
+                    val row2Line2 = when {
+                        abs(diff) <= 100 -> ""
+                        isOver -> "over target"
+                        else -> "under target"
                     }
                     Text(
-                        text = "Your Avg Net in $rangeDays days is,",
+                        text = footerRightLabel,
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -1222,11 +1393,33 @@ private fun NetCalorieTargetCard(data: List<DayCalorieData>, targetCalories: Int
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = rightLabelText,
+                            text = row1Text,
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = diffColor
                         )
+                        Spacer(Modifier.width(6.dp))
+                        Column(
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = row2Line1,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = diffColor,
+                                lineHeight = 10.sp
+                            )
+                            if (row2Line2.isNotEmpty()) {
+                                Text(
+                                    text = row2Line2,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = diffColor,
+                                    lineHeight = 10.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1243,8 +1436,8 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
     val daysOverLimit = data.count { it.sodium > dailyLimit }
     val average = if (data.isNotEmpty()) data.sumOf { it.sodium } / data.size else 0
     // Same safeguard fix as CalorieBalanceCard: use 3000 mg as visual baseline when no data.
-    val maxSodium = data.maxOfOrNull { it.sodium } ?: 0
-    val allSodiumDataEmpty = maxSodium == 0
+    val allSodiumDataEmpty = data.isEmpty() || data.all { it.sodium == 0 }
+    val maxSodium = maxOf(data.maxOfOrNull { it.sodium } ?: 0, dailyLimit)
     val yMax = if (allSodiumDataEmpty) 3000 else ((maxSodium / 500) + 1) * 500
 
     val footerLabel = when (viewMode) {
@@ -1277,6 +1470,11 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                     Text("Hypertension Monitoring", fontSize = 12.sp, color = Color(0xFF94A3B8))
                 }
                 if (daysOverLimit > 0) {
+                    val unit = when (viewMode) {
+                        "30_days" -> "week"
+                        "90_days" -> "month"
+                        else -> "day"
+                    }
                     Row(
                         modifier = Modifier
                             .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
@@ -1285,7 +1483,7 @@ private fun SodiumTrendCard(data: List<DaySodiumData>, dailyLimit: Int, viewMode
                     ) {
                         Icon(Icons.Filled.Warning, null, Modifier.size(12.dp), limitColor)
                         Spacer(Modifier.width(4.dp))
-                        Text("$daysOverLimit day${if (daysOverLimit > 1) "s" else ""} over limit",
+                        Text("$daysOverLimit $unit${if (daysOverLimit > 1) "s" else ""} over limit",
                             fontSize = 11.sp, fontWeight = FontWeight.Medium, color = limitColor)
                     }
                 }
