@@ -100,6 +100,13 @@ private fun buildCalorieChartData(
     viewMode: String
 ): List<DayCalorieData> {
     val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
+    }
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
 
     return when (viewMode) {
         "7_days" -> (6 downTo 0).map { daysAgo ->
@@ -124,15 +131,33 @@ private fun buildCalorieChartData(
             cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
             cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-            val weekStart = cal.timeInMillis
-            val weekEnd = weekStart + 7 * 86_400_000L
             val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
 
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             ).toEpochDay()
-            val intake = (0..6).sumOf { d -> summaryMap[startEpoch + d]?.totalCalories?.toInt() ?: 0 } / 7
-            val burned = workoutLogs.filter { it.timestamp in weekStart until weekEnd }.sumOf { it.calories } / 7
+
+            var validDaysCount = 0
+            var intakeSum = 0
+            var burnedSum = 0
+
+            for (d in 0..6) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    intakeSum += summaryMap[currentEpochDay]?.totalCalories?.toInt() ?: 0
+                    
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    burnedSum += workoutLogs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.calories }
+                }
+            }
+
+            val divisor = validDaysCount.coerceAtLeast(1)
+            val intake = intakeSum / divisor
+            val burned = burnedSum / divisor
             DayCalorieData(label, intake, burned)
         }
         "90_days" -> (2 downTo 0).map { monthsAgo ->
@@ -151,8 +176,28 @@ private fun buildCalorieChartData(
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
             ).toEpochDay()
-            val intake = (0 until daysInMonth).sumOf { d -> summaryMap[startEpoch + d]?.totalCalories?.toInt() ?: 0 } / daysInMonth
-            val burned = workoutLogs.filter { it.timestamp in monthStart until monthEnd }.sumOf { it.calories } / daysInMonth
+
+            var validDaysCount = 0
+            var intakeSum = 0
+            var burnedSum = 0
+
+            for (d in 0 until daysInMonth) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    intakeSum += summaryMap[currentEpochDay]?.totalCalories?.toInt() ?: 0
+                    
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    burnedSum += workoutLogs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.calories }
+                }
+            }
+
+            val divisor = validDaysCount.coerceAtLeast(1)
+            val intake = intakeSum / divisor
+            val burned = burnedSum / divisor
             DayCalorieData(label, intake, burned)
         }
         else -> emptyList()
@@ -164,6 +209,13 @@ private fun buildSodiumChartData(
     viewMode: String
 ): List<DaySodiumData> {
     val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
+    }
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
 
     return when (viewMode) {
         "7_days" -> (6 downTo 0).map { daysAgo ->
@@ -183,8 +235,18 @@ private fun buildSodiumChartData(
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             ).toEpochDay()
-            val avgSodium = (0..6).sumOf { d -> summaryMap[startEpoch + d]?.totalSodium?.toInt() ?: 0 } / 7
-            DaySodiumData(label, avgSodium)
+
+            var validDaysCount = 0
+            var sodiumSum = 0
+            for (d in 0..6) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    sodiumSum += summaryMap[currentEpochDay]?.totalSodium?.toInt() ?: 0
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DaySodiumData(label, sodiumSum / divisor)
         }
         "90_days" -> (2 downTo 0).map { monthsAgo ->
             val cal = Calendar.getInstance()
@@ -198,8 +260,18 @@ private fun buildSodiumChartData(
             val startEpoch = java.time.LocalDate.of(
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
             ).toEpochDay()
-            val avgSodium = (0 until daysInMonth).sumOf { d -> summaryMap[startEpoch + d]?.totalSodium?.toInt() ?: 0 } / daysInMonth
-            DaySodiumData(label, avgSodium)
+
+            var validDaysCount = 0
+            var sodiumSum = 0
+            for (d in 0 until daysInMonth) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    sodiumSum += summaryMap[currentEpochDay]?.totalSodium?.toInt() ?: 0
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DaySodiumData(label, sodiumSum / divisor)
         }
         else -> emptyList()
     }
@@ -208,46 +280,90 @@ private fun buildSodiumChartData(
 private fun buildStepsChartData(
     logs: List<ActivityLogEntity>,
     viewMode: String
-): List<DayStepsData> = when (viewMode) {
-    "7_days" -> (6 downTo 0).map { daysAgo ->
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        val dayStart = cal.timeInMillis
-        val dayEnd = dayStart + 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
-        DayStepsData(label, dayLogs.sumOf { it.steps ?: 0 })
+): List<DayStepsData> {
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
     }
-    "30_days" -> (3 downTo 0).map { weeksAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
-        val weekStart = cal.timeInMillis
-        val weekEnd = weekStart + 7 * 86_400_000L
-        val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
-        val weekLogs = logs.filter { it.timestamp in weekStart until weekEnd }
-        DayStepsData(label, weekLogs.sumOf { it.steps ?: 0 } / 7)
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
+
+    return when (viewMode) {
+        "7_days" -> (6 downTo 0).map { daysAgo ->
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            val dayStart = cal.timeInMillis
+            val dayEnd = dayStart + 86_400_000L
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+            val dayLogs = logs.filter { it.timestamp in dayStart until dayEnd }
+            DayStepsData(label, dayLogs.sumOf { it.steps ?: 0 })
+        }
+        "30_days" -> (3 downTo 0).map { weeksAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+
+            var validDaysCount = 0
+            var stepsSum = 0
+            for (d in 0..6) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    stepsSum += logs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.steps ?: 0 }
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DayStepsData(label, stepsSum / divisor)
+        }
+        "90_days" -> (2 downTo 0).map { monthsAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.MONTH, -monthsAgo)
+            val monthStart = cal.timeInMillis
+            val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
+            val nextCal = cal.clone() as Calendar
+            nextCal.add(Calendar.MONTH, 1)
+            val monthEnd = nextCal.timeInMillis
+            val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
+
+            val startEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
+            ).toEpochDay()
+
+            var validDaysCount = 0
+            var stepsSum = 0
+            for (d in 0 until daysInMonth) {
+                val currentEpochDay = startEpoch + d
+                if (currentEpochDay in startRangeEpochDay..todayEpochDay) {
+                    validDaysCount++
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    val dayStart = dayCal.timeInMillis
+                    val dayEnd = dayStart + 86_400_000L
+                    stepsSum += logs.filter { it.timestamp in dayStart until dayEnd }.sumOf { it.steps ?: 0 }
+                }
+            }
+            val divisor = validDaysCount.coerceAtLeast(1)
+            DayStepsData(label, stepsSum / divisor)
+        }
+        else -> emptyList()
     }
-    "90_days" -> (2 downTo 0).map { monthsAgo ->
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        cal.add(Calendar.MONTH, -monthsAgo)
-        val monthStart = cal.timeInMillis
-        val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
-        val nextCal = cal.clone() as Calendar
-        nextCal.add(Calendar.MONTH, 1)
-        val monthEnd = nextCal.timeInMillis
-        val daysInMonth = ((monthEnd - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
-        val monthLogs = logs.filter { it.timestamp in monthStart until monthEnd }
-        DayStepsData(label, monthLogs.sumOf { it.steps ?: 0 } / daysInMonth)
-    }
-    else -> emptyList()
 }
 
 private fun buildWeightChartData(
