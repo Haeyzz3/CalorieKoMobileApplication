@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -97,11 +98,11 @@ class LocationTrackingService : Service(), SensorEventListener {
         /** Number of readings after warm-up that undergo stabilization checks. */
         private const val POST_WARMUP_STABILIZATION_COUNT = 3
 
-        // ── GPS Smoothing (Moving Average) ──
-        // GPS locations bounce randomly when stationary (jitter). By keeping a rolling
-        // window of recent raw coordinates and calculating their average (centroid),
-        // we completely neutralize the jitter. The smoothed point stays perfectly still.
-        private const val SMOOTHING_WINDOW_SIZE = 6
+        // ── Visual Route Interpolation ──
+        // Keep saved distance based on accepted GPS segments, but add intermediate
+        // display points so the breadcrumb line draws smoothly between fixes.
+        private const val VISUAL_ROUTE_MAX_SEGMENT_METERS = 5.0f
+        private const val MAX_VISUAL_ROUTE_POINTS_PER_FIX = 12
 
         private const val LOCATION_UPDATE_INTERVAL_MS = 3000L
         private const val LOCATION_MIN_UPDATE_INTERVAL_MS = 2000L
@@ -235,7 +236,6 @@ class LocationTrackingService : Service(), SensorEventListener {
     private var gpsWarmUpStartMs = 0L
     private val warmUpLocations = mutableListOf<Location>()
     private var warmUpDisplayLocation: Location? = null
-    private val recentPositions = mutableListOf<Location>()
 
     // ── Wall-Clock Timing for Speed Calculations ──
     private var lastUpdateWallClockMs = 0L
@@ -363,7 +363,6 @@ class LocationTrackingService : Service(), SensorEventListener {
         gpsWarmUpStartMs = System.currentTimeMillis()
         warmUpLocations.clear()
         warmUpDisplayLocation = null
-        recentPositions.clear()
 
         try {
             acquireWakeLock()
@@ -392,7 +391,6 @@ class LocationTrackingService : Service(), SensorEventListener {
         // so _timeSeconds naturally freezes while paused.
         val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
         val dist = "%.2f km".format(_distanceKm.value)
-        currentPaceMinutesPerKm()?.let { _currentPace.value = it }
         val paceStr = formatPace(_currentPace.value)
         updateNotificationWithStats(formatted, dist, paceStr, isPaused = true)
     }
@@ -455,7 +453,6 @@ class LocationTrackingService : Service(), SensorEventListener {
         isGpsWarmedUp = false
         warmUpLocations.clear()
         warmUpDisplayLocation = null
-        recentPositions.clear()
         lastRawLocation = null
         lastAcceptedTotalSteps = 0
         lastStepMovementMs = 0L
@@ -501,13 +498,6 @@ class LocationTrackingService : Service(), SensorEventListener {
         pendingGpsMovementFixes = 0
     }
 
-    private fun resetSmoothingTo(location: Location) {
-        recentPositions.clear()
-        repeat(SMOOTHING_WINDOW_SIZE) {
-            recentPositions.add(location)
-        }
-    }
-
     private fun holdStationary(anchor: Location, keepPendingGpsMovement: Boolean = false) {
         _isMoving.value = false
         val displayPoint = _pathPoints.value.lastOrNull()
@@ -517,12 +507,42 @@ class LocationTrackingService : Service(), SensorEventListener {
         if (!keepPendingGpsMovement) {
             resetPendingGpsMovement()
         }
-        resetSmoothingTo(
-            Location(anchor).apply {
-                latitude = displayPoint.first
-                longitude = displayPoint.second
-            }
-        )
+    }
+
+    private fun appendVisualRoutePoint(
+        existingPoints: List<Pair<Double, Double>>,
+        point: Pair<Double, Double>
+    ): List<Pair<Double, Double>> {
+        val lastPoint = existingPoints.lastOrNull() ?: return listOf(point)
+        val segmentDistanceMeters = distanceBetween(lastPoint, point)
+        if (segmentDistanceMeters < 0.5f) return existingPoints
+
+        val interpolationSteps = ceil(segmentDistanceMeters / VISUAL_ROUTE_MAX_SEGMENT_METERS)
+            .toInt()
+            .coerceIn(1, MAX_VISUAL_ROUTE_POINTS_PER_FIX)
+
+        if (interpolationSteps == 1) return existingPoints + point
+
+        val addedPoints = mutableListOf<Pair<Double, Double>>()
+        for (step in 1..interpolationSteps) {
+            val fraction = step.toDouble() / interpolationSteps
+            addedPoints.add(
+                Pair(
+                    lastPoint.first + (point.first - lastPoint.first) * fraction,
+                    lastPoint.second + (point.second - lastPoint.second) * fraction
+                )
+            )
+        }
+        return existingPoints + addedPoints
+    }
+
+    private fun distanceBetween(
+        start: Pair<Double, Double>,
+        end: Pair<Double, Double>
+    ): Float {
+        val result = FloatArray(1)
+        Location.distanceBetween(start.first, start.second, end.first, end.second, result)
+        return result[0]
     }
 
     private fun freezeDisplayPointToRouteEndpoint() {
@@ -547,6 +567,10 @@ class LocationTrackingService : Service(), SensorEventListener {
         if (activeSeconds <= 0L) return null
 
         return (activeSeconds / 60.0 / _distanceKm.value).coerceAtMost(999.0)
+    }
+
+    private fun refreshPaceAfterAcceptedDistance() {
+        currentPaceMinutesPerKm()?.let { _currentPace.value = it }
     }
 
     private fun formatPace(minutesPerKm: Double?): String {
@@ -733,7 +757,6 @@ class LocationTrackingService : Service(), SensorEventListener {
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
                     warmUpDisplayLocation = null
-                    resetSmoothingTo(bestLocation)
                     resetPendingGpsMovement()
                     Log.d(TAG, "GPS warm-up complete. Anchor accuracy: ${bestLocation.accuracy}m " +
                             "hasSpeed=${bestLocation.hasSpeed()} " +
@@ -793,7 +816,6 @@ class LocationTrackingService : Service(), SensorEventListener {
                 _lastLocation.value = location
                 lastRawLocation = location
                 resetPendingGpsMovement()
-                resetSmoothingTo(location)
                 freezeDisplayPointToRouteEndpoint()
                 return
             }
@@ -827,27 +849,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                 lastAcceptedTotalSteps = lastRecordedTotalSteps
             }
 
-            recentPositions.add(location)
-            if (recentPositions.size > SMOOTHING_WINDOW_SIZE) {
-                recentPositions.removeAt(0)
-            }
-            
-            val avgLat = recentPositions.map { it.latitude }.average()
-            val avgLng = recentPositions.map { it.longitude }.average()
-            
-            val smoothedLocation = Location(location).apply {
-                latitude = avgLat
-                longitude = avgLng
-            }
-            val routeLocation = if (
-                movementMode == MovementMode.FOOT &&
-                hasStepMovement &&
-                reportedSpeedMps < FAST_MOVING_SPEED_MPS
-            ) {
-                smoothedLocation
-            } else {
-                location
-            }
+            val routeLocation = location
 
             if (distanceFromAnchor < 2.5f) {
                 holdStationary(prevLocation)
@@ -855,25 +857,27 @@ class LocationTrackingService : Service(), SensorEventListener {
                 return
             }
 
-            // Keep the live puck on the latest accepted GPS fix. Averaging the
-            // current point lags badly on bikes/vehicles and caused the map to
-            // show the user behind their real location.
-            _currentPoint.value = Pair(location.latitude, location.longitude)
-            lastKnownPoint = _currentPoint.value
             _distanceKm.value += distanceFromAnchor / 1000.0
+            refreshPaceAfterAcceptedDistance()
             _isMoving.value = true
             lastMovementTimeMs = System.currentTimeMillis()
 
-            if (_pathPoints.value.isEmpty()) {
-                _pathPoints.value = listOf(Pair(prevLocation.latitude, prevLocation.longitude))
+            val startingPath = _pathPoints.value.ifEmpty {
+                listOf(Pair(prevLocation.latitude, prevLocation.longitude))
             }
-            _pathPoints.value = _pathPoints.value + Pair(routeLocation.latitude, routeLocation.longitude)
+            val updatedPath = appendVisualRoutePoint(
+                existingPoints = startingPath,
+                point = Pair(routeLocation.latitude, routeLocation.longitude)
+            )
+            _pathPoints.value = updatedPath
+            _currentPoint.value = updatedPath.last()
+            lastKnownPoint = _currentPoint.value
 
             _lastLocation.value = location
             lastRawLocation = location
             lastUpdateWallClockMs = System.currentTimeMillis()
 
-            // (Pace calculation moved to the timer thread to dynamically update using moving time)
+            // Pace updates only when accepted distance changes, so it does not drift while stationary.
             
             // Fallback for steps if hardware sensor hasn't fired yet
             if (initialStepCount == -1) {
@@ -889,11 +893,6 @@ class LocationTrackingService : Service(), SensorEventListener {
             lastMovementTimeMs = System.currentTimeMillis()
             lastUpdateWallClockMs = System.currentTimeMillis()
             lastRawLocation = location
-            
-            recentPositions.clear()
-            for (i in 0 until SMOOTHING_WINDOW_SIZE) {
-                recentPositions.add(location)
-            }
         }
     }
 
@@ -956,11 +955,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                     _movingTimeSeconds.value++
                 }
 
-                // ── Compute Real-Time Strava-style Pace ──
-                // Prefer moving time, but fall back to elapsed time if movement
-                // detection has not produced moving seconds yet.
-                currentPaceMinutesPerKm()?.let { _currentPace.value = it }
-
+                // Pace is refreshed only when distance changes; while stopped, keep the last accepted pace.
                 // Update notification with live stats every second (visible on lock screen)
                 val formatted = DurationFormatter.formatDigital(_timeSeconds.value)
                 val dist = "%.2f km".format(_distanceKm.value)

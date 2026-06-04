@@ -1286,6 +1286,14 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
         val activePolylines = remember { mutableListOf<PolylineAnnotation>() }
         var circleManager by remember { mutableStateOf<CircleAnnotationManager?>(null) }
         var currentPuck by remember { mutableStateOf<CircleAnnotation?>(null) }
+        var puckAnimator by remember { mutableStateOf<ValueAnimator?>(null) }
+        var lastPuckTarget by remember { mutableStateOf<Point?>(null) }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                puckAnimator?.cancel()
+            }
+        }
 
         LaunchedEffect(mapType) {
             val style = when (mapType) { "Standard" -> Style.MAPBOX_STREETS; "Terrain" -> Style.OUTDOORS; else -> Style.DARK }
@@ -1293,7 +1301,10 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                 mapView.mapboxMap.loadStyle(style) {
                     mapView.annotations.cleanup()
                     activePolylines.clear()
+                    puckAnimator?.cancel()
+                    puckAnimator = null
                     currentPuck = null
+                    lastPuckTarget = null
                     polylineManager = mapView.annotations.createPolylineAnnotationManager()
                     circleManager = mapView.annotations.createCircleAnnotationManager()
                 }
@@ -1308,7 +1319,10 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         mapboxMap.loadStyle(Style.DARK) {
                             annotations.cleanup()
                             activePolylines.clear()
+                            puckAnimator?.cancel()
+                            puckAnimator = null
                             currentPuck = null
+                            lastPuckTarget = null
                             polylineManager = annotations.createPolylineAnnotationManager()
                             circleManager = annotations.createCircleAnnotationManager()
                         }
@@ -1391,18 +1405,40 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
 
                     // Draw the custom location puck (blue dot) that strictly follows our filtered currentPoint
                     if (displayCurrentPoint != null && circleManager != null) {
-                        val animPoint = Point.fromLngLat(displayCurrentPoint.longitude(), displayCurrentPoint.latitude())
                         if (currentPuck == null) {
                             val options = CircleAnnotationOptions()
-                                .withPoint(animPoint)
+                                .withPoint(displayCurrentPoint)
                                 .withCircleRadius(8.0)
                                 .withCircleColor("#1D84FF")
                                 .withCircleStrokeWidth(3.0)
                                 .withCircleStrokeColor("#FFFFFF")
                             currentPuck = circleManager!!.create(options)
+                            lastPuckTarget = displayCurrentPoint
                         } else {
-                            currentPuck!!.point = animPoint
-                            circleManager!!.update(currentPuck!!)
+                            val puck = currentPuck!!
+                            val startPoint = puck.point
+                            val targetPoint = displayCurrentPoint
+                            val isNewTarget = lastPuckTarget?.let {
+                                it.latitude() != targetPoint.latitude() ||
+                                    it.longitude() != targetPoint.longitude()
+                            } ?: true
+                            if (isNewTarget) {
+                                lastPuckTarget = targetPoint
+                                puckAnimator?.cancel()
+                                puckAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                                    duration = 700L
+                                    addUpdateListener { animator ->
+                                        val fraction = animator.animatedValue as Float
+                                        val lng = startPoint.longitude() +
+                                            (targetPoint.longitude() - startPoint.longitude()) * fraction
+                                        val lat = startPoint.latitude() +
+                                            (targetPoint.latitude() - startPoint.latitude()) * fraction
+                                        puck.point = Point.fromLngLat(lng, lat)
+                                        circleManager?.update(puck)
+                                    }
+                                    start()
+                                }
+                            }
                         }
                     }
                 }
@@ -1523,18 +1559,8 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            val paceMinutesPerKm = when {
-                                currentPace > 0.0 && currentPace <= 999.0 -> currentPace
-                                distanceKm > 0.01 -> {
-                                    val activeSeconds = if (movingTimeSeconds > 0L) movingTimeSeconds else timeSeconds
-                                    if (activeSeconds > 0L) {
-                                        (activeSeconds / 60.0 / distanceKm).coerceAtMost(999.0)
-                                    } else {
-                                        null
-                                    }
-                                }
-                                else -> null
-                            }
+                            val paceMinutesPerKm = currentPace
+                                .takeIf { it > 0.0 && it <= 999.0 }
                             val paceDisplay = paceMinutesPerKm?.let(formatPace) ?: "-:--"
                             Text(text = paceDisplay, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                             Text(text = if (isTracking && !isPaused) "Split avg. pace (/km)" else "Avg. pace (/km)", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)

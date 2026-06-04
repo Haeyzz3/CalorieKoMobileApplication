@@ -393,6 +393,14 @@ class RecipeNutritionCalculatorTest {
         override suspend fun getDisplayNamesForKeys(keys: List<String>): List<IngredientKeyDisplayName> =
             ingredients.filter { it.ingredientKey in keys }.map { IngredientKeyDisplayName(it.ingredientKey, it.displayName) }
 
+        override suspend fun getSubCategoryInfo(keys: List<String>): List<IngredientSubCategoryInfo> =
+            ingredients.filter { it.ingredientKey in keys }.map {
+                IngredientSubCategoryInfo(it.ingredientKey, it.subCategory, it.isSubstitutable)
+            }
+
+        override suspend fun getKeysInSubCategories(subCategories: List<String>): List<String> =
+            ingredients.filter { it.subCategory in subCategories }.map { it.ingredientKey }.distinct()
+
         override suspend fun deleteAll() = Unit
     }
 
