@@ -177,6 +177,8 @@ class PantryViewModel(
 
         /** Sentinel value in the substitution map indicating an ingredient was removed. */
         const val REMOVED_INGREDIENT = "__REMOVED__"
+
+        const val MEAL_SLOT_DISH_LIMIT = 7
     }
 
     // --- Search ---
@@ -809,7 +811,11 @@ class PantryViewModel(
                 scaledServings = scaledServings,
                 tweaksJson = tweaksJson
             )
-            mealPlanDao.insertMeal(meal)
+            val inserted = mealPlanDao.insertMealIfSlotHasCapacity(meal, MEAL_SLOT_DISH_LIMIT)
+            if (!inserted) {
+                _uiEvents.emit(PantryUiEvent.Snackbar("This meal already has 7 dishes. Remove one before adding another."))
+                return@launch
+            }
             if (uid.isNotEmpty()) {
                 withTimeoutOrNull(5_000L) {
                     try { firestoreSyncRepo.syncPlannedMeal(uid, meal) } catch (_: Exception) {}
@@ -1080,6 +1086,14 @@ class PantryViewModel(
                     )
                 }.filterNot { mealPlanSlotKey(it.dayIndex, it.mealSlot) in protectedTargetSlots }
 
+                val hasOverLimitCopiedSlot = copiedMeals
+                    .groupBy { mealPlanSlotKey(it.dayIndex, it.mealSlot) }
+                    .any { (_, meals) -> meals.size > MEAL_SLOT_DISH_LIMIT }
+                if (hasOverLimitCopiedSlot) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("Copy blocked: one or more meals exceed the 7-dish limit."))
+                    return@launch
+                }
+
                 val targetClearableMeals = targetMeals.filter {
                     it.status in listOf("planned", "missed") &&
                         mealPlanSlotKey(it.dayIndex, it.mealSlot) !in protectedTargetSlots
@@ -1153,6 +1167,11 @@ class PantryViewModel(
                     return@launch
                 }
 
+                if (sourceMeals.size > MEAL_SLOT_DISH_LIMIT) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("This meal has more than 7 dishes. Reduce it before copying."))
+                    return@launch
+                }
+
                 val copiedMeals = sourceMeals.map {
                     it.copy(
                         uid = uid,
@@ -1215,7 +1234,11 @@ class PantryViewModel(
                     status = "planned"
                 )
 
-                mealPlanDao.insertMeal(copiedMeal)
+                val inserted = mealPlanDao.insertMealIfSlotHasCapacity(copiedMeal, MEAL_SLOT_DISH_LIMIT)
+                if (!inserted) {
+                    _uiEvents.emit(PantryUiEvent.Snackbar("This meal already has 7 dishes. Remove one before adding another."))
+                    return@launch
+                }
 
                 if (uid.isNotEmpty()) {
                     withTimeoutOrNull(5_000L) {

@@ -1032,6 +1032,15 @@ private sealed interface MealPlanCopySource {
     data class Dish(val meal: PlannedMealEntity) : MealPlanCopySource
 }
 
+private fun mealSlotCapacityText(dishCount: Int): String =
+    "$dishCount/${PantryViewModel.MEAL_SLOT_DISH_LIMIT}"
+
+private fun mealSlotCapacityColor(dishCount: Int): Color = when {
+    dishCount >= PantryViewModel.MEAL_SLOT_DISH_LIMIT -> Color(0xFFDC2626)
+    dishCount == PantryViewModel.MEAL_SLOT_DISH_LIMIT - 1 -> Color(0xFFD97706)
+    else -> Color(0xFF6B7280)
+}
+
 // --- Meal Plan Calendar Section ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1539,9 +1548,9 @@ fun MealPlanCalendarSection(
                                                 )
                                             }
                                             Text(
-                                                "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}",
+                                                "${mealSlotCapacityText(slotMeals.size)} dishes",
                                                 fontSize = 7.sp,
-                                                color = Color(0xFF6B7280),
+                                                color = mealSlotCapacityColor(slotMeals.size),
                                                 lineHeight = 8.sp
                                             )
                                         }
@@ -1603,6 +1612,7 @@ fun MealPlanCalendarSection(
         val isEditable = viewModel.isDayEditable(dayIdx)
             && cellStatusForSlot != PantryViewModel.CellCompletionStatus.LOGGED
             && cellStatusForSlot != PantryViewModel.CellCompletionStatus.SKIPPED
+        val isSlotFull = slotMeals.size >= PantryViewModel.MEAL_SLOT_DISH_LIMIT
         val nutrition = slotNutritionMap.value
         val slotDishDisplayResults = slotDishResults.value
 
@@ -1633,12 +1643,12 @@ fun MealPlanCalendarSection(
                             )
                             if (slotMeals.isNotEmpty() && nutrition.isNotEmpty()) {
                                 Text(
-                                    "${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""} \u00B7 $totalCalories kcal total",
+                                    "${mealSlotCapacityText(slotMeals.size)} dishes \u00B7 $totalCalories kcal total",
                                     fontSize = 12.sp,
-                                    color = Color.Gray
+                                    color = mealSlotCapacityColor(slotMeals.size)
                                 )
                             } else if (slotMeals.isNotEmpty()) {
-                                Text("${slotMeals.size} dish${if (slotMeals.size > 1) "es" else ""}", fontSize = 12.sp, color = Color.Gray)
+                                Text("${mealSlotCapacityText(slotMeals.size)} dishes", fontSize = 12.sp, color = mealSlotCapacityColor(slotMeals.size))
                             } else {
                                 Text("No dishes planned", fontSize = 12.sp, color = Color.Gray)
                             }
@@ -1862,24 +1872,40 @@ fun MealPlanCalendarSection(
                             if (slotMeals.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        showMealDetail.value = false
-                                        showAddDishToSlot.value = true
-                                    },
-                                color = Color(0xFFF3F4F6),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
+                            if (isSlotFull) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = Color(0xFFFEE2E2),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(Icons.Default.Add, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Add Dish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text("Full (${mealSlotCapacityText(slotMeals.size)})", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                                    }
+                                }
+                            } else {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            showMealDetail.value = false
+                                            showAddDishToSlot.value = true
+                                        },
+                                    color = Color(0xFFF3F4F6),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(Icons.Default.Add, null, tint = CalorieKoGreen, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Add Dish", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = CalorieKoGreen)
+                                    }
                                 }
                             }
                         }
@@ -2145,28 +2171,28 @@ fun MealPlanCalendarSection(
     if (showAddDishToSlot.value && allAvailableRecipes.isNotEmpty()) {
         val dayIdx = detailDayIndex.intValue
         val slot = detailSlot.value
-        val existingDishLabels = plannedMeals
-            .filter { it.dayIndex == dayIdx && it.mealSlot == slot }
+        val currentSlotMeals = plannedMeals.filter { it.dayIndex == dayIdx && it.mealSlot == slot }
+        val existingDishLabels = currentSlotMeals
             .map { it.dishLabel }
             .toSet()
-        val slotProtectedStatus = plannedMeals
-            .filter { it.dayIndex == dayIdx && it.mealSlot == slot }
+        val slotProtectedStatus = currentSlotMeals
             .firstOrNull { it.status == "logged" || it.status == "skipped" }
             ?.status
         val isSlotProtected = slotProtectedStatus != null
+        val isSlotFull = currentSlotMeals.size >= PantryViewModel.MEAL_SLOT_DISH_LIMIT
         AlertDialog(
             onDismissRequest = { showAddDishToSlot.value = false },
-            title = { Text("Add Dish to ${days[dayIdx].first} ${days[dayIdx].second} $slot") },
+            title = { Text("Add Dish to ${days[dayIdx].first} ${days[dayIdx].second} $slot (${mealSlotCapacityText(currentSlotMeals.size)})") },
             text = {
                 Column(modifier = Modifier.heightIn(max = 300.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                     allAvailableRecipes.forEach { recipe ->
                         val alreadyAdded = recipe.dishLabel in existingDishLabels
-                        val isDisabled = alreadyAdded || isSlotProtected
+                        val isDisabled = alreadyAdded || isSlotProtected || isSlotFull
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .alpha(if (isSlotProtected) 0.5f else 1f)
+                                .alpha(if (isDisabled) 0.5f else 1f)
                                 .clickable {
                                     if (!isDisabled) {
                                         viewModel.addMealToPlan(dayIdx, recipe.dishLabel, slot)
@@ -2229,6 +2255,19 @@ fun MealPlanCalendarSection(
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Text("Added", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
                                         }
+                                    }
+                                } else if (isSlotFull) {
+                                    Surface(
+                                        color = Color(0xFFFEE2E2),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "Full",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFFDC2626),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
                                     }
                                 }
                             }
@@ -2296,18 +2335,22 @@ fun MealPlanCalendarSection(
                     Text("Add ${recipeToAdd.value?.inlineDishName().orEmpty()} on ${days[selectedDayIndex.intValue].first} ${days[selectedDayIndex.intValue].second} as:")
                     Spacer(modifier = Modifier.height(16.dp))
                     mealSlots.forEach { slot ->
+                        val slotMeals = plannedMeals.filter {
+                            it.dayIndex == selectedDayIndex.intValue && it.mealSlot == slot
+                        }
                         val alreadyInSlot = plannedMeals.any {
                             it.dayIndex == selectedDayIndex.intValue && it.mealSlot == slot && it.dishLabel == dishToAdd
                         }
                         val slotStatus = cellCompletionStatus["${selectedDayIndex.intValue}_${slot}"]
                         val isSlotProtected = slotStatus == PantryViewModel.CellCompletionStatus.LOGGED ||
                             slotStatus == PantryViewModel.CellCompletionStatus.SKIPPED
-                        val isDisabled = alreadyInSlot || isSlotProtected
+                        val isSlotFull = slotMeals.size >= PantryViewModel.MEAL_SLOT_DISH_LIMIT
+                        val isDisabled = alreadyInSlot || isSlotProtected || isSlotFull
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .alpha(if (isSlotProtected) 0.5f else 1f)
+                                .alpha(if (isDisabled) 0.5f else 1f)
                                 .clickable {
                                     if (!isDisabled) {
                                         viewModel.addMealToPlan(
@@ -2335,6 +2378,13 @@ fun MealPlanCalendarSection(
                                     color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151),
                                     modifier = Modifier.weight(1f)
                                 )
+                                Text(
+                                    mealSlotCapacityText(slotMeals.size),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = mealSlotCapacityColor(slotMeals.size)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 if (slotStatus == PantryViewModel.CellCompletionStatus.LOGGED) {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
@@ -2376,6 +2426,19 @@ fun MealPlanCalendarSection(
                                             Text("Added", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
                                         }
                                     }
+                                } else if (isSlotFull) {
+                                    Surface(
+                                        color = Color(0xFFFEE2E2),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "Full",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFFDC2626),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2394,6 +2457,9 @@ fun MealPlanCalendarSection(
         val targetWeekStart = LocalDate.parse(currentWeekStart)
             .plusWeeks(1)
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val hasOverLimitMeal = plannedMeals
+            .groupBy { "${it.dayIndex}_${it.mealSlot}" }
+            .any { (_, meals) -> meals.size > PantryViewModel.MEAL_SLOT_DISH_LIMIT }
         AlertDialog(
             onDismissRequest = { showCopyWeekDialog.value = false },
             title = { Text("Copy to Next Week?") },
@@ -2403,14 +2469,21 @@ fun MealPlanCalendarSection(
                     Text("Target: ${mealPlanWeekRangeLabel(targetWeekStart)}")
                     Text("${plannedMeals.size} dish${if (plannedMeals.size == 1) "" else "es"} will be copied.")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Existing meals in the target week will be replaced.", color = Color(0xFFDC2626))
+                    if (hasOverLimitMeal) {
+                        Text("Copy blocked: one or more meals exceed the 7-dish limit.", color = Color(0xFFDC2626))
+                    } else {
+                        Text("Existing meals in the target week will be replaced.", color = Color(0xFFDC2626))
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.copyCurrentWeekToNextReplacing()
-                    showCopyWeekDialog.value = false
-                }) {
+                TextButton(
+                    onClick = {
+                        viewModel.copyCurrentWeekToNextReplacing()
+                        showCopyWeekDialog.value = false
+                    },
+                    enabled = !hasOverLimitMeal
+                ) {
                     Text("Copy & Replace", fontWeight = FontWeight.Bold)
                 }
             },
@@ -2513,15 +2586,30 @@ private fun MealPlanCopyTargetDialog(
     val selectedProtectedStatus = selectedSlotMeals
         .firstOrNull { it.status == "logged" || it.status == "skipped" }
         ?.status
+    val selectedSameDishExists = when (source) {
+        is MealPlanCopySource.Dish -> selectedSlotMeals.any { it.dishLabel == source.meal.dishLabel }
+        else -> false
+    }
+    val selectedSlotFullForDishCopy = when (source) {
+        is MealPlanCopySource.Dish -> selectedSlotMeals.size >= PantryViewModel.MEAL_SLOT_DISH_LIMIT &&
+            !selectedSameDishExists
+        else -> false
+    }
+    val sourceExceedsLimit = when (source) {
+        is MealPlanCopySource.MealSlot -> source.dishCount > PantryViewModel.MEAL_SLOT_DISH_LIMIT
+        else -> false
+    }
     val confirmEnabled = targetDayIndex in 0..6 && targetSlot != null &&
         viewModel.isDayEditableForWeek(targetDayIndex, targetWeekStart) &&
-        selectedProtectedStatus == null
+        selectedProtectedStatus == null &&
+        !selectedSlotFullForDishCopy &&
+        !sourceExceedsLimit
 
     val sourceSummary = when (source) {
         is MealPlanCopySource.Week -> "Week of ${mealPlanWeekRangeLabel(source.sourceWeekStart)}"
         is MealPlanCopySource.MealSlot -> {
             val dishCount = source.dishCount
-            "${mealPlanDayLabel(source.sourceWeekStart, source.dayIndex)} ${source.mealSlot} - $dishCount dish${if (dishCount == 1) "" else "es"}"
+            "${mealPlanDayLabel(source.sourceWeekStart, source.dayIndex)} ${source.mealSlot} - ${mealSlotCapacityText(dishCount)} dishes"
         }
         is MealPlanCopySource.Dish -> {
             val customized = source.meal.substitutionsJson.isNotEmpty() ||
@@ -2537,14 +2625,16 @@ private fun MealPlanCopyTargetDialog(
     val conflictText = when (source) {
         is MealPlanCopySource.Week -> ""
         is MealPlanCopySource.MealSlot -> when {
+            sourceExceedsLimit -> "This meal has more than 7 dishes. Reduce it before copying."
             selectedProtectedStatus != null -> "This target meal is $selectedProtectedStatus and cannot be changed."
-            selectedSlotMeals.isNotEmpty() -> "This will replace ${selectedSlotMeals.size} existing dish${if (selectedSlotMeals.size == 1) "" else "es"}."
+            selectedSlotMeals.isNotEmpty() -> "This will replace ${selectedSlotMeals.size} existing dish${if (selectedSlotMeals.size == 1) "" else "es"} with ${source.dishCount} dish${if (source.dishCount == 1) "" else "es"}."
             else -> "This will copy the meal into an empty slot."
         }
         is MealPlanCopySource.Dish -> {
             val sameDishExists = selectedSlotMeals.any { it.dishLabel == source.meal.dishLabel }
             when {
                 selectedProtectedStatus != null -> "This target meal is $selectedProtectedStatus and cannot be changed."
+                selectedSlotFullForDishCopy -> "This meal already has 7 dishes. Remove one before adding another."
                 sameDishExists -> "This will replace the existing copy of this dish."
                 selectedSlotMeals.isNotEmpty() -> "This will add this dish to the selected meal."
                 else -> "This will copy the dish into an empty slot."
@@ -2668,7 +2758,18 @@ private fun MealPlanCopyTargetDialog(
                         .firstOrNull { it.status == "logged" || it.status == "skipped" }
                         ?.status
                     val selected = targetSlot == slot
-                    val canSelectSlot = targetDayIndex >= 0 && protectedStatus == null
+                    val sameDishExists = when (source) {
+                        is MealPlanCopySource.Dish -> slotMeals.any { it.dishLabel == source.meal.dishLabel }
+                        else -> false
+                    }
+                    val isFullForDishCopy = when (source) {
+                        is MealPlanCopySource.Dish -> slotMeals.size >= PantryViewModel.MEAL_SLOT_DISH_LIMIT &&
+                            !sameDishExists
+                        else -> false
+                    }
+                    val canSelectSlot = targetDayIndex >= 0 &&
+                        protectedStatus == null &&
+                        !isFullForDishCopy
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2688,13 +2789,12 @@ private fun MealPlanCopyTargetDialog(
                             Text(slotEmojis[slot] ?: "", fontSize = 16.sp)
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(slot, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            if (slotMeals.isNotEmpty()) {
-                                Text(
-                                    "${slotMeals.size} dish${if (slotMeals.size == 1) "" else "es"}",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF6B7280)
-                                )
-                            }
+                            Text(
+                                mealSlotCapacityText(slotMeals.size),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = mealSlotCapacityColor(slotMeals.size)
+                            )
                             if (protectedStatus != null) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
@@ -2709,14 +2809,32 @@ private fun MealPlanCopyTargetDialog(
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
+                            } else if (isFullForDishCopy) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = Color(0xFFFEE2E2),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        "Full",
+                                        fontSize = 9.sp,
+                                        color = Color(0xFFDC2626),
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                if (targetSlot != null && conflictText.isNotBlank()) {
+                if ((targetSlot != null || sourceExceedsLimit) && conflictText.isNotBlank()) {
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(conflictText, fontSize = 12.sp, color = Color(0xFF6B7280))
+                    Text(
+                        conflictText,
+                        fontSize = 12.sp,
+                        color = if (sourceExceedsLimit || selectedSlotFullForDishCopy) Color(0xFFDC2626) else Color(0xFF6B7280)
+                    )
                 }
             }
         },
@@ -4320,6 +4438,9 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                     Text("Add ${recipe.inlineDishName()} on $selectedDayName $selectedDateNum as:")
                     Spacer(modifier = Modifier.height(16.dp))
                     mealSlots.forEach { slot ->
+                        val slotMeals = targetWeekMeals.filter {
+                            it.dayIndex == dayIdx && it.mealSlot == slot
+                        }
                         val alreadyInSlot = targetWeekMeals.any {
                             it.dayIndex == dayIdx && it.mealSlot == slot && it.dishLabel == recipe.dishLabel
                         }
@@ -4331,12 +4452,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                             }
                             ?.status
                         val isSlotProtected = protectedStatus != null
-                        val isDisabled = alreadyInSlot || isSlotProtected
+                        val isSlotFull = slotMeals.size >= PantryViewModel.MEAL_SLOT_DISH_LIMIT
+                        val isDisabled = alreadyInSlot || isSlotProtected || isSlotFull
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .alpha(if (isSlotProtected) 0.5f else 1f)
+                                .alpha(if (isDisabled) 0.5f else 1f)
                                 .clickable {
                                     if (!isDisabled) {
                                         viewModel.addMealToPlan(
@@ -4369,6 +4491,13 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                     color = if (isDisabled) Color(0xFF9CA3AF) else Color(0xFF374151),
                                     modifier = Modifier.weight(1f)
                                 )
+                                Text(
+                                    mealSlotCapacityText(slotMeals.size),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = mealSlotCapacityColor(slotMeals.size)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 if (protectedStatus == "logged") {
                                     Surface(
                                         color = Color(0xFFDCFCE7),
@@ -4409,6 +4538,19 @@ fun RecipeDetailContent(recipe: DishResult, viewModel: PantryViewModel, plannedM
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Text("Added", fontSize = 9.sp, color = CalorieKoGreen, fontWeight = FontWeight.Bold)
                                         }
+                                    }
+                                } else if (isSlotFull) {
+                                    Surface(
+                                        color = Color(0xFFFEE2E2),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "Full",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFFDC2626),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
                                     }
                                 }
                             }

@@ -15,6 +15,18 @@ interface MealPlanDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMeal(meal: PlannedMealEntity)
 
+    /** Inserts a dish only if it would not exceed the per-slot dish limit. */
+    @Transaction
+    suspend fun insertMealIfSlotHasCapacity(meal: PlannedMealEntity, limit: Int): Boolean {
+        val slotMeals = getMealsForSlotOneShot(meal.uid, meal.dayIndex, meal.weekStartDate, meal.mealSlot)
+        val replacesExistingDish = slotMeals.any { it.dishLabel == meal.dishLabel }
+        if (!replacesExistingDish && slotMeals.size >= limit) {
+            return false
+        }
+        insertMeal(meal)
+        return true
+    }
+
     /** Removes a single dish from a specific slot. */
     @Query("DELETE FROM PLANNED_MEALS_TABLE WHERE uid = :uid AND day_index = :dayIndex AND week_start_date = :weekStartDate AND meal_slot = :mealSlot AND dish_label = :dishLabel")
     suspend fun removeDish(uid: String, dayIndex: Int, weekStartDate: String, mealSlot: String, dishLabel: String)
