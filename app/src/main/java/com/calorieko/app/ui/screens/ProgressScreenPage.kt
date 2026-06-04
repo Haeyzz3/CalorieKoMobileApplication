@@ -73,6 +73,17 @@ private data class DayWeightData(val dayLabel: String, val weight: Double, val e
 private data class TopFoodItem(val name: String, val frequency: Int, val avgCalories: Int, val avgSodium: Int)
 
 /**
+ * One point on the dual-axis comparative chart.
+ * Pairs a weight reading with the net calorie average for the same time bucket.
+ */
+private data class DualAxisDataPoint(
+    val label: String,
+    val weight: Double?,        // null = no weight data for this bucket
+    val netCalorieAvg: Int,     // intake − burned (averaged over the bucket)
+    val epochDay: Long
+)
+
+/**
  * One row in the Entries history list (one calendar day aggregated).
  */
 private data class DayEntry(
@@ -415,6 +426,119 @@ private fun selectedRangeStartEpochDay(viewMode: String): Long {
     return java.time.LocalDate.now().minusDays((daysBack - 1).toLong()).toEpochDay()
 }
 
+/**
+ * Builds dual-axis chart data that aligns weight measurements with net calorie
+ * averages (intake − burned) on matching time buckets.
+ *
+ * - 7-day view:  one bucket per day
+ * - 30-day view: one bucket per week  (weekly average)
+ * - 90-day view: one bucket per month (monthly average)
+ *
+ * Each bucket carries the latest weight reading that falls within it (or null),
+ * plus the average net calories for its days.
+ */
+private fun buildDualAxisChartData(
+    nutritionSummaries: List<com.calorieko.app.data.model.DailyNutritionSummaryEntity>,
+    workoutLogs: List<ActivityLogEntity>,
+    weightLogs: List<WeightLogEntity>,
+    userWeight: Double,
+    viewMode: String
+): List<DualAxisDataPoint> {
+    val summaryMap = nutritionSummaries.associateBy { it.dateEpochDay }
+    val todayEpochDay = java.time.LocalDate.now().toEpochDay()
+    val daysBack = when (viewMode) {
+        "30_days" -> 30
+        "90_days" -> 90
+        else -> 7
+    }
+    val startRangeEpochDay = todayEpochDay - (daysBack - 1)
+
+    // Pre-group weight logs by epochDay (latest wins per day)
+    val weightByEpochDay = weightLogs
+        .filter { it.weightKg > 0.0 }
+        .sortedBy { it.timestamp }
+        .associateBy { it.dateEpochDay }
+
+    // Helper: compute net calories for a single epoch day
+    fun netForDay(epochDay: Long, dayStartMs: Long): Int {
+        val intake = summaryMap[epochDay]?.totalCalories?.toInt() ?: 0
+        val dayEnd = dayStartMs + 86_400_000L
+        val burned = workoutLogs.filter { it.timestamp in dayStartMs until dayEnd }.sumOf { it.calories }
+        return intake - burned
+    }
+
+    return when (viewMode) {
+        "7_days" -> (6 downTo 0).map { daysAgo ->
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            val dayStart = cal.timeInMillis
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+            val epochDay = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+            val weight = weightByEpochDay[epochDay]?.weightKg
+            DualAxisDataPoint(label, weight, netForDay(epochDay, dayStart), epochDay)
+        }
+        "30_days" -> (3 downTo 0).map { weeksAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
+            val label = "${cal.get(Calendar.MONTH) + 1}/${cal.get(Calendar.DAY_OF_MONTH)}"
+            val weekStartEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
+            ).toEpochDay()
+
+            var validDays = 0; var netSum = 0; var latestWeight: Double? = null
+            for (d in 0..6) {
+                val dayEpoch = weekStartEpoch + d
+                if (dayEpoch in startRangeEpochDay..todayEpochDay) {
+                    validDays++
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    netSum += netForDay(dayEpoch, dayCal.timeInMillis)
+                    weightByEpochDay[dayEpoch]?.let { latestWeight = it.weightKg }
+                }
+            }
+            val divisor = validDays.coerceAtLeast(1)
+            DualAxisDataPoint(label, latestWeight, netSum / divisor, weekStartEpoch)
+        }
+        "90_days" -> (2 downTo 0).map { monthsAgo ->
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.MONTH, -monthsAgo)
+            val monthStart = cal.timeInMillis
+            val label = SimpleDateFormat("MMM", Locale.getDefault()).format(Date(monthStart))
+            val nextCal = cal.clone() as Calendar
+            nextCal.add(Calendar.MONTH, 1)
+            val daysInMonth = ((nextCal.timeInMillis - monthStart) / 86_400_000L).toInt().coerceAtLeast(1)
+            val monthStartEpoch = java.time.LocalDate.of(
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, 1
+            ).toEpochDay()
+
+            var validDays = 0; var netSum = 0; var latestWeight: Double? = null
+            for (d in 0 until daysInMonth) {
+                val dayEpoch = monthStartEpoch + d
+                if (dayEpoch in startRangeEpochDay..todayEpochDay) {
+                    validDays++
+                    val dayCal = cal.clone() as Calendar
+                    dayCal.add(Calendar.DAY_OF_MONTH, d)
+                    netSum += netForDay(dayEpoch, dayCal.timeInMillis)
+                    weightByEpochDay[dayEpoch]?.let { latestWeight = it.weightKg }
+                }
+            }
+            val divisor = validDays.coerceAtLeast(1)
+            DualAxisDataPoint(label, latestWeight, netSum / divisor, monthStartEpoch)
+        }
+        else -> emptyList()
+    }
+}
+
 private fun epochDayStartMillis(epochDay: Long): Long {
     val date = java.time.LocalDate.ofEpochDay(epochDay)
     val cal = Calendar.getInstance()
@@ -606,6 +730,9 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
             .sortedByDescending { it.frequency }
             .take(5)
     }
+    val dualAxisData = remember(nutritionSummaries, weeklyLogs, weightLogs, userWeight, viewMode) {
+        buildDualAxisChartData(nutritionSummaries, weeklyLogs, weightLogs, userWeight, viewMode)
+    }
 
     // ── Entries history — one row per calendar day ──
     val dayEntries = remember(nutritionSummaries, weeklyLogs, weightEntriesInRange) {
@@ -655,6 +782,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
                             "Sodium Trend" -> SodiumTrendCard(data = sodiumData, dailyLimit = 2300, viewMode = viewMode)
                             "Daily Steps" -> DailyStepsCard(data = stepsData, viewMode = viewMode)
                             "Weight & Body Metrics" -> WeightTrackingCard(data = weightData, viewMode = viewMode)
+                            "Weight vs. Net Calories" -> WeightVsNetCaloriesCard(data = dualAxisData, targetCalories = targetCalories, viewMode = viewMode)
                             "Dietary Insights" -> DietaryInsightsCard(foods = topFoods)
                         }
                     }
@@ -663,7 +791,7 @@ fun ProgressScreen(viewModel: ProgressViewModel, onNavigate: (String) -> Unit) {
 
             // ── Entries History (MFP-style) ──
             item {
-                if (dataLoaded && selectedMetric != "Dietary Insights") {
+                if (dataLoaded && selectedMetric != "Dietary Insights" && selectedMetric != "Weight vs. Net Calories") {
                     EntriesHistorySection(
                         entries = dayEntries,
                         selectedMetric = selectedMetric,
@@ -722,6 +850,7 @@ private fun ProgressHeaderSection(
                         "Sodium Trend" to "Sodium Trend",
                         "Daily Steps" to "Daily Steps",
                         "Weight & Body Metrics" to "Weight & Body",
+                        "Weight vs. Net Calories" to "Weight vs. Net Cal",
                         "Dietary Insights" to "Dietary Insights"
                     ),
                     selectedKey = selectedMetric,
@@ -1729,6 +1858,583 @@ private fun WeightTrackingCard(data: List<DayWeightData>, viewMode: String) {
                     }
                 }
             }
+        }
+    }
+}
+
+// ==================== DUAL-AXIS: WEIGHT vs NET CALORIES ====================
+
+@Composable
+private fun WeightVsNetCaloriesCard(
+    data: List<DualAxisDataPoint>,
+    targetCalories: Int,
+    viewMode: String
+) {
+    // ── Derived metrics ──
+    val weightPoints = data.filter { it.weight != null }
+    val hasWeightData = weightPoints.isNotEmpty()
+    val hasCalorieData = data.any { it.netCalorieAvg != 0 }
+    val allEmpty = !hasWeightData && !hasCalorieData
+
+    val startWeight = weightPoints.firstOrNull()?.weight ?: 0.0
+    val endWeight = weightPoints.lastOrNull()?.weight ?: 0.0
+    val weightChange = endWeight - startWeight
+    val avgNetCal = if (data.isNotEmpty()) data.sumOf { it.netCalorieAvg } / data.size else 0
+
+    // Weight Y-axis range
+    val minW = if (hasWeightData) (weightPoints.minOf { it.weight!! } - 2.0) else 68.0
+    val maxW = if (hasWeightData) (weightPoints.maxOf { it.weight!! } + 2.0) else 82.0
+    val wRange = (maxW - minW).coerceAtLeast(0.1)
+
+    // Net calories Y-axis range
+    val maxNetAbs = maxOf(
+        data.maxOfOrNull { it.netCalorieAvg } ?: 0,
+        targetCalories,
+        100
+    )
+    val calYMax = ((maxNetAbs / 550) + 1) * 550
+
+    val subtitleText = when (viewMode) {
+        "30_days" -> "Weekly Weight & Net Calorie Averages"
+        "90_days" -> "Monthly Weight & Net Calorie Averages"
+        else -> "Daily Weight & Net Calorie Trend"
+    }
+
+    val weightLineColor = Color(0xFF4CAF50)     // Green for weight
+    val netBarColor = Color(0xFF7C6CFF)         // Soft purple for net calories
+    val netBarOverColor = Color(0xFFEF4444)     // Red when over target
+    val netBarOnTargetColor = Color(0xFF22C55E) // Green when on target
+    val targetLineColor = Color(0xFFFF6B35)     // Warm orange for target
+
+    // Animate bars & line
+    val animProgress = remember { Animatable(0f) }
+    LaunchedEffect(data) {
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
+    }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // ── Title row ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Weight vs. Net Calories",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = subtitleText, fontSize = 12.sp, color = Color(0xFF94A3B8))
+                }
+                // Correlation badge
+                if (hasWeightData && hasCalorieData) {
+                    val isCalorieSurplus = avgNetCal > targetCalories
+                    val isWeightUp = weightChange > 0.1
+                    val correlationText = when {
+                        isCalorieSurplus && isWeightUp -> "Correlated ↑"
+                        !isCalorieSurplus && !isWeightUp -> "On Track ✓"
+                        else -> "Uncorrelated"
+                    }
+                    val correlationBg = when {
+                        isCalorieSurplus && isWeightUp -> Color(0xFFFEF2F2)
+                        !isCalorieSurplus && !isWeightUp -> Color(0xFFF0FDF4)
+                        else -> Color(0xFFF5F3FF)
+                    }
+                    val correlationFg = when {
+                        isCalorieSurplus && isWeightUp -> Color(0xFFEF4444)
+                        !isCalorieSurplus && !isWeightUp -> Color(0xFF22C55E)
+                        else -> Color(0xFF7C6CFF)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(correlationBg, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = correlationText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = correlationFg
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Empty state ──
+            if (allEmpty) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📈", fontSize = 36.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "Log weight and meals to see the comparison",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Weight trends alongside your net calorie averages",
+                            fontSize = 12.sp,
+                            color = Color(0xFFCBD5E1),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                // ── Dual-axis Canvas ──
+                val density = LocalDensity.current
+                Canvas(modifier = Modifier.fillMaxWidth().height(220.dp)) {
+                    val chartW = size.width; val chartH = size.height
+                    val leftPad = with(density) { 44.dp.toPx() }
+                    val rightPad = with(density) { 44.dp.toPx() }
+                    val bottomPad = with(density) { 28.dp.toPx() }
+                    val drawW = chartW - leftPad - rightPad
+                    val drawH = chartH - bottomPad
+                    val progress = animProgress.value
+
+                    // ── Paints ──
+                    val xLabelPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.parseColor("#94A3B8")
+                        textSize = with(density) { 10.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
+                    }
+                    val leftYLabelPaint = android.graphics.Paint().apply {
+                        color = weightLineColor.toArgb()
+                        textSize = with(density) { 9.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.RIGHT; isAntiAlias = true
+                    }
+                    val rightYLabelPaint = android.graphics.Paint().apply {
+                        color = netBarColor.toArgb()
+                        textSize = with(density) { 9.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.LEFT; isAntiAlias = true
+                    }
+
+                    // ── Grid lines (4 horizontal) ──
+                    val ySteps = 4
+                    for (i in 0..ySteps) {
+                        val fraction = i.toFloat() / ySteps
+                        val y = drawH - (drawH * fraction)
+                        drawLine(
+                            Color(0xFFF1F5F9),
+                            Offset(leftPad, y),
+                            Offset(chartW - rightPad, y),
+                            1.5f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+                        )
+
+                        // Left Y-axis: weight
+                        val wVal = minW + wRange * fraction
+                        drawContext.canvas.nativeCanvas.drawText(
+                            String.format("%.1f", wVal),
+                            leftPad - with(density) { 6.dp.toPx() },
+                            y + with(density) { 3.dp.toPx() },
+                            leftYLabelPaint
+                        )
+
+                        // Right Y-axis: net calories
+                        val calVal = (calYMax.toFloat() * fraction).roundToInt()
+                        drawContext.canvas.nativeCanvas.drawText(
+                            calVal.toString(),
+                            chartW - rightPad + with(density) { 6.dp.toPx() },
+                            y + with(density) { 3.dp.toPx() },
+                            rightYLabelPaint
+                        )
+                    }
+
+                    // ── Axis labels ──
+                    val weightAxisLabelPaint = android.graphics.Paint().apply {
+                        color = weightLineColor.toArgb()
+                        textSize = with(density) { 8.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
+                    }
+                    val calAxisLabelPaint = android.graphics.Paint().apply {
+                        color = netBarColor.toArgb()
+                        textSize = with(density) { 8.sp.toPx() }
+                        textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
+                    }
+                    // Rotated "kg" label on left
+                    drawContext.canvas.nativeCanvas.save()
+                    drawContext.canvas.nativeCanvas.rotate(-90f, with(density) { 8.dp.toPx() }, drawH / 2)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "kg",
+                        with(density) { 8.dp.toPx() },
+                        drawH / 2,
+                        weightAxisLabelPaint
+                    )
+                    drawContext.canvas.nativeCanvas.restore()
+                    // Rotated "kcal" label on right
+                    drawContext.canvas.nativeCanvas.save()
+                    drawContext.canvas.nativeCanvas.rotate(90f, chartW - with(density) { 8.dp.toPx() }, drawH / 2)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "kcal",
+                        chartW - with(density) { 8.dp.toPx() },
+                        drawH / 2,
+                        calAxisLabelPaint
+                    )
+                    drawContext.canvas.nativeCanvas.restore()
+
+                    // ── Target dashed line (right axis) ──
+                    val targetY = drawH - (drawH * (targetCalories.toFloat() / calYMax.toFloat()))
+                    drawLine(
+                        color = targetLineColor,
+                        start = Offset(leftPad, targetY),
+                        end = Offset(chartW - rightPad, targetY),
+                        strokeWidth = with(density) { 1.5.dp.toPx() },
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                    )
+
+                    // ── Net calorie bars (right axis) ──
+                    val barGroupW = drawW / data.size
+                    val barW = barGroupW * 0.38f
+                    val cornerR = with(density) { 4.dp.toPx() }
+
+                    data.forEachIndexed { index, point ->
+                        val cx = leftPad + barGroupW * (index + 0.5f)
+                        val net = point.netCalorieAvg.coerceAtLeast(0)
+                        val barH = (net.toFloat() / calYMax) * drawH * progress
+                        val barColor = when {
+                            net > targetCalories + 100 -> netBarOverColor
+                            net >= targetCalories - 100 -> netBarOnTargetColor
+                            else -> netBarColor
+                        }
+                        if (barH > 0) {
+                            drawRoundRect(
+                                barColor.copy(alpha = 0.35f),
+                                Offset(cx - barW / 2, drawH - barH),
+                                Size(barW, barH),
+                                CornerRadius(cornerR, cornerR)
+                            )
+                            // Solid top accent
+                            val accentH = barH.coerceAtMost(with(density) { 4.dp.toPx() })
+                            drawRoundRect(
+                                barColor,
+                                Offset(cx - barW / 2, drawH - barH),
+                                Size(barW, accentH),
+                                CornerRadius(cornerR, cornerR)
+                            )
+                        }
+                        // X-axis label
+                        drawContext.canvas.nativeCanvas.drawText(
+                            point.label,
+                            cx,
+                            chartH - with(density) { 6.dp.toPx() },
+                            xLabelPaint
+                        )
+                    }
+
+                    // ── Weight line (left axis) ──
+                    if (hasWeightData) {
+                        // Build points only for buckets with weight data
+                        val wPoints = data.mapIndexedNotNull { index, point ->
+                            point.weight?.let {
+                                val cx = leftPad + barGroupW * (index + 0.5f)
+                                val y = drawH - (drawH * ((it - minW) / wRange)).toFloat()
+                                Offset(cx, y)
+                            }
+                        }
+
+                        if (wPoints.isNotEmpty()) {
+                            val totalPts = wPoints.size
+                            val drawnCount = (totalPts * progress).toInt().coerceAtLeast(1)
+
+                            // Gradient fill under line
+                            val fillPath = Path()
+                            fillPath.moveTo(wPoints[0].x, drawH)
+                            for (i in 0 until drawnCount.coerceAtMost(totalPts)) {
+                                fillPath.lineTo(wPoints[i].x, wPoints[i].y)
+                            }
+                            if (drawnCount < totalPts && progress > 0) {
+                                val frac = (totalPts * progress) - drawnCount
+                                if (frac > 0 && drawnCount < totalPts) {
+                                    val from = wPoints[drawnCount - 1]; val to = wPoints[drawnCount]
+                                    fillPath.lineTo(
+                                        from.x + (to.x - from.x) * frac,
+                                        from.y + (to.y - from.y) * frac
+                                    )
+                                }
+                            }
+                            val lastDrawnX = if (drawnCount < totalPts && progress > 0) {
+                                val frac = (totalPts * progress) - drawnCount
+                                if (frac > 0 && drawnCount < totalPts) {
+                                    wPoints[drawnCount - 1].x + (wPoints[drawnCount].x - wPoints[drawnCount - 1].x) * frac
+                                } else wPoints[(drawnCount - 1).coerceAtMost(totalPts - 1)].x
+                            } else wPoints[(drawnCount - 1).coerceAtMost(totalPts - 1)].x
+                            fillPath.lineTo(lastDrawnX, drawH)
+                            fillPath.close()
+                            drawPath(
+                                fillPath,
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        weightLineColor.copy(alpha = 0.18f),
+                                        weightLineColor.copy(alpha = 0.02f)
+                                    ),
+                                    startY = 0f,
+                                    endY = drawH
+                                )
+                            )
+
+                            // Line
+                            val linePath = Path()
+                            for (i in 0 until drawnCount.coerceAtMost(totalPts)) {
+                                if (i == 0) linePath.moveTo(wPoints[i].x, wPoints[i].y)
+                                else linePath.lineTo(wPoints[i].x, wPoints[i].y)
+                            }
+                            if (drawnCount < totalPts && progress > 0) {
+                                val frac = (totalPts * progress) - drawnCount
+                                if (frac > 0 && drawnCount < totalPts) {
+                                    val from = wPoints[drawnCount - 1]; val to = wPoints[drawnCount]
+                                    linePath.lineTo(
+                                        from.x + (to.x - from.x) * frac,
+                                        from.y + (to.y - from.y) * frac
+                                    )
+                                }
+                            }
+                            drawPath(
+                                linePath,
+                                weightLineColor,
+                                style = Stroke(with(density) { 3.dp.toPx() }, cap = StrokeCap.Round)
+                            )
+
+                            // Dots
+                            for (i in 0 until drawnCount.coerceAtMost(totalPts)) {
+                                drawCircle(weightLineColor, with(density) { 5.dp.toPx() }, wPoints[i])
+                                drawCircle(Color.White, with(density) { 2.5.dp.toPx() }, wPoints[i])
+                            }
+                        }
+                    }
+                } // end Canvas
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ── Legend ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Weight legend
+                    Box(
+                        Modifier
+                            .width(14.dp)
+                            .height(3.dp)
+                            .background(weightLineColor, RoundedCornerShape(1.dp))
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text("Weight (kg)", fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Spacer(Modifier.width(16.dp))
+                    // Net cal legend
+                    Box(Modifier.size(10.dp).background(netBarColor.copy(alpha = 0.5f), RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Net Calories", fontSize = 11.sp, color = Color(0xFF6B7280))
+                    Spacer(Modifier.width(16.dp))
+                    // Target legend
+                    Box(
+                        Modifier
+                            .width(14.dp)
+                            .height(3.dp)
+                            .background(targetLineColor, RoundedCornerShape(1.dp))
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text("Target", fontSize = 11.sp, color = Color(0xFF6B7280))
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ── Summary stats row ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Weight change stat
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = when (viewMode) {
+                                "30_days" -> "30d Weight Δ"
+                                "90_days" -> "90d Weight Δ"
+                                else -> "7d Weight Δ"
+                            },
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        val wChangeText = if (hasWeightData && weightPoints.size >= 2) {
+                            val sign = if (weightChange > 0) "+" else ""
+                            "$sign${String.format("%.1f", weightChange)} kg"
+                        } else "—"
+                        val wChangeColor = when {
+                            !hasWeightData || weightPoints.size < 2 -> Color(0xFF94A3B8)
+                            weightChange < -0.05 -> Color(0xFF22C55E)
+                            weightChange > 0.05 -> Color(0xFFEF4444)
+                            else -> Color(0xFF6B7280)
+                        }
+                        Text(
+                            text = wChangeText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = wChangeColor
+                        )
+                    }
+
+                    // Vertical divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(44.dp)
+                            .background(Color(0xFFF1F5F9))
+                    )
+
+                    // Avg net calories stat
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = when (viewMode) {
+                                "30_days" -> "Avg Net Cal"
+                                "90_days" -> "Avg Net Cal"
+                                else -> "Avg Net Cal"
+                            },
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        val diff = avgNetCal - targetCalories
+                        val netCalColor = when {
+                            abs(diff) <= 100 -> Color(0xFF22C55E)
+                            diff > 0 -> Color(0xFFEF4444)
+                            else -> netBarColor
+                        }
+                        Text(
+                            text = if (hasCalorieData) "$avgNetCal kcal" else "—",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasCalorieData) netCalColor else Color(0xFF94A3B8)
+                        )
+                    }
+
+                    // Vertical divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(44.dp)
+                            .background(Color(0xFFF1F5F9))
+                    )
+
+                    // Target stat
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Target",
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "$targetCalories kcal",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = targetLineColor
+                        )
+                    }
+                }
+
+                // ── Insight card ──
+                if (hasWeightData && hasCalorieData) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    val isCalorieSurplus = avgNetCal > targetCalories + 100
+                    val isCalorieDeficit = avgNetCal < targetCalories - 100
+                    val isWeightUp = weightChange > 0.1
+                    val isWeightDown = weightChange < -0.1
+
+                    val insightText = when {
+                        isCalorieSurplus && isWeightUp ->
+                            "Your weight is rising alongside above-target calorie intake. Consider reducing portions or increasing activity."
+                        isCalorieDeficit && isWeightDown ->
+                            "Great progress! Your calorie deficit is correlating with weight loss. Keep this sustainable pace."
+                        isCalorieSurplus && isWeightDown ->
+                            "Despite higher calorie intake, weight is dropping—possibly due to increased activity or water fluctuation."
+                        isCalorieDeficit && isWeightUp ->
+                            "Weight is up despite lower intake. This may be water retention, muscle gain, or measurement timing."
+                        !isCalorieSurplus && !isCalorieDeficit ->
+                            "You're staying close to your calorie target. Consistent adherence supports long-term health."
+                        else ->
+                            "Your weight has remained stable. Continue monitoring both metrics for clearer trends."
+                    }
+                    val insightBg = when {
+                        isCalorieSurplus && isWeightUp -> Color(0xFFFEF2F2)
+                        isCalorieDeficit && isWeightDown -> Color(0xFFF0FDF4)
+                        else -> Color(0xFFF5F3FF)
+                    }
+                    val insightBorder = when {
+                        isCalorieSurplus && isWeightUp -> Color(0xFFFECACA)
+                        isCalorieDeficit && isWeightDown -> Color(0xFFBBF7D0)
+                        else -> Color(0xFFDDD6FE)
+                    }
+                    val insightTextColor = when {
+                        isCalorieSurplus && isWeightUp -> Color(0xFFB91C1C)
+                        isCalorieDeficit && isWeightDown -> Color(0xFF15803D)
+                        else -> Color(0xFF5B21B6)
+                    }
+                    val insightIcon = when {
+                        isCalorieSurplus && isWeightUp -> Icons.AutoMirrored.Outlined.TrendingUp
+                        isCalorieDeficit && isWeightDown -> Icons.AutoMirrored.Outlined.TrendingDown
+                        else -> Icons.Outlined.TipsAndUpdates
+                    }
+                    val insightIconColor = when {
+                        isCalorieSurplus && isWeightUp -> Color(0xFFEF4444)
+                        isCalorieDeficit && isWeightDown -> Color(0xFF22C55E)
+                        else -> Color(0xFF7C6CFF)
+                    }
+
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = insightBg),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, insightBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(insightIcon, null, Modifier.size(18.dp), insightIconColor)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    "Health Adherence Insight",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = insightTextColor
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    insightText,
+                                    fontSize = 13.sp,
+                                    color = insightTextColor,
+                                    lineHeight = 20.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            } // end else (!allEmpty)
         }
     }
 }
