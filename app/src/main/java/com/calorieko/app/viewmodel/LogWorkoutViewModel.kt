@@ -109,6 +109,9 @@ class LogWorkoutViewModel(
     private val _movingTimeSeconds = MutableStateFlow(0L)
     val movingTimeSeconds: StateFlow<Long> = _movingTimeSeconds.asStateFlow()
 
+    private val _totalElapsedSeconds = MutableStateFlow(0L)
+    val totalElapsedSeconds: StateFlow<Long> = _totalElapsedSeconds.asStateFlow()
+
     private val _distanceKm = MutableStateFlow(0.0)
     val distanceKm: StateFlow<Double> = _distanceKm.asStateFlow()
     
@@ -211,6 +214,7 @@ class LogWorkoutViewModel(
             launch { svc.isPaused.collect { _isPaused.value = it } }
             launch { svc.timeSeconds.collect { _timeSeconds.value = it } }
             launch { svc.movingTimeSeconds.collect { _movingTimeSeconds.value = it } }
+            launch { svc.totalElapsedSeconds.collect { _totalElapsedSeconds.value = it } }
             launch { svc.distanceKm.collect { _distanceKm.value = it } }
             launch { svc.steps.collect { _steps.value = it } }
             launch { svc.currentPace.collect { _currentPace.value = it } }
@@ -243,6 +247,7 @@ class LogWorkoutViewModel(
     fun snapshotTimeSeconds(): Long = _service?.timeSeconds?.value ?: _timeSeconds.value
     fun snapshotPace(): Double = _service?.currentPace?.value ?: _currentPace.value
     fun snapshotMovingTime(): Long = _service?.movingTimeSeconds?.value ?: _movingTimeSeconds.value
+    fun snapshotTotalElapsedTime(): Long = _service?.totalElapsedSeconds?.value ?: _totalElapsedSeconds.value
     fun snapshotSteps(): Int = _service?.steps?.value ?: _steps.value
 
     private fun loadUserWeight() {
@@ -278,6 +283,7 @@ class LogWorkoutViewModel(
         dist: Double?,
         pace: Double?,
         movTime: Long?,
+        totalElapsed: Long?,
         steps: Int?,
         path: String?,
         mType: String?,
@@ -311,6 +317,7 @@ class LogWorkoutViewModel(
                         distanceKm = dist,
                         pace = pace,
                         movingTimeSeconds = movTime,
+                        totalElapsedSeconds = totalElapsed,
                         steps = steps,
                         encodedPath = path,
                         mapType = mType,

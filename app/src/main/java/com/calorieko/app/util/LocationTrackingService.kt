@@ -107,7 +107,8 @@ class LocationTrackingService : Service(), SensorEventListener {
         private const val LOCATION_UPDATE_INTERVAL_MS = 3000L
         private const val LOCATION_MIN_UPDATE_INTERVAL_MS = 2000L
         private const val LOCATION_MAX_UPDATE_DELAY_MS = 15000L
-        private const val MOVING_STALE_TIMEOUT_MS = LOCATION_MAX_UPDATE_DELAY_MS + 5000L
+        private const val FOOT_MOVING_TIME_GRACE_MS = 3000L
+        private const val GPS_MOVING_TIME_GRACE_MS = LOCATION_UPDATE_INTERVAL_MS + 3000L
 
         /** Plausibility guard for one GPS segment, scaled by elapsed fix time. */
         private const val MAX_PLAUSIBLE_SPEED_MPS = 8.0f
@@ -197,6 +198,10 @@ class LocationTrackingService : Service(), SensorEventListener {
     private val _movingTimeSeconds = MutableStateFlow(0L)
     val movingTimeSeconds: StateFlow<Long> = _movingTimeSeconds.asStateFlow()
 
+    /** True wall-clock seconds from Start to Finish. Never pauses for any reason. */
+    private val _totalElapsedSeconds = MutableStateFlow(0L)
+    val totalElapsedSeconds: StateFlow<Long> = _totalElapsedSeconds.asStateFlow()
+
     private val _distanceKm = MutableStateFlow(0.0)
     val distanceKm: StateFlow<Double> = _distanceKm.asStateFlow()
 
@@ -207,7 +212,7 @@ class LocationTrackingService : Service(), SensorEventListener {
     val isMoving: StateFlow<Boolean> = _isMoving.asStateFlow()
 
     // ── Internal State ──
-    private var lastMovementTimeMs = 0L
+    private var lastMovementSignalMs = 0L
     private var wakeLock: PowerManager.WakeLock? = null
     private var timerThread: Thread? = null
     private var isTimerRunning = false
@@ -335,13 +340,14 @@ class LocationTrackingService : Service(), SensorEventListener {
         _isPaused.value = false
         _timeSeconds.value = 0L
         _movingTimeSeconds.value = 0L
+        _totalElapsedSeconds.value = 0L
         _distanceKm.value = 0.0
         _currentPace.value = 0.0
         _lastLocation.value = null
         _pathPoints.value = emptyList()
         _isMoving.value = false
         lastRawLocation = null
-        lastMovementTimeMs = System.currentTimeMillis()
+        lastMovementSignalMs = 0L
         lastUpdateWallClockMs = 0L
 
         _steps.value = 0
@@ -383,6 +389,9 @@ class LocationTrackingService : Service(), SensorEventListener {
     }
     fun pauseTracking() {
         _isPaused.value = true
+        _isMoving.value = false
+        lastMovementSignalMs = 0L
+        lastStepMovementMs = 0L
         freezeDisplayPointToRouteEndpoint()
         // Record when this pause started so we can subtract it from elapsed time
         pauseStartRealtimeMs = SystemClock.elapsedRealtime()
@@ -409,9 +418,10 @@ class LocationTrackingService : Service(), SensorEventListener {
             lastAcceptedTotalSteps = lastRecordedTotalSteps
         }
         lastStepMovementMs = 0L
+        lastMovementSignalMs = 0L
         resetPendingGpsMovement()
         _isPaused.value = false
-        lastMovementTimeMs = System.currentTimeMillis()
+        _isMoving.value = false
         updateNotificationWithStats(
             DurationFormatter.formatDigital(_timeSeconds.value),
             "%.2f km".format(_distanceKm.value),
@@ -429,6 +439,9 @@ class LocationTrackingService : Service(), SensorEventListener {
             } else 0L
             val totalElapsedMs = now - trackingStartRealtimeMs - accumulatedPauseMs - currentPauseMs
             _timeSeconds.value = (totalElapsedMs / 1000L).coerceAtLeast(0L)
+
+            // Finalize total elapsed (wall-clock, never paused)
+            _totalElapsedSeconds.value = ((now - trackingStartRealtimeMs) / 1000L).coerceAtLeast(0L)
         }
 
         _isTracking.value = false
@@ -445,6 +458,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         clearTrackingError()
         _timeSeconds.value = 0L
         _movingTimeSeconds.value = 0L
+        _totalElapsedSeconds.value = 0L
         _distanceKm.value = 0.0
         _currentPace.value = 0.0
         _lastLocation.value = null
@@ -455,6 +469,7 @@ class LocationTrackingService : Service(), SensorEventListener {
         warmUpDisplayLocation = null
         lastRawLocation = null
         lastAcceptedTotalSteps = 0
+        lastMovementSignalMs = 0L
         lastStepMovementMs = 0L
         resetPendingGpsMovement()
         lastUpdateWallClockMs = 0L
@@ -571,6 +586,23 @@ class LocationTrackingService : Service(), SensorEventListener {
 
     private fun refreshPaceAfterAcceptedDistance() {
         currentPaceMinutesPerKm()?.let { _currentPace.value = it }
+    }
+
+    private fun movingTimeGraceMs(): Long {
+        return if (movementMode == MovementMode.FOOT && stepSensor != null) {
+            FOOT_MOVING_TIME_GRACE_MS
+        } else {
+            GPS_MOVING_TIME_GRACE_MS
+        }
+    }
+
+    private fun markMovementSignal(nowMs: Long = SystemClock.elapsedRealtime()) {
+        lastMovementSignalMs = nowMs
+    }
+
+    private fun hasFreshMovingTimeSignal(nowMs: Long): Boolean {
+        val lastSignalMs = maxOf(lastMovementSignalMs, lastStepMovementMs)
+        return lastSignalMs > 0L && nowMs - lastSignalMs <= movingTimeGraceMs()
     }
 
     private fun formatPace(minutesPerKm: Double?): String {
@@ -753,7 +785,7 @@ class LocationTrackingService : Service(), SensorEventListener {
                     lastRawLocation = bestLocation
                     _currentPoint.value = Pair(bestLocation.latitude, bestLocation.longitude)
                     lastKnownPoint = _currentPoint.value
-                    lastMovementTimeMs = System.currentTimeMillis()
+                    lastMovementSignalMs = 0L
                     lastUpdateWallClockMs = System.currentTimeMillis()
                     warmUpLocations.clear()
                     warmUpDisplayLocation = null
@@ -860,7 +892,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             _distanceKm.value += distanceFromAnchor / 1000.0
             refreshPaceAfterAcceptedDistance()
             _isMoving.value = true
-            lastMovementTimeMs = System.currentTimeMillis()
+            markMovementSignal()
 
             val startingPath = _pathPoints.value.ifEmpty {
                 listOf(Pair(prevLocation.latitude, prevLocation.longitude))
@@ -890,7 +922,7 @@ class LocationTrackingService : Service(), SensorEventListener {
             _lastLocation.value = location
             _currentPoint.value = Pair(location.latitude, location.longitude)
             lastKnownPoint = _currentPoint.value
-            lastMovementTimeMs = System.currentTimeMillis()
+            markMovementSignal()
             lastUpdateWallClockMs = System.currentTimeMillis()
             lastRawLocation = location
         }
@@ -944,14 +976,17 @@ class LocationTrackingService : Service(), SensorEventListener {
                 val totalElapsedMs = now - trackingStartRealtimeMs - accumulatedPauseMs - currentPauseMs
                 _timeSeconds.value = (totalElapsedMs / 1000L).coerceAtLeast(0L)
 
+                // Total elapsed (wall-clock) — never subtracts pauses
+                _totalElapsedSeconds.value = ((now - trackingStartRealtimeMs) / 1000L).coerceAtLeast(0L)
+
                 if (_isPaused.value) continue
 
-                // Auto-pause moving time after the largest allowed GPS batch window.
-                if (System.currentTimeMillis() - lastMovementTimeMs > MOVING_STALE_TIMEOUT_MS) {
+                val isMovingNow = _isMoving.value && hasFreshMovingTimeSignal(now)
+                if (_isMoving.value && !isMovingNow) {
                     _isMoving.value = false
                 }
 
-                if (_isMoving.value) {
+                if (isMovingNow) {
                     _movingTimeSeconds.value++
                 }
 
@@ -1132,7 +1167,15 @@ class LocationTrackingService : Service(), SensorEventListener {
                 initialStepCount = totalSteps - _steps.value
                 lastAcceptedTotalSteps = totalSteps
             } else if (_isTracking.value && !_isPaused.value && totalSteps > previousTotalSteps) {
-                lastStepMovementMs = SystemClock.elapsedRealtime()
+                val nowMs = SystemClock.elapsedRealtime()
+                lastStepMovementMs = nowMs
+                if (movementMode == MovementMode.FOOT) {
+                    val stepDelta = totalSteps - lastAcceptedTotalSteps
+                    if (_isMoving.value || stepDelta >= MIN_STEP_DELTA_FOR_MOVEMENT) {
+                        _isMoving.value = true
+                        markMovementSignal(nowMs)
+                    }
+                }
             }
             if (_isTracking.value && !_isPaused.value) {
                 _steps.value = (totalSteps - initialStepCount - pausedStepsToSubtract).coerceAtLeast(0)

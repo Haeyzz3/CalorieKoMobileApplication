@@ -209,8 +209,8 @@ fun LogWorkoutScreen(
         }
     }
 
-    val saveWorkout: (String, Int, String, Double?, Double?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, steps, path, mType, pUri, note, tag ->
-        viewModel.saveWorkout(context, name, calories, duration, dist, pace, movTime, steps, path, mType, pUri, note, tag)
+    val saveWorkout: (String, Int, String, Double?, Double?, Long?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit = { name, calories, duration, dist, pace, movTime, totalElapsed, steps, path, mType, pUri, note, tag ->
+        viewModel.saveWorkout(context, name, calories, duration, dist, pace, movTime, totalElapsed, steps, path, mType, pUri, note, tag)
     }
 
     fun handleBack() {
@@ -239,7 +239,7 @@ fun LogWorkoutScreen(
             AnimatedContent(targetState = mode, label = "ModeTransition") { targetMode ->
                 when (targetMode) {
                     WorkoutMode.SELECTION -> ModeSelectionContent(onSelectManual = { mode = WorkoutMode.MANUAL }, onSelectGPS = { mode = WorkoutMode.GPS })
-                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null, null) })
+                    WorkoutMode.MANUAL -> ManualMETsContent(userWeight = userWeight, onSave = { name, cals, dur -> saveWorkout(name, cals, dur, null, null, null, null, null, null, null, null, null, null) })
                     WorkoutMode.GPS -> GPSTrackerContent(userWeight = userWeight, viewModel = viewModel, onSave = saveWorkout, onBack = { mode = WorkoutMode.SELECTION }, onBackToDashboard = onBack)
                 }
             }
@@ -518,7 +518,7 @@ fun ManualMETsContent(userWeight: Double, onSave: (String, Int, String) -> Unit)
 // --- 3. ADVANCED GPS TRACKER (backed by Foreground Service) ---
 
 @Composable
-fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave: (String, Int, String, Double?, Double?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit, onBackToDashboard: () -> Unit) {
+fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave: (String, Int, String, Double?, Double?, Long?, Long?, Int?, String?, String?, String?, String?, String?) -> Unit, onBack: () -> Unit, onBackToDashboard: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -1242,11 +1242,12 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                         val snapshotTime = viewModel.snapshotTimeSeconds()
                         val snapshotPace = viewModel.snapshotPace()
                         val snapshotMovingTime = viewModel.snapshotMovingTime()
+                        val snapshotTotalElapsed = viewModel.snapshotTotalElapsedTime()
                         val snapshotSteps = viewModel.snapshotSteps()
 
                         onSave(
                             finalTitle, caloriesBurned, formatTime(snapshotTime), safeDistance, snapshotPace,
-                            snapshotMovingTime, snapshotSteps, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
+                            snapshotMovingTime, snapshotTotalElapsed, snapshotSteps, pathString, mapType, permanentPhotoPath, privateNotes, selectedTag
                         )
 
                         // Stop the foreground service after saving
@@ -1554,8 +1555,8 @@ fun GPSTrackerContent(userWeight: Double, viewModel: LogWorkoutViewModel, onSave
                 Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF16162A)).padding(top = 16.dp)) {
                     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = if (timeSeconds == 0L) "00:00" else formatTime(timeSeconds), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                            Text(text = "Time", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                            Text(text = if (movingTimeSeconds == 0L) "00:00" else formatTime(movingTimeSeconds), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                            Text(text = "Moving Time", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {

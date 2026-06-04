@@ -44,7 +44,7 @@ import kotlinx.coroutines.CoroutineScope
         RecipeIngredientEntity::class,
         WeightLogEntity::class
     ],
-    version = 30,
+    version = 31,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -640,6 +640,21 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
+         * Migration 30 → 31: Adds `totalElapsedSeconds` column to activity_log_table.
+         *
+         * Stores the true wall-clock duration from workout start to finish,
+         * without subtracting manual pauses or idle time. Nullable so existing
+         * rows (which don't have this data) remain valid.
+         */
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE activity_log_table ADD COLUMN totalElapsedSeconds INTEGER DEFAULT NULL"
+                )
+            }
+        }
+
+        /**
          * Retrieves (or generates) a 256-bit AES key from Android Keystore.
          * The key never leaves the hardware-backed keystore; we derive a
          * deterministic passphrase from the key alias for SQLCipher.
@@ -720,7 +735,7 @@ abstract class AppDatabase : RoomDatabase() {
                         holder ?: INSTANCE
                             ?: throw IllegalStateException("Database not initialized")
                     })
-                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30)
+                    .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
                     .fallbackToDestructiveMigration(dropAllTables = true)
             }
 

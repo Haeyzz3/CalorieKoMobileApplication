@@ -170,6 +170,7 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 20.dp)
                 ) {
+                    // Row 1: Distance & Pace
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -198,17 +199,17 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // Row 2: Moving Time & Steps
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Time — uses weightOrDuration (total elapsed time) for consistency
-                        // with Dashboard and Diary. movingTimeSeconds is GPS-moving-only time.
+                        // Moving Time — the primary time metric for athletic performance.
+                        // Only increments when the user is physically moving (GPS speed > 0).
                         StatBlock(
-                            label = "Time",
+                            label = "Moving Time",
                             value = DurationFormatter.formatDigital(
-                                DurationFormatter.parseToSeconds(activity.weightOrDuration)
-                                    ?: (activity.movingTimeSeconds ?: 0L)
+                                activity.movingTimeSeconds ?: DurationFormatter.parseToSeconds(activity.weightOrDuration) ?: 0L
                             ),
                             unit = ""
                         )
@@ -221,8 +222,33 @@ fun ActivityDetailsScreen(viewModel: ActivityDetailsViewModel, activity: Activit
                                 unit = ""
                             )
                         } else {
-                            // Empty box to keep 'Time' aligned to the left when steps are null
+                            // Empty box to keep alignment when steps are null
                             Box(modifier = Modifier.width(50.dp))
+                        }
+                    }
+
+                    // Row 3: Elapsed Time & Active Time (only shown when data is available)
+                    // Only visible for workouts saved after this update.
+                    if (activity.totalElapsedSeconds != null && activity.totalElapsedSeconds > 0L) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            StatBlock(
+                                label = "Elapsed Time",
+                                value = DurationFormatter.formatDigital(activity.totalElapsedSeconds),
+                                unit = ""
+                            )
+
+                            // Active Time — session time minus manual pauses
+                            StatBlock(
+                                label = "Active Time",
+                                value = DurationFormatter.formatDigital(
+                                    DurationFormatter.parseToSeconds(activity.weightOrDuration) ?: 0L
+                                ),
+                                unit = ""
+                            )
                         }
                     }
                 }
@@ -407,6 +433,3 @@ fun StatBlock(label: String, value: String, unit: String) {
         }
     }
 }
-
-
-

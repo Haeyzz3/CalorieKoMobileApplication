@@ -177,6 +177,7 @@ class ApiSyncManager(
                     distanceKm = log.distanceKm,
                     pace = log.pace,
                     movingTimeSeconds = log.movingTimeSeconds,
+                    totalElapsedSeconds = log.totalElapsedSeconds,
                     steps = log.steps,
                     mapType = log.mapType,
                     notes = log.notes,
@@ -295,6 +296,7 @@ class ApiSyncManager(
                         carbs = log.carbs, fats = log.fats, sodium = log.sodium,
                         timestamp = log.timestamp, distanceKm = log.distanceKm,
                         pace = log.pace, movingTimeSeconds = log.movingTimeSeconds,
+                        totalElapsedSeconds = log.totalElapsedSeconds,
                         steps = log.steps, mapType = log.mapType, notes = log.notes,
                         activityTag = log.activityTag, updatedAt = fallbackTimestamp
                     )
